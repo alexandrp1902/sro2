@@ -3,7 +3,7 @@ import type { Connection } from '../net/connection';
 const LABELS = { connecting: 'подключение…', online: 'онлайн', offline: 'нет связи' } as const;
 const RENDER_INTERVAL_MS = 250;
 
-/** Строка статуса в левом верхнем углу. Тап по ней открывает смену сервера. */
+/** Строка статуса в левом верхнем углу. Тап по ней открывает окно «Пилот»: ник и сервер. */
 export class StatusHud {
   private lastRender = 0;
 
@@ -14,18 +14,19 @@ export class StatusHud {
     el.addEventListener('click', onTap);
   }
 
-  /** @param localFlight корабль летает без сверки с сервером */
-  update(connection: Connection | null, fps: number, localFlight: boolean): void {
+  /** @param braking связи нет, и корабль тормозит — так же, как его копия на сервере */
+  update(connection: Connection | null, fps: number, braking: boolean): void {
     const now = performance.now();
     if (now - this.lastRender < RENDER_INTERVAL_MS) return;
     this.lastRender = now;
 
     const state = connection?.state ?? 'offline';
     const parts: string[] = [];
-    if (!connection) parts.push('сервер не задан');
-    else if (state === 'online') parts.push(`${LABELS.online} ${connection.online}`, `пинг ${Math.round(connection.rttMs)} мс`);
-    else parts.push(LABELS[state]);
-    if (localFlight) parts.push('локальный полёт');
+    if (!connection) parts.push('сервер не задан', 'локальный полёт');
+    else if (state === 'online') {
+      parts.push(`${LABELS.online} ${connection.roster.onlineCount}`, `пинг ${Math.round(connection.rttMs)} мс`);
+    } else parts.push(LABELS[state]);
+    if (braking) parts.push('корабль тормозит');
     parts.push(`${Math.round(fps)} FPS`);
 
     this.el.dataset.state = state;

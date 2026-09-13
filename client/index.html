@@ -17,6 +17,7 @@
     <div id="hud">
       <div id="status" class="status" data-state="offline">…</div>
       <div id="flight" class="flight">…</div>
+      <div id="feed" class="feed"></div>
       <div id="dev" class="dev" hidden></div>
     </div>
 
@@ -29,8 +30,20 @@
 
     <div id="connect" class="connect" hidden>
       <form class="connect-card">
-        <div class="connect-title">Адрес игрового сервера</div>
+        <div class="connect-title">Пилот</div>
+        <label class="connect-label" for="pilot-name">Ник</label>
         <input
+          id="pilot-name"
+          name="name"
+          type="text"
+          maxlength="16"
+          autocomplete="nickname"
+          autocapitalize="off"
+          spellcheck="false"
+        />
+        <label class="connect-label" for="pilot-server">Игровой сервер</label>
+        <input
+          id="pilot-server"
           name="server"
           type="text"
           inputmode="url"
@@ -42,7 +55,7 @@
         <div class="connect-error"></div>
         <div class="connect-actions">
           <button type="button" class="connect-cancel">Отмена</button>
-          <button type="submit">Подключиться</button>
+          <button type="submit">Готово</button>
         </div>
       </form>
     </div>

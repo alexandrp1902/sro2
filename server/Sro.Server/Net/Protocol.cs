@@ -12,10 +12,12 @@ namespace Sro.Server.Net;
 [JsonDerivedType(typeof(PingMsg), "ping")]
 [JsonDerivedType(typeof(InputMsg), "input")]
 [JsonDerivedType(typeof(HullMsg), "hull")]
+[JsonDerivedType(typeof(NameMsg), "name")]
 public abstract record ClientMessage;
 
 /// <param name="Hull">Класс корпуса, сохранённый на устройстве.</param>
-public sealed record HelloMsg(string? Name, string? Hull) : ClientMessage;
+/// <param name="Token">Сессия вкладки: с ней после обрыва связи игрок возвращается к своему кораблю.</param>
+public sealed record HelloMsg(string? Name, string? Hull, string? Token) : ClientMessage;
 
 /// <param name="C">Время клиента, возвращается в pong как есть для замера RTT.</param>
 public sealed record PingMsg(double C) : ClientMessage;
@@ -26,21 +28,30 @@ public sealed record InputMsg(int Seq, double Dx, double Dy, double Th) : Client
 /// <summary>Смена класса корпуса из dev-панели.</summary>
 public sealed record HullMsg(string? Id) : ClientMessage;
 
+/// <summary>Смена ника на лету.</summary>
+public sealed record NameMsg(string? Name) : ClientMessage;
+
 // Сервер → клиент
 [JsonPolymorphic(TypeDiscriminatorPropertyName = "t")]
 [JsonDerivedType(typeof(WelcomeMsg), "welcome")]
 [JsonDerivedType(typeof(PongMsg), "pong")]
-[JsonDerivedType(typeof(OnlineMsg), "online")]
+[JsonDerivedType(typeof(PlayersMsg), "players")]
 [JsonDerivedType(typeof(ConfigMsg), "config")]
 [JsonDerivedType(typeof(SnapshotMsg), "snapshot")]
 public abstract record ServerMessage;
 
+/// <param name="Id">Id своего корабля в снапшотах.</param>
 /// <param name="Hulls">Параметры корпусов: клиент предсказывает движение с теми же числами, что и сервер.</param>
-public sealed record WelcomeMsg(int Id, int TickRate, IReadOnlyDictionary<string, HullParams> Hulls) : ServerMessage;
+/// <param name="Resumed">Игрок вернулся к кораблю, который ждал его после обрыва связи.</param>
+public sealed record WelcomeMsg(int Id, int TickRate, IReadOnlyDictionary<string, HullParams> Hulls, bool Resumed) : ServerMessage;
 
 public sealed record PongMsg(double C, long Tick) : ServerMessage;
 
-public sealed record OnlineMsg(int Count) : ServerMessage;
+/// <summary>Весь список игроков системы; присылается при любом изменении (вход, выход, обрыв, смена ника).</summary>
+public sealed record PlayersMsg(IReadOnlyList<PlayerDto> Players) : ServerMessage;
+
+/// <param name="Online">false — связи нет, корабль висит в космосе и ждёт игрока.</param>
+public sealed record PlayerDto(int Id, string Name, bool Online);
 
 /// <summary>hulls.json изменился на диске.</summary>
 public sealed record ConfigMsg(IReadOnlyDictionary<string, HullParams> Hulls) : ServerMessage;

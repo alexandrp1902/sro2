@@ -118,12 +118,50 @@ body {
   background: #2f7ad6;
 }
 
+/* Лента событий: вход, выход, обрыв связи. */
+.feed {
+  position: absolute;
+  top: calc(env(safe-area-inset-top) + 8px);
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  max-width: min(calc(100vw - 20px), 420px);
+}
+
+.feed-item {
+  max-width: 100%;
+  padding: 3px 10px;
+  border-radius: 10px;
+  background: rgba(10, 16, 28, 0.6);
+  font-size: 13px;
+  line-height: 18px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transition: opacity 0.4s;
+}
+
+.feed-out {
+  opacity: 0;
+}
+
 /* На узком вертикальном экране статус и строка полёта в один ряд не помещаются. */
 @media (max-width: 520px) {
   .flight {
     top: calc(env(safe-area-inset-top) + 36px);
     right: auto;
     left: calc(env(safe-area-inset-left) + 10px);
+  }
+
+  .feed {
+    top: calc(env(safe-area-inset-top) + 64px);
+    left: auto;
+    right: calc(env(safe-area-inset-right) + 10px);
+    transform: none;
+    align-items: flex-end;
   }
 
   .dev {
@@ -210,9 +248,16 @@ body {
 }
 
 .connect-title {
-  margin-bottom: 10px;
+  margin-bottom: 4px;
   font-size: 16px;
   font-weight: 600;
+}
+
+.connect-label {
+  display: block;
+  margin: 10px 0 4px;
+  color: #8fb4e8;
+  font-size: 13px;
 }
 
 .connect input {

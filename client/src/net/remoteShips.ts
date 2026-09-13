@@ -1,85 +1,106 @@
 import { Container } from 'pixi.js';
 import { ShipView, engineGlow } from '../render/ship';
 import type { Hulls } from '../sim/hulls';
-import { DT, wrapAngle } from '../sim/movement';
-import type { ShipDto, SnapshotMsg } from './protocol';
+import { RenderClock, SnapshotBuffer } from './interpolation';
+import type { SnapshotMsg } from './protocol';
+import type { Roster } from './roster';
 
-/** Чужие корабли рисуются на 2 тика (100 мс) в прошлом — между двумя полученными снапшотами. */
-const INTERPOLATION_DELAY_TICKS = 2;
-const BUFFER_SIZE = 20;
 const REMOTE_COLOR = 0xffb45a;
+const FADE_IN_MS = 300;
+/** Корабль без связи висит в космосе полупрозрачным. */
+const LOST_ALPHA = 0.4;
 
+/** Чужой корабль, каким он нарисован в этом кадре: для ников и стрелок за краем экрана. */
+export interface RemoteShipInfo {
+  id: number;
+  x: number;
+  y: number;
+  size: number;
+  alpha: number;
+  name: string;
+  online: boolean;
+}
+
+interface Remote {
+  ship: ShipView;
+  bornAt: number;
+  visible: boolean;
+  info: RemoteShipInfo;
+}
+
+/** Чужие корабли: интерполяция между снапшотами по часам RenderClock (§52). */
 export class RemoteShips {
   readonly view = new Container();
-  private snapshots: SnapshotMsg[] = [];
-  private latestArrival = 0;
-  private readonly ships = new Map<number, ShipView>();
+  readonly clock = new RenderClock();
+  /** Сколько раз снапшоты опоздали и чужие корабли летели по экстраполяции. */
+  extrapolations = 0;
 
-  constructor(private readonly hulls: Hulls) {}
+  private readonly buffer = new SnapshotBuffer();
+  private readonly ships = new Map<number, Remote>();
+  private extrapolating = false;
+
+  constructor(
+    private readonly hulls: Hulls,
+    private readonly roster: Roster,
+  ) {}
 
   push(snapshot: SnapshotMsg, now: number): void {
-    const last = this.snapshots[this.snapshots.length - 1];
-    if (last && snapshot.tick <= last.tick) return;
-    this.snapshots.push(snapshot);
-    if (this.snapshots.length > BUFFER_SIZE) this.snapshots.shift();
-    this.latestArrival = now;
+    if (this.buffer.push(snapshot)) this.clock.onSnapshot(snapshot.tick, now);
   }
 
   clear(): void {
-    this.snapshots = [];
-    for (const ship of this.ships.values()) ship.view.destroy({ children: true });
+    this.buffer.clear();
+    for (const remote of this.ships.values()) remote.ship.view.destroy({ children: true });
     this.ships.clear();
   }
 
+  /** Корабли, нарисованные в последнем update. */
+  *visible(): Iterable<RemoteShipInfo> {
+    for (const remote of this.ships.values()) if (remote.visible) yield remote.info;
+  }
+
   update(now: number, ownId: number): void {
-    const latest = this.snapshots[this.snapshots.length - 1];
+    const latest = this.buffer.latest;
     if (!latest) return;
+    const renderTick = this.clock.update(now);
 
-    const renderTick = latest.tick + (now - this.latestArrival) / (DT * 1000) - INTERPOLATION_DELAY_TICKS;
-    let a = this.snapshots[0];
-    let b = a;
-    for (const snapshot of this.snapshots) {
-      if (snapshot.tick <= renderTick) a = snapshot;
-      else {
-        b = snapshot;
-        break;
+    let extrapolating = false;
+    for (const id of latest.ships.keys()) {
+      if (id === ownId) continue;
+      let remote = this.ships.get(id);
+      if (!remote) {
+        remote = { ship: new ShipView(REMOTE_COLOR), bornAt: now, visible: false, info: { id, x: 0, y: 0, size: 0, alpha: 0, name: '', online: true } };
+        this.ships.set(id, remote);
+        this.view.addChild(remote.ship.view);
       }
-    }
-    if (b.tick <= a.tick) b = a;
-    const alpha = b === a ? 0 : Math.min(1, (renderTick - a.tick) / (b.tick - a.tick));
 
-    const present = new Set<number>();
-    for (const to of latest.ships) {
-      if (to.id === ownId) continue;
-      present.add(to.id);
-      const from = find(a, to.id) ?? to;
-      const target = find(b, to.id) ?? from;
-      let ship = this.ships.get(to.id);
-      if (!ship) {
-        ship = new ShipView(REMOTE_COLOR);
-        this.ships.set(to.id, ship);
-        this.view.addChild(ship.view);
-      }
-      const hull = this.hulls.get(target.hull);
-      const rot = from.r + wrapAngle(target.r - from.r) * alpha;
-      const state = { x: 0, y: 0, rot, vx: target.vx, vy: target.vy };
-      ship.update(
-        from.x + (target.x - from.x) * alpha,
-        from.y + (target.y - from.y) * alpha,
-        rot,
-        hull,
-        engineGlow(state, target.th, hull),
-        null,
-      );
+      const s = this.buffer.sample(id, renderTick);
+      remote.visible = remote.ship.view.visible = s !== null;
+      if (!s) continue;
+      extrapolating ||= s.extrapolated;
+
+      const hull = this.hulls.get(s.hull);
+      const player = this.roster.get(id);
+      const online = player?.online ?? true;
+      const alpha = Math.min(1, (now - remote.bornAt) / FADE_IN_MS) * (online ? 1 : LOST_ALPHA);
+      remote.ship.update(s.x, s.y, s.rot, hull, engineGlow(s, s.th, hull), null);
+      remote.ship.view.alpha = alpha;
+      const info = remote.info;
+      info.x = s.x;
+      info.y = s.y;
+      info.size = hull.size;
+      info.alpha = alpha;
+      info.name = player?.name ?? '';
+      info.online = online;
     }
-    for (const [id, ship] of this.ships) {
-      if (present.has(id)) continue;
-      ship.view.destroy({ children: true });
+
+    for (const [id, remote] of this.ships) {
+      if (id !== ownId && latest.ships.has(id)) continue;
+      remote.ship.view.destroy({ children: true });
       this.ships.delete(id);
     }
-  }
-}
 
-function find(snapshot: SnapshotMsg, id: number): ShipDto | undefined {
-  return snapshot.ships.find((ship) => ship.id === id);
+    if (extrapolating && !this.extrapolating) this.extrapolations++;
+    this.extrapolating = extrapolating;
+  }
 }

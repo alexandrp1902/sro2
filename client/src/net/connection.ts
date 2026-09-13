@@ -1,5 +1,7 @@
+import { renewSession, sessionToken } from '../util/session';
 import { FakeLag } from './fakeLag';
 import type { ClientMessage, ServerMessage, SnapshotMsg, WelcomeMsg } from './protocol';
+import { Roster, type RosterEvent } from './roster';
 
 export type ConnectionState = 'connecting' | 'online' | 'offline';
 
@@ -7,20 +9,26 @@ const PING_INTERVAL_MS = 1000;
 const FIRST_RETRY_MS = 500;
 const MAX_RETRY_MS = 5000;
 
-/** WebSocket-соединение с игровым сервером: автопереподключение, замер пинга и частоты снапшотов. */
+/** Вкладка ушла в фон: закрываемся сами, чтобы корабль на сервере сразу начал тормозить. */
+const CLOSE_HIDDEN = 4000;
+/** От сервера: к нашему кораблю подключилась вкладка с той же сессией (вкладку продублировали). */
+const CLOSE_REPLACED = 4001;
+
+/** WebSocket-соединение с игровым сервером: автопереподключение, сессия, список игроков, пинг. */
 export class Connection {
   state: ConnectionState = 'offline';
   playerId = 0;
-  online = 0;
   rttMs = 0;
   /** Снапшотов в секунду — фактическая частота тиков сервера. */
   snapshotRate = 0;
   lastTick = 0;
   readonly lag = new FakeLag();
+  readonly roster = new Roster();
 
   onWelcome: ((message: WelcomeMsg) => void) | null = null;
   onConfig: ((message: Extract<ServerMessage, { t: 'config' }>) => void) | null = null;
   onSnapshot: ((message: SnapshotMsg) => void) | null = null;
+  onRosterEvents: ((events: RosterEvent[]) => void) | null = null;
 
   private ws: WebSocket | null = null;
   private pingTimer = 0;
@@ -31,12 +39,13 @@ export class Connection {
 
   constructor(
     readonly url: string,
-    private readonly name: string,
+    private name: string,
     private readonly hullId: () => string,
   ) {
-    // iOS рвёт сокеты фоновых вкладок — при возвращении в игру переподключаемся сразу.
     document.addEventListener('visibilitychange', () => {
-      if (document.visibilityState === 'visible' && this.state === 'offline') {
+      if (document.visibilityState === 'hidden') {
+        this.suspend();
+      } else if (this.state === 'offline') {
         window.clearTimeout(this.retryTimer);
         this.retryMs = FIRST_RETRY_MS;
         this.connect();
@@ -51,7 +60,7 @@ export class Connection {
 
     ws.onopen = () => {
       this.retryMs = FIRST_RETRY_MS;
-      this.send({ t: 'hello', name: this.name, hull: this.hullId() });
+      this.send({ t: 'hello', name: this.name, hull: this.hullId(), token: sessionToken() });
       this.ping();
       this.pingTimer = window.setInterval(() => this.ping(), PING_INTERVAL_MS);
     };
@@ -61,12 +70,15 @@ export class Connection {
         if (this.ws === ws) this.handle(message); // задержанное сообщение старой сессии не нужно
       });
     };
-    ws.onclose = () => {
+    ws.onclose = (e) => {
       if (this.ws !== ws) return;
-      window.clearInterval(this.pingTimer);
-      this.ws = null;
-      this.state = 'offline';
-      this.snapshotRate = 0;
+      this.drop();
+      if (e.code === CLOSE_REPLACED) {
+        // Корабль остался у вкладки-дубля, а эта летит дальше новым пилотом.
+        renewSession();
+        this.retryTimer = window.setTimeout(() => this.connect(), 0);
+        return;
+      }
       this.retryTimer = window.setTimeout(() => this.connect(), this.retryMs);
       this.retryMs = Math.min(this.retryMs * 2, MAX_RETRY_MS);
     };
@@ -81,6 +93,28 @@ export class Connection {
     });
   }
 
+  /** Смена ника на лету; при следующем подключении он уйдёт в hello. */
+  rename(name: string): void {
+    this.name = name;
+    if (this.state === 'online') this.send({ t: 'name', name });
+  }
+
+  /** Фон: iOS всё равно порвёт сокет, но позже — а до тех пор сервер вёл бы корабль по последнему входу. */
+  private suspend(): void {
+    window.clearTimeout(this.retryTimer);
+    const ws = this.ws;
+    if (!ws) return;
+    this.drop();
+    ws.close(CLOSE_HIDDEN, 'hidden');
+  }
+
+  private drop(): void {
+    window.clearInterval(this.pingTimer);
+    this.ws = null;
+    this.state = 'offline';
+    this.snapshotRate = 0;
+  }
+
   private ping(): void {
     this.send({ t: 'ping', c: performance.now() });
   }
@@ -90,6 +124,7 @@ export class Connection {
       case 'welcome':
         this.playerId = message.id;
         this.state = 'online';
+        this.roster.reset();
         this.onWelcome?.(message);
         break;
       case 'pong': {
@@ -97,9 +132,11 @@ export class Connection {
         this.rttMs = this.rttMs === 0 ? rtt : this.rttMs * 0.8 + rtt * 0.2;
         break;
       }
-      case 'online':
-        this.online = message.count;
+      case 'players': {
+        const events = this.roster.update(message.players, this.playerId);
+        if (events.length > 0) this.onRosterEvents?.(events);
         break;
+      }
       case 'config':
         this.onConfig?.(message);
         break;

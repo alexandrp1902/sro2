@@ -21,6 +21,10 @@ export interface DevInfo {
   snaps: number;
   online: boolean;
   hullId: string;
+  /** Задержка интерполяции чужих кораблей и джиттер снапшотов, мс. */
+  interpMs: number;
+  jitterMs: number;
+  extrapolations: number;
 }
 
 /** Dev-панель плейтеста: `` ` `` (Ё) или тап по строке полёта. */
@@ -60,10 +64,13 @@ export class DevOverlay {
     this.lastRender = now;
 
     const net = info.online
-      ? `тик ${info.tick} · ${info.tickRate.toFixed(1)}/с · пинг ${Math.round(info.pingMs)} мс`
-      : 'локальный полёт (без сервера)';
+      ? [
+          `тик ${info.tick} · ${info.tickRate.toFixed(1)}/с · пинг ${Math.round(info.pingMs)} мс`,
+          `чужие: интерп. ${Math.round(info.interpMs)} мс · джиттер ${Math.round(info.jitterMs)} мс · экстраполяций ${info.extrapolations}`,
+        ]
+      : ['нет сверки с сервером'];
     this.stats.textContent = [
-      net,
+      ...net,
       `скорость ${Math.round(info.speed)} (вперёд ${Math.round(info.forward)}, бок ${Math.round(info.lateral)})`,
       `тяга ${Math.round(info.throttle * 100)}% · курс ${Math.round(info.headingDeg)}° → ${Math.round(info.desiredDeg)}°`,
       `входов в пути ${info.pending} · коррекция ${info.correction.toFixed(2)} (пик ${info.peakCorrection.toFixed(2)}) · щелчков ${info.snaps}`,

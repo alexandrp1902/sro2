@@ -11,3 +11,7 @@ export function playerName(): string {
   }
   return name;
 }
+
+export function setPlayerName(name: string): void {
+  storage.set(STORAGE_KEY, name);
+}

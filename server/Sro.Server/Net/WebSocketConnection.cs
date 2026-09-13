@@ -14,12 +14,21 @@ public interface IClientConnection
 
     /// <summary>Отправка уже закодированного сообщения — снапшот кодируется один раз на всех.</summary>
     void SendRaw(byte[] utf8Json);
+
+    /// <summary>Закрыть соединение с кодом (4000–4999 — коды игры) после уже поставленных в очередь сообщений.</summary>
+    void Close(int code, string reason);
 }
 
 public sealed class WebSocketConnection(WebSocket socket, ILogger log) : IClientConnection
 {
     private const int MaxMessageBytes = 16 * 1024;
+
+    /// <summary>Столько ждём ответного close от клиента; мёртвый сокет (усыплённая вкладка iOS) не ответит никогда.</summary>
+    private static readonly TimeSpan CloseTimeout = TimeSpan.FromSeconds(5);
+
     private static int _nextId;
+    private volatile string? _closeReason;
+    private int _closeCode;
 
     // WebSocket не допускает параллельных SendAsync, поэтому исходящие идут через очередь с одним читателем.
     private readonly Channel<byte[]> _outbox = Channel.CreateBounded<byte[]>(
@@ -31,10 +40,17 @@ public sealed class WebSocketConnection(WebSocket socket, ILogger log) : IClient
 
     public void SendRaw(byte[] utf8Json) => _outbox.Writer.TryWrite(utf8Json);
 
+    public void Close(int code, string reason)
+    {
+        _closeCode = code;
+        _closeReason = reason;
+        _outbox.Writer.TryComplete(); // send-loop отправит остаток очереди и close-фрейм
+    }
+
     public async Task RunAsync(SystemRoom room, CancellationToken ct)
     {
         using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
-        var sending = SendLoopAsync(cts.Token);
+        var sending = SendLoopAsync(cts);
         try
         {
             await ReceiveLoopAsync(room, cts.Token);
@@ -74,7 +90,9 @@ public sealed class WebSocketConnection(WebSocket socket, ILogger log) : IClient
 
             if (result.MessageType == WebSocketMessageType.Close)
             {
-                await socket.CloseOutputAsync(WebSocketCloseStatus.NormalClosure, null, ct);
+                // Если close начали мы (Close), ответ клиента уже завершил рукопожатие.
+                if (socket.State == WebSocketState.CloseReceived)
+                    await socket.CloseOutputAsync(WebSocketCloseStatus.NormalClosure, null, ct);
                 return;
             }
 
@@ -82,13 +100,16 @@ public sealed class WebSocketConnection(WebSocket socket, ILogger log) : IClient
             {
                 case HelloMsg hello when !joined:
                     joined = true;
-                    room.Join(this, hello.Name, hello.Hull);
+                    room.Join(this, hello.Token, hello.Name, hello.Hull);
                     break;
                 case InputMsg input when joined:
                     room.Input(this, input);
                     break;
                 case HullMsg hull when joined:
                     room.SetHull(this, hull.Id);
+                    break;
+                case NameMsg name when joined:
+                    room.Rename(this, name.Name);
                     break;
                 case PingMsg ping:
                     // Отвечаем сразу из сетевого потока, чтобы пинг мерил сеть, а не ожидание тика.
@@ -101,9 +122,23 @@ public sealed class WebSocketConnection(WebSocket socket, ILogger log) : IClient
         }
     }
 
-    private async Task SendLoopAsync(CancellationToken ct)
+    private async Task SendLoopAsync(CancellationTokenSource cts)
     {
-        await foreach (var bytes in _outbox.Reader.ReadAllAsync(ct))
-            await socket.SendAsync(new ReadOnlyMemory<byte>(bytes), WebSocketMessageType.Text, endOfMessage: true, ct);
+        var ct = cts.Token;
+        try
+        {
+            await foreach (var bytes in _outbox.Reader.ReadAllAsync(ct))
+                await socket.SendAsync(new ReadOnlyMemory<byte>(bytes), WebSocketMessageType.Text, endOfMessage: true, ct);
+
+            if (_closeReason is { } reason && socket.State == WebSocketState.Open)
+            {
+                await socket.CloseOutputAsync((WebSocketCloseStatus)_closeCode, reason, ct);
+                cts.CancelAfter(CloseTimeout);
+            }
+        }
+        catch (Exception e) when (e is WebSocketException or OperationCanceledException or IOException)
+        {
+            cts.Cancel(); // отправить не вышло — сокет мёртв, приём тоже прекращаем
+        }
     }
 }
