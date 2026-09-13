@@ -59,6 +59,133 @@ body {
   background: #4ae07a;
 }
 
+.flight {
+  position: absolute;
+  top: calc(env(safe-area-inset-top) + 8px);
+  right: calc(env(safe-area-inset-right) + 10px);
+  padding: 4px 10px;
+  border-radius: 12px;
+  background: rgba(10, 16, 28, 0.6);
+  font-size: 13px;
+  line-height: 18px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  pointer-events: auto;
+  cursor: pointer;
+}
+
+.dev {
+  position: absolute;
+  top: calc(env(safe-area-inset-top) + 36px);
+  right: calc(env(safe-area-inset-right) + 10px);
+  max-width: min(calc(100vw - 20px), 380px);
+  box-sizing: border-box;
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: rgba(10, 16, 28, 0.82);
+  font: 12px/1.45 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  pointer-events: auto;
+}
+
+.dev[hidden] {
+  display: none;
+}
+
+.dev pre {
+  margin: 0 0 4px;
+  font: inherit;
+  white-space: pre-wrap;
+}
+
+.dev-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.dev button {
+  padding: 5px 9px;
+  border: 0;
+  border-radius: 6px;
+  background: #1d3a60;
+  color: #e6f0ff;
+  font: inherit;
+}
+
+.dev button[aria-pressed='true'] {
+  background: #2f7ad6;
+}
+
+/* На узком вертикальном экране статус и строка полёта в один ряд не помещаются. */
+@media (max-width: 520px) {
+  .flight {
+    top: calc(env(safe-area-inset-top) + 36px);
+    right: auto;
+    left: calc(env(safe-area-inset-left) + 10px);
+  }
+
+  .dev {
+    top: calc(env(safe-area-inset-top) + 64px);
+    right: auto;
+    left: calc(env(safe-area-inset-left) + 10px);
+  }
+}
+
+/* Стик (§27): слева внизу, над зоной свайпа home-indicator. Зона захвата шире основания. */
+.stick {
+  --stick-r: 64px;
+  position: fixed;
+  left: calc(env(safe-area-inset-left) + 8px);
+  bottom: calc(env(safe-area-inset-bottom) + 16px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: calc(var(--stick-r) * 2 + 48px);
+  height: calc(var(--stick-r) * 2 + 48px);
+  touch-action: none;
+}
+
+.stick[hidden] {
+  display: none;
+}
+
+.stick-base {
+  position: relative;
+  width: calc(var(--stick-r) * 2);
+  height: calc(var(--stick-r) * 2);
+  box-sizing: border-box;
+  border: 2px solid rgba(143, 180, 232, 0.35);
+  border-radius: 50%;
+  background: rgba(20, 32, 52, 0.35);
+}
+
+.stick-dead,
+.stick-handle {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+.stick-dead {
+  width: calc(var(--stick-r) * 0.2);
+  height: calc(var(--stick-r) * 0.2);
+  margin: calc(var(--stick-r) * -0.1) 0 0 calc(var(--stick-r) * -0.1);
+  background: rgba(143, 180, 232, 0.25);
+}
+
+.stick-handle {
+  width: calc(var(--stick-r) * 0.84);
+  height: calc(var(--stick-r) * 0.84);
+  margin: calc(var(--stick-r) * -0.42) 0 0 calc(var(--stick-r) * -0.42);
+  background: #7fd4ff;
+  box-shadow: 0 0 12px rgba(127, 212, 255, 0.5);
+  opacity: calc(0.45 + var(--stick-power, 0) * 0.45);
+}
+
 .connect {
   position: fixed;
   inset: 0;

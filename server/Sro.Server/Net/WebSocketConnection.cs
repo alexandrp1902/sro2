@@ -11,6 +11,9 @@ public interface IClientConnection
 
     /// <summary>Неблокирующая отправка: сообщение ставится в очередь соединения.</summary>
     void Send(ServerMessage message);
+
+    /// <summary>Отправка уже закодированного сообщения — снапшот кодируется один раз на всех.</summary>
+    void SendRaw(byte[] utf8Json);
 }
 
 public sealed class WebSocketConnection(WebSocket socket, ILogger log) : IClientConnection
@@ -24,7 +27,9 @@ public sealed class WebSocketConnection(WebSocket socket, ILogger log) : IClient
 
     public int Id { get; } = Interlocked.Increment(ref _nextId);
 
-    public void Send(ServerMessage message) => _outbox.Writer.TryWrite(Protocol.Encode(message));
+    public void Send(ServerMessage message) => SendRaw(Protocol.Encode(message));
+
+    public void SendRaw(byte[] utf8Json) => _outbox.Writer.TryWrite(utf8Json);
 
     public async Task RunAsync(SystemRoom room, CancellationToken ct)
     {
@@ -77,7 +82,13 @@ public sealed class WebSocketConnection(WebSocket socket, ILogger log) : IClient
             {
                 case HelloMsg hello when !joined:
                     joined = true;
-                    room.Join(this, hello.Name);
+                    room.Join(this, hello.Name, hello.Hull);
+                    break;
+                case InputMsg input when joined:
+                    room.Input(this, input);
+                    break;
+                case HullMsg hull when joined:
+                    room.SetHull(this, hull.Id);
                     break;
                 case PingMsg ping:
                     // Отвечаем сразу из сетевого потока, чтобы пинг мерил сеть, а не ожидание тика.

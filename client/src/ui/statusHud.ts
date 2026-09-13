@@ -14,7 +14,8 @@ export class StatusHud {
     el.addEventListener('click', onTap);
   }
 
-  update(connection: Connection | null, fps: number): void {
+  /** @param localFlight корабль летает без сверки с сервером */
+  update(connection: Connection | null, fps: number, localFlight: boolean): void {
     const now = performance.now();
     if (now - this.lastRender < RENDER_INTERVAL_MS) return;
     this.lastRender = now;
@@ -24,6 +25,7 @@ export class StatusHud {
     if (!connection) parts.push('сервер не задан');
     else if (state === 'online') parts.push(`${LABELS.online} ${connection.online}`, `пинг ${Math.round(connection.rttMs)} мс`);
     else parts.push(LABELS[state]);
+    if (localFlight) parts.push('локальный полёт');
     parts.push(`${Math.round(fps)} FPS`);
 
     this.el.dataset.state = state;

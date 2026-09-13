@@ -1,5 +1,6 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using Sro.Sim;
 
 namespace Sro.Server.Net;
 
@@ -9,25 +10,46 @@ namespace Sro.Server.Net;
 [JsonPolymorphic(TypeDiscriminatorPropertyName = "t")]
 [JsonDerivedType(typeof(HelloMsg), "hello")]
 [JsonDerivedType(typeof(PingMsg), "ping")]
+[JsonDerivedType(typeof(InputMsg), "input")]
+[JsonDerivedType(typeof(HullMsg), "hull")]
 public abstract record ClientMessage;
 
-public sealed record HelloMsg(string? Name) : ClientMessage;
+/// <param name="Hull">Класс корпуса, сохранённый на устройстве.</param>
+public sealed record HelloMsg(string? Name, string? Hull) : ClientMessage;
 
 /// <param name="C">Время клиента, возвращается в pong как есть для замера RTT.</param>
 public sealed record PingMsg(double C) : ClientMessage;
+
+/// <summary>Только управление (§49): направление на экране и тяга. Координаты клиент не присылает.</summary>
+public sealed record InputMsg(int Seq, double Dx, double Dy, double Th) : ClientMessage;
+
+/// <summary>Смена класса корпуса из dev-панели.</summary>
+public sealed record HullMsg(string? Id) : ClientMessage;
 
 // Сервер → клиент
 [JsonPolymorphic(TypeDiscriminatorPropertyName = "t")]
 [JsonDerivedType(typeof(WelcomeMsg), "welcome")]
 [JsonDerivedType(typeof(PongMsg), "pong")]
 [JsonDerivedType(typeof(OnlineMsg), "online")]
+[JsonDerivedType(typeof(ConfigMsg), "config")]
+[JsonDerivedType(typeof(SnapshotMsg), "snapshot")]
 public abstract record ServerMessage;
 
-public sealed record WelcomeMsg(int Id, int TickRate) : ServerMessage;
+/// <param name="Hulls">Параметры корпусов: клиент предсказывает движение с теми же числами, что и сервер.</param>
+public sealed record WelcomeMsg(int Id, int TickRate, IReadOnlyDictionary<string, HullParams> Hulls) : ServerMessage;
 
 public sealed record PongMsg(double C, long Tick) : ServerMessage;
 
 public sealed record OnlineMsg(int Count) : ServerMessage;
+
+/// <summary>hulls.json изменился на диске.</summary>
+public sealed record ConfigMsg(IReadOnlyDictionary<string, HullParams> Hulls) : ServerMessage;
+
+public sealed record SnapshotMsg(long Tick, IReadOnlyList<ShipDto> Ships) : ServerMessage;
+
+/// <param name="Th">Тяга последнего входа — для пламени двигателя у чужих кораблей.</param>
+/// <param name="Ack">Последний применённый seq владельца: состояние — ровно после этого входа.</param>
+public sealed record ShipDto(int Id, double X, double Y, double R, double Vx, double Vy, string Hull, double Th, int Ack);
 
 public static class Protocol
 {

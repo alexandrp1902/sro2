@@ -4,6 +4,7 @@ using Sro.Server.Net;
 
 var builder = WebApplication.CreateBuilder(args);
 
+builder.Services.AddSingleton<BalanceStore>();
 builder.Services.AddSingleton<SystemRoom>();
 builder.Services.AddHostedService(sp => sp.GetRequiredService<SystemRoom>());
 

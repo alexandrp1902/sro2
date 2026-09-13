@@ -1,12 +1,32 @@
 import './style.css';
-import { Application, Graphics } from 'pixi.js';
+import { Application, Container } from 'pixi.js';
+import { SPAWN } from './game/layout';
+import { FixedLoop } from './game/loop';
+import { Controls } from './input/controls';
 import { preventBrowserGestures } from './input/gestures';
+import { KeyboardControls, bindKeyboard } from './input/keyboard';
+import { Stick } from './input/stick';
+import { Zoom } from './input/zoom';
 import { Connection } from './net/connection';
+import { Prediction } from './net/prediction';
+import type { SnapshotMsg } from './net/protocol';
+import { RemoteShips } from './net/remoteShips';
 import { resolveServerUrl } from './net/serverUrl';
+import { Camera } from './render/camera';
+import { ShipView, engineGlow } from './render/ship';
 import { Starfield } from './render/starfield';
+import { createWorldView } from './render/world';
+import { DEFAULT_HULL, Hulls } from './sim/hulls';
+import { directionAngle, localVelocity } from './sim/movement';
 import { ConnectForm } from './ui/connectForm';
+import { DevOverlay } from './ui/devOverlay';
+import { FlightHud } from './ui/flightHud';
 import { StatusHud } from './ui/statusHud';
 import { playerName } from './util/playerName';
+import { storage } from './util/storage';
+
+const HULL_KEY = 'sro.hull';
+const OWN_COLOR = 0x7fd4ff;
 
 async function main(): Promise<void> {
   preventBrowserGestures();
@@ -21,38 +41,121 @@ async function main(): Promise<void> {
   });
   document.getElementById('game')!.appendChild(app.canvas);
 
+  const hulls = new Hulls();
+  const controls = new Controls();
+  const keyboard = new KeyboardControls(controls);
+  bindKeyboard(keyboard);
+  new Stick(document.getElementById('stick')!, controls);
+  const zoom = new Zoom(app.canvas);
+
   const starfield = new Starfield();
-  const ship = createPlaceholderShip();
-  app.stage.addChild(starfield.view, ship);
+  const world = new Container();
+  const remote = new RemoteShips(hulls);
+  const ownShip = new ShipView(OWN_COLOR);
+  world.addChild(createWorldView(), remote.view, ownShip.view);
+  app.stage.addChild(starfield.view, world);
+  const camera = new Camera();
+
+  const savedHull = storage.get(HULL_KEY);
+  const prediction = new Prediction(hulls, savedHull && hulls.has(savedHull) ? savedHull : DEFAULT_HULL, SPAWN);
 
   const serverUrl = resolveServerUrl();
-  const connection = serverUrl ? new Connection(serverUrl, playerName()) : null;
+  const connection = serverUrl ? new Connection(serverUrl, playerName(), () => prediction.hullId) : null;
   const connectForm = new ConnectForm(document.getElementById('connect')!);
-  const hud = new StatusHud(document.getElementById('status')!, () => connectForm.show(serverUrl));
+  const status = new StatusHud(document.getElementById('status')!, () => connectForm.show(serverUrl));
 
-  if (connection) connection.connect();
-  else connectForm.show(null);
+  const selectHull = (id: string) => {
+    storage.set(HULL_KEY, id);
+    prediction.hullId = id; // сервер подтвердит в снапшоте
+    if (connection?.state === 'online') connection.send({ t: 'hull', id });
+  };
+  const dev = new DevOverlay(document.getElementById('dev')!, hulls, selectHull, connection?.lag ?? null);
+  const flight = new FlightHud(document.getElementById('flight')!, () => dev.toggle());
 
-  // M0: камера медленно дрейфует, чтобы было видно параллакс и плавность рендера.
-  const drift = { x: 30, y: -45 };
-  const camera = { x: 0, y: 0 };
-  app.ticker.add((ticker) => {
-    const dt = ticker.deltaMS / 1000;
-    camera.x += drift.x * dt;
-    camera.y += drift.y * dt;
+  // За кадр сверяемся только с самым свежим снапшотом; чужим кораблям нужен весь поток.
+  let latestSnapshot: SnapshotMsg | null = null;
+  if (connection) {
+    connection.onWelcome = (message) => {
+      hulls.set(message.hulls);
+      prediction.resetNet();
+      remote.clear();
+    };
+    connection.onConfig = (message) => hulls.set(message.hulls);
+    connection.onSnapshot = (message) => {
+      latestSnapshot = message;
+      remote.push(message, performance.now());
+    };
+    connection.connect();
+  } else {
+    connectForm.show(null);
+  }
+
+  const isOnline = () => connection?.state === 'online';
+  const loop = new FixedLoop(() => {
+    prediction.step(
+      controls.input(),
+      isOnline() ? (seq, input) => connection!.send({ t: 'input', seq, dx: input.dx, dy: input.dy, th: input.throttle }) : null,
+    );
+  });
+
+  let lastFrame = performance.now();
+  let wasOnline = false;
+  app.ticker.add(() => {
+    const now = performance.now();
+    const frameSeconds = Math.min(0.1, (now - lastFrame) / 1000);
+    lastFrame = now;
+    keyboard.update(now);
+
+    const online = isOnline();
+    if (wasOnline && !online) {
+      prediction.resetNet(); // летим дальше локально, при подключении примем состояние сервера
+      remote.clear();
+    }
+    wasOnline = online;
+    if (latestSnapshot && online) {
+      const own = latestSnapshot.ships.find((ship) => ship.id === connection!.playerId);
+      if (own) prediction.reconcile(own);
+    }
+    latestSnapshot = null;
+
+    const alpha = loop.advance(now);
+    const state = prediction.render(alpha, frameSeconds);
+    const hull = hulls.get(prediction.hullId);
+    const input = controls.input();
+    const desired = input.throttle > 0 ? directionAngle(input.dx, input.dy) : null;
+    ownShip.update(state.x, state.y, state.rot, hull, engineGlow(prediction.curr, input.throttle, hull), desired);
+    remote.update(now, online ? connection!.playerId : -1);
+
+    camera.follow(state.x, state.y, zoom.value).apply(world, app.screen.width, app.screen.height);
     starfield.update(camera.x, camera.y, app.screen.width, app.screen.height);
-    ship.position.set(app.screen.width / 2, app.screen.height / 2);
-    ship.rotation = Math.atan2(drift.x, -drift.y); // нос по направлению дрейфа
-    hud.update(connection, app.ticker.FPS);
+
+    const speed = Math.hypot(prediction.curr.vx, prediction.curr.vy);
+    const velocity = localVelocity(prediction.curr);
+    status.update(connection, app.ticker.FPS, !prediction.isSynced);
+    flight.update(hull.name, speed, input.throttle);
+    dev.update({
+      tick: connection?.lastTick ?? 0,
+      tickRate: connection?.snapshotRate ?? 0,
+      pingMs: connection?.rttMs ?? 0,
+      speed,
+      forward: velocity.forward,
+      lateral: velocity.lateral,
+      throttle: input.throttle,
+      desiredDeg: toCompass(directionAngle(input.dx, input.dy)),
+      headingDeg: toCompass(prediction.curr.rot),
+      pending: prediction.pendingCount,
+      correction: prediction.lastCorrection,
+      peakCorrection: prediction.takePeakCorrection(),
+      snaps: prediction.snaps,
+      online: prediction.isSynced,
+      hullId: prediction.hullId,
+    });
   });
 }
 
-/** Временный корабль: нос смотрит вверх при rotation = 0. */
-function createPlaceholderShip(): Graphics {
-  return new Graphics()
-    .poly([0, -18, 12, 14, 0, 8, -12, 14])
-    .fill(0x7fd4ff)
-    .stroke({ width: 1.5, color: 0xffffff, alpha: 0.6 });
+/** Угол в градусах по компасу экрана: 0 — вверх, 90 — вправо. */
+function toCompass(angle: number): number {
+  return ((angle * 180) / Math.PI + 360) % 360;
 }
 
 main();

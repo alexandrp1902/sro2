@@ -1,0 +1,160 @@
+namespace Sro.Sim;
+
+// Модель полёта (боевой документ v0.2, §1–18, §55). Построчное зеркало client/src/sim/movement.ts:
+// порядок операций совпадает, чтобы предсказание клиента сходилось с сервером. Сверка — shared/test-vectors.
+
+/// <summary>Состояние движения (§48). Rot = 0 — нос вверх; экранные координаты, y вниз.</summary>
+public struct ShipState
+{
+    public double X;
+    public double Y;
+    public double Rot;
+    public double Vx;
+    public double Vy;
+}
+
+/// <summary>Управление (§49): желаемое направление на экране (единичный вектор или ноль) и тяга 0…1.</summary>
+public readonly record struct MoveInput(double Dx, double Dy, double Throttle)
+{
+    /// <summary>
+    /// Проверка входа от клиента (§51): только конечные числа, тяга в [0, 1], направление единичное.
+    /// Уже единичный вектор не трогаем, чтобы сервер шагал с теми же числами, что и предсказание клиента.
+    /// </summary>
+    public static bool TryCreate(double dx, double dy, double throttle, out MoveInput input)
+    {
+        input = default;
+        if (!double.IsFinite(dx) || !double.IsFinite(dy) || !double.IsFinite(throttle)) return false;
+
+        var length = Math.Sqrt(dx * dx + dy * dy);
+        if (!(length > 1e-6))
+        {
+            dx = 0;
+            dy = 0;
+        }
+        else if (Math.Abs(length - 1) > 1e-9)
+        {
+            dx /= length;
+            dy /= length;
+        }
+        input = new MoveInput(dx, dy, Math.Clamp(throttle, 0, 1));
+        return true;
+    }
+}
+
+/// <summary>Параметры корпуса (§46–47). Хранятся в shared/hulls.json.</summary>
+/// <param name="TurnRate">Градусы в секунду.</param>
+/// <param name="LateralDampTime">За это время боковая скорость гаснет примерно до 5%.</param>
+/// <param name="LateralToForward">Доля погашенной боковой скорости, переходящая в продольную (0 — выключено).</param>
+public sealed record HullParams(
+    string Name,
+    double MaxSpeed,
+    double Acceleration,
+    double BrakeAcceleration,
+    double TurnRate,
+    double LateralDampTime,
+    double LateralToForward,
+    double Size)
+{
+    /// <returns>Описание ошибки или null, если параметры годятся.</returns>
+    public string? Validate()
+    {
+        if (string.IsNullOrWhiteSpace(Name)) return "name is empty";
+        if (!(MaxSpeed > 0) || !(Acceleration > 0) || !(BrakeAcceleration > 0) || !(TurnRate > 0))
+            return "maxSpeed, acceleration, brakeAcceleration and turnRate must be positive";
+        if (!(LateralDampTime > 0)) return "lateralDampTime must be positive";
+        if (!(LateralToForward >= 0 && LateralToForward <= 1)) return "lateralToForward must be within 0..1";
+        if (!(Size > 0)) return "size must be positive";
+        return null;
+    }
+}
+
+public static class Movement
+{
+    /// <summary>Мир — квадрат ±WorldHalfSize.</summary>
+    public const double WorldHalfSize = 4000;
+
+    private const double Tau = 2 * Math.PI;
+    private const double DegToRad = Math.PI / 180;
+    private const double DirectionEpsilon = 1e-6;
+
+    /// <summary>Остаток бокового скольжения ниже этого гасится в ноль, иначе корабль вечно «ползёт».</summary>
+    private const double LateralStopSpeed = 0.5;
+
+    /// <summary>Угол в диапазон [−π, π).</summary>
+    public static double WrapAngle(double a) => a - Tau * Math.Floor((a + Math.PI) / Tau);
+
+    public static double MoveTowardsAngle(double current, double target, double maxDelta)
+    {
+        var diff = WrapAngle(target - current);
+        if (Math.Abs(diff) <= maxDelta) return WrapAngle(target);
+        return WrapAngle(current + (diff > 0 ? maxDelta : -maxDelta));
+    }
+
+    /// <summary>Один шаг симуляции.</summary>
+    public static void Step(ref ShipState s, in MoveInput input, HullParams hull, double dt)
+    {
+        // 1. Разворот носом к желаемому направлению с ограничением TurnRate.
+        if (input.Dx * input.Dx + input.Dy * input.Dy > DirectionEpsilon)
+        {
+            var desired = Math.Atan2(input.Dx, -input.Dy);
+            s.Rot = MoveTowardsAngle(s.Rot, desired, hull.TurnRate * DegToRad * dt);
+        }
+
+        // 2. Скорость в осях корабля: forward = (fx, fy), right = (−fy, fx).
+        var fx = Math.Sin(s.Rot);
+        var fy = -Math.Cos(s.Rot);
+        var vf = s.Vx * fx + s.Vy * fy;
+        var vl = s.Vx * -fy + s.Vy * fx;
+
+        // 3. Продольная скорость тянется к MaxSpeed·Throttle; через ноль не перескакивает.
+        //    Тяга не разгоняет суммарную скорость (вместе с заносом) выше MaxSpeed·Throttle, но и не отнимает набранную.
+        var throttle = Math.Min(1, Math.Max(0, input.Throttle));
+        var target = hull.MaxSpeed * throttle;
+        var lateral = Math.Abs(vl);
+        if (vf < 0) vf = Math.Min(0, vf + hull.BrakeAcceleration * dt);
+        else if (vf > target) vf = Math.Max(target, vf - hull.BrakeAcceleration * dt);
+        else
+        {
+            var room = Math.Sqrt(Math.Max(0, target * target - vl * vl));
+            if (vf < room) vf = Math.Min(room, vf + hull.Acceleration * dt);
+        }
+
+        // 4. Стабилизация бокового скольжения; без тяги тормозит сильнее.
+        var damped = lateral * Math.Exp((-3 * dt) / hull.LateralDampTime);
+        if (throttle == 0) damped = Math.Min(damped, lateral - hull.BrakeAcceleration * dt);
+        if (damped < LateralStopSpeed) damped = 0;
+        if (hull.LateralToForward > 0 && vf >= 0)
+        {
+            var room = Math.Sqrt(Math.Max(0, target * target - damped * damped));
+            if (vf < room) vf = Math.Min(room, vf + (lateral - damped) * hull.LateralToForward);
+        }
+        var newVl = vl < 0 ? -damped : damped;
+
+        s.Vx = fx * vf - fy * newVl;
+        s.Vy = fy * vf + fx * newVl;
+        s.X += s.Vx * dt;
+        s.Y += s.Vy * dt;
+
+        // 5. Граница мира: упираемся, наружная скорость гасится.
+        if (s.X > WorldHalfSize)
+        {
+            s.X = WorldHalfSize;
+            if (s.Vx > 0) s.Vx = 0;
+        }
+        else if (s.X < -WorldHalfSize)
+        {
+            s.X = -WorldHalfSize;
+            if (s.Vx < 0) s.Vx = 0;
+        }
+        if (s.Y > WorldHalfSize)
+        {
+            s.Y = WorldHalfSize;
+            if (s.Vy > 0) s.Vy = 0;
+        }
+        else if (s.Y < -WorldHalfSize)
+        {
+            s.Y = -WorldHalfSize;
+            if (s.Vy < 0) s.Vy = 0;
+        }
+    }
+}
