@@ -1,0 +1,10 @@
+{
+  "name": "Космические Рейнджеры Online",
+  "short_name": "Рейнджеры",
+  "start_url": "./",
+  "scope": "./",
+  "display": "fullscreen",
+  "orientation": "portrait",
+  "background_color": "#05060a",
+  "theme_color": "#05060a"
+}
