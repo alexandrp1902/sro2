@@ -51,7 +51,7 @@ dotnet run --project server/Sro.Server
 3. Скрипт напечатает `https://<id>.trycloudflare.com`: это игра целиком, её можно открыть с любого устройства. Адрес меняется при каждом запуске tunnel.
 
 **GitHub Pages.** При push в `main` клиент автоматически публикуется (Settings → Pages → Source: *GitHub Actions*).
-Откройте `https://<user>.github.io/sro/?server=<id>.trycloudflare.com`. Адрес сервера запоминается на устройстве; сменить его можно тапом по строке статуса.
+Откройте `https://alexandrp1902.github.io/sro2/?server=<id>.trycloudflare.com`. Адрес сервера запоминается на устройстве; сменить его можно тапом по строке статуса.
 
 ## Этапы MVP
 
