@@ -1,90 +1,135 @@
 import { describe, expect, it } from 'vitest';
+import { DT, step, type HullParams, type ShipState } from '../sim/movement';
 import { Controls } from './controls';
-import { KeyboardControls, RELEASE_GRACE_MS } from './keyboard';
+import { KeyboardControls } from './keyboard';
+
+const LIGHT: HullParams = {
+  name: 'Лёгкий',
+  maxSpeed: 330,
+  acceleration: 180,
+  brakeAcceleration: 220,
+  turnRate: 150,
+  lateralDampTime: 0.65,
+  lateralToForward: 0,
+  size: 16,
+};
 
 function setup() {
   const controls = new Controls();
-  return { controls, keyboard: new KeyboardControls(controls) };
+  const keyboard = new KeyboardControls(controls);
+  const ship: ShipState = { x: 0, y: 0, rot: 0, vx: 0, vy: 0 };
+  /** Шаг игры: клавиатура выставляет управление, модель летит. */
+  const tick = (steps = 1) => {
+    for (let i = 0; i < steps; i++) {
+      keyboard.apply(ship, LIGHT);
+      step(ship, controls.input(), LIGHT, DT);
+    }
+  };
+  return { controls, keyboard, ship, tick };
 }
 
-describe('KeyboardControls', () => {
-  it('sets a screen direction and engages cruise throttle', () => {
-    const { controls, keyboard } = setup();
-    keyboard.keyDown('KeyD');
-    expect([controls.dx, controls.dy]).toEqual([1, 0]);
-    expect(controls.throttle).toBe(1);
-  });
+const speed = (s: ShipState) => Math.hypot(s.vx, s.vy);
 
-  it('combines keys into diagonals and cancels opposite ones (§21)', () => {
-    const { controls, keyboard } = setup();
+describe('KeyboardControls (W — газ, S — тормоз, A/D — поворот)', () => {
+  it('W accelerates along the nose', () => {
+    const { controls, keyboard, ship, tick } = setup();
     keyboard.keyDown('KeyW');
-    keyboard.keyDown('KeyD');
-    expect(controls.dx).toBeCloseTo(Math.SQRT1_2);
-    expect(controls.dy).toBeCloseTo(-Math.SQRT1_2);
-    keyboard.keyDown('KeyS');
-    expect([controls.dx, controls.dy]).toEqual([1, 0]);
+    tick(20);
+    expect(controls.throttle).toBe(1);
+    expect(speed(ship)).toBeCloseTo(180, 6); // 1 с разгона
+    expect(ship.vy).toBeLessThan(0); // нос вверх — летим вверх
   });
 
-  it('keeps flying after keys are released (§25)', () => {
-    const { controls, keyboard } = setup();
+  it('releasing W keeps the reached speed (cruise)', () => {
+    const { keyboard, ship, tick } = setup();
+    keyboard.keyDown('ArrowUp');
+    tick(20);
+    keyboard.keyUp('ArrowUp');
+    tick(40);
+    expect(speed(ship)).toBeCloseTo(180, 6);
+  });
+
+  it('S brakes, and releasing it keeps the lower speed', () => {
+    const { keyboard, ship, tick } = setup();
+    keyboard.keyDown('KeyW');
+    tick(20);
+    keyboard.keyUp('KeyW');
+    keyboard.keyDown('KeyS');
+    tick(5); // 5 шагов тормоза: −220·0.25 = −55
+    keyboard.keyUp('KeyS');
+    tick(40);
+    expect(speed(ship)).toBeCloseTo(125, 6);
+
+    keyboard.keyDown('ArrowDown');
+    tick(40);
+    expect(speed(ship)).toBe(0);
+  });
+
+  it('D and A turn the hull at the full turn rate, even when standing still', () => {
+    const { keyboard, ship, tick } = setup();
+    keyboard.keyDown('KeyD');
+    tick(4);
+    expect(ship.rot).toBeCloseTo((4 * 150 * DT * Math.PI) / 180, 9);
+    keyboard.keyUp('KeyD');
     keyboard.keyDown('ArrowLeft');
-    keyboard.keyUp('ArrowLeft', 0);
-    keyboard.update(1000);
-    expect([controls.dx, controls.dy]).toEqual([-1, 0]);
-    expect(controls.throttle).toBe(1);
+    tick(4);
+    expect(ship.rot).toBeCloseTo(0, 9);
+    expect(speed(ship)).toBe(0);
   });
 
-  it('keeps a diagonal when its keys are released a moment apart', () => {
-    const { controls, keyboard } = setup();
-    keyboard.keyDown('KeyW');
+  it('releasing a turn key freezes the heading', () => {
+    const { keyboard, ship, tick } = setup();
     keyboard.keyDown('KeyD');
-    keyboard.keyUp('KeyD', 1000);
-    keyboard.update(1000 + RELEASE_GRACE_MS / 2);
-    keyboard.keyUp('KeyW', 1000 + RELEASE_GRACE_MS / 2);
-    keyboard.update(2000);
-    expect(controls.dx).toBeCloseTo(Math.SQRT1_2);
-    expect(controls.dy).toBeCloseTo(-Math.SQRT1_2);
-  });
-
-  it('switches to the remaining key when it is held on purpose', () => {
-    const { controls, keyboard } = setup();
+    tick(6);
+    keyboard.keyUp('KeyD');
+    tick(1);
+    const heading = ship.rot;
     keyboard.keyDown('KeyW');
-    keyboard.keyDown('KeyD');
-    keyboard.keyUp('KeyD', 1000);
-    keyboard.update(1000 + RELEASE_GRACE_MS);
-    expect([controls.dx, controls.dy]).toEqual([0, -1]);
+    tick(60);
+    expect(ship.rot).toBeCloseTo(heading, 9);
+    // Летим туда, куда смотрит нос.
+    expect(Math.atan2(ship.vx, -ship.vy)).toBeCloseTo(heading, 6);
   });
 
-  it('X stops but keeps the direction; the next direction key restores cruise (§24)', () => {
-    const { controls, keyboard } = setup();
-    keyboard.keyDown('Digit3');
-    keyboard.keyDown('KeyS');
-    keyboard.keyDown('KeyX');
-    expect(controls.throttle).toBe(0);
-    expect([controls.dx, controls.dy]).toEqual([0, 1]);
-    keyboard.keyUp('KeyS', 0);
+  it('A and D together cancel out', () => {
+    const { keyboard, ship, tick } = setup();
     keyboard.keyDown('KeyA');
-    expect(controls.throttle).toBe(0.75);
+    keyboard.keyDown('KeyD');
+    tick(10);
+    expect(ship.rot).toBe(0);
   });
 
-  it('number keys set 25/50/75/100% (§23)', () => {
+  it('number keys, wheel and X set the throttle directly', () => {
     const { controls, keyboard } = setup();
-    keyboard.keyDown('Digit1');
-    expect(controls.throttle).toBe(0.25);
+    keyboard.keyDown('Digit2');
+    expect(controls.throttle).toBe(0.5);
     keyboard.keyDown('Numpad4');
     expect(controls.throttle).toBe(1);
+    keyboard.keyDown('KeyX');
+    expect(controls.throttle).toBe(0);
+    keyboard.wheel(-100);
+    keyboard.wheel(-100);
+    expect(controls.throttle).toBeCloseTo(0.2);
+    for (let i = 0; i < 3; i++) keyboard.wheel(-20); // тачпад: мелкие дельты копятся
+    expect(controls.throttle).toBeCloseTo(0.3);
   });
 
-  it('wheel steps throttle by 10% per notch and accumulates trackpad deltas', () => {
-    const { controls, keyboard } = setup();
-    keyboard.wheel(-100);
-    keyboard.wheel(-100);
-    expect(controls.throttle).toBeCloseTo(0.2);
-    keyboard.wheel(100);
-    expect(controls.throttle).toBeCloseTo(0.1);
-    for (let i = 0; i < 3; i++) keyboard.wheel(-20);
-    expect(controls.throttle).toBeCloseTo(0.2);
-    for (let i = 0; i < 5; i++) keyboard.wheel(100);
-    expect(controls.throttle).toBe(0);
+  it('does not override the stick while no movement key is touched', () => {
+    const { controls, keyboard, ship } = setup();
+    controls.setDirection(1, 0);
+    controls.setThrottle(0.4);
+    controls.source = 'stick';
+    keyboard.apply(ship, LIGHT);
+    expect(controls.input()).toEqual({ dx: 1, dy: 0, throttle: 0.4 });
+    expect(controls.source).toBe('stick');
+  });
+
+  it('blur releases held keys', () => {
+    const { controls, keyboard, tick } = setup();
+    keyboard.keyDown('KeyW');
+    tick(10);
+    keyboard.blur();
+    tick(1);
+    expect(controls.throttle).toBeLessThan(1); // газ отпущен — держим скорость
   });
 });

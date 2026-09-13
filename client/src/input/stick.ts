@@ -93,12 +93,14 @@ export class Stick {
     const throttle = stickThrottle(Math.hypot(x, y) / this.radius);
     if (throttle > 0) this.controls.setDirection(x, y); // в мёртвой зоне направление не меняется
     this.controls.setThrottle(throttle);
+    this.controls.source = 'stick';
     this.render();
   }
 
   /** §30: тяга обнуляется сразу, ручка возвращается анимацией. */
   private snapToCenter(): void {
     this.controls.setThrottle(0);
+    this.controls.source = 'stick';
     const returning = { fromX: this.knob.x, fromY: this.knob.y, start: performance.now() };
     this.returning = returning;
     const animate = (now: number) => {

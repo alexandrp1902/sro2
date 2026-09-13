@@ -9,6 +9,8 @@ export class Controls {
   dx = 0;
   dy = -1;
   throttle = 0;
+  /** Кто управлял последним: указатель желаемого направления (§26) нужен только стику. */
+  source: 'keyboard' | 'stick' = 'stick';
 
   setDirection(dx: number, dy: number): void {
     const length = Math.hypot(dx, dy);

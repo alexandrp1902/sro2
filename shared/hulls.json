@@ -1,7 +1,7 @@
 {
   "light": {
     "name": "Лёгкий",
-    "maxSpeed": 330,
+    "maxSpeed": 165,
     "acceleration": 180,
     "brakeAcceleration": 220,
     "turnRate": 150,
@@ -11,7 +11,7 @@
   },
   "medium": {
     "name": "Средний",
-    "maxSpeed": 250,
+    "maxSpeed": 125,
     "acceleration": 120,
     "brakeAcceleration": 145,
     "turnRate": 100,
@@ -21,7 +21,7 @@
   },
   "heavy": {
     "name": "Тяжёлый",
-    "maxSpeed": 170,
+    "maxSpeed": 85,
     "acceleration": 70,
     "brakeAcceleration": 80,
     "turnRate": 55,

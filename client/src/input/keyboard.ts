@@ -1,16 +1,21 @@
+import { localVelocity, type HullParams, type ShipState } from '../sim/movement';
 import type { Controls } from './controls';
 
-// ПК-управление (§21–25): WASD/стрелки задают направление на экране, тяга — круизная.
+// ПК-управление корпусом (GDD §7): W/↑ — газ, S/↓ — тормоз, A/D/←/→ — поворот.
+// Ни газ, ни тормоз не нажаты — корабль держит набранную скорость (круиз). Модель полёта та же, что у стика:
+// поворот — это желаемое направление на 90° от носа, поэтому корабль крутится с полным TurnRate.
 
-const DIRECTIONS: Record<string, readonly [number, number]> = {
-  KeyW: [0, -1],
-  ArrowUp: [0, -1],
-  KeyS: [0, 1],
-  ArrowDown: [0, 1],
-  KeyA: [-1, 0],
-  ArrowLeft: [-1, 0],
-  KeyD: [1, 0],
-  ArrowRight: [1, 0],
+type Action = 'thrust' | 'brake' | 'left' | 'right';
+
+const ACTIONS: Record<string, Action> = {
+  KeyW: 'thrust',
+  ArrowUp: 'thrust',
+  KeyS: 'brake',
+  ArrowDown: 'brake',
+  KeyA: 'left',
+  ArrowLeft: 'left',
+  KeyD: 'right',
+  ArrowRight: 'right',
 };
 
 const THROTTLE_KEYS: Record<string, number> = {
@@ -25,9 +30,6 @@ const THROTTLE_KEYS: Record<string, number> = {
 };
 
 const STOP_KEY = 'KeyX';
-
-/** Диагональ отпускают не одновременно: новый набор клавиш применяется, только если продержался столько. */
-export const RELEASE_GRACE_MS = 80;
 const WHEEL_STEP = 0.1;
 /** Колесо мыши даёт за щелчок ~100 px — это один шаг тяги; мелкие дельты тачпада копятся. */
 const WHEEL_NOTCH_PX = 50;
@@ -36,47 +38,34 @@ const WHEEL_ACCUMULATE_PX = 60;
 /** Логика клавиатуры без DOM — чтобы её можно было проверить тестами. */
 export class KeyboardControls {
   private readonly held = new Set<string>();
-  /** Последняя ненулевая тяга: к ней возвращается нажатие направления после стопа. */
-  private cruise = 1;
-  private releaseAt: number | null = null;
+  /** На прошлом шаге держали газ или тормоз — после отпускания надо зафиксировать скорость. */
+  private throttling = false;
+  /** На прошлом шаге поворачивали — после отпускания надо зафиксировать курс. */
+  private turning = false;
   private wheelAccum = 0;
 
   constructor(private readonly controls: Controls) {}
 
   isGameKey(code: string): boolean {
-    return code in DIRECTIONS || code in THROTTLE_KEYS || code === STOP_KEY;
+    return code in ACTIONS || code in THROTTLE_KEYS || code === STOP_KEY;
   }
 
   keyDown(code: string): void {
-    if (code in DIRECTIONS) {
+    if (code in ACTIONS) {
       this.held.add(code);
-      this.releaseAt = null;
-      this.applyHeld();
-      // Круиз (§25): направление включает двигатель на последней установленной тяге.
-      if (this.controls.throttle === 0) this.controls.setThrottle(this.cruise);
     } else if (code in THROTTLE_KEYS) {
       this.setThrottle(THROTTLE_KEYS[code]);
     } else if (code === STOP_KEY) {
-      this.controls.setThrottle(0); // §24: стоп, направление остаётся
+      this.setThrottle(0); // §24: стоп, корабль тормозит сам
     }
   }
 
-  /** Отпускание ничего не сбрасывает: корабль продолжает круиз (§25). */
-  keyUp(code: string, now: number): void {
-    if (!this.held.delete(code)) return;
-    this.releaseAt = this.heldVector() ? now + RELEASE_GRACE_MS : null;
-  }
-
-  update(now: number): void {
-    if (this.releaseAt !== null && now >= this.releaseAt) {
-      this.releaseAt = null;
-      this.applyHeld();
-    }
+  keyUp(code: string): void {
+    this.held.delete(code);
   }
 
   blur(): void {
     this.held.clear();
-    this.releaseAt = null;
   }
 
   /** @param deltaY в пикселях; вверх (deltaY < 0) — больше тяги. */
@@ -94,27 +83,41 @@ export class KeyboardControls {
     if (steps !== 0) this.setThrottle(Math.round((this.controls.throttle + steps * WHEEL_STEP) * 20) / 20);
   }
 
+  /**
+   * Вызывается перед каждым шагом симуляции: поворот и фиксация скорости зависят от текущего курса и скорости.
+   * Пока клавиши движения не трогают, управление не перезаписывается — стик продолжает работать.
+   */
+  apply(ship: ShipState, hull: HullParams): void {
+    const thrust = this.isHeld('thrust');
+    const brake = this.isHeld('brake');
+    const turn = (this.isHeld('right') ? 1 : 0) - (this.isHeld('left') ? 1 : 0);
+
+    if (brake) this.controls.setThrottle(0);
+    else if (thrust) this.controls.setThrottle(1);
+    else if (this.throttling) {
+      // Отпустили газ или тормоз — держим набранную скорость.
+      this.controls.setThrottle(Math.max(0, localVelocity(ship).forward) / hull.maxSpeed);
+    }
+
+    if (turn !== 0 || this.turning) {
+      // Желаемое направление на 90° от носа — полный TurnRate; отпустили — курс замирает на текущем.
+      const angle = ship.rot + (turn * Math.PI) / 2;
+      this.controls.setDirection(Math.sin(angle), -Math.cos(angle));
+    }
+
+    if (thrust || brake || turn !== 0) this.controls.source = 'keyboard';
+    this.throttling = thrust || brake;
+    this.turning = turn !== 0;
+  }
+
   private setThrottle(throttle: number): void {
     this.controls.setThrottle(throttle);
-    if (this.controls.throttle > 0) this.cruise = this.controls.throttle;
+    this.controls.source = 'keyboard';
   }
 
-  private applyHeld(): void {
-    const vector = this.heldVector();
-    if (vector) this.controls.setDirection(vector[0], vector[1]);
-  }
-
-  /** Сумма зажатых направлений; противоположные клавиши гасят друг друга. */
-  private heldVector(): [number, number] | null {
-    let x = 0;
-    let y = 0;
-    for (const code of this.held) {
-      x += DIRECTIONS[code][0];
-      y += DIRECTIONS[code][1];
-    }
-    x = Math.sign(x);
-    y = Math.sign(y);
-    return x === 0 && y === 0 ? null : [x, y];
+  private isHeld(action: Action): boolean {
+    for (const code of this.held) if (ACTIONS[code] === action) return true;
+    return false;
   }
 }
 
@@ -126,7 +129,7 @@ export function bindKeyboard(keyboard: KeyboardControls): void {
     e.preventDefault(); // стрелки не скроллят страницу
     if (!e.repeat) keyboard.keyDown(e.code);
   });
-  window.addEventListener('keyup', (e) => keyboard.keyUp(e.code, performance.now()));
+  window.addEventListener('keyup', (e) => keyboard.keyUp(e.code));
   window.addEventListener('blur', () => keyboard.blur());
   window.addEventListener(
     'wheel',

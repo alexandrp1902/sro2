@@ -92,6 +92,7 @@ async function main(): Promise<void> {
 
   const isOnline = () => connection?.state === 'online';
   const loop = new FixedLoop(() => {
+    keyboard.apply(prediction.curr, hulls.get(prediction.hullId));
     prediction.step(
       controls.input(),
       isOnline() ? (seq, input) => connection!.send({ t: 'input', seq, dx: input.dx, dy: input.dy, th: input.throttle }) : null,
@@ -104,7 +105,6 @@ async function main(): Promise<void> {
     const now = performance.now();
     const frameSeconds = Math.min(0.1, (now - lastFrame) / 1000);
     lastFrame = now;
-    keyboard.update(now);
 
     const online = isOnline();
     if (wasOnline && !online) {
@@ -122,7 +122,7 @@ async function main(): Promise<void> {
     const state = prediction.render(alpha, frameSeconds);
     const hull = hulls.get(prediction.hullId);
     const input = controls.input();
-    const desired = input.throttle > 0 ? directionAngle(input.dx, input.dy) : null;
+    const desired = input.throttle > 0 && controls.source === 'stick' ? directionAngle(input.dx, input.dy) : null;
     ownShip.update(state.x, state.y, state.rot, hull, engineGlow(prediction.curr, input.throttle, hull), desired);
     remote.update(now, online ? connection!.playerId : -1);
 
