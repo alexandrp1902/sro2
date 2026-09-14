@@ -3,6 +3,9 @@
 import type { CombatRules, WeaponConfig } from '../sim/combat';
 import type { HullConfig } from '../sim/movement';
 
+/** Версия протокола; зеркало Protocol.Version на сервере. Сервер другой версии (или старый, без поля) — не играем. */
+export const PROTOCOL_VERSION = 3;
+
 export type ClientMessage =
   /** token — сессия вкладки: с ней после обрыва связи игрок возвращается к своему кораблю. */
   | { t: 'hello'; name: string; hull: string; weapon: string; token: string }
@@ -71,6 +74,8 @@ export interface WelcomeMsg {
   /** Id своего корабля в снапшотах. */
   id: number;
   tickRate: number;
+  /** Версия протокола сервера; у серверов до M3 поля нет. */
+  version?: number;
   hulls: HullConfig;
   weapons: WeaponConfig;
   combat: CombatRules;

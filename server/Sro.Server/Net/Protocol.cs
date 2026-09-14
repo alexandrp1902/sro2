@@ -54,6 +54,7 @@ public sealed record FireMsg(bool On) : ClientMessage;
 public abstract record ServerMessage;
 
 /// <param name="Id">Id своего корабля в снапшотах.</param>
+/// <param name="Version">Версия протокола (<see cref="Protocol.Version"/>): клиент другой версии играть не будет.</param>
 /// <param name="Hulls">Параметры корпусов: клиент предсказывает движение с теми же числами, что и сервер.</param>
 /// <param name="Weapons">Параметры пушек — для карточки цели и трассеров.</param>
 /// <param name="Combat">Правила боя: время респауна, защита.</param>
@@ -61,6 +62,7 @@ public abstract record ServerMessage;
 public sealed record WelcomeMsg(
     int Id,
     int TickRate,
+    int Version,
     IReadOnlyDictionary<string, HullParams> Hulls,
     IReadOnlyDictionary<string, WeaponParams> Weapons,
     CombatRules Combat,
@@ -130,6 +132,12 @@ public sealed record KillDto(int Id, int By);
 
 public static class Protocol
 {
+    /// <summary>
+    /// Меняется, когда клиент и сервер разных версий уже не поймут друг друга (3 — бой, M3).
+    /// Зеркало PROTOCOL_VERSION в client/src/net/protocol.ts.
+    /// </summary>
+    public const int Version = 3;
+
     private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web)
     {
         AllowOutOfOrderMetadataProperties = true,

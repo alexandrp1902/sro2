@@ -1,4 +1,5 @@
 import type { Connection } from '../net/connection';
+import { PROTOCOL_VERSION } from '../net/protocol';
 
 const LABELS = { connecting: 'подключение…', online: 'онлайн', offline: 'нет связи' } as const;
 const RENDER_INTERVAL_MS = 250;
@@ -23,7 +24,11 @@ export class StatusHud {
     const state = connection?.state ?? 'offline';
     const parts: string[] = [];
     if (!connection) parts.push('сервер не задан', 'локальный полёт');
-    else if (state === 'online') {
+    else if (connection.serverVersion !== null) {
+      parts.push(
+        connection.serverVersion < PROTOCOL_VERSION ? 'сервер устарел — перезапустите его' : 'клиент устарел — обновите страницу',
+      );
+    } else if (state === 'online') {
       parts.push(`${LABELS.online} ${connection.roster.onlineCount}`, `пинг ${Math.round(connection.rttMs)} мс`);
     } else parts.push(LABELS[state]);
     if (braking) parts.push('корабль тормозит');

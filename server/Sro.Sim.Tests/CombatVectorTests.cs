@@ -42,13 +42,19 @@ public class CombatVectorTests
         Assert.True(File.Exists(path), $"{path} is missing: run 'SRO_UPDATE_VECTORS=1 dotnet test'");
         var stored = JsonSerializer.Deserialize<VectorFile>(File.ReadAllText(path), Json)!;
         Assert.Equal(generated.HitChance.Length, stored.HitChance.Length);
-        foreach (var (expected, actual) in stored.HitChance.Zip(generated.HitChance))
+        Assert.Equal(generated.Arc.Length, stored.Arc.Length);
+
+        // Формулы проверяются на входах из файла, как в Vitest: sin/cos в .NET на Windows и Linux (CI) расходятся
+        // в последнем бите, и заново посчитанные dx, dy побитово с файлом не совпадут.
+        foreach (var c in stored.HitChance)
         {
-            Assert.Equal((expected.Weapon, expected.Hull, expected.Distance, expected.Speed), (actual.Weapon, actual.Hull, actual.Distance, actual.Speed));
-            Assert.True(Math.Abs(expected.Chance - actual.Chance) <= Tolerance, $"{expected}: {actual.Chance}");
-            Assert.Equal(expected.InRange, actual.InRange);
+            var weapon = generated.Weapons[c.Weapon];
+            var chance = Combat.HitChance(weapon, c.Distance, generated.Hulls[c.Hull], c.Speed);
+            Assert.True(Math.Abs(c.Chance - chance) <= Tolerance, $"{c}: {chance}");
+            Assert.Equal(c.InRange, Combat.InRange(weapon, c.Distance));
         }
-        Assert.Equal(stored.Arc, generated.Arc);
+        foreach (var c in stored.Arc)
+            Assert.True(c.InArc == Combat.InArc(c.Rot, c.Dx, c.Dy, c.Arc), $"{c}");
     }
 
     private static VectorFile Generate()

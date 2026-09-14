@@ -1,6 +1,6 @@
 import { renewSession, sessionToken } from '../util/session';
 import { FakeLag } from './fakeLag';
-import type { ClientMessage, ServerMessage, SnapshotMsg, WelcomeMsg } from './protocol';
+import { PROTOCOL_VERSION, type ClientMessage, type ServerMessage, type SnapshotMsg, type WelcomeMsg } from './protocol';
 import { Roster, type RosterEvent } from './roster';
 
 export type ConnectionState = 'connecting' | 'online' | 'offline';
@@ -13,6 +13,8 @@ const MAX_RETRY_MS = 5000;
 const CLOSE_HIDDEN = 4000;
 /** От сервера: к нашему кораблю подключилась вкладка с той же сессией (вкладку продублировали). */
 const CLOSE_REPLACED = 4001;
+/** Закрываемся сами: сервер другой версии протокола. */
+const CLOSE_VERSION = 4002;
 
 /** WebSocket-соединение с игровым сервером: автопереподключение, сессия, список игроков, пинг. */
 export class Connection {
@@ -24,6 +26,8 @@ export class Connection {
   lastTick = 0;
   readonly lag = new FakeLag();
   readonly roster = new Roster();
+  /** Версия протокола сервера, если она не совпала с нашей: играть нельзя, сервер или страницу нужно обновить. */
+  serverVersion: number | null = null;
 
   onWelcome: ((message: WelcomeMsg) => void) | null = null;
   onConfig: ((message: Extract<ServerMessage, { t: 'config' }>) => void) | null = null;
@@ -123,6 +127,16 @@ export class Connection {
   private handle(message: ServerMessage): void {
     switch (message.t) {
       case 'welcome':
+        if ((message.version ?? 0) !== PROTOCOL_VERSION) {
+          // Старый сервер не пришлёт корпус и щит и не поймёт огонь — вместо NaN честно говорим, в чём дело.
+          // Переподключаемся только при возврате на вкладку: вдруг сервер уже перезапустили.
+          this.serverVersion = message.version ?? 0;
+          const ws = this.ws;
+          this.drop();
+          ws?.close(CLOSE_VERSION, 'version');
+          break;
+        }
+        this.serverVersion = null;
         this.playerId = message.id;
         this.state = 'online';
         this.roster.reset();

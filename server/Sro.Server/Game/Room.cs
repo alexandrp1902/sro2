@@ -326,7 +326,7 @@ public sealed class Room
     }
 
     private WelcomeMsg Welcome(Player player, bool resumed) =>
-        new(player.Id, SimConfig.TickRate, Hulls, Balance.Weapons, Balance.Rules, resumed);
+        new(player.Id, SimConfig.TickRate, Protocol.Version, Hulls, Balance.Weapons, Balance.Rules, resumed);
 
     /// <summary>Занятое другим игроком имя получает номер: «Имя 2», «Имя 3»…</summary>
     private string UniqueName(string name, Player? self)
