@@ -41,6 +41,7 @@ export class Connection {
     readonly url: string,
     private name: string,
     private readonly hullId: () => string,
+    private readonly weaponId: () => string,
   ) {
     document.addEventListener('visibilitychange', () => {
       if (document.visibilityState === 'hidden') {
@@ -60,7 +61,7 @@ export class Connection {
 
     ws.onopen = () => {
       this.retryMs = FIRST_RETRY_MS;
-      this.send({ t: 'hello', name: this.name, hull: this.hullId(), token: sessionToken() });
+      this.send({ t: 'hello', name: this.name, hull: this.hullId(), weapon: this.weaponId(), token: sessionToken() });
       this.ping();
       this.pingTimer = window.setInterval(() => this.ping(), PING_INTERVAL_MS);
     };

@@ -6,19 +6,33 @@ import type { SnapshotMsg } from './protocol';
 import type { Roster } from './roster';
 
 const REMOTE_COLOR = 0xffb45a;
+const DRONE_COLOR = 0x9ccf9a;
 const FADE_IN_MS = 300;
 /** Корабль без связи висит в космосе полупрозрачным. */
 const LOST_ALPHA = 0.4;
 
-/** Чужой корабль, каким он нарисован в этом кадре: для ников и стрелок за краем экрана. */
+/** Чужой корабль, каким он нарисован в этом кадре: для ников, полосок, выбора цели и эффектов. */
 export interface RemoteShipInfo {
   id: number;
   x: number;
   y: number;
+  rot: number;
+  vx: number;
+  vy: number;
   size: number;
   alpha: number;
   name: string;
   online: boolean;
+  npc: boolean;
+  hull: string;
+  hp: number;
+  sh: number;
+  maxHp: number;
+  maxSh: number;
+  /** Уничтожен и ждёт респауна. */
+  dead: boolean;
+  /** Под защитой после появления. */
+  protected: boolean;
 }
 
 interface Remote {
@@ -28,12 +42,14 @@ interface Remote {
   info: RemoteShipInfo;
 }
 
-/** Чужие корабли: интерполяция между снапшотами по часам RenderClock (§52). */
+/** Чужие корабли и дроны: интерполяция между снапшотами по часам RenderClock (§52). */
 export class RemoteShips {
   readonly view = new Container();
   readonly clock = new RenderClock();
   /** Сколько раз снапшоты опоздали и чужие корабли летели по экстраполяции. */
   extrapolations = 0;
+  /** Тик, на который нарисованы чужие корабли в этом кадре; NaN — снапшотов ещё не было. */
+  renderTick = Number.NaN;
 
   private readonly buffer = new SnapshotBuffer();
   private readonly ships = new Map<number, Remote>();
@@ -50,48 +66,79 @@ export class RemoteShips {
 
   clear(): void {
     this.buffer.clear();
+    this.renderTick = Number.NaN;
     for (const remote of this.ships.values()) remote.ship.view.destroy({ children: true });
     this.ships.clear();
   }
 
-  /** Корабли, нарисованные в последнем update. */
+  /** Целые корабли, нарисованные в последнем update. */
   *visible(): Iterable<RemoteShipInfo> {
     for (const remote of this.ships.values()) if (remote.visible) yield remote.info;
+  }
+
+  /** Корабль из последнего update — в том числе уничтоженный (для карточки цели). */
+  get(id: number): RemoteShipInfo | undefined {
+    return this.ships.get(id)?.info;
+  }
+
+  /** Есть ли корабль в последнем снапшоте; null — снапшотов ещё нет. */
+  inLatest(id: number): boolean | null {
+    const latest = this.buffer.latest;
+    return latest ? latest.ships.has(id) : null;
   }
 
   update(now: number, ownId: number): void {
     const latest = this.buffer.latest;
     if (!latest) return;
     const renderTick = this.clock.update(now);
+    this.renderTick = renderTick;
 
     let extrapolating = false;
     for (const id of latest.ships.keys()) {
       if (id === ownId) continue;
+      const player = this.roster.get(id);
       let remote = this.ships.get(id);
       if (!remote) {
-        remote = { ship: new ShipView(REMOTE_COLOR), bornAt: now, visible: false, info: { id, x: 0, y: 0, size: 0, alpha: 0, name: '', online: true } };
+        remote = this.create(id, player?.npc ?? false, now);
         this.ships.set(id, remote);
-        this.view.addChild(remote.ship.view);
       }
 
       const s = this.buffer.sample(id, renderTick);
-      remote.visible = remote.ship.view.visible = s !== null;
-      if (!s) continue;
+      if (!s) {
+        remote.visible = remote.ship.view.visible = false;
+        continue;
+      }
       extrapolating ||= s.extrapolated;
 
+      const info = remote.info;
+      const dead = s.rt > 0;
+      if (info.dead && !dead) remote.bornAt = now; // респаун: корабль проявляется у станции
       const hull = this.hulls.get(s.hull);
-      const player = this.roster.get(id);
       const online = player?.online ?? true;
       const alpha = Math.min(1, (now - remote.bornAt) / FADE_IN_MS) * (online ? 1 : LOST_ALPHA);
-      remote.ship.update(s.x, s.y, s.rot, hull, engineGlow(s, s.th, hull), null);
-      remote.ship.view.alpha = alpha;
-      const info = remote.info;
+      remote.visible = remote.ship.view.visible = !dead;
+      if (!dead) {
+        remote.ship.update(s.x, s.y, s.rot, hull, engineGlow(s, s.th, hull), null);
+        remote.ship.view.alpha = alpha;
+      }
+
       info.x = s.x;
       info.y = s.y;
+      info.rot = s.rot;
+      info.vx = s.vx;
+      info.vy = s.vy;
       info.size = hull.size;
       info.alpha = alpha;
       info.name = player?.name ?? '';
       info.online = online;
+      info.npc = player?.npc ?? false;
+      info.hull = s.hull;
+      info.hp = s.hp;
+      info.sh = s.sh;
+      info.maxHp = player?.maxHp ?? hull.hp;
+      info.maxSh = player?.maxSh ?? hull.shield;
+      info.dead = dead;
+      info.protected = s.pu > renderTick;
     }
 
     for (const [id, remote] of this.ships) {
@@ -102,5 +149,35 @@ export class RemoteShips {
 
     if (extrapolating && !this.extrapolating) this.extrapolations++;
     this.extrapolating = extrapolating;
+  }
+
+  private create(id: number, npc: boolean, now: number): Remote {
+    const ship = new ShipView(npc ? DRONE_COLOR : REMOTE_COLOR);
+    this.view.addChild(ship.view);
+    return {
+      ship,
+      bornAt: now,
+      visible: false,
+      info: {
+        id,
+        x: 0,
+        y: 0,
+        rot: 0,
+        vx: 0,
+        vy: 0,
+        size: 0,
+        alpha: 0,
+        name: '',
+        online: true,
+        npc,
+        hull: '',
+        hp: 0,
+        sh: 0,
+        maxHp: 0,
+        maxSh: 0,
+        dead: false,
+        protected: false,
+      },
+    };
   }
 }

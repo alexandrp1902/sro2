@@ -10,13 +10,7 @@ public class RoomTests
     private const string TokenA = "token-aaaaaaaaaaaaaaaa";
     private static readonly MoveInput Up = new(0, -1, 1);
 
-    private static readonly IReadOnlyDictionary<string, HullParams> Hulls = new Dictionary<string, HullParams>
-    {
-        ["light"] = new("Лёгкий", 165, 180, 220, 150, 0.65, 0, 16),
-        ["heavy"] = new("Тяжёлый", 85, 70, 80, 55, 1.5, 0, 30),
-    };
-
-    private readonly Room _room = new(Hulls, NullLogger.Instance);
+    private readonly Room _room = new(TestBalance.Create(), NullLogger.Instance);
     private int _nextConnection;
 
     private FakeConnection Connect(string? token = null, string? name = "Pilot")

@@ -25,6 +25,16 @@ export interface HullParams {
   /** Доля погашенной боковой скорости, переходящая в продольную (0 — выключено). */
   lateralToForward: number;
   size: number;
+  /** Прочность корпуса. */
+  hp: number;
+  /** Ёмкость щита: урон сначала снимает щит (GDD §17). */
+  shield: number;
+  /** Восстановление щита в секунду после паузы без урона. */
+  shieldRegen: number;
+  /** Базовое уклонение, % (боевой документ §39). */
+  evasion: number;
+  /** Добавка к уклонению на полной скорости, % (§40). */
+  moveEvasion: number;
 }
 
 export type HullConfig = Record<string, HullParams>;

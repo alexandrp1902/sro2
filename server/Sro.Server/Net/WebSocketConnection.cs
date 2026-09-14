@@ -100,13 +100,22 @@ public sealed class WebSocketConnection(WebSocket socket, ILogger log) : IClient
             {
                 case HelloMsg hello when !joined:
                     joined = true;
-                    room.Join(this, hello.Token, hello.Name, hello.Hull);
+                    room.Join(this, hello);
                     break;
                 case InputMsg input when joined:
                     room.Input(this, input);
                     break;
+                case TargetMsg target when joined:
+                    room.SetTarget(this, target.Id);
+                    break;
+                case FireMsg fire when joined:
+                    room.SetFire(this, fire.On);
+                    break;
                 case HullMsg hull when joined:
                     room.SetHull(this, hull.Id);
+                    break;
+                case WeaponMsg weapon when joined:
+                    room.SetWeapon(this, weapon.Id);
                     break;
                 case NameMsg name when joined:
                     room.Rename(this, name.Name);

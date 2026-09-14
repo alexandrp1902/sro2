@@ -7,7 +7,12 @@
     "turnRate": 150,
     "lateralDampTime": 0.65,
     "lateralToForward": 0,
-    "size": 16
+    "size": 16,
+    "hp": 400,
+    "shield": 150,
+    "shieldRegen": 20,
+    "evasion": 25,
+    "moveEvasion": 8
   },
   "medium": {
     "name": "Средний",
@@ -17,7 +22,12 @@
     "turnRate": 100,
     "lateralDampTime": 1.0,
     "lateralToForward": 0,
-    "size": 22
+    "size": 22,
+    "hp": 900,
+    "shield": 300,
+    "shieldRegen": 35,
+    "evasion": 14,
+    "moveEvasion": 5
   },
   "heavy": {
     "name": "Тяжёлый",
@@ -27,6 +37,11 @@
     "turnRate": 55,
     "lateralDampTime": 1.5,
     "lateralToForward": 0,
-    "size": 30
+    "size": 30,
+    "hp": 1800,
+    "shield": 500,
+    "shieldRegen": 50,
+    "evasion": 5,
+    "moveEvasion": 2
   }
 }

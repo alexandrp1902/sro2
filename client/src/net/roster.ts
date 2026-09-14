@@ -19,19 +19,20 @@ export class Roster {
     return this.players.get(id);
   }
 
+  /** Игроки на связи; дроны не считаются. */
   get onlineCount(): number {
     let count = 0;
-    for (const player of this.players.values()) if (player.online) count++;
+    for (const player of this.players.values()) if (player.online && !player.npc) count++;
     return count;
   }
 
-  /** @param ownId о себе события не нужны */
+  /** @param ownId о себе события не нужны; о дронах тоже */
   update(players: PlayerDto[], ownId: number): RosterEvent[] {
     const next = new Map(players.map((player) => [player.id, player]));
     const events: RosterEvent[] = [];
     if (!this.fresh) {
       for (const player of players) {
-        if (player.id === ownId) continue;
+        if (player.id === ownId || player.npc) continue;
         const was = this.players.get(player.id);
         if (!was) events.push({ kind: 'joined', name: player.name });
         else {
@@ -41,7 +42,7 @@ export class Roster {
         }
       }
       for (const [id, was] of this.players) {
-        if (id !== ownId && !next.has(id)) events.push({ kind: 'left', name: was.name });
+        if (id !== ownId && !was.npc && !next.has(id)) events.push({ kind: 'left', name: was.name });
       }
     }
     this.players = next;

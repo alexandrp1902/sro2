@@ -50,6 +50,11 @@ export class Stick {
     }
   }
 
+  /** Стоп как после двойного тапа — корабль уничтожен, и после респауна залипший стик не должен унести его. */
+  reset(): void {
+    this.snapToCenter();
+  }
+
   private resize(): void {
     this.radius = stickRadius(window.innerWidth, window.innerHeight);
     this.root.style.setProperty('--stick-r', `${this.radius}px`);

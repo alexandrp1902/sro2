@@ -24,6 +24,7 @@ export class Prediction {
   private pending: { seq: number; input: MoveInput }[] = [];
   private seq = 0;
   private synced = false;
+  private dead = false;
   private peakCorrection = 0;
   private readonly offset = { x: 0, y: 0, rot: 0 };
 
@@ -42,6 +43,11 @@ export class Prediction {
     return this.synced;
   }
 
+  /** Свой корабль уничтожен: стоит на месте обломков, пока сервер его не вернёт. */
+  get isDead(): boolean {
+    return this.dead;
+  }
+
   get pendingCount(): number {
     return this.pending.length;
   }
@@ -49,7 +55,13 @@ export class Prediction {
   /** @param send отправка входа серверу; null — связи нет, летим локально */
   step(input: MoveInput, send: ((seq: number, input: MoveInput) => void) | null): void {
     copyState(this.prev, this.curr);
-    step(this.curr, input, this.hulls.get(this.hullId), DT);
+    if (this.dead) {
+      // Сервер уничтоженный корабль не двигает, но входы считает — seq продолжается, тяга 0.
+      // Шаг не симулируем: Movement разворачивает корабль и без тяги, а на сервере обломки стоят.
+      input = { ...input, throttle: 0 };
+    } else {
+      step(this.curr, input, this.hulls.get(this.hullId), DT);
+    }
     if (!send) return;
     this.seq++;
     this.pending.push({ seq: this.seq, input });
@@ -62,6 +74,7 @@ export class Prediction {
     this.seq = 0;
     this.pending = [];
     this.synced = false;
+    this.dead = false;
   }
 
   reconcile(ship: ShipDto): void {
@@ -69,6 +82,22 @@ export class Prediction {
     while (this.pending.length > 0 && this.pending[0].seq <= ship.ack) this.pending.shift();
 
     const state: ShipState = { x: ship.x, y: ship.y, rot: ship.r, vx: ship.vx, vy: ship.vy };
+    if ((ship.rt ?? 0) > 0) {
+      // Уничтожен: стоим ровно на состоянии сервера, ничего не переигрываем.
+      this.dead = true;
+      this.synced = true;
+      copyState(this.prev, state);
+      copyState(this.curr, state);
+      this.offset.x = this.offset.y = this.offset.rot = 0;
+      this.lastCorrection = 0;
+      return;
+    }
+    if (this.dead) {
+      // Респаун: как первый снапшот. Входы до ack съедены смертью, после ack сервер отшагает после появления.
+      this.dead = false;
+      this.synced = false;
+    }
+
     const hull = this.hulls.get(ship.hull);
     for (const { input } of this.pending) step(state, input, hull, DT);
 

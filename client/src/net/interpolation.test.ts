@@ -8,7 +8,7 @@ const FRAME_MS = 1000 / 60;
 const SPEED = 200;
 
 function ship(id: number, x: number, r = 0): ShipDto {
-  return { id, x, y: 0, r, vx: SPEED, vy: 0, hull: 'light', th: 1, ack: 0 };
+  return { id, x, y: 0, r, vx: SPEED, vy: 0, hull: 'light', th: 1, ack: 0, hp: 400, sh: 150, w: 'pulse' };
 }
 
 function snapshot(tick: number, ...ships: ShipDto[]): SnapshotMsg {
@@ -131,6 +131,24 @@ describe('SnapshotBuffer', () => {
     buffer.push(snapshot(11, ship(1, 10), ship(2, 500)));
     expect(buffer.sample(2, 10.5)).toBeNull();
     expect(buffer.sample(2, 11.2)?.x).toBeCloseTo(500 + SPEED * 0.2 * 0.05);
+  });
+
+  it('takes hull and shield from the frame the clock has reached', () => {
+    const buffer = new SnapshotBuffer();
+    buffer.push(snapshot(10, ship(1, 0)));
+    buffer.push(snapshot(11, { ...ship(1, 10), hp: 350, sh: 0, pu: 30 }));
+    expect(buffer.sample(1, 10.9)).toMatchObject({ hp: 400, sh: 150, pu: 0 });
+    expect(buffer.sample(1, 11)).toMatchObject({ hp: 350, sh: 0, pu: 30 });
+  });
+
+  it('does not slide a respawned ship across the map', () => {
+    const buffer = new SnapshotBuffer();
+    buffer.push(snapshot(10, { ...ship(1, 2000), vx: 0, hp: 0, rt: 11 }));
+    buffer.push(snapshot(11, { ...ship(1, 0), vx: 0 }));
+    const s = buffer.sample(1, 10.2)!;
+    expect(s.x).toBe(0);
+    expect(s.rt).toBe(0);
+    expect(buffer.sample(1, 9.9)?.rt ?? 11).toBe(11);
   });
 
   it('drops late snapshots but starts over when the server restarts', () => {

@@ -8,19 +8,21 @@ const SPAWN = { x: 0, y: 600 };
 
 /** Сервер без сети: шаг на каждый вход, снапшот = состояние после входа ack. */
 class FakeServer {
-  readonly state: ShipState = { x: SPAWN.x, y: SPAWN.y, rot: 0, vx: 0, vy: 0 };
+  state: ShipState = { x: SPAWN.x, y: SPAWN.y, rot: 0, vx: 0, vy: 0 };
   ack = 0;
+  /** Тик респауна; 0 — корабль цел. Уничтоженный корабль входы считает, но не двигается. */
+  rt = 0;
 
   constructor(private readonly hulls: Hulls) {}
 
   apply(seq: number, input: MoveInput): void {
-    step(this.state, input, this.hulls.get('light'), DT);
+    if (this.rt === 0) step(this.state, input, this.hulls.get('light'), DT);
     this.ack = seq;
   }
 
   snapshot(): ShipDto {
     const s = this.state;
-    return { id: 1, x: s.x, y: s.y, r: s.rot, vx: s.vx, vy: s.vy, hull: 'light', th: 0, ack: this.ack };
+    return { id: 1, x: s.x, y: s.y, r: s.rot, vx: s.vx, vy: s.vy, hull: 'light', th: 0, ack: this.ack, hp: 400, sh: 150, w: 'pulse', rt: this.rt };
   }
 }
 
@@ -81,5 +83,51 @@ describe('Prediction', () => {
     expect(prediction.snaps).toBe(0);
     prediction.step({ dx: 1, dy: 0, throttle: 1 }, send);
     expect(prediction.pendingCount).toBe(1);
+  });
+
+  it('stays on the wreck while destroyed and takes the respawn without a snap', () => {
+    const { prediction, server, inFlight, send } = setup();
+    const deliver = () => {
+      while (inFlight.length > 0) {
+        const { seq, input } = inFlight.shift()!;
+        server.apply(seq, input);
+      }
+      prediction.reconcile(server.snapshot());
+    };
+    prediction.reconcile(server.snapshot());
+    for (let i = 0; i < 20; i++) {
+      prediction.step({ dx: 0, dy: -1, throttle: 1 }, send);
+      deliver();
+    }
+
+    // Уничтожен: сервер гасит скорость и стоит.
+    server.rt = 500;
+    server.state.vx = server.state.vy = 0;
+    prediction.reconcile(server.snapshot());
+    expect(prediction.isDead).toBe(true);
+    const wreck = { ...prediction.curr };
+    for (let i = 0; i < 5; i++) {
+      prediction.step({ dx: 1, dy: 0, throttle: 1 }, send);
+      expect(inFlight[inFlight.length - 1].input.throttle).toBe(0);
+      expect(prediction.curr).toEqual(wreck);
+      deliver();
+    }
+
+    // Респаун у станции; три входа ещё в пути.
+    server.rt = 0;
+    server.state = { x: SPAWN.x, y: SPAWN.y, rot: 0, vx: 0, vy: 0 };
+    for (let i = 0; i < 3; i++) prediction.step({ dx: 1, dy: 0, throttle: 1 }, send);
+    prediction.reconcile(server.snapshot());
+    expect(prediction.isDead).toBe(false);
+    expect(prediction.snaps).toBe(0);
+    expect(Math.hypot(prediction.curr.x - SPAWN.x, prediction.curr.y - SPAWN.y)).toBeLessThan(1e-9);
+
+    // Дальше сервер отшагивает те же входы — коррекции нет.
+    deliver();
+    expect(prediction.lastCorrection).toBeLessThan(1e-9);
+    prediction.step({ dx: 1, dy: 0, throttle: 1 }, send);
+    deliver();
+    expect(prediction.lastCorrection).toBeLessThan(1e-9);
+    expect(prediction.snaps).toBe(0);
   });
 });

@@ -22,14 +22,14 @@ public sealed class SystemRoom : BackgroundService
     public SystemRoom(BalanceStore balance, ILogger<SystemRoom> log, ILogger<Room> roomLog)
     {
         _log = log;
-        _room = new Room(balance.Hulls, roomLog);
-        balance.Changed += hulls => _commands.Enqueue(() => _room.ApplyHulls(hulls));
+        _room = new Room(balance.Balance, roomLog);
+        balance.Changed += b => _commands.Enqueue(() => _room.ApplyBalance(b));
     }
 
     public long Tick => Interlocked.Read(ref _tick);
 
-    public void Join(IClientConnection connection, string? token, string? name, string? hull) =>
-        _commands.Enqueue(() => _room.Join(connection, token, name, hull));
+    public void Join(IClientConnection connection, HelloMsg hello) =>
+        _commands.Enqueue(() => _room.Join(connection, hello.Token, hello.Name, hello.Hull, hello.Weapon));
 
     public void Leave(IClientConnection connection) => _commands.Enqueue(() => _room.Disconnect(connection));
 
@@ -41,6 +41,12 @@ public sealed class SystemRoom : BackgroundService
     }
 
     public void SetHull(IClientConnection connection, string? hullId) => _commands.Enqueue(() => _room.SetHull(connection, hullId));
+
+    public void SetWeapon(IClientConnection connection, string? weaponId) => _commands.Enqueue(() => _room.SetWeapon(connection, weaponId));
+
+    public void SetTarget(IClientConnection connection, int targetId) => _commands.Enqueue(() => _room.SetTarget(connection, targetId));
+
+    public void SetFire(IClientConnection connection, bool on) => _commands.Enqueue(() => _room.SetFire(connection, on));
 
     public void Rename(IClientConnection connection, string? name) => _commands.Enqueue(() => _room.Rename(connection, name));
 

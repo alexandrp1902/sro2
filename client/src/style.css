@@ -148,6 +148,168 @@ body {
   opacity: 0;
 }
 
+/* Свои корпус и щит (GDD §41): левая колонка под строкой статуса. */
+.ship-hud {
+  position: absolute;
+  top: calc(env(safe-area-inset-top) + 36px);
+  left: calc(env(safe-area-inset-left) + 10px);
+  width: 170px;
+  box-sizing: border-box;
+  padding: 5px 7px;
+  border-radius: 10px;
+  background: rgba(10, 16, 28, 0.6);
+}
+
+.ship-hud[hidden],
+.target[hidden],
+.death[hidden] {
+  display: none;
+}
+
+.bar {
+  position: relative;
+  height: 13px;
+  margin: 2px 0;
+  border-radius: 3px;
+  background: rgba(255, 255, 255, 0.08);
+  overflow: hidden;
+}
+
+.bar i {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 100%;
+  background: #c8733a;
+  transition: width 0.15s;
+}
+
+.bar-shield i {
+  background: #3f86c9;
+}
+
+.bar span {
+  position: relative;
+  display: block;
+  padding-left: 5px;
+  font-size: 10px;
+  line-height: 13px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  color: #fff;
+  text-shadow: 0 0 2px #000;
+}
+
+.protect {
+  margin-top: 2px;
+  color: #9fd0ff;
+  font-size: 11px;
+}
+
+.protect:empty {
+  display: none;
+}
+
+/* Карточка цели (GDD §9): сверху по центру, лента событий уходит под неё. */
+.target {
+  position: absolute;
+  top: calc(env(safe-area-inset-top) + 8px);
+  left: 50%;
+  transform: translateX(-50%);
+  width: 240px;
+  box-sizing: border-box;
+  padding: 5px 8px 6px;
+  border: 1px solid rgba(224, 176, 74, 0.55);
+  border-radius: 10px;
+  background: rgba(10, 16, 28, 0.72);
+  font-size: 12px;
+}
+
+.target[data-state='ready'] {
+  border-color: rgba(74, 224, 122, 0.75);
+}
+
+.target[data-state='dead'] {
+  border-color: rgba(138, 143, 153, 0.6);
+}
+
+.target-head {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  margin-bottom: 2px;
+}
+
+.target-name {
+  max-width: 120px;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.target-class {
+  flex: 1;
+  color: #8fb4e8;
+  white-space: nowrap;
+}
+
+.target-close {
+  padding: 0 2px 0 10px;
+  border: 0;
+  background: transparent;
+  color: #cfe3ff;
+  font-size: 16px;
+  line-height: 16px;
+  cursor: pointer;
+  pointer-events: auto;
+}
+
+.target-info {
+  margin-top: 3px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+#target:not([hidden]) ~ .feed {
+  top: calc(env(safe-area-inset-top) + 94px);
+}
+
+/* Экран уничтожения (GDD §24). */
+.death {
+  position: absolute;
+  left: 50%;
+  top: 38%;
+  transform: translate(-50%, -50%);
+  padding: 14px 22px;
+  border: 1px solid rgba(224, 82, 74, 0.6);
+  border-radius: 14px;
+  background: rgba(10, 6, 8, 0.75);
+  text-align: center;
+  white-space: nowrap;
+}
+
+.death-title {
+  color: #ff8a7a;
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+}
+
+.death-by {
+  margin-top: 4px;
+  font-size: 13px;
+}
+
+.death-by:empty {
+  display: none;
+}
+
+.death-timer {
+  margin-top: 6px;
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+}
+
 /* На узком вертикальном экране статус и строка полёта в один ряд не помещаются. */
 @media (max-width: 520px) {
   .flight {
@@ -156,16 +318,31 @@ body {
     left: calc(env(safe-area-inset-left) + 10px);
   }
 
-  .feed {
+  .ship-hud {
     top: calc(env(safe-area-inset-top) + 64px);
+  }
+
+  /* Лента — в левой колонке под своими полосками; правая сторона остаётся игре. */
+  .feed,
+  #target:not([hidden]) ~ .feed {
+    top: calc(env(safe-area-inset-top) + 124px);
+    left: calc(env(safe-area-inset-left) + 10px);
+    transform: none;
+    align-items: flex-start;
+  }
+
+  /* Карточка цели — справа над кнопкой огня и выше стика. */
+  .target {
+    top: auto;
+    bottom: calc(env(safe-area-inset-bottom) + 208px);
     left: auto;
     right: calc(env(safe-area-inset-right) + 10px);
     transform: none;
-    align-items: flex-end;
+    width: min(220px, 60vw);
   }
 
   .dev {
-    top: calc(env(safe-area-inset-top) + 64px);
+    top: calc(env(safe-area-inset-top) + 124px);
     right: auto;
     left: calc(env(safe-area-inset-left) + 10px);
   }
@@ -222,6 +399,59 @@ body {
   background: #7fd4ff;
   box-shadow: 0 0 12px rgba(127, 212, 255, 0.5);
   opacity: calc(0.45 + var(--stick-power, 0) * 0.45);
+}
+
+/* Кнопка атаки (GDD §8): справа внизу, над зоной home-indicator. Удержание — огонь по готовности. */
+.fire {
+  --reload: 1;
+  position: fixed;
+  right: calc(env(safe-area-inset-right) + 18px);
+  bottom: calc(env(safe-area-inset-bottom) + 30px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 84px;
+  height: 84px;
+  box-sizing: border-box;
+  border: 2px solid rgba(255, 150, 130, 0.55);
+  border-radius: 50%;
+  background: rgba(150, 40, 34, 0.35);
+  color: #ffe0d8;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  touch-action: none;
+}
+
+.fire[hidden] {
+  display: none;
+}
+
+.fire[data-aim='ready'] {
+  border-color: rgba(74, 224, 122, 0.85);
+}
+
+.fire[data-aim='none'] {
+  opacity: 0.6;
+}
+
+.fire[data-active='true'] {
+  background: rgba(224, 82, 74, 0.7);
+}
+
+/* Кольцо перезарядки: заполняется от выстрела до готовности следующего. */
+.fire-ring {
+  position: absolute;
+  inset: -7px;
+  border-radius: 50%;
+  background: conic-gradient(rgba(255, 214, 160, 0.9) calc(var(--reload) * 1turn), rgba(255, 214, 160, 0.12) 0);
+  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 4px), #000 calc(100% - 3px));
+  mask: radial-gradient(farthest-side, transparent calc(100% - 4px), #000 calc(100% - 3px));
+  pointer-events: none;
+}
+
+.fire span {
+  pointer-events: none;
 }
 
 .connect {

@@ -40,6 +40,15 @@ describe('Roster', () => {
     expect(roster.update([{ ...me, name: 'Новое имя' }, bob], OWN)).toEqual([]);
   });
 
+  it('keeps drones out of the feed and the online count', () => {
+    const drone: PlayerDto = { id: 5, name: 'Учебный дрон', online: true, npc: true };
+    const roster = started(me);
+    expect(roster.update([me, drone], OWN)).toEqual([]);
+    expect(roster.get(5)?.name).toBe('Учебный дрон');
+    expect(roster.onlineCount).toBe(1);
+    expect(roster.update([me], OWN)).toEqual([]);
+  });
+
   it('starts over after a reconnect', () => {
     const roster = started(me);
     roster.reset();

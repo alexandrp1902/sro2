@@ -1,0 +1,38 @@
+{
+  "pulse": {
+    "name": "Импульсная пушка Mk1",
+    "kind": "bolt",
+    "color": "#ffd166",
+    "damage": 100,
+    "accuracy": 75,
+    "cooldown": 1.0,
+    "optimalRange": 500,
+    "maxRange": 700,
+    "rangePenalty": 10,
+    "arc": 60
+  },
+  "laser": {
+    "name": "Лазер Mk1",
+    "kind": "beam",
+    "color": "#6ff0ff",
+    "damage": 40,
+    "accuracy": 90,
+    "cooldown": 0.5,
+    "optimalRange": 400,
+    "maxRange": 600,
+    "rangePenalty": 20,
+    "arc": 60
+  },
+  "plasma": {
+    "name": "Плазма Mk1",
+    "kind": "orb",
+    "color": "#c77dff",
+    "damage": 280,
+    "accuracy": 60,
+    "cooldown": 2.0,
+    "optimalRange": 450,
+    "maxRange": 650,
+    "rangePenalty": 15,
+    "arc": 60
+  }
+}

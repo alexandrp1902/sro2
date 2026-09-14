@@ -16,6 +16,10 @@ export function describe(event: RosterEvent): string {
   return event.kind === 'renamed' ? `${event.from} теперь ${event.name}` : `${event.name} ${VERBS[event.kind]}`;
 }
 
+export function describeKill(killer: string, victim: string): string {
+  return `${killer} уничтожает ${victim}`;
+}
+
 /** Лента событий системы вверху экрана: сообщения живут несколько секунд. */
 export class Feed {
   constructor(private readonly root: HTMLElement) {}

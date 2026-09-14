@@ -4,20 +4,14 @@ using Sro.Sim;
 namespace Sro.Server.Game;
 
 /// <param name="token">Сессия клиента; null — вернуться к кораблю после обрыва нельзя, он удаляется сразу.</param>
-public sealed class Player(int id, string? token, string name, string hullId)
+public sealed class Player(int id, string? token, string name, string hullId, string weaponId)
+    : ShipEntity(id, name, hullId, weaponId)
 {
-    /// <summary>Id корабля в снапшотах. Не меняется при переподключении, в отличие от id соединения.</summary>
-    public int Id { get; } = id;
     public string? Token { get; } = token;
-    public string Name { get; set; } = name;
-    public string HullId { get; set; } = hullId;
 
     /// <summary>null — связи нет: корабль висит в космосе и тормозит, пока игрок не вернётся.</summary>
     public IClientConnection? Connection { get; private set; }
     public long LostAtTick { get; private set; }
-
-    /// <summary>Поле, а не свойство: Movement.Step меняет состояние по ссылке.</summary>
-    public ShipState Ship = new() { X = SimConfig.SpawnX, Y = SimConfig.SpawnY };
 
     public InputBuffer Inputs { get; private set; } = new(new MoveInput(0, -1, 0));
 
@@ -35,5 +29,6 @@ public sealed class Player(int id, string? token, string name, string hullId)
     {
         Connection = null;
         LostAtTick = tick;
+        FireHeld = false; // иначе корабль без связи палил бы сам до возвращения игрока
     }
 }

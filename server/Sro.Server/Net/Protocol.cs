@@ -12,12 +12,16 @@ namespace Sro.Server.Net;
 [JsonDerivedType(typeof(PingMsg), "ping")]
 [JsonDerivedType(typeof(InputMsg), "input")]
 [JsonDerivedType(typeof(HullMsg), "hull")]
+[JsonDerivedType(typeof(WeaponMsg), "weapon")]
 [JsonDerivedType(typeof(NameMsg), "name")]
+[JsonDerivedType(typeof(TargetMsg), "target")]
+[JsonDerivedType(typeof(FireMsg), "fire")]
 public abstract record ClientMessage;
 
 /// <param name="Hull">Класс корпуса, сохранённый на устройстве.</param>
 /// <param name="Token">Сессия вкладки: с ней после обрыва связи игрок возвращается к своему кораблю.</param>
-public sealed record HelloMsg(string? Name, string? Hull, string? Token) : ClientMessage;
+/// <param name="Weapon">Пушка, сохранённая на устройстве.</param>
+public sealed record HelloMsg(string? Name, string? Hull, string? Token, string? Weapon = null) : ClientMessage;
 
 /// <param name="C">Время клиента, возвращается в pong как есть для замера RTT.</param>
 public sealed record PingMsg(double C) : ClientMessage;
@@ -28,8 +32,17 @@ public sealed record InputMsg(int Seq, double Dx, double Dy, double Th) : Client
 /// <summary>Смена класса корпуса из dev-панели.</summary>
 public sealed record HullMsg(string? Id) : ClientMessage;
 
+/// <summary>Смена пушки из dev-панели.</summary>
+public sealed record WeaponMsg(string? Id) : ClientMessage;
+
 /// <summary>Смена ника на лету.</summary>
 public sealed record NameMsg(string? Name) : ClientMessage;
+
+/// <summary>Выбранная цель (GDD §9); 0 — цели нет.</summary>
+public sealed record TargetMsg(int Id) : ClientMessage;
+
+/// <summary>Атака нажата или отпущена: пока нажата, пушка стреляет сама по готовности (GDD §47).</summary>
+public sealed record FireMsg(bool On) : ClientMessage;
 
 // Сервер → клиент
 [JsonPolymorphic(TypeDiscriminatorPropertyName = "t")]
@@ -42,25 +55,78 @@ public abstract record ServerMessage;
 
 /// <param name="Id">Id своего корабля в снапшотах.</param>
 /// <param name="Hulls">Параметры корпусов: клиент предсказывает движение с теми же числами, что и сервер.</param>
+/// <param name="Weapons">Параметры пушек — для карточки цели и трассеров.</param>
+/// <param name="Combat">Правила боя: время респауна, защита.</param>
 /// <param name="Resumed">Игрок вернулся к кораблю, который ждал его после обрыва связи.</param>
-public sealed record WelcomeMsg(int Id, int TickRate, IReadOnlyDictionary<string, HullParams> Hulls, bool Resumed) : ServerMessage;
+public sealed record WelcomeMsg(
+    int Id,
+    int TickRate,
+    IReadOnlyDictionary<string, HullParams> Hulls,
+    IReadOnlyDictionary<string, WeaponParams> Weapons,
+    CombatRules Combat,
+    bool Resumed) : ServerMessage;
 
 public sealed record PongMsg(double C, long Tick) : ServerMessage;
 
-/// <summary>Весь список игроков системы; присылается при любом изменении (вход, выход, обрыв, смена ника).</summary>
+/// <summary>Весь список кораблей с именами — игроки и NPC; присылается при любом изменении (вход, выход, обрыв, смена ника).</summary>
 public sealed record PlayersMsg(IReadOnlyList<PlayerDto> Players) : ServerMessage;
 
 /// <param name="Online">false — связи нет, корабль висит в космосе и ждёт игрока.</param>
-public sealed record PlayerDto(int Id, string Name, bool Online);
+/// <param name="Npc">Дрон или другой NPC: о нём не пишут в ленту и не считают в «онлайн».</param>
+/// <param name="MaxHp">Своя прочность NPC вместо корпусной; нет — как у корпуса.</param>
+/// <param name="MaxSh">Свой щит NPC вместо корпусного; нет — как у корпуса.</param>
+public sealed record PlayerDto(
+    int Id,
+    string Name,
+    bool Online,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)] bool Npc = false,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] int? MaxHp = null,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] int? MaxSh = null);
 
-/// <summary>hulls.json изменился на диске.</summary>
-public sealed record ConfigMsg(IReadOnlyDictionary<string, HullParams> Hulls) : ServerMessage;
+/// <summary>Файлы баланса изменились на диске.</summary>
+public sealed record ConfigMsg(
+    IReadOnlyDictionary<string, HullParams> Hulls,
+    IReadOnlyDictionary<string, WeaponParams> Weapons,
+    CombatRules Combat) : ServerMessage;
 
-public sealed record SnapshotMsg(long Tick, IReadOnlyList<ShipDto> Ships) : ServerMessage;
+/// <param name="Shots">Выстрелы этого тика; нет — поле не пишется.</param>
+/// <param name="Kills">Уничтоженные в этом тике.</param>
+public sealed record SnapshotMsg(
+    long Tick,
+    IReadOnlyList<ShipDto> Ships,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] IReadOnlyList<ShotDto>? Shots = null,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] IReadOnlyList<KillDto>? Kills = null) : ServerMessage;
 
 /// <param name="Th">Тяга последнего входа — для пламени двигателя у чужих кораблей.</param>
 /// <param name="Ack">Последний применённый seq владельца: состояние — ровно после этого входа.</param>
-public sealed record ShipDto(int Id, double X, double Y, double R, double Vx, double Vy, string Hull, double Th, int Ack);
+/// <param name="Hp">Корпус, округлён вверх.</param>
+/// <param name="Sh">Щит, округлён вверх.</param>
+/// <param name="W">Пушка.</param>
+/// <param name="Rt">Корабль уничтожен и появится в этот тик; 0 — цел.</param>
+/// <param name="Pu">Под защитой до этого тика; 0 — без защиты.</param>
+public sealed record ShipDto(
+    int Id,
+    double X,
+    double Y,
+    double R,
+    double Vx,
+    double Vy,
+    string Hull,
+    double Th,
+    int Ack,
+    int Hp,
+    int Sh,
+    string W,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)] long Rt = 0,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)] long Pu = 0);
+
+/// <param name="Dmg">Урон всего (0 при промахе).</param>
+/// <param name="Sh">Из него пришлось на щит.</param>
+/// <param name="Ch">Шанс попадания, %, по которому бросал сервер.</param>
+public sealed record ShotDto(int From, int To, string W, bool Hit, int Dmg, int Sh, double Ch);
+
+/// <param name="By">Кто нанёс смертельный удар.</param>
+public sealed record KillDto(int Id, int By);
 
 public static class Protocol
 {

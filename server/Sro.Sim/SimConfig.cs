@@ -12,6 +12,9 @@ public static class SimConfig
     /// <summary>Класс корпуса нового игрока. Зеркало DEFAULT_HULL в client/src/sim/hulls.ts.</summary>
     public const string DefaultHull = "light";
 
+    /// <summary>Пушка нового игрока. Зеркало DEFAULT_WEAPON в client/src/sim/weapons.ts.</summary>
+    public const string DefaultWeapon = "pulse";
+
     /// <summary>Точка спауна у станции. Зеркало SPAWN в client/src/game/layout.ts.</summary>
     public const double SpawnX = 0;
     public const double SpawnY = 420;

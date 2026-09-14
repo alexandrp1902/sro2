@@ -45,6 +45,11 @@ public readonly record struct MoveInput(double Dx, double Dy, double Throttle)
 /// <param name="TurnRate">Градусы в секунду.</param>
 /// <param name="LateralDampTime">За это время боковая скорость гаснет примерно до 5%.</param>
 /// <param name="LateralToForward">Доля погашенной боковой скорости, переходящая в продольную (0 — выключено).</param>
+/// <param name="Hp">Прочность корпуса.</param>
+/// <param name="Shield">Ёмкость щита: урон сначала снимает щит (GDD §17).</param>
+/// <param name="ShieldRegen">Восстановление щита в секунду после паузы без урона.</param>
+/// <param name="Evasion">Базовое уклонение, % (боевой документ §39).</param>
+/// <param name="MoveEvasion">Добавка к уклонению на полной скорости, % (§40).</param>
 public sealed record HullParams(
     string Name,
     double MaxSpeed,
@@ -53,7 +58,12 @@ public sealed record HullParams(
     double TurnRate,
     double LateralDampTime,
     double LateralToForward,
-    double Size)
+    double Size,
+    double Hp = 400,
+    double Shield = 150,
+    double ShieldRegen = 20,
+    double Evasion = 25,
+    double MoveEvasion = 8)
 {
     /// <returns>Описание ошибки или null, если параметры годятся.</returns>
     public string? Validate()
@@ -64,6 +74,10 @@ public sealed record HullParams(
         if (!(LateralDampTime > 0)) return "lateralDampTime must be positive";
         if (!(LateralToForward >= 0 && LateralToForward <= 1)) return "lateralToForward must be within 0..1";
         if (!(Size > 0)) return "size must be positive";
+        if (!(Hp > 0)) return "hp must be positive";
+        if (!(Shield >= 0) || !(ShieldRegen >= 0)) return "shield and shieldRegen must not be negative";
+        if (!(Evasion >= 0 && Evasion <= 100) || !(MoveEvasion >= 0 && MoveEvasion <= 100))
+            return "evasion and moveEvasion must be within 0..100";
         return null;
     }
 }

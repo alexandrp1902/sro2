@@ -77,6 +77,12 @@ export interface ShipSample {
   vy: number;
   hull: string;
   th: number;
+  /** Корпус, щит, пушка, тик респауна (0 — цел), защита до тика (0 — нет): из кадра, до которого дошли часы. */
+  hp: number;
+  sh: number;
+  w: string;
+  rt: number;
+  pu: number;
   /** Рисуем дальше последнего снапшота — снапшот опоздал. */
   extrapolated: boolean;
 }
@@ -135,6 +141,8 @@ export class SnapshotBuffer {
     const to = b.ships.get(id);
     // Нет в следующем снапшоте — корабль ушёл, держим на месте; нет в предыдущем — только вошёл, рано.
     if (!from || !to) return from ? extrapolate(from, 0, false) : null;
+    // Респаун — телепорт к станции: не тянем корабль через полкарты, а сразу рисуем на новом месте.
+    if ((from.rt ?? 0) > 0 && !to.rt) return extrapolate(to, 0, false);
     const alpha = (renderTick - a.tick) / (b.tick - a.tick);
     return {
       x: from.x + (to.x - from.x) * alpha,
@@ -144,6 +152,12 @@ export class SnapshotBuffer {
       vy: to.vy,
       hull: to.hull,
       th: to.th,
+      // Дискретное — из кадра a: полоска падает ровно тогда, когда проигрывается выстрел тика b.
+      hp: from.hp,
+      sh: from.sh,
+      w: from.w,
+      rt: from.rt ?? 0,
+      pu: from.pu ?? 0,
       extrapolated: false,
     };
   }
@@ -158,6 +172,11 @@ function extrapolate(ship: ShipDto, seconds: number, extrapolated: boolean): Shi
     vy: ship.vy,
     hull: ship.hull,
     th: ship.th,
+    hp: ship.hp,
+    sh: ship.sh,
+    w: ship.w,
+    rt: ship.rt ?? 0,
+    pu: ship.pu ?? 0,
     extrapolated,
   };
 }

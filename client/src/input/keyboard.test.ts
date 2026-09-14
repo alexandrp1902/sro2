@@ -12,6 +12,11 @@ const LIGHT: HullParams = {
   lateralDampTime: 0.65,
   lateralToForward: 0,
   size: 16,
+  hp: 1500,
+  shield: 500,
+  shieldRegen: 20,
+  evasion: 25,
+  moveEvasion: 8,
 };
 
 function setup() {

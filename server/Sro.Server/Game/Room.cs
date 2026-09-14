@@ -6,10 +6,10 @@ using Sro.Sim;
 namespace Sro.Server.Game;
 
 /// <summary>
-/// Логика одной звёздной системы: игроки, сессии, шаг симуляции, снапшоты. Вызывается только из потока тика
+/// Логика одной звёздной системы: игроки, сессии, NPC, шаг симуляции, бой, снапшоты. Вызывается только из потока тика
 /// (<see cref="SystemRoom"/>), своих потоков и таймеров не имеет — поэтому тестируется напрямую.
 /// </summary>
-public sealed class Room(IReadOnlyDictionary<string, HullParams> hulls, ILogger log)
+public sealed class Room
 {
     public const int MaxNameLength = 16;
     public const string DefaultName = "Рейнджер";
@@ -23,23 +23,49 @@ public sealed class Room(IReadOnlyDictionary<string, HullParams> hulls, ILogger 
     private const int MinTokenLength = 16;
     private const int MaxTokenLength = 64;
 
+    private readonly ILogger _log;
+    private readonly Random _jitter;
+    private readonly Battle _battle;
     private readonly Dictionary<int, Player> _players = [];
     private readonly Dictionary<int, Player> _byConnection = [];
     private readonly Dictionary<string, Player> _byToken = new(StringComparer.Ordinal);
-    private readonly List<ShipDto> _ships = [];
+    /// <summary>Все корабли системы — игроки и NPC; здесь ищется цель.</summary>
+    private readonly Dictionary<int, ShipEntity> _ships = [];
+    private readonly List<Drone> _drones = [];
+    private readonly List<ShipDto> _shipDtos = [];
+    private readonly List<ShotDto> _shots = [];
+    private readonly List<KillDto> _kills = [];
     private readonly List<Player> _expired = [];
     private readonly MoveInput[] _steps = new MoveInput[InputBuffer.MaxBudget];
     private int _nextId;
 
+    /// <param name="roll">Случайное число из [0, 1) для бросков попадания; тесты подставляют своё.</param>
+    /// <param name="jitter">Разброс точки появления.</param>
+    public Room(Balance balance, ILogger log, Func<double>? roll = null, Random? jitter = null)
+    {
+        Balance = balance;
+        _log = log;
+        _jitter = jitter ?? Random.Shared;
+        _battle = new Battle(roll ?? Random.Shared.NextDouble, log);
+        SpawnDrones();
+    }
+
     public long Tick { get; private set; }
-    public IReadOnlyDictionary<string, HullParams> Hulls { get; private set; } = hulls;
+    public Balance Balance { get; private set; }
+    public IReadOnlyDictionary<string, HullParams> Hulls => Balance.Hulls;
+
+    /// <summary>Число игроков; NPC не считаются.</summary>
     public int Count => _players.Count;
 
-    public void Join(IClientConnection connection, string? token, string? name, string? hull)
+    /// <summary>Корабль по id — игрок или NPC.</summary>
+    public ShipEntity? Entity(int id) => _ships.GetValueOrDefault(id);
+
+    public void Join(IClientConnection connection, string? token, string? name, string? hull, string? weapon = null)
     {
         if (_byConnection.ContainsKey(connection.Id)) return;
         if (!IsValidToken(token)) token = null;
         var hullId = hull is not null && Hulls.ContainsKey(hull) ? hull : null;
+        var weaponId = weapon is not null && Balance.Weapons.ContainsKey(weapon) ? weapon : null;
 
         if (token is not null && _byToken.TryGetValue(token, out var player))
         {
@@ -51,22 +77,30 @@ public sealed class Room(IReadOnlyDictionary<string, HullParams> hulls, ILogger 
             }
             player.Attach(connection);
             player.Name = UniqueName(SanitizeName(name), player);
-            if (hullId is not null) player.HullId = hullId;
+            if (hullId is not null) ChangeHull(player, hullId);
+            if (weaponId is not null) player.WeaponId = weaponId;
             _byConnection[connection.Id] = player;
-            connection.Send(new WelcomeMsg(player.Id, SimConfig.TickRate, Hulls, Resumed: true));
+            connection.Send(Welcome(player, resumed: true));
             BroadcastPlayers();
-            log.LogInformation("Player {Id} '{Name}' resumed, online {Count}", player.Id, player.Name, OnlineCount());
+            _log.LogInformation("Player {Id} '{Name}' resumed, online {Count}", player.Id, player.Name, OnlineCount());
             return;
         }
 
-        player = new Player(++_nextId, token, UniqueName(SanitizeName(name), null), hullId ?? SimConfig.DefaultHull);
+        player = new Player(
+            ++_nextId,
+            token,
+            UniqueName(SanitizeName(name), null),
+            hullId ?? SimConfig.DefaultHull,
+            weaponId ?? SimConfig.DefaultWeapon);
+        Spawn(player);
         player.Attach(connection);
         _players[player.Id] = player;
+        _ships[player.Id] = player;
         _byConnection[connection.Id] = player;
         if (token is not null) _byToken[token] = player;
-        connection.Send(new WelcomeMsg(player.Id, SimConfig.TickRate, Hulls, Resumed: false));
+        connection.Send(Welcome(player, resumed: false));
         BroadcastPlayers();
-        log.LogInformation("Player {Id} '{Name}' joined as {Hull}, online {Count}", player.Id, player.Name, player.HullId, OnlineCount());
+        _log.LogInformation("Player {Id} '{Name}' joined as {Hull}, online {Count}", player.Id, player.Name, player.HullId, OnlineCount());
     }
 
     /// <summary>Соединение закрылось. Корабль остаётся ждать игрока, если у того есть сессия.</summary>
@@ -77,12 +111,12 @@ public sealed class Room(IReadOnlyDictionary<string, HullParams> hulls, ILogger 
         if (player.Token is null)
         {
             Remove(player);
-            log.LogInformation("Player {Id} left, online {Count}", player.Id, OnlineCount());
+            _log.LogInformation("Player {Id} left, online {Count}", player.Id, OnlineCount());
         }
         else
         {
             player.Detach(Tick);
-            log.LogInformation("Player {Id} lost connection, online {Count}", player.Id, OnlineCount());
+            _log.LogInformation("Player {Id} lost connection, online {Count}", player.Id, OnlineCount());
         }
         BroadcastPlayers();
     }
@@ -95,8 +129,27 @@ public sealed class Room(IReadOnlyDictionary<string, HullParams> hulls, ILogger 
     public void SetHull(IClientConnection connection, string? hullId)
     {
         if (hullId is null || !Hulls.ContainsKey(hullId) || !_byConnection.TryGetValue(connection.Id, out var player)) return;
-        player.HullId = hullId;
-        log.LogInformation("Player {Id} switched to {Hull}", player.Id, hullId);
+        ChangeHull(player, hullId);
+        _log.LogInformation("Player {Id} switched to {Hull}", player.Id, hullId);
+    }
+
+    public void SetWeapon(IClientConnection connection, string? weaponId)
+    {
+        if (weaponId is null || !Balance.Weapons.ContainsKey(weaponId) || !_byConnection.TryGetValue(connection.Id, out var player)) return;
+        player.WeaponId = weaponId;
+        _log.LogInformation("Player {Id} switched to {Weapon}", player.Id, weaponId);
+    }
+
+    /// <summary>Цель выбирает клиент. Себя, несуществующий корабль и 0 сервер понимает как «цели нет».</summary>
+    public void SetTarget(IClientConnection connection, int targetId)
+    {
+        if (!_byConnection.TryGetValue(connection.Id, out var player)) return;
+        player.TargetId = targetId != player.Id && _ships.ContainsKey(targetId) ? targetId : 0;
+    }
+
+    public void SetFire(IClientConnection connection, bool on)
+    {
+        if (_byConnection.TryGetValue(connection.Id, out var player)) player.FireHeld = on;
     }
 
     public void Rename(IClientConnection connection, string? name)
@@ -104,43 +157,44 @@ public sealed class Room(IReadOnlyDictionary<string, HullParams> hulls, ILogger 
         if (!_byConnection.TryGetValue(connection.Id, out var player)) return;
         var unique = UniqueName(SanitizeName(name), player);
         if (unique == player.Name) return;
-        log.LogInformation("Player {Id} renamed '{Old}' → '{New}'", player.Id, player.Name, unique);
+        _log.LogInformation("Player {Id} renamed '{Old}' → '{New}'", player.Id, player.Name, unique);
         player.Name = unique;
         BroadcastPlayers();
     }
 
-    public void ApplyHulls(IReadOnlyDictionary<string, HullParams> hulls)
+    /// <summary>Баланс изменился на диске: доли корпуса и щита сохраняются, дроны пересоздаются, если поменялся их список.</summary>
+    public void ApplyBalance(Balance balance)
     {
-        Hulls = hulls;
-        var message = new ConfigMsg(hulls);
-        foreach (var player in _players.Values) player.Connection?.Send(message);
+        var old = Balance;
+        foreach (var ship in _ships.Values)
+        {
+            var from = ship.Hull(old.Hulls);
+            var hullId = balance.Hulls.ContainsKey(ship.HullId) ? ship.HullId : SimConfig.DefaultHull;
+            ship.ChangeHull(from, hullId, balance.Hulls[hullId]);
+            if (!balance.Weapons.ContainsKey(ship.WeaponId)) ship.WeaponId = SimConfig.DefaultWeapon;
+        }
+        Balance = balance;
+
+        var message = Protocol.Encode(new ConfigMsg(balance.Hulls, balance.Weapons, balance.Rules));
+        foreach (var player in _players.Values) player.Connection?.SendRaw(message);
+
+        if (!old.Rules.DroneList.SequenceEqual(balance.Rules.DroneList))
+        {
+            foreach (var drone in _drones) RemoveShip(drone);
+            _drones.Clear();
+            SpawnDrones();
+            BroadcastPlayers();
+        }
     }
 
-    /// <summary>Один тик: шаги всех кораблей и снапшот подключённым игрокам.</summary>
+    /// <summary>Один тик: движение, бой и снапшот подключённым игрокам.</summary>
     public void Step()
     {
-        _ships.Clear();
-        foreach (var player in _players.Values)
+        foreach (var player in _players.Values) Move(player);
+        foreach (var drone in _drones)
         {
-            var hull = HullOf(player);
-            if (player.Connection is null)
-            {
-                if (Tick - player.LostAtTick >= ReconnectGraceTicks)
-                {
-                    _expired.Add(player);
-                    continue;
-                }
-                Movement.Step(ref player.Ship, player.StopInput, hull, SimConfig.Dt);
-            }
-            else
-            {
-                var count = player.Inputs.Tick(_steps);
-                for (var i = 0; i < count; i++) Movement.Step(ref player.Ship, _steps[i], hull, SimConfig.Dt);
-            }
-
-            var s = player.Ship;
-            var throttle = player.Connection is null ? 0 : player.Inputs.Last.Throttle;
-            _ships.Add(new ShipDto(player.Id, s.X, s.Y, s.Rot, s.Vx, s.Vy, player.HullId, throttle, player.Inputs.AckSeq));
+            var input = drone.NextInput();
+            if (!drone.IsDead) Movement.Step(ref drone.Ship, input, drone.Hull(Hulls), SimConfig.Dt);
         }
         Tick++;
 
@@ -149,16 +203,17 @@ public sealed class Room(IReadOnlyDictionary<string, HullParams> hulls, ILogger 
             foreach (var player in _expired)
             {
                 Remove(player);
-                log.LogInformation("Player {Id} did not come back, removed", player.Id);
+                _log.LogInformation("Player {Id} did not come back, removed", player.Id);
             }
             _expired.Clear();
             BroadcastPlayers();
         }
 
-        if (_ships.Count == 0) return;
-        // Все получают одни и те же байты: ack каждого игрока лежит в записи его корабля.
-        var snapshot = Protocol.Encode(new SnapshotMsg(Tick, _ships));
-        foreach (var player in _players.Values) player.Connection?.SendRaw(snapshot);
+        _battle.Run(Tick, _ships, Balance, _shots, _kills, Spawn);
+        // Дроны есть всегда: без игроков онлайн снапшот не нужен никому.
+        if (_byConnection.Count > 0) SendSnapshot();
+        _shots.Clear();
+        _kills.Clear();
     }
 
     /// <summary>Без управляющих и невидимых символов, пробелы схлопнуты, не длиннее MaxNameLength.</summary>
@@ -183,6 +238,95 @@ public sealed class Room(IReadOnlyDictionary<string, HullParams> hulls, ILogger 
     public static bool IsValidToken(string? token) =>
         token is { Length: >= MinTokenLength and <= MaxTokenLength } &&
         token.All(c => char.IsAsciiLetterOrDigit(c) || c is '-' or '_');
+
+    /// <summary>
+    /// Шаг игрока. Уничтоженный корабль входы потребляет — ack растёт, и после респауна клиент переигрывает
+    /// только новые входы, — но не двигается.
+    /// </summary>
+    private void Move(Player player)
+    {
+        var hull = player.Hull(Hulls);
+        if (player.Connection is null)
+        {
+            if (Tick - player.LostAtTick >= ReconnectGraceTicks)
+            {
+                _expired.Add(player);
+                return;
+            }
+            if (!player.IsDead) Movement.Step(ref player.Ship, player.StopInput, hull, SimConfig.Dt);
+            return;
+        }
+
+        var count = player.Inputs.Tick(_steps);
+        if (player.IsDead) return;
+        for (var i = 0; i < count; i++) Movement.Step(ref player.Ship, _steps[i], hull, SimConfig.Dt);
+    }
+
+    /// <summary>Появление при входе и после уничтожения: у станции, с защитой (GDD §25). Дрон — у своего дома, без защиты.</summary>
+    private void Spawn(ShipEntity ship)
+    {
+        var (x, y) = ship is Drone drone ? drone.SpawnPoint : SpawnPoint();
+        ship.Ship = new ShipState { X = x, Y = y };
+        ship.Revive(ship.Hull(Hulls), ship is Drone ? 0 : Tick + Balance.Rules.ProtectionTicks);
+    }
+
+    /// <summary>Случайная точка в круге SpawnJitter вокруг спауна — корабли не появляются друг в друге.</summary>
+    private (double X, double Y) SpawnPoint()
+    {
+        var radius = Balance.Rules.SpawnJitter * Math.Sqrt(_jitter.NextDouble());
+        var angle = _jitter.NextDouble() * 2 * Math.PI;
+        return (SimConfig.SpawnX + radius * Math.Cos(angle), SimConfig.SpawnY + radius * Math.Sin(angle));
+    }
+
+    private void SpawnDrones()
+    {
+        foreach (var spec in Balance.Rules.DroneList)
+        {
+            var drone = new Drone(++_nextId, spec);
+            Spawn(drone);
+            _drones.Add(drone);
+            _ships[drone.Id] = drone;
+        }
+    }
+
+    private void ChangeHull(ShipEntity ship, string hullId)
+    {
+        if (ship.HullId != hullId) ship.ChangeHull(ship.Hull(Hulls), hullId, Hulls[hullId]);
+    }
+
+    private void SendSnapshot()
+    {
+        _shipDtos.Clear();
+        foreach (var ship in _ships.Values) _shipDtos.Add(ToDto(ship));
+        // Все получают одни и те же байты: ack каждого игрока лежит в записи его корабля.
+        var snapshot = Protocol.Encode(new SnapshotMsg(
+            Tick,
+            _shipDtos,
+            _shots.Count > 0 ? _shots : null,
+            _kills.Count > 0 ? _kills : null));
+        foreach (var player in _players.Values) player.Connection?.SendRaw(snapshot);
+    }
+
+    private ShipDto ToDto(ShipEntity ship)
+    {
+        var s = ship.Ship;
+        var (throttle, ack) = ship switch
+        {
+            Player p => (p.Connection is null || p.IsDead ? 0 : p.Inputs.Last.Throttle, p.Inputs.AckSeq),
+            Drone d => (d.IsDead ? 0 : d.LastInput.Throttle, 0),
+            _ => (0.0, 0),
+        };
+        return new ShipDto(
+            ship.Id, s.X, s.Y, s.Rot, s.Vx, s.Vy, ship.HullId, throttle, ack,
+            (int)Math.Ceiling(ship.Hp),
+            (int)Math.Ceiling(ship.Shield),
+            ship.WeaponId,
+            ship.DeadUntilTick,
+            ship.IsProtected(Tick) ? ship.ProtectedUntilTick : 0);
+    }
+
+    private WelcomeMsg Welcome(Player player, bool resumed) =>
+        new(player.Id, SimConfig.TickRate, Hulls, Balance.Weapons, Balance.Rules, resumed);
 
     /// <summary>Занятое другим игроком имя получает номер: «Имя 2», «Имя 3»…</summary>
     private string UniqueName(string name, Player? self)
@@ -217,22 +361,34 @@ public sealed class Room(IReadOnlyDictionary<string, HullParams> hulls, ILogger 
     {
         _players.Remove(player.Id);
         if (player.Token is not null) _byToken.Remove(player.Token);
+        RemoveShip(player);
     }
 
-    private HullParams HullOf(Player player)
+    /// <summary>Корабль ушёл из системы: у тех, кто в него целился, цели больше нет.</summary>
+    private void RemoveShip(ShipEntity ship)
     {
-        if (Hulls.TryGetValue(player.HullId, out var hull)) return hull;
-        player.HullId = SimConfig.DefaultHull; // корпус убрали из hulls.json на лету
-        return Hulls[SimConfig.DefaultHull];
+        _ships.Remove(ship.Id);
+        foreach (var other in _ships.Values)
+        {
+            if (other.TargetId == ship.Id) other.TargetId = 0;
+        }
     }
 
     private int OnlineCount() => _byConnection.Count;
 
+    private static int? Ceiling(double? value) => value is { } v ? (int)Math.Ceiling(v) : null;
+
+    /// <summary>Игроки и NPC: имена нужны для подписей, а флаг npc — чтобы клиент не писал о дронах в ленту.</summary>
     private void BroadcastPlayers()
     {
-        var list = _players.Values
-            .OrderBy(p => p.Id)
-            .Select(p => new PlayerDto(p.Id, p.Name, p.Connection is not null))
+        var list = _ships.Values
+            .OrderBy(s => s.Id)
+            .Select(s => s switch
+            {
+                Player p => new PlayerDto(p.Id, p.Name, p.Connection is not null),
+                Drone d => new PlayerDto(d.Id, d.Name, Online: true, Npc: true, Ceiling(d.Spec.Hp), Ceiling(d.Spec.Shield)),
+                _ => new PlayerDto(s.Id, s.Name, Online: true, Npc: true),
+            })
             .ToList();
         var message = Protocol.Encode(new PlayersMsg(list));
         foreach (var player in _players.Values) player.Connection?.SendRaw(message);
