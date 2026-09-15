@@ -97,6 +97,18 @@ public class CombatRoomTests
         Assert.Empty(Shots(a));
     }
 
+    [Theory]
+    [InlineData(0, 300)] // позади
+    [InlineData(300, 0)] // сбоку
+    public void AllAroundWeapon_ShootsBehindAndSideways(double x, double y)
+    {
+        var (a, b) = Duel("turret");
+        Place(b, x, y);
+        Attack(a, b);
+        Steps(1);
+        Assert.Single(Shots(a));
+    }
+
     [Fact]
     public void Damage_TakesShieldFirstThenHull()
     {

@@ -9,7 +9,7 @@
     "optimalRange": 500,
     "maxRange": 700,
     "rangePenalty": 10,
-    "arc": 60
+    "arc": 180
   },
   "laser": {
     "name": "Лазер Mk1",
@@ -21,7 +21,7 @@
     "optimalRange": 400,
     "maxRange": 600,
     "rangePenalty": 20,
-    "arc": 60
+    "arc": 180
   },
   "plasma": {
     "name": "Плазма Mk1",
@@ -33,6 +33,6 @@
     "optimalRange": 450,
     "maxRange": 650,
     "rangePenalty": 15,
-    "arc": 60
+    "arc": 180
   }
 }

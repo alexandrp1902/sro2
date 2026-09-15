@@ -142,6 +142,41 @@ public class PirateTests
     }
 
     [Fact]
+    public void WithAnAllAroundGun_ThePirateCirclesTheTargetAndKeepsFiring()
+    {
+        _room = NewRoom(Npcs(PirateType with { Weapon = "turret" }, Lair()));
+        var a = Connect();
+        var pirate = Pirates(a).Single();
+        Place(pirate.Id, LairX, LairY);
+        Place(a, LairX, LairY + 500);
+        var player = _room.Entity(IdOf(a))!;
+
+        double nearest = double.MaxValue, farthest = 0, speedSum = 0, turned = 0;
+        var lastAngle = double.NaN;
+        const int settle = 100, ticks = 500;
+        for (var i = 0; i < ticks; i++)
+        {
+            _room.Step();
+            if (i < settle) continue;
+            var dx = pirate.Ship.X - player.Ship.X;
+            var dy = pirate.Ship.Y - player.Ship.Y;
+            var d = Math.Sqrt(dx * dx + dy * dy);
+            nearest = Math.Min(nearest, d);
+            farthest = Math.Max(farthest, d);
+            speedSum += Math.Sqrt(Sq(pirate.Ship.Vx) + Sq(pirate.Ship.Vy));
+            var angle = Math.Atan2(dy, dx);
+            if (!double.IsNaN(lastAngle)) turned += Math.Abs(Movement.WrapAngle(angle - lastAngle));
+            lastAngle = angle;
+        }
+
+        Assert.InRange(nearest, 150, farthest);
+        Assert.InRange(farthest, nearest, 700); // всегда в дальности пушки
+        Assert.True(speedSum / (ticks - settle) > 50, "the pirate should keep moving");
+        Assert.True(turned > Math.PI, $"the pirate should circle the target, turned {turned:0.00} rad");
+        Assert.True(ShotsFrom(a, pirate.Id).Count(s => s.Tick > settle) >= 15);
+    }
+
+    [Fact]
     public void PlayerInTheShelter_IsLeftAlone()
     {
         _room = NewRoom(Npcs(new NpcSpawn("pirate", 1, 0, -1400))); // ближе, чем пропустила бы проверка файла

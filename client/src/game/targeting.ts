@@ -48,6 +48,35 @@ export function pickAt(
   return best;
 }
 
+/** Стрелка у края экрана к кораблю за его пределами и подпись рядом с ней — в экранных координатах. */
+export interface EdgeArrow {
+  id: number;
+  x: number;
+  y: number;
+  label: { x: number; y: number; width: number; height: number };
+}
+
+/** Стрелка мелкая: мыши — такой радиус вокруг неё, пальцу — как для корабля (TOUCH_MIN_RADIUS_PX). */
+const ARROW_MOUSE_RADIUS_PX = 16;
+
+/** @returns id корабля, по стрелке или подписи которого у края экрана пришёлся тап, или null */
+export function pickArrow(sx: number, sy: number, arrows: Iterable<EdgeArrow>, touch: boolean): number | null {
+  const radius = touch ? TOUCH_MIN_RADIUS_PX : ARROW_MOUSE_RADIUS_PX;
+  const slack = touch ? TOUCH_SLACK_PX : 0;
+  let best: number | null = null;
+  let bestDistance = Infinity;
+  for (const arrow of arrows) {
+    const distance = Math.hypot(sx - arrow.x, sy - arrow.y);
+    const l = arrow.label;
+    const onLabel = sx >= l.x - slack && sx <= l.x + l.width + slack && sy >= l.y - slack && sy <= l.y + l.height + slack;
+    if ((distance <= radius || onLabel) && distance < bestDistance) {
+      best = arrow.id;
+      bestDistance = distance;
+    }
+  }
+  return best;
+}
+
 /** Атака без цели: ближайший корабль в секторе и дальности, иначе просто ближайший в дальности. */
 export function nearest(
   own: { x: number; y: number; rot: number },

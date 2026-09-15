@@ -191,7 +191,9 @@ async function main() {
   await sleep(1500); // лёгкий разворачивается на 180° за 1,2 с
   const awayStart = a.snapshot.tick;
   await sleep(1000);
-  check('turned away: no shots outside the weapon arc', a.shots(idA, awayStart).length === 0);
+  const arc = weapons[a.ship(idA).w].arc;
+  if (arc >= 180) check('turned away: an all-around gun keeps firing', a.shots(idA, awayStart).length > 0);
+  else check(`turned away: no shots outside the ±${arc}° arc`, a.shots(idA, awayStart).length === 0);
   a.send({ t: 'fire', on: false });
 
   const c = new Client(`Smoke-C-${RUN}`);
@@ -209,6 +211,7 @@ async function main() {
   }
 
   for (const client of [a, b, c]) client.close();
+  await sleep(300); // process.exit, пока сокеты ещё закрываются, роняет Node на Windows (UV_HANDLE_CLOSING)
 }
 
 main().then(

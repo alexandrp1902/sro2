@@ -2,7 +2,7 @@ import './style.css';
 import { Application, Container } from 'pixi.js';
 import { SPAWN } from './game/layout';
 import { FixedLoop } from './game/loop';
-import { cycle, nearest, pickAt } from './game/targeting';
+import { cycle, nearest, pickArrow, pickAt } from './game/targeting';
 import { Controls } from './input/controls';
 import { FireControl, bindCombatKeys } from './input/fire';
 import { preventBrowserGestures } from './input/gestures';
@@ -129,9 +129,10 @@ async function main(): Promise<void> {
     clear: () => setTarget(0),
   });
   // Тап мимо кораблей цель не сбрасывает: промах пальцем в бою не должен её терять.
+  // Корабль за краем экрана выбирается тапом по его стрелке или подписи у края.
   new TapSelect(app.canvas, (x, y, touch) => {
     const view = { x: camera.x, y: camera.y, zoom: camera.zoom, width: app.screen.width, height: app.screen.height };
-    const id = pickAt(x, y, remote.visible(), view, touch);
+    const id = pickAt(x, y, remote.visible(), view, touch) ?? pickArrow(x, y, overlay.edgeArrows(), touch);
     if (id !== null) setTarget(id);
   });
 

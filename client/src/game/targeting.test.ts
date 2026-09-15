@@ -1,9 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import weapons from '../../../shared/weapons.json';
 import type { WeaponParams } from '../sim/combat';
-import { cycle, nearest, pickAt, type ScreenView, type TargetCandidate } from './targeting';
+import { cycle, nearest, pickArrow, pickAt, type EdgeArrow, type ScreenView, type TargetCandidate } from './targeting';
 
-const pulse = weapons.pulse as WeaponParams;
+/** Сектор ±60° — чтобы проверять выбор «сначала в секторе» независимо от баланса в weapons.json. */
+const pulse = { ...(weapons.pulse as WeaponParams), arc: 60 };
 /** Камера в начале координат, экран 400×800, масштаб 1: мировая точка (0, 0) — в центре экрана (200, 400). */
 const view: ScreenView = { x: 0, y: 0, zoom: 1, width: 400, height: 800 };
 const ship = (id: number, x: number, y: number, size = 16): TargetCandidate => ({ id, x, y, size });
@@ -25,6 +26,26 @@ describe('pickAt', () => {
   });
 });
 
+describe('pickArrow', () => {
+  // Стрелка у правого края, подпись левее неё.
+  const arrow = (id: number, x: number, y: number): EdgeArrow => ({ id, x, y, label: { x: x - 100, y: y - 8, width: 70, height: 16 } });
+
+  it('picks a ship by its arrow or its label', () => {
+    const arrows = [arrow(1, 374, 300)];
+    expect(pickArrow(374, 300, arrows, false)).toBe(1);
+    expect(pickArrow(300, 300, arrows, false)).toBe(1); // по подписи: она занимает x 274…344
+    expect(pickArrow(374, 330, arrows, false)).toBeNull(); // мышью мимо
+    expect(pickArrow(374, 330, arrows, true)).toBe(1); // пальцем — радиус шире
+  });
+
+  it('takes the nearest of two arrows and nothing far away', () => {
+    const arrows = [arrow(1, 374, 300), arrow(2, 374, 330)];
+    expect(pickArrow(374, 322, arrows, true)).toBe(2);
+    expect(pickArrow(100, 600, arrows, true)).toBeNull();
+    expect(pickArrow(0, 0, [], true)).toBeNull();
+  });
+});
+
 describe('nearest', () => {
   const own = { x: 0, y: 0, rot: 0 }; // нос вверх
 
@@ -35,6 +56,10 @@ describe('nearest', () => {
   it('falls back to the nearest ship in range, and to nothing', () => {
     expect(nearest(own, [ship(1, 0, 500), ship(2, 0, 300)], pulse)).toBe(2);
     expect(nearest(own, [ship(1, 0, -900)], pulse)).toBeNull();
+  });
+
+  it('takes simply the nearest ship when the gun fires all around', () => {
+    expect(nearest(own, [ship(1, 0, 200), ship(2, 0, -400)], { ...pulse, arc: 180 })).toBe(1);
   });
 });
 

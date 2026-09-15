@@ -1,4 +1,5 @@
 import { Container, Graphics, Text } from 'pixi.js';
+import type { EdgeArrow } from '../game/targeting';
 import type { AiState } from '../net/protocol';
 import type { RemoteShipInfo, ShipKind } from '../net/remoteShips';
 import type { AimState } from '../sim/combat';
@@ -173,6 +174,20 @@ export class PlayerOverlay {
         bubble(this.ownBubble.clear(), radius);
       }
       this.ownBubble.position.set(cx + (own.x - camera.x) * camera.zoom, cy + (own.y - camera.y) * camera.zoom);
+    }
+  }
+
+  /** Стрелки у края экрана из последнего update — по ним и по их подписям можно выбрать цель. */
+  *edgeArrows(): Iterable<EdgeArrow> {
+    for (const [id, marker] of this.markers) {
+      if (!marker.seen || !marker.arrow.visible) continue;
+      const { label, arrow } = marker;
+      yield {
+        id,
+        x: arrow.x,
+        y: arrow.y,
+        label: { x: label.x - label.width / 2, y: label.y - label.height / 2, width: label.width, height: label.height },
+      };
     }
   }
 

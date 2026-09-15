@@ -9,6 +9,7 @@ const NOSE = -Math.PI / 2;
 /**
  * Сектор стрельбы (боевой документ §35) у своего корабля, пока выбрана цель: зелёный — цель в секторе и дальности,
  * голубой — нет. Дуга внутри — оптимальная дальность, дальше неё растёт штраф к шансу.
+ * Пушка бьёт во все стороны (arc 180) — вместо сектора круг дальности.
  */
 export class WeaponArc {
   readonly view = new Graphics();
@@ -33,6 +34,17 @@ export class WeaponArc {
     const to = NOSE + half;
     const max = weapon.maxRange;
     const optimal = weapon.optimalRange;
+    if (half >= Math.PI - 1e-6) {
+      this.view
+        .clear()
+        .circle(0, 0, max)
+        .fill({ color, alpha: ready ? 0.07 : 0.04 })
+        .circle(0, 0, max)
+        .stroke({ width: 1.5, color, alpha: 0.35 })
+        .circle(0, 0, optimal)
+        .stroke({ width: 1, color, alpha: 0.25 });
+      return;
+    }
     this.view
       .clear()
       .moveTo(0, 0)

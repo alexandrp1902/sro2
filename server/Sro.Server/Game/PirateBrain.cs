@@ -22,6 +22,14 @@ internal static class PirateBrain
     /// <summary>Сам пират не подлетает к укрытию ближе этого запаса.</summary>
     private const double SafeMargin = 100;
 
+    /// <summary>Пушка с таким сектором бьёт вбок: пират не разворачивается к цели, а кружит вокруг неё.</summary>
+    private const double OrbitArc = 90;
+    /// <summary>Тяга на круге: пират в движении — по нему труднее попасть (боевой документ §40).</summary>
+    private const double OrbitThrottle = 0.6;
+    private const double MinOrbitThrottle = 0.3;
+    /// <summary>Насколько сильно пират тянется к своей дистанции, если его снесло с круга.</summary>
+    private const double OrbitPull = 1.5;
+
     /// <summary>Точка патруля достигнута. Больше радиуса разворота на патрульной тяге — иначе пират кружил бы вокруг точки.</summary>
     private const double ArriveRadius = 50;
     /// <summary>Ближе этого к точке пират сбавляет тягу.</summary>
@@ -69,7 +77,7 @@ internal static class PirateBrain
             }
             else
             {
-                Attack(pirate, target, hull, pirates);
+                Attack(pirate, target, hull, pirate.Weapon(balance), pirates);
                 return;
             }
         }
@@ -86,7 +94,7 @@ internal static class PirateBrain
             pirate.State = PirateState.Attack;
             pirate.TargetId = found.Id;
             log.LogInformation("{Pirate} attacks {Target}", pirate, found.Name);
-            Attack(pirate, found, hull, pirates);
+            Attack(pirate, found, hull, pirate.Weapon(balance), pirates);
             return;
         }
         Patrol(pirate, npc, tick, rng);
@@ -148,11 +156,12 @@ internal static class PirateBrain
     }
 
     /// <summary>
-    /// Бой — «сначала развернуться, потом держать дистанцию». Стрейфа по орбите нет (боевой документ §34): держать цель
-    /// в секторе ±60° и лететь по касательной нельзя. Поэтому пират разворачивается носом к цели на месте, а тягой
-    /// держит свою дистанцию: пропорционально отставанию плюс скорость, с которой цель удаляется.
+    /// Бой. Пушка бьёт вбок (сектор ≥ 90°) — пират кружит вокруг цели на своей дистанции, как по орбите.
+    /// Узкий сектор (боевой документ §34: держать цель в ±60° и лететь по касательной нельзя) — «сначала развернуться,
+    /// потом держать дистанцию»: разворот носом к цели на месте, а тягой — своя дистанция: пропорционально отставанию
+    /// плюс скорость, с которой цель удаляется.
     /// </summary>
-    private static void Attack(Pirate pirate, ShipEntity target, HullParams hull, IReadOnlyList<Pirate> pirates)
+    private static void Attack(Pirate pirate, ShipEntity target, HullParams hull, WeaponParams? weapon, IReadOnlyList<Pirate> pirates)
     {
         var s = pirate.Ship;
         var dx = target.Ship.X - s.X;
@@ -166,13 +175,26 @@ internal static class PirateBrain
         }
         var ux = dx / distance;
         var uy = dy / distance;
-
-        var off = Math.Abs(Movement.WrapAngle(Math.Atan2(ux, -uy) - s.Rot));
         var away = target.Ship.Vx * ux + target.Ship.Vy * uy;
-        var throttle = off > TurnFirstAngle ? 0 : Math.Clamp((distance - pirate.HoldRange) / ThrottleRamp + away / hull.MaxSpeed, 0, 1);
+        double dirX, dirY, throttle;
 
-        var angle = distance > pirate.HoldRange + ApproachFrom ? pirate.Side * ApproachAngle : 0;
-        var (dirX, dirY) = Rotate(ux, uy, angle);
+        if (weapon is { Arc: >= OrbitArc })
+        {
+            // По касательной в свою сторону, с поправкой к дистанции: далеко — внутрь, близко — наружу.
+            var error = (distance - pirate.HoldRange) / ThrottleRamp;
+            var (tx, ty) = Rotate(ux, uy, pirate.Side * Math.PI / 2);
+            var pull = Math.Clamp(error, -1, 1) * OrbitPull;
+            dirX = tx + ux * pull;
+            dirY = ty + uy * pull;
+            throttle = Math.Clamp(OrbitThrottle + error + away / hull.MaxSpeed, MinOrbitThrottle, 1);
+        }
+        else
+        {
+            var off = Math.Abs(Movement.WrapAngle(Math.Atan2(ux, -uy) - s.Rot));
+            throttle = off > TurnFirstAngle ? 0 : Math.Clamp((distance - pirate.HoldRange) / ThrottleRamp + away / hull.MaxSpeed, 0, 1);
+            var angle = distance > pirate.HoldRange + ApproachFrom ? pirate.Side * ApproachAngle : 0;
+            (dirX, dirY) = Rotate(ux, uy, angle);
+        }
         if (throttle > 0) (dirX, dirY) = Separate(pirate, dirX, dirY, pirates);
 
         Set(pirate, dirX, dirY, throttle);
