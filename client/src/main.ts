@@ -334,9 +334,7 @@ async function main(): Promise<void> {
     fire.render(now, !target ? 'none' : aim?.state === 'ready' ? 'ready' : 'blocked');
 
     combatHud.update(
-      ownDto && online
-        ? { hp: ownDto.hp, maxHp: hull.hp, sh: ownDto.sh, maxSh: hull.shield, protectedSeconds, attackers, fire: fire.active }
-        : null,
+      ownDto && online ? { hp: ownDto.hp, maxHp: hull.hp, sh: ownDto.sh, maxSh: hull.shield, protectedSeconds, attackers } : null,
       target && aim
         ? {
             name: target.name,
@@ -346,6 +344,7 @@ async function main(): Promise<void> {
             sh: target.sh,
             maxSh: target.maxSh,
             aim,
+            fire: fire.active,
           }
         : null,
       dead && ownDto?.rt ? { by: killedBy, seconds: Math.max(0, (ownDto.rt - tick) * DT) } : null,

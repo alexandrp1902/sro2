@@ -58,6 +58,8 @@ export class Stick {
   private resize(): void {
     this.radius = stickRadius(window.innerWidth, window.innerHeight);
     this.root.style.setProperty('--stick-r', `${this.radius}px`);
+    // Кнопки боя справа выравниваются по центру стика — им нужен тот же радиус.
+    document.documentElement.style.setProperty('--stick-r', `${this.radius}px`);
     this.render();
   }
 

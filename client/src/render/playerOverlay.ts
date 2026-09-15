@@ -11,6 +11,8 @@ const COLORS: Record<ShipKind, number> = {
   pirate: 0xff8a7a,
 };
 const OUTLINE = 0x05060a;
+/** Выбранная цель: оранжевый контур вокруг её стрелки у края экрана и оранжевая подпись. */
+const TARGET_COLOR = 0xffa53a;
 /** Пират, который целится в меня: знак перед ником и крупная стрелка у края экрана. */
 const THREAT_PREFIX = '! ';
 /** Состояние ИИ под ником — при открытой dev-панели, для настройки пиратов на плейтесте. */
@@ -55,6 +57,9 @@ interface Marker {
   arrow: Graphics;
   bars: Graphics;
   bubble: Graphics;
+  /** Цвет подписи по виду корабля; у выбранной цели подпись оранжевая. */
+  color: number;
+  targeted: boolean;
   text: string;
   barsKey: string;
   bubbleRadius: number;
@@ -83,11 +88,15 @@ export class PlayerOverlay {
   readonly view = new Container();
   private readonly markers = new Map<number, Marker>();
   private readonly frame = new Graphics();
+  /** Контур под стрелкой выбранной цели: треугольник крупнее стрелки, поэтому виден кольцом вокруг неё. */
+  private readonly targetArrow = new Graphics()
+    .poly([0, -14, 11, 10, -11, 10])
+    .stroke({ width: 3, color: TARGET_COLOR, join: 'round' });
   private readonly ownBubble = new Graphics();
   private ownBubbleRadius = 0;
 
   constructor() {
-    this.view.addChild(this.ownBubble, this.frame);
+    this.view.addChild(this.ownBubble, this.frame, this.targetArrow);
   }
 
   update(
@@ -104,6 +113,7 @@ export class PlayerOverlay {
     const cx = width / 2;
     const cy = height / 2;
     this.frame.visible = false;
+    this.targetArrow.visible = false;
 
     for (const ship of ships) {
       const marker = this.marker(ship);
@@ -123,6 +133,10 @@ export class PlayerOverlay {
       const r = ship.size * camera.zoom;
       const onScreen = sx > -r && sx < width + r && sy > -r && sy < height + r;
       const isTarget = target?.id === ship.id;
+      if (isTarget !== marker.targeted) {
+        marker.targeted = isTarget;
+        marker.label.style.fill = isTarget ? TARGET_COLOR : marker.color;
+      }
       marker.arrow.visible = !onScreen;
       marker.bars.visible = onScreen;
       marker.bubble.visible = onScreen && ship.protected;
@@ -147,6 +161,12 @@ export class PlayerOverlay {
       marker.arrow.position.set(ax, ay);
       marker.arrow.rotation = Math.atan2(dx, -dy);
       marker.arrow.scale.set(isTarget || threat ? 1.4 : 1); // цель или пират, который целится в меня, — стрелка крупнее
+      if (isTarget) {
+        this.targetArrow.visible = true;
+        this.targetArrow.position.set(ax, ay);
+        this.targetArrow.rotation = marker.arrow.rotation;
+        this.targetArrow.scale.set(1.4);
+      }
 
       const length = Math.hypot(dx, dy);
       const label = marker.label;
@@ -252,7 +272,7 @@ export class PlayerOverlay {
       const bars = new Graphics();
       const bubbleView = new Graphics();
       this.view.addChild(bubbleView, bars, arrow, label);
-      marker = { label, arrow, bars, bubble: bubbleView, text: '', barsKey: '', bubbleRadius: 0, seen: true };
+      marker = { label, arrow, bars, bubble: bubbleView, color, targeted: false, text: '', barsKey: '', bubbleRadius: 0, seen: true };
       this.markers.set(ship.id, marker);
     }
     return marker;

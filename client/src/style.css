@@ -221,23 +221,6 @@ body {
   display: none;
 }
 
-/* Огонь включён или нет — на ПК, где нет кнопки «ОГОНЬ». */
-.fire-line {
-  margin-top: 2px;
-  color: #8fa3bf;
-  font-size: 11px;
-}
-
-.fire-line[data-on='true'] {
-  color: #ff8a7a;
-  font-weight: 600;
-}
-
-@media (pointer: coarse) {
-  .fire-line {
-    display: none;
-  }
-}
 
 /* Карточка цели (GDD §9): сверху по центру, лента событий уходит под неё. */
 .target {
@@ -304,6 +287,40 @@ body {
   top: calc(env(safe-area-inset-top) + 94px);
 }
 
+/* Огонь включён — плашка под карточкой цели (ПК: там нет кнопки «ОГОНЬ», которая бы это показала). */
+.target-fire {
+  display: none;
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  margin-top: 6px;
+  padding: 3px 12px;
+  border: 2px solid #ff5a4a;
+  border-radius: 8px;
+  background: rgba(60, 12, 10, 0.8);
+  color: #ff8a7a;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  white-space: nowrap;
+  box-shadow: 0 0 10px rgba(255, 90, 70, 0.5);
+}
+
+.target[data-fire='true'] .target-fire {
+  display: block;
+}
+
+#target[data-fire='true']:not([hidden]) ~ .feed {
+  top: calc(env(safe-area-inset-top) + 128px);
+}
+
+@media (pointer: coarse) {
+  .target[data-fire='true'] .target-fire {
+    display: none;
+  }
+}
+
 /* Экран уничтожения (GDD §24). */
 .death {
   position: absolute;
@@ -361,10 +378,10 @@ body {
     align-items: flex-start;
   }
 
-  /* Карточка цели — справа над кнопками боя и выше стика. */
+  /* Карточка цели — справа над кнопками боя (их верх — r + 82 px от низа). */
   .target {
     top: auto;
-    bottom: calc(env(safe-area-inset-bottom) + 206px);
+    bottom: calc(env(safe-area-inset-bottom) + var(--stick-r, 64px) + 94px);
     left: auto;
     right: calc(env(safe-area-inset-right) + 10px);
     transform: none;
@@ -432,16 +449,16 @@ body {
 }
 
 /*
- * Кнопки боя телефона (GDD §8): < предыдущая цель, ОГОНЬ, > следующая. Справа, выше угла экрана — под большой палец;
- * стик слева внизу.
+ * Кнопки боя телефона (GDD §8): < предыдущая цель, ОГОНЬ, > следующая. Справа на высоте стика: центр кнопки огня
+ * (84 px) — на уровне центра стика: 16 + (2r + 48) / 2 − 42 = r − 2 px от низа. Радиус задаёт stick.ts под экран.
  */
 .combat-pad {
   position: fixed;
-  right: calc(env(safe-area-inset-right) + 14px);
-  bottom: calc(env(safe-area-inset-bottom) + 108px);
+  right: calc(env(safe-area-inset-right) + 12px);
+  bottom: calc(env(safe-area-inset-bottom) + var(--stick-r, 64px) - 2px);
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 4px;
   pointer-events: none;
 }
 
@@ -449,21 +466,33 @@ body {
   display: none;
 }
 
+/* Стрелки выбора цели — шеврон с раскрытием 45°, без кружка; зона нажатия больше рисунка. */
 .target-step {
+  display: flex;
+  align-items: center;
+  justify-content: center;
   width: 48px;
-  height: 48px;
+  height: 64px;
   padding: 0;
-  border: 2px solid rgba(143, 180, 232, 0.45);
-  border-radius: 50%;
-  background: rgba(20, 32, 52, 0.55);
-  color: #cfe3ff;
-  font: 700 22px/1 system-ui, sans-serif;
+  border: 0;
+  background: transparent;
   touch-action: none;
   pointer-events: auto;
 }
 
-.target-step:active {
-  background: rgba(47, 122, 214, 0.6);
+.target-step svg {
+  width: 36px;
+  height: 31px;
+  fill: none;
+  stroke: #cfe3ff;
+  stroke-width: 4.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  filter: drop-shadow(0 0 2px rgba(0, 0, 0, 0.9));
+}
+
+.target-step:active svg {
+  stroke: #ffa53a;
 }
 
 /* Огонь — переключатель: тусклая «выкл», горит и пульсирует «вкл». */
