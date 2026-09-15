@@ -1,63 +1,79 @@
 export type FireAim = 'ready' | 'blocked' | 'none';
 
 /**
- * Атака (GDD §47): пока нажат Space или кнопка «Огонь», пушка стреляет сама по готовности.
+ * Шаг выбора цели по клавише (ПК): Q, Shift+←, Shift+Tab — предыдущая; E, Shift+→, Tab — следующая.
+ * @returns 0 — клавиша не выбирает цель (← и → без Shift поворачивают корпус)
+ */
+export function targetStep(e: { code: string; shiftKey: boolean }): -1 | 0 | 1 {
+  switch (e.code) {
+    case 'KeyQ':
+      return -1;
+    case 'KeyE':
+      return 1;
+    case 'Tab':
+      return e.shiftKey ? -1 : 1;
+    case 'ArrowLeft':
+      return e.shiftKey ? -1 : 0;
+    case 'ArrowRight':
+      return e.shiftKey ? 1 : 0;
+    default:
+      return 0;
+  }
+}
+
+/**
+ * Атака (GDD §47) — переключатель: Space, кнопка «ОГОНЬ» или двойной тап по цели включают огонь, повторное
+ * нажатие выключает. Пока огонь включён, пушка стреляет по цели сама по готовности. Кнопка горит, пока огонь включён.
  * Серверу уходит только смена состояния (fire {on}).
  */
 export class FireControl {
-  /** Атаку нажали — вызывается до отправки: здесь выбирается цель, если её нет. */
-  onPress: (() => void) | null = null;
+  /** Огонь включают — вызывается до отправки: здесь выбирается цель, если её нет. false — стрелять не в кого. */
+  onPress: (() => boolean) | null = null;
   onChange: ((on: boolean) => void) | null = null;
 
-  private key = false;
-  private button = false;
   private on = false;
   private reloadStart = 0;
   private reloadMs = 0;
   private shownReload = -1;
   private shownAim = '';
+  private readonly stateLabel: HTMLElement | null;
 
-  constructor(private readonly el: HTMLElement) {
-    // На ПК кнопка не нужна: показываем на сенсорных экранах или после первого касания.
-    if (matchMedia('(pointer: coarse)').matches) el.hidden = false;
+  /** @param pad кнопки боя телефона (огонь и выбор цели): на ПК не нужны — показываем на сенсорных экранах */
+  constructor(
+    private readonly el: HTMLElement,
+    pad: HTMLElement,
+  ) {
+    this.stateLabel = el.querySelector('.fire-state');
+    if (matchMedia('(pointer: coarse)').matches) pad.hidden = false;
     window.addEventListener('pointerdown', (e) => {
-      if (e.pointerType === 'touch') el.hidden = false;
+      if (e.pointerType === 'touch') pad.hidden = false;
     });
-
     el.addEventListener('pointerdown', (e) => {
       e.preventDefault();
-      try {
-        el.setPointerCapture(e.pointerId); // палец, съехавший с кнопки, продолжает стрелять
-      } catch {
-        // указатель уже исчез
-      }
-      this.setButton(true);
+      this.toggle();
     });
-    // Пункт управления, звонок, свайп home-indicator дают pointercancel — это отпускание.
-    for (const type of ['pointerup', 'pointercancel', 'lostpointercapture'] as const) {
-      el.addEventListener(type, () => this.setButton(false));
-    }
+    this.show();
   }
 
-  get held(): boolean {
+  get active(): boolean {
     return this.on;
   }
 
-  setKey(down: boolean): void {
-    this.key = down;
-    this.sync();
+  toggle(): void {
+    this.set(!this.on);
   }
 
-  setButton(down: boolean): void {
-    this.button = down;
-    this.sync();
+  set(on: boolean): void {
+    if (on === this.on) return;
+    if (on && this.onPress && !this.onPress()) return;
+    this.on = on;
+    this.show();
+    this.onChange?.(on);
   }
 
-  /** Отпустить всё (потеря фокуса, фон, уничтожение): стрелять снова — только новым нажатием. */
+  /** Выключить (цель снята, вкладка в фоне, корабль уничтожен): стрелять снова — только новым нажатием. */
   release(): void {
-    this.key = false;
-    this.button = false;
-    this.sync();
+    this.set(false);
   }
 
   /** Свой выстрел: кольцо перезарядки начинается заново. */
@@ -80,38 +96,36 @@ export class FireControl {
     }
   }
 
-  private sync(): void {
-    const on = this.key || this.button;
-    this.el.dataset.active = String(on);
-    if (on === this.on) return;
-    this.on = on;
-    if (on) this.onPress?.();
-    this.onChange?.(on);
+  private show(): void {
+    this.el.dataset.active = String(this.on);
+    this.el.setAttribute('aria-pressed', String(this.on));
+    if (this.stateLabel) this.stateLabel.textContent = this.on ? 'вкл' : 'выкл';
   }
 }
 
-/** Клавиши боя на ПК (GDD §7): Space — атака, Tab — следующая цель, Esc — снять цель. */
-export function bindCombatKeys(fire: FireControl, actions: { next(): void; clear(): void }): void {
+/**
+ * Клавиши боя на ПК (GDD §7): Space — огонь вкл/выкл; Q/E, Shift+←/→, Tab/Shift+Tab — предыдущая/следующая цель;
+ * Esc — снять цель.
+ */
+export function bindCombatKeys(fire: FireControl, actions: { step(direction: -1 | 1): void; clear(): void }): void {
   const isTyping = (e: Event) => e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement;
 
   window.addEventListener('keydown', (e) => {
     if (isTyping(e) || e.ctrlKey || e.metaKey || e.altKey) return;
     if (e.code === 'Space') {
       e.preventDefault(); // иначе Space нажал бы кнопку в фокусе или прокрутил страницу
-      if (!e.repeat) fire.setKey(true);
-    } else if (e.code === 'Tab') {
+      if (!e.repeat) fire.toggle();
+      return;
+    }
+    const step = targetStep(e);
+    if (step !== 0) {
       e.preventDefault();
-      actions.next();
+      if (!e.repeat) actions.step(step);
     } else if (e.code === 'Escape') {
       actions.clear();
     }
   });
-  window.addEventListener('keyup', (e) => {
-    if (e.code !== 'Space') return;
-    e.preventDefault();
-    fire.setKey(false);
-  });
-  window.addEventListener('blur', () => fire.release());
+  // Вкладка ушла в фон — связь рвётся; вернувшись, игрок включит огонь сам.
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'hidden') fire.release();
   });

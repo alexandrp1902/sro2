@@ -1,5 +1,19 @@
 const TAP_MAX_MS = 300;
 const TAP_SLOP_PX = 10;
+/** Второй тап не позже этого и не дальше этого от первого — двойной (огонь по цели). 500 мс — двойной клик Windows по умолчанию. */
+const DOUBLE_TAP_MS = 500;
+const DOUBLE_TAP_SLOP_PX = 30;
+
+/** Отпускание тапа: где и когда. */
+export interface Tap {
+  x: number;
+  y: number;
+  time: number;
+}
+
+export function isDoubleTap(prev: Tap | null, next: Tap): boolean {
+  return prev !== null && next.time - prev.time <= DOUBLE_TAP_MS && Math.hypot(next.x - prev.x, next.y - prev.y) <= DOUBLE_TAP_SLOP_PX;
+}
 
 interface Candidate {
   id: number;
@@ -17,9 +31,13 @@ interface Candidate {
 export class TapSelect {
   private readonly down = new Set<number>();
   private candidate: Candidate | null = null;
+  private last: Tap | null = null;
 
-  /** @param onTap координаты экрана и было ли это касание пальцем (радиус выбора шире) */
-  constructor(canvas: HTMLElement, onTap: (x: number, y: number, touch: boolean) => void) {
+  /**
+   * @param onTap координаты экрана, было ли это касание пальцем (радиус выбора шире) и второй ли это тап двойного
+   *   (двойной, тройной подряд — снова одиночный)
+   */
+  constructor(canvas: HTMLElement, onTap: (x: number, y: number, touch: boolean, double: boolean) => void) {
     canvas.addEventListener('pointerdown', (e) => {
       this.down.add(e.pointerId);
       if (e.pointerType === 'mouse' && e.button !== 0) return;
@@ -38,7 +56,11 @@ export class TapSelect {
       const c = this.candidate;
       if (!c || c.id !== e.pointerId) return;
       this.candidate = null;
-      if (e.timeStamp - c.time <= TAP_MAX_MS) onTap(c.x, c.y, c.touch);
+      if (e.timeStamp - c.time > TAP_MAX_MS) return;
+      const tap = { x: c.x, y: c.y, time: e.timeStamp };
+      const double = isDoubleTap(this.last, tap);
+      this.last = double ? null : tap;
+      onTap(c.x, c.y, c.touch, double);
     });
     canvas.addEventListener('pointercancel', (e) => {
       this.down.delete(e.pointerId);

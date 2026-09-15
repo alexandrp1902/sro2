@@ -221,6 +221,24 @@ body {
   display: none;
 }
 
+/* Огонь включён или нет — на ПК, где нет кнопки «ОГОНЬ». */
+.fire-line {
+  margin-top: 2px;
+  color: #8fa3bf;
+  font-size: 11px;
+}
+
+.fire-line[data-on='true'] {
+  color: #ff8a7a;
+  font-weight: 600;
+}
+
+@media (pointer: coarse) {
+  .fire-line {
+    display: none;
+  }
+}
+
 /* Карточка цели (GDD §9): сверху по центру, лента событий уходит под неё. */
 .target {
   position: absolute;
@@ -343,10 +361,10 @@ body {
     align-items: flex-start;
   }
 
-  /* Карточка цели — справа над кнопкой огня и выше стика. */
+  /* Карточка цели — справа над кнопками боя и выше стика. */
   .target {
     top: auto;
-    bottom: calc(env(safe-area-inset-bottom) + 208px);
+    bottom: calc(env(safe-area-inset-bottom) + 206px);
     left: auto;
     right: calc(env(safe-area-inset-right) + 10px);
     transform: none;
@@ -413,42 +431,96 @@ body {
   opacity: calc(0.45 + var(--stick-power, 0) * 0.45);
 }
 
-/* Кнопка атаки (GDD §8): справа внизу, над зоной home-indicator. Удержание — огонь по готовности. */
+/*
+ * Кнопки боя телефона (GDD §8): < предыдущая цель, ОГОНЬ, > следующая. Справа, выше угла экрана — под большой палец;
+ * стик слева внизу.
+ */
+.combat-pad {
+  position: fixed;
+  right: calc(env(safe-area-inset-right) + 14px);
+  bottom: calc(env(safe-area-inset-bottom) + 108px);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  pointer-events: none;
+}
+
+.combat-pad[hidden] {
+  display: none;
+}
+
+.target-step {
+  width: 48px;
+  height: 48px;
+  padding: 0;
+  border: 2px solid rgba(143, 180, 232, 0.45);
+  border-radius: 50%;
+  background: rgba(20, 32, 52, 0.55);
+  color: #cfe3ff;
+  font: 700 22px/1 system-ui, sans-serif;
+  touch-action: none;
+  pointer-events: auto;
+}
+
+.target-step:active {
+  background: rgba(47, 122, 214, 0.6);
+}
+
+/* Огонь — переключатель: тусклая «выкл», горит и пульсирует «вкл». */
 .fire {
   --reload: 1;
-  position: fixed;
-  right: calc(env(safe-area-inset-right) + 18px);
-  bottom: calc(env(safe-area-inset-bottom) + 30px);
+  position: relative;
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
   width: 84px;
   height: 84px;
   box-sizing: border-box;
-  border: 2px solid rgba(255, 150, 130, 0.55);
+  border: 2px solid rgba(255, 150, 130, 0.45);
   border-radius: 50%;
-  background: rgba(150, 40, 34, 0.35);
-  color: #ffe0d8;
+  background: rgba(60, 20, 20, 0.45);
+  color: #ffd6cc;
   font-size: 13px;
   font-weight: 700;
   letter-spacing: 0.04em;
   touch-action: none;
+  pointer-events: auto;
+  cursor: pointer;
 }
 
-.fire[hidden] {
-  display: none;
+.fire-state {
+  margin-top: 1px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  opacity: 0.75;
 }
 
 .fire[data-aim='ready'] {
   border-color: rgba(74, 224, 122, 0.85);
 }
 
-.fire[data-aim='none'] {
+.fire[data-aim='none'][data-active='false'] {
   opacity: 0.6;
 }
 
 .fire[data-active='true'] {
-  background: rgba(224, 82, 74, 0.7);
+  border-color: #ffb09c;
+  background: rgba(230, 70, 58, 0.9);
+  color: #fff;
+  box-shadow: 0 0 18px rgba(255, 90, 70, 0.75);
+  animation: fire-on 1s ease-in-out infinite;
+}
+
+.fire[data-active='true'] .fire-state {
+  opacity: 1;
+}
+
+@keyframes fire-on {
+  50% {
+    box-shadow: 0 0 6px rgba(255, 90, 70, 0.4);
+  }
 }
 
 /* Кольцо перезарядки: заполняется от выстрела до готовности следующего. */

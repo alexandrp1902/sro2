@@ -1,7 +1,8 @@
 import { localVelocity, type HullParams, type ShipState } from '../sim/movement';
 import type { Controls } from './controls';
+import { targetStep } from './fire';
 
-// ПК-управление корпусом (GDD §7): W/↑ — газ, S/↓ — тормоз, A/D/←/→ — поворот.
+// ПК-управление корпусом (GDD §7): W/↑ — газ, S/↓ — тормоз, A/D/←/→ — поворот; Shift+←/→ — выбор цели (fire.ts).
 // Ни газ, ни тормоз не нажаты — корабль держит набранную скорость (круиз). Модель полёта та же, что у стика:
 // поворот — это желаемое направление на 90° от носа, поэтому корабль крутится с полным TurnRate.
 
@@ -126,6 +127,7 @@ export function bindKeyboard(keyboard: KeyboardControls): void {
 
   window.addEventListener('keydown', (e) => {
     if (isTyping(e) || e.ctrlKey || e.metaKey || e.altKey || !keyboard.isGameKey(e.code)) return;
+    if (targetStep(e) !== 0) return; // Shift+←/→ выбирают цель, а не поворачивают корпус
     e.preventDefault(); // стрелки не скроллят страницу
     if (!e.repeat) keyboard.keyDown(e.code);
   });

@@ -102,38 +102,64 @@ async function main(): Promise<void> {
 
   // Цель (GDD §9) выбирает клиент, сервер помнит последнюю присланную.
   let targetId = 0;
+  const fire = new FireControl(el('fire'), el('combat-pad'));
   const setTarget = (id: number) => {
     if (id === targetId) return;
     targetId = id;
     if (isOnline()) connection!.send({ t: 'target', id });
+    if (id === 0) fire.release(); // без цели огонь выключается: кнопка не горит впустую
   };
   const combatHud = new CombatHud(el('ship'), el('target'), el('death'), () => setTarget(0));
 
-  const fire = new FireControl(el('fire'));
-  // Атака без цели берёт ближайший корабль: сначала в секторе, потом просто в дальности.
+  // Огонь без цели берёт ближайший корабль: сначала в секторе, потом просто в дальности. Никого — огонь не включается.
   fire.onPress = () => {
     const current = remote.get(targetId);
-    if (current && !current.dead) return;
+    if (current && !current.dead) return true;
     const id = nearest(prediction.curr, remote.visible(), weapons.get(weaponId));
-    if (id !== null) setTarget(id);
-    else if (isOnline()) feed.add('Нет цели в радиусе огня');
+    if (id !== null) {
+      setTarget(id);
+      return true;
+    }
+    if (isOnline()) feed.add('Нет цели в радиусе огня');
+    return false;
   };
   fire.onChange = (on) => {
     if (isOnline()) connection!.send({ t: 'fire', on });
   };
-  bindCombatKeys(fire, {
-    next: () => {
-      const id = cycle(prediction.curr, remote.visible(), targetId);
-      if (id !== null) setTarget(id);
-    },
-    clear: () => setTarget(0),
-  });
+  // Предыдущая / следующая цель по удалённости: Q/E, Shift+←/→, Tab на ПК, кнопки < > у кнопки огня на телефоне.
+  const stepTarget = (step: -1 | 1) => {
+    const id = cycle(prediction.curr, remote.visible(), targetId, step);
+    if (id !== null) setTarget(id);
+  };
+  for (const [button, step] of [
+    ['target-prev', -1],
+    ['target-next', 1],
+  ] as const) {
+    el(button).addEventListener('pointerdown', (e) => {
+      e.preventDefault(); // без фокуса: иначе Space «нажимал» бы кнопку
+      stepTarget(step);
+    });
+  }
+  bindCombatKeys(fire, { step: stepTarget, clear: () => setTarget(0) });
   // Тап мимо кораблей цель не сбрасывает: промах пальцем в бою не должен её терять.
   // Корабль за краем экрана выбирается тапом по его стрелке или подписи у края.
-  new TapSelect(app.canvas, (x, y, touch) => {
+  // Двойной тап по цели — огонь по ней: только что выбранной — включить, уже выбранной — переключить.
+  let tapChangedTarget = false;
+  new TapSelect(app.canvas, (x, y, touch, double) => {
     const view = { x: camera.x, y: camera.y, zoom: camera.zoom, width: app.screen.width, height: app.screen.height };
     const id = pickAt(x, y, remote.visible(), view, touch) ?? pickArrow(x, y, overlay.edgeArrows(), touch);
-    if (id !== null) setTarget(id);
+    if (id === null) {
+      tapChangedTarget = false;
+      return;
+    }
+    if (double && id === targetId) {
+      if (tapChangedTarget) fire.set(true);
+      else fire.toggle();
+      tapChangedTarget = false;
+      return;
+    }
+    tapChangedTarget = id !== targetId;
+    setTarget(id);
   });
 
   const selectHull = (id: string) => {
@@ -186,7 +212,7 @@ async function main(): Promise<void> {
       if (message.resumed) feed.add('Снова на связи — корабль ждал на месте');
       // Сервер после переподключения не помнит, во что мы целились и держим ли атаку.
       if (targetId !== 0) connection.send({ t: 'target', id: targetId });
-      if (fire.held) connection.send({ t: 'fire', on: true });
+      if (fire.active) connection.send({ t: 'fire', on: true });
     };
     connection.onConfig = (message) => {
       hulls.set(message.hulls);
@@ -308,7 +334,9 @@ async function main(): Promise<void> {
     fire.render(now, !target ? 'none' : aim?.state === 'ready' ? 'ready' : 'blocked');
 
     combatHud.update(
-      ownDto && online ? { hp: ownDto.hp, maxHp: hull.hp, sh: ownDto.sh, maxSh: hull.shield, protectedSeconds, attackers } : null,
+      ownDto && online
+        ? { hp: ownDto.hp, maxHp: hull.hp, sh: ownDto.sh, maxSh: hull.shield, protectedSeconds, attackers, fire: fire.active }
+        : null,
       target && aim
         ? {
             name: target.name,

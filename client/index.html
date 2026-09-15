@@ -31,9 +31,14 @@
       </div>
     </div>
 
-    <div id="fire" class="fire" hidden data-aim="none">
-      <div class="fire-ring"></div>
-      <span>ОГОНЬ</span>
+    <div id="combat-pad" class="combat-pad" hidden>
+      <button id="target-prev" class="target-step" type="button" aria-label="Предыдущая цель">&lt;</button>
+      <div id="fire" class="fire" role="button" aria-pressed="false" data-aim="none" data-active="false">
+        <div class="fire-ring"></div>
+        <span class="fire-label">ОГОНЬ</span>
+        <span class="fire-state">выкл</span>
+      </div>
+      <button id="target-next" class="target-step" type="button" aria-label="Следующая цель">&gt;</button>
     </div>
 
     <div id="connect" class="connect" hidden>

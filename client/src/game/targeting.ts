@@ -104,10 +104,19 @@ export function nearest(
   return inArcId ?? inRangeId;
 }
 
-/** Tab: следующая цель по удалённости; после самой дальней — снова ближайшая. */
-export function cycle(own: { x: number; y: number }, ships: Iterable<TargetCandidate>, currentId: number): number | null {
+/**
+ * Переключение целей по удалённости: step 1 — следующая дальше (после самой дальней — снова ближайшая),
+ * −1 — ближе (после ближайшей — самая дальняя). Цели ещё нет — ближайшая в любом направлении.
+ */
+export function cycle(
+  own: { x: number; y: number },
+  ships: Iterable<TargetCandidate>,
+  currentId: number,
+  step: 1 | -1 = 1,
+): number | null {
   const sorted = [...ships].sort((a, b) => Math.hypot(a.x - own.x, a.y - own.y) - Math.hypot(b.x - own.x, b.y - own.y));
   if (sorted.length === 0) return null;
   const index = sorted.findIndex((ship) => ship.id === currentId);
-  return sorted[(index + 1) % sorted.length].id;
+  if (index === -1) return sorted[0].id;
+  return sorted[(index + step + sorted.length) % sorted.length].id;
 }

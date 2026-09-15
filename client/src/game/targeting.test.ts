@@ -72,4 +72,12 @@ describe('cycle', () => {
     expect(cycle({ x: 0, y: 0 }, ships, 3)).toBe(1);
     expect(cycle({ x: 0, y: 0 }, [], 3)).toBeNull();
   });
+
+  it('goes back from the farthest to the nearest and around; starts at the nearest', () => {
+    const ships = [ship(3, 0, 900), ship(1, 100, 0), ship(2, 0, -300)];
+    expect(cycle({ x: 0, y: 0 }, ships, 3, -1)).toBe(2);
+    expect(cycle({ x: 0, y: 0 }, ships, 2, -1)).toBe(1);
+    expect(cycle({ x: 0, y: 0 }, ships, 1, -1)).toBe(3);
+    expect(cycle({ x: 0, y: 0 }, ships, 0, -1)).toBe(1);
+  });
 });
