@@ -2,9 +2,11 @@
 # in separate windows, then prints the URLs to open on the PC and on the iPhone.
 $root = Split-Path -Parent $PSScriptRoot
 
-# --non-interactive: changes hot reload can't apply (new fields, constructors) restart the server by themselves;
-# otherwise dotnet watch waits for "y/n" in its window and the old server keeps running.
-Start-Process powershell -ArgumentList '-NoExit', '-Command', "dotnet watch --non-interactive run --project '$root\server\Sro.Server'"
+# --no-hot-reload: every server change rebuilds and restarts a fresh process. Hot reload patched new code into the
+# running room: fields added to Room stayed null there and every tick failed — players saw each other in the list,
+# but no snapshots came (M4). The room lives in memory anyway, and clients reconnect by themselves.
+# --non-interactive: dotnet watch never waits for "y/n" in its window while the old server keeps running.
+Start-Process powershell -ArgumentList '-NoExit', '-Command', "dotnet watch --non-interactive --no-hot-reload run --project '$root\server\Sro.Server'"
 Start-Process powershell -ArgumentList '-NoExit', '-Command', "Set-Location '$root\client'; npm run dev"
 
 # Private LAN addresses to open from the phone. VPN / ZeroTier / WSL adapters are skipped
