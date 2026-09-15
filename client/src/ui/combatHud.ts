@@ -20,6 +20,8 @@ export interface Vitals {
 export interface OwnStatus extends Vitals {
   /** Сколько ещё действует защита после появления, с; 0 — нет. */
   protectedSeconds: number;
+  /** Сколько пиратов сейчас целится в меня. */
+  attackers: number;
 }
 
 export interface TargetStatus extends Vitals {
@@ -72,6 +74,7 @@ export class CombatHud {
   private readonly ownHull: Bar;
   private readonly ownShield: Bar;
   private readonly ownProtect: HTMLElement;
+  private readonly ownThreat: HTMLElement;
   private readonly targetName: HTMLElement;
   private readonly targetClass: HTMLElement;
   private readonly targetHull: Bar;
@@ -90,6 +93,7 @@ export class CombatHud {
     this.ownHull = new Bar(shipEl, 'hull', 'Корпус');
     this.ownShield = new Bar(shipEl, 'shield', 'Щит');
     this.ownProtect = div(shipEl, 'protect');
+    this.ownThreat = div(shipEl, 'threat');
 
     const head = div(targetEl, 'target-head');
     this.targetName = div(head, 'target-name');
@@ -125,6 +129,7 @@ export class CombatHud {
       this.ownHull.set(own.hp, own.maxHp);
       this.ownShield.set(own.sh, own.maxSh);
       setText(this.ownProtect, own.protectedSeconds > 0 ? `защита ${Math.ceil(own.protectedSeconds)} с` : '');
+      setText(this.ownThreat, own.attackers > 0 ? `под атакой: ${own.attackers}` : '');
     }
 
     this.targetEl.hidden = !target;

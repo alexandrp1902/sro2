@@ -129,11 +129,13 @@ public class CombatTests
         string Read(string file) => File.ReadAllText(Path.Combine(dir, file));
 
         Assert.True(
-            Balance.TryParse(Read(Balance.HullsFile), Read(Balance.WeaponsFile), Read(Balance.RulesFile), out var balance, out var error),
+            Balance.TryParse(
+                Read(Balance.HullsFile), Read(Balance.WeaponsFile), Read(Balance.RulesFile), Read(Balance.NpcsFile), out var balance, out var error),
             error);
         Assert.Contains(SimConfig.DefaultWeapon, balance!.Weapons.Keys);
         Assert.All(balance.Hulls.Values, h => Assert.True(h.Hp > 0));
         Assert.NotEmpty(balance.Rules.DroneList);
+        Assert.True(balance.Npc.Count > 0);
     }
 
     [Fact]

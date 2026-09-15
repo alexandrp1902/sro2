@@ -1,11 +1,23 @@
 import { Container, Graphics, Text } from 'pixi.js';
-import type { RemoteShipInfo } from '../net/remoteShips';
+import type { AiState } from '../net/protocol';
+import type { RemoteShipInfo, ShipKind } from '../net/remoteShips';
 import type { AimState } from '../sim/combat';
 import type { Camera } from './camera';
 
-const COLOR = 0xffd6a0;
-const NPC_COLOR = 0xc3d6c2;
+const COLORS: Record<ShipKind, number> = {
+  player: 0xffd6a0,
+  drone: 0xc3d6c2,
+  pirate: 0xff8a7a,
+};
 const OUTLINE = 0x05060a;
+/** Пират, который целится в меня: знак перед ником и крупная стрелка у края экрана. */
+const THREAT_PREFIX = '! ';
+/** Состояние ИИ под ником — при открытой dev-панели, для настройки пиратов на плейтесте. */
+const AI_TEXT: Record<AiState, string> = {
+  patrol: 'патруль',
+  attack: 'атака',
+  return: 'домой',
+};
 /** Стрелка к кораблю за краем экрана держится на таком отступе от края, px. */
 const EDGE_MARGIN = 26;
 /** Подпись у стрелки — ближе к центру экрана на столько, px. */
@@ -84,6 +96,8 @@ export class PlayerOverlay {
     height: number,
     target: TargetMark | null,
     own: OwnMark | null,
+    ownId: number,
+    showAi: boolean,
   ): void {
     for (const marker of this.markers.values()) marker.seen = false;
     const cx = width / 2;
@@ -93,7 +107,9 @@ export class PlayerOverlay {
     for (const ship of ships) {
       const marker = this.marker(ship);
       marker.seen = true;
-      const text = ship.online ? ship.name : ship.name + LOST_SUFFIX;
+      const threat = ship.kind === 'pirate' && ship.targetId === ownId;
+      let text = (threat ? THREAT_PREFIX : '') + (ship.online ? ship.name : ship.name + LOST_SUFFIX);
+      if (showAi && ship.ai) text += ` · ${AI_TEXT[ship.ai]}`;
       if (text !== marker.text) {
         marker.label.text = text;
         marker.text = text;
@@ -129,7 +145,7 @@ export class PlayerOverlay {
       const ay = cy + dy * t;
       marker.arrow.position.set(ax, ay);
       marker.arrow.rotation = Math.atan2(dx, -dy);
-      marker.arrow.scale.set(isTarget ? 1.4 : 1); // цель за краем — стрелка крупнее
+      marker.arrow.scale.set(isTarget || threat ? 1.4 : 1); // цель или пират, который целится в меня, — стрелка крупнее
 
       const length = Math.hypot(dx, dy);
       const label = marker.label;
@@ -207,7 +223,7 @@ export class PlayerOverlay {
   private marker(ship: RemoteShipInfo): Marker {
     let marker = this.markers.get(ship.id);
     if (!marker) {
-      const color = ship.npc ? NPC_COLOR : COLOR;
+      const color = COLORS[ship.kind];
       const label = new Text({
         text: '',
         style: {

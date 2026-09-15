@@ -25,6 +25,7 @@ public sealed class Room
 
     private readonly ILogger _log;
     private readonly Random _jitter;
+    private readonly Random _ai;
     private readonly Battle _battle;
     private readonly Dictionary<int, Player> _players = [];
     private readonly Dictionary<int, Player> _byConnection = [];
@@ -32,6 +33,7 @@ public sealed class Room
     /// <summary>Все корабли системы — игроки и NPC; здесь ищется цель.</summary>
     private readonly Dictionary<int, ShipEntity> _ships = [];
     private readonly List<Drone> _drones = [];
+    private readonly List<Pirate> _pirates = [];
     private readonly List<ShipDto> _shipDtos = [];
     private readonly List<ShotDto> _shots = [];
     private readonly List<KillDto> _kills = [];
@@ -41,13 +43,16 @@ public sealed class Room
 
     /// <param name="roll">Случайное число из [0, 1) для бросков попадания; тесты подставляют своё.</param>
     /// <param name="jitter">Разброс точки появления.</param>
-    public Room(Balance balance, ILogger log, Func<double>? roll = null, Random? jitter = null)
+    /// <param name="ai">Случайность ИИ пиратов (точки патруля) — отдельно, чтобы пираты не сдвигали разброс спауна.</param>
+    public Room(Balance balance, ILogger log, Func<double>? roll = null, Random? jitter = null, Random? ai = null)
     {
         Balance = balance;
         _log = log;
         _jitter = jitter ?? Random.Shared;
+        _ai = ai ?? Random.Shared;
         _battle = new Battle(roll ?? Random.Shared.NextDouble, log);
         SpawnDrones();
+        SpawnPirates();
     }
 
     public long Tick { get; private set; }
@@ -162,12 +167,16 @@ public sealed class Room
         BroadcastPlayers();
     }
 
-    /// <summary>Баланс изменился на диске: доли корпуса и щита сохраняются, дроны пересоздаются, если поменялся их список.</summary>
+    /// <summary>
+    /// Баланс изменился на диске: доли корпуса и щита сохраняются. Дроны и пираты пересоздаются, если поменялся
+    /// их список; иначе пираты получают новые параметры типа при тех же долях.
+    /// </summary>
     public void ApplyBalance(Balance balance)
     {
         var old = Balance;
         foreach (var ship in _ships.Values)
         {
+            if (ship is Pirate) continue; // у пирата корпус и максимумы — от типа, см. ниже
             var from = ship.Hull(old.Hulls);
             var hullId = balance.Hulls.ContainsKey(ship.HullId) ? ship.HullId : SimConfig.DefaultHull;
             ship.ChangeHull(from, hullId, balance.Hulls[hullId]);
@@ -175,7 +184,19 @@ public sealed class Room
         }
         Balance = balance;
 
-        var message = Protocol.Encode(new ConfigMsg(balance.Hulls, balance.Weapons, balance.Rules));
+        if (old.Npc.SpawnList.SequenceEqual(balance.Npc.SpawnList))
+        {
+            // Список логов тот же — значит, все их типы есть и в новом файле.
+            foreach (var pirate in _pirates) pirate.Rebind(balance.Npc.TypeMap[pirate.Spawn.Type], balance.Npc, old.Hulls, balance.Hulls);
+        }
+        else
+        {
+            foreach (var pirate in _pirates) RemoveShip(pirate);
+            _pirates.Clear();
+            SpawnPirates();
+        }
+
+        var message = Protocol.Encode(new ConfigMsg(balance.Hulls, balance.Weapons, balance.Rules, balance.Npc));
         foreach (var player in _players.Values) player.Connection?.SendRaw(message);
 
         if (!old.Rules.DroneList.SequenceEqual(balance.Rules.DroneList))
@@ -183,8 +204,9 @@ public sealed class Room
             foreach (var drone in _drones) RemoveShip(drone);
             _drones.Clear();
             SpawnDrones();
-            BroadcastPlayers();
         }
+        // Имена и максимумы NPC уходят клиентам только в списке кораблей.
+        BroadcastPlayers();
     }
 
     /// <summary>Один тик: движение, бой и снапшот подключённым игрокам.</summary>
@@ -195,6 +217,13 @@ public sealed class Room
         {
             var input = drone.NextInput();
             if (!drone.IsDead) Movement.Step(ref drone.Ship, input, drone.Hull(Hulls), SimConfig.Dt);
+        }
+        // Уничтоженный пират не думает: иначе снова взял бы огонь, который Battle снял при смерти.
+        foreach (var pirate in _pirates)
+        {
+            if (pirate.IsDead) continue;
+            PirateBrain.Think(pirate, _ships, _pirates, Balance, Tick, _ai, _log);
+            Movement.Step(ref pirate.Ship, pirate.LastInput, pirate.Hull(Hulls), SimConfig.Dt);
         }
         Tick++;
 
@@ -262,12 +291,21 @@ public sealed class Room
         for (var i = 0; i < count; i++) Movement.Step(ref player.Ship, _steps[i], hull, SimConfig.Dt);
     }
 
-    /// <summary>Появление при входе и после уничтожения: у станции, с защитой (GDD §25). Дрон — у своего дома, без защиты.</summary>
+    /// <summary>
+    /// Появление при входе и после уничтожения: у станции, с защитой (GDD §25). Дрон — у своего дома, пират — в логове;
+    /// NPC без защиты.
+    /// </summary>
     private void Spawn(ShipEntity ship)
     {
-        var (x, y) = ship is Drone drone ? drone.SpawnPoint : SpawnPoint();
+        var (x, y) = ship switch
+        {
+            Drone drone => drone.SpawnPoint,
+            Pirate pirate => pirate.SpawnPoint,
+            _ => SpawnPoint(),
+        };
         ship.Ship = new ShipState { X = x, Y = y };
-        ship.Revive(ship.Hull(Hulls), ship is Drone ? 0 : Tick + Balance.Rules.ProtectionTicks);
+        ship.Revive(ship.Hull(Hulls), ship is Player ? Tick + Balance.Rules.ProtectionTicks : 0);
+        if (ship is Pirate p) p.ResetAi();
     }
 
     /// <summary>Случайная точка в круге SpawnJitter вокруг спауна — корабли не появляются друг в друге.</summary>
@@ -286,6 +324,26 @@ public sealed class Room
             Spawn(drone);
             _drones.Add(drone);
             _ships[drone.Id] = drone;
+        }
+    }
+
+    /// <summary>Пираты по логовам; номер в логове сквозной для всех записей с одной точкой.</summary>
+    private void SpawnPirates()
+    {
+        var npc = Balance.Npc;
+        var slots = new Dictionary<(double, double), int>();
+        foreach (var spawn in npc.SpawnList)
+        {
+            var type = npc.TypeMap[spawn.Type];
+            for (var i = 0; i < spawn.Count; i++)
+            {
+                var slot = slots.GetValueOrDefault((spawn.X, spawn.Y));
+                slots[(spawn.X, spawn.Y)] = slot + 1;
+                var pirate = new Pirate(++_nextId, spawn, slot, type, npc);
+                Spawn(pirate);
+                _pirates.Add(pirate);
+                _ships[pirate.Id] = pirate;
+            }
         }
     }
 
@@ -314,19 +372,26 @@ public sealed class Room
         {
             Player p => (p.Connection is null || p.IsDead ? 0 : p.Inputs.Last.Throttle, p.Inputs.AckSeq),
             Drone d => (d.IsDead ? 0 : d.LastInput.Throttle, 0),
+            Pirate p => (p.IsDead ? 0 : p.LastInput.Throttle, 0),
             _ => (0.0, 0),
         };
+        var pirate = ship as Pirate;
         return new ShipDto(
             ship.Id, s.X, s.Y, s.Rot, s.Vx, s.Vy, ship.HullId, throttle, ack,
             (int)Math.Ceiling(ship.Hp),
             (int)Math.Ceiling(ship.Shield),
             ship.WeaponId,
             ship.DeadUntilTick,
-            ship.IsProtected(Tick) ? ship.ProtectedUntilTick : 0);
+            ship.IsProtected(Tick) ? ship.ProtectedUntilTick : 0,
+            pirate is { IsDead: false, State: PirateState.Attack } ? pirate.TargetId : 0,
+            pirate is null ? null : AiNames[(int)pirate.State]);
     }
 
+    /// <summary>Состояния ИИ в снапшоте — по индексу <see cref="PirateState"/>.</summary>
+    private static readonly string[] AiNames = ["patrol", "attack", "return"];
+
     private WelcomeMsg Welcome(Player player, bool resumed) =>
-        new(player.Id, SimConfig.TickRate, Protocol.Version, Hulls, Balance.Weapons, Balance.Rules, resumed);
+        new(player.Id, SimConfig.TickRate, Protocol.Version, Hulls, Balance.Weapons, Balance.Rules, resumed, Balance.Npc);
 
     /// <summary>Занятое другим игроком имя получает номер: «Имя 2», «Имя 3»…</summary>
     private string UniqueName(string name, Player? self)
@@ -340,11 +405,12 @@ public sealed class Room
         return candidate;
     }
 
+    /// <summary>Имя занято другим игроком или NPC: игрок не назовётся «Пират Ур.2».</summary>
     private bool IsTaken(string name, Player? self)
     {
-        foreach (var player in _players.Values)
+        foreach (var ship in _ships.Values)
         {
-            if (player != self && string.Equals(player.Name, name, StringComparison.OrdinalIgnoreCase)) return true;
+            if (ship != self && string.Equals(ship.Name, name, StringComparison.OrdinalIgnoreCase)) return true;
         }
         return false;
     }
@@ -378,7 +444,7 @@ public sealed class Room
 
     private static int? Ceiling(double? value) => value is { } v ? (int)Math.Ceiling(v) : null;
 
-    /// <summary>Игроки и NPC: имена нужны для подписей, а флаг npc — чтобы клиент не писал о дронах в ленту.</summary>
+    /// <summary>Игроки и NPC: имена нужны для подписей, флаг npc — чтобы клиент не писал о NPC в ленту, kind — для цвета.</summary>
     private void BroadcastPlayers()
     {
         var list = _ships.Values
@@ -386,7 +452,10 @@ public sealed class Room
             .Select(s => s switch
             {
                 Player p => new PlayerDto(p.Id, p.Name, p.Connection is not null),
-                Drone d => new PlayerDto(d.Id, d.Name, Online: true, Npc: true, Ceiling(d.Spec.Hp), Ceiling(d.Spec.Shield)),
+                Drone d => new PlayerDto(d.Id, d.Name, Online: true, Npc: true, Ceiling(d.Spec.Hp), Ceiling(d.Spec.Shield), Protocol.DroneKind),
+                Pirate p => new PlayerDto(
+                    p.Id, p.Name, Online: true, Npc: true,
+                    Ceiling(p.MaxHp(p.Hull(Hulls))), Ceiling(p.MaxShield(p.Hull(Hulls))), Protocol.PirateKind),
                 _ => new PlayerDto(s.Id, s.Name, Online: true, Npc: true),
             })
             .ToList();

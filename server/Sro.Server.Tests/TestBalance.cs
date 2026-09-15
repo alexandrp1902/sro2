@@ -15,10 +15,12 @@ internal static class TestBalance
     {
         ["pulse"] = new("Импульсная пушка Mk1", 100, 75, 1.0, 500, 700, 10),
         ["laser"] = new("Лазер Mk1", 40, 90, 0.5, 400, 600, 20, Kind: "beam"),
+        ["plasma"] = new("Плазма Mk1", 280, 60, 2.0, 450, 650, 15, Kind: "orb"),
         // Убивает с одного попадания — для тестов уничтожения и респауна.
         ["doom"] = new("Тестовая пушка", 100_000, 100, 1.0, 500, 700, 0),
     };
 
-    /// <summary>Без дронов и без разброса спауна — корабли появляются ровно в SpawnX, SpawnY.</summary>
-    public static Balance Create(CombatRules? rules = null) => new(Hulls, Weapons, rules ?? new CombatRules(SpawnJitter: 0));
+    /// <summary>Без дронов, без пиратов и без разброса спауна — корабли появляются ровно в SpawnX, SpawnY.</summary>
+    public static Balance Create(CombatRules? rules = null, NpcRules? npcs = null) =>
+        new(Hulls, Weapons, rules ?? new CombatRules(SpawnJitter: 0), npcs);
 }

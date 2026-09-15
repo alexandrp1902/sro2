@@ -141,6 +141,22 @@ describe('SnapshotBuffer', () => {
     expect(buffer.sample(1, 11)).toMatchObject({ hp: 350, sh: 0, pu: 30 });
   });
 
+  it('takes the pirate target and AI state from the frame the clock has reached', () => {
+    const buffer = new SnapshotBuffer();
+    buffer.push(snapshot(10, { ...ship(1, 0), ai: 'patrol' }));
+    buffer.push(snapshot(11, { ...ship(1, 10), ai: 'attack', tg: 5 }));
+    expect(buffer.sample(1, 10.9)).toMatchObject({ ai: 'patrol', tg: 0 });
+    expect(buffer.sample(1, 11)).toMatchObject({ ai: 'attack', tg: 5 });
+    expect(buffer.sample(1, 11.5)).toMatchObject({ ai: 'attack', tg: 5 }); // экстраполяция
+  });
+
+  it('has no AI state for players', () => {
+    const buffer = new SnapshotBuffer();
+    buffer.push(snapshot(10, ship(1, 0)));
+    buffer.push(snapshot(11, ship(1, 10)));
+    expect(buffer.sample(1, 10.5)).toMatchObject({ ai: null, tg: 0 });
+  });
+
   it('does not slide a respawned ship across the map', () => {
     const buffer = new SnapshotBuffer();
     buffer.push(snapshot(10, { ...ship(1, 2000), vx: 0, hp: 0, rt: 11 }));

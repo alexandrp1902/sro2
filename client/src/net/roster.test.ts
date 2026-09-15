@@ -49,6 +49,15 @@ describe('Roster', () => {
     expect(roster.update([me], OWN)).toEqual([]);
   });
 
+  it('keeps pirates out of the feed and the online count, like drones', () => {
+    const pirate: PlayerDto = { id: 6, name: 'Пират Ур.2', online: true, npc: true, kind: 'pirate', maxHp: 360, maxSh: 120 };
+    const roster = started(me);
+    expect(roster.update([me, pirate], OWN)).toEqual([]);
+    expect(roster.get(6)?.kind).toBe('pirate');
+    expect(roster.onlineCount).toBe(1);
+    expect(roster.update([me], OWN)).toEqual([]);
+  });
+
   it('starts over after a reconnect', () => {
     const roster = started(me);
     roster.reset();

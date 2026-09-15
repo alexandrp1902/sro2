@@ -1,5 +1,5 @@
 import { DT, wrapAngle } from '../sim/movement';
-import type { ShipDto, SnapshotMsg } from './protocol';
+import type { AiState, ShipDto, SnapshotMsg } from './protocol';
 
 const TICK_MS = DT * 1000;
 
@@ -83,6 +83,9 @@ export interface ShipSample {
   w: string;
   rt: number;
   pu: number;
+  /** Цель пирата (0 — нет) и состояние его ИИ (null — не пират): тоже из кадра, до которого дошли часы. */
+  tg: number;
+  ai: AiState | null;
   /** Рисуем дальше последнего снапшота — снапшот опоздал. */
   extrapolated: boolean;
 }
@@ -158,6 +161,8 @@ export class SnapshotBuffer {
       w: from.w,
       rt: from.rt ?? 0,
       pu: from.pu ?? 0,
+      tg: from.tg ?? 0,
+      ai: from.ai ?? null,
       extrapolated: false,
     };
   }
@@ -177,6 +182,8 @@ function extrapolate(ship: ShipDto, seconds: number, extrapolated: boolean): Shi
     w: ship.w,
     rt: ship.rt ?? 0,
     pu: ship.pu ?? 0,
+    tg: ship.tg ?? 0,
+    ai: ship.ai ?? null,
     extrapolated,
   };
 }

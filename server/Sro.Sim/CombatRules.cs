@@ -87,18 +87,29 @@ public sealed record CombatRules(
     }
 }
 
-/// <summary>Весь баланс: корпуса, пушки, правила боя. Меняется только целиком.</summary>
+/// <summary>Весь баланс: корпуса, пушки, правила боя, NPC. Меняется только целиком.</summary>
+/// <param name="Npcs">Пираты; null — NPC, кроме дронов, нет.</param>
 public sealed record Balance(
     IReadOnlyDictionary<string, HullParams> Hulls,
     IReadOnlyDictionary<string, WeaponParams> Weapons,
-    CombatRules Rules)
+    CombatRules Rules,
+    NpcRules? Npcs = null)
 {
     public const string HullsFile = "hulls.json";
     public const string WeaponsFile = "weapons.json";
     public const string RulesFile = "combat.json";
+    public const string NpcsFile = NpcRules.File;
 
-    /// <summary>Разбирает три файла вместе: правила ссылаются на корпуса.</summary>
-    public static bool TryParse(string hullsJson, string weaponsJson, string rulesJson, out Balance? balance, out string? error)
+    public NpcRules Npc => Npcs ?? NpcRules.None;
+
+    /// <summary>Разбирает четыре файла вместе: правила и NPC ссылаются на корпуса и пушки.</summary>
+    public static bool TryParse(
+        string hullsJson,
+        string weaponsJson,
+        string rulesJson,
+        string npcsJson,
+        out Balance? balance,
+        out string? error)
     {
         balance = null;
         if (!HullCatalog.TryParse(hullsJson, out var hulls, out error))
@@ -116,7 +127,12 @@ public sealed record Balance(
             error = $"{RulesFile}: {error}";
             return false;
         }
-        balance = new Balance(hulls, weapons, rules);
+        if (!NpcRules.TryParse(npcsJson, hulls, weapons, out var npcs, out error))
+        {
+            error = $"{NpcsFile}: {error}";
+            return false;
+        }
+        balance = new Balance(hulls, weapons, rules, npcs);
         return true;
     }
 }

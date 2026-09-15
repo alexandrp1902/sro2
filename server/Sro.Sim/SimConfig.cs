@@ -18,4 +18,8 @@ public static class SimConfig
     /// <summary>Точка спауна у станции. Зеркало SPAWN в client/src/game/layout.ts.</summary>
     public const double SpawnX = 0;
     public const double SpawnY = 420;
+
+    /// <summary>Станция — центр укрытия от пиратов. Зеркало STATION в client/src/game/layout.ts.</summary>
+    public const double StationX = 0;
+    public const double StationY = 0;
 }

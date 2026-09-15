@@ -63,6 +63,10 @@ export class DevOverlay {
     this.renderButtons('', '');
   }
 
+  get visible(): boolean {
+    return !this.root.hidden;
+  }
+
   toggle(): void {
     this.root.hidden = !this.root.hidden;
     storage.set(STORAGE_KEY, this.root.hidden ? '0' : '1');

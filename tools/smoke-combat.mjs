@@ -132,7 +132,7 @@ async function main() {
   const idA = a.id;
   const idB = b.id;
 
-  const drones = a.players.filter((p) => p.npc);
+  const drones = a.players.filter((p) => p.npc && (p.kind ?? 'drone') === 'drone');
   check(`drones in the system: ${drones.map((d) => d.name).join(', ') || 'none'}`, drones.length === (rules.drones?.length ?? 0));
 
   a.aim = a.face(idB);

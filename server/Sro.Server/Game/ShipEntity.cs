@@ -31,6 +31,8 @@ public abstract class ShipEntity(int id, string name, string hullId, string weap
     public long ProtectedUntilTick;
     /// <summary>Кто нанёс смертельный удар — для ленты «A уничтожает B».</summary>
     public int KilledBy;
+    /// <summary>Кто последним стрелял по кораблю, в том числе мимо; 0 — никто. По нему пират понимает, что на него напали.</summary>
+    public int LastAttackerId;
     public DamageStats Stats;
 
     public bool IsDead => DeadUntilTick > 0;
@@ -40,6 +42,12 @@ public abstract class ShipEntity(int id, string name, string hullId, string weap
     public virtual double MaxHp(HullParams hull) => hull.Hp;
 
     public virtual double MaxShield(HullParams hull) => hull.Shield;
+
+    /// <summary>Пушка, из которой корабль стреляет; null — такой пушки больше нет.</summary>
+    public virtual WeaponParams? Weapon(Balance balance) => balance.Weapons.GetValueOrDefault(WeaponId);
+
+    /// <summary>Через столько тиков уничтоженный корабль появляется снова.</summary>
+    public virtual int RespawnTicks(Balance balance) => balance.Rules.RespawnTicks;
 
     public HullParams Hull(IReadOnlyDictionary<string, HullParams> hulls)
     {
@@ -67,6 +75,7 @@ public abstract class ShipEntity(int id, string name, string hullId, string weap
         Shield = MaxShield(hull);
         DeadUntilTick = 0;
         KilledBy = 0;
+        LastAttackerId = 0;
         LastDamageTick = long.MinValue / 2;
         ProtectedUntilTick = protectedUntil;
         FireHeld = false;

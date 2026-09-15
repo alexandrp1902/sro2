@@ -59,6 +59,7 @@ public abstract record ServerMessage;
 /// <param name="Weapons">Параметры пушек — для карточки цели и трассеров.</param>
 /// <param name="Combat">Правила боя: время респауна, защита.</param>
 /// <param name="Resumed">Игрок вернулся к кораблю, который ждал его после обрыва связи.</param>
+/// <param name="Npcs">Пираты: логова и укрытие у станции — клиент рисует их на карте.</param>
 public sealed record WelcomeMsg(
     int Id,
     int TickRate,
@@ -66,7 +67,8 @@ public sealed record WelcomeMsg(
     IReadOnlyDictionary<string, HullParams> Hulls,
     IReadOnlyDictionary<string, WeaponParams> Weapons,
     CombatRules Combat,
-    bool Resumed) : ServerMessage;
+    bool Resumed,
+    NpcRules? Npcs = null) : ServerMessage;
 
 public sealed record PongMsg(double C, long Tick) : ServerMessage;
 
@@ -77,19 +79,22 @@ public sealed record PlayersMsg(IReadOnlyList<PlayerDto> Players) : ServerMessag
 /// <param name="Npc">Дрон или другой NPC: о нём не пишут в ленту и не считают в «онлайн».</param>
 /// <param name="MaxHp">Своя прочность NPC вместо корпусной; нет — как у корпуса.</param>
 /// <param name="MaxSh">Свой щит NPC вместо корпусного; нет — как у корпуса.</param>
+/// <param name="Kind">Вид NPC: <see cref="Protocol.DroneKind"/> или <see cref="Protocol.PirateKind"/>; у игроков нет.</param>
 public sealed record PlayerDto(
     int Id,
     string Name,
     bool Online,
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)] bool Npc = false,
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] int? MaxHp = null,
-    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] int? MaxSh = null);
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] int? MaxSh = null,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? Kind = null);
 
 /// <summary>Файлы баланса изменились на диске.</summary>
 public sealed record ConfigMsg(
     IReadOnlyDictionary<string, HullParams> Hulls,
     IReadOnlyDictionary<string, WeaponParams> Weapons,
-    CombatRules Combat) : ServerMessage;
+    CombatRules Combat,
+    NpcRules? Npcs = null) : ServerMessage;
 
 /// <param name="Shots">Выстрелы этого тика; нет — поле не пишется.</param>
 /// <param name="Kills">Уничтоженные в этом тике.</param>
@@ -106,6 +111,8 @@ public sealed record SnapshotMsg(
 /// <param name="W">Пушка.</param>
 /// <param name="Rt">Корабль уничтожен и появится в этот тик; 0 — цел.</param>
 /// <param name="Pu">Под защитой до этого тика; 0 — без защиты.</param>
+/// <param name="Tg">Цель пирата в бою; 0 — нет (и у игроков).</param>
+/// <param name="Ai">Состояние ИИ пирата: patrol, attack, return; у игроков нет.</param>
 public sealed record ShipDto(
     int Id,
     double X,
@@ -120,7 +127,9 @@ public sealed record ShipDto(
     int Sh,
     string W,
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)] long Rt = 0,
-    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)] long Pu = 0);
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)] long Pu = 0,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)] int Tg = 0,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? Ai = null);
 
 /// <param name="Dmg">Урон всего (0 при промахе).</param>
 /// <param name="Sh">Из него пришлось на щит.</param>
@@ -133,10 +142,13 @@ public sealed record KillDto(int Id, int By);
 public static class Protocol
 {
     /// <summary>
-    /// Меняется, когда клиент и сервер разных версий уже не поймут друг друга (3 — бой, M3).
+    /// Меняется, когда клиент и сервер разных версий уже не поймут друг друга (3 — бой, M3; 4 — пираты, M4).
     /// Зеркало PROTOCOL_VERSION в client/src/net/protocol.ts.
     /// </summary>
-    public const int Version = 3;
+    public const int Version = 4;
+
+    public const string DroneKind = "drone";
+    public const string PirateKind = "pirate";
 
     private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web)
     {

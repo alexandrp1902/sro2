@@ -2,11 +2,17 @@ import { Container } from 'pixi.js';
 import { ShipView, engineGlow } from '../render/ship';
 import type { Hulls } from '../sim/hulls';
 import { RenderClock, SnapshotBuffer } from './interpolation';
-import type { SnapshotMsg } from './protocol';
+import type { AiState, NpcKind, PlayerDto, SnapshotMsg } from './protocol';
 import type { Roster } from './roster';
 
-const REMOTE_COLOR = 0xffb45a;
-const DRONE_COLOR = 0x9ccf9a;
+/** Игрок или вид NPC — от этого цвет корабля, подписи и стрелки. */
+export type ShipKind = 'player' | NpcKind;
+
+const COLORS: Record<ShipKind, number> = {
+  player: 0xffb45a,
+  drone: 0x9ccf9a,
+  pirate: 0xff6b5a,
+};
 const FADE_IN_MS = 300;
 /** Корабль без связи висит в космосе полупрозрачным. */
 const LOST_ALPHA = 0.4;
@@ -24,6 +30,11 @@ export interface RemoteShipInfo {
   name: string;
   online: boolean;
   npc: boolean;
+  kind: ShipKind;
+  /** Цель пирата в бою; 0 — нет. */
+  targetId: number;
+  /** Состояние ИИ пирата; null — не пират. */
+  ai: AiState | null;
   hull: string;
   hp: number;
   sh: number;
@@ -99,7 +110,7 @@ export class RemoteShips {
       const player = this.roster.get(id);
       let remote = this.ships.get(id);
       if (!remote) {
-        remote = this.create(id, player?.npc ?? false, now);
+        remote = this.create(id, kindOf(player), now);
         this.ships.set(id, remote);
       }
 
@@ -132,6 +143,8 @@ export class RemoteShips {
       info.name = player?.name ?? '';
       info.online = online;
       info.npc = player?.npc ?? false;
+      info.targetId = s.tg;
+      info.ai = s.ai;
       info.hull = s.hull;
       info.hp = s.hp;
       info.sh = s.sh;
@@ -151,8 +164,8 @@ export class RemoteShips {
     this.extrapolating = extrapolating;
   }
 
-  private create(id: number, npc: boolean, now: number): Remote {
-    const ship = new ShipView(npc ? DRONE_COLOR : REMOTE_COLOR);
+  private create(id: number, kind: ShipKind, now: number): Remote {
+    const ship = new ShipView(COLORS[kind]);
     this.view.addChild(ship.view);
     return {
       ship,
@@ -169,7 +182,10 @@ export class RemoteShips {
         alpha: 0,
         name: '',
         online: true,
-        npc,
+        npc: kind !== 'player',
+        kind,
+        targetId: 0,
+        ai: null,
         hull: '',
         hp: 0,
         sh: 0,
@@ -180,4 +196,10 @@ export class RemoteShips {
       },
     };
   }
+}
+
+/** NPC без вида (сервер до M4) — дрон. */
+export function kindOf(player: PlayerDto | undefined): ShipKind {
+  if (!player?.npc) return 'player';
+  return player.kind ?? 'drone';
 }

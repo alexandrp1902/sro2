@@ -24,6 +24,7 @@ import { ShipView, engineGlow } from './render/ship';
 import { Starfield } from './render/starfield';
 import { WeaponArc } from './render/weaponArc';
 import { createWorldView } from './render/world';
+import { Zones } from './render/zones';
 import { assess, cooldownTicks } from './sim/combat';
 import { DEFAULT_HULL, Hulls } from './sim/hulls';
 import { DT, directionAngle, localVelocity, type MoveInput } from './sim/movement';
@@ -83,7 +84,8 @@ async function main(): Promise<void> {
   const weaponArc = new WeaponArc();
   const fx = new CombatFx(weapons);
   const overlay = new PlayerOverlay();
-  world.addChild(createWorldView(), weaponArc.view, remote.view, ownShip.view, fx.view);
+  const zones = new Zones();
+  world.addChild(createWorldView(), zones.view, weaponArc.view, remote.view, ownShip.view, fx.view);
   app.stage.addChild(starfield.view, world, overlay.view);
   const camera = new Camera();
 
@@ -175,6 +177,7 @@ async function main(): Promise<void> {
     connection.onWelcome = (message) => {
       hulls.set(message.hulls);
       weapons.set(message.weapons);
+      zones.set(message.npcs);
       prediction.resetNet();
       remote.clear();
       combat.clear();
@@ -187,6 +190,7 @@ async function main(): Promise<void> {
     connection.onConfig = (message) => {
       hulls.set(message.hulls);
       weapons.set(message.weapons);
+      zones.set(message.npcs);
     };
     connection.onSnapshot = (message) => {
       const now = performance.now();
@@ -282,6 +286,9 @@ async function main(): Promise<void> {
     const aim = target ? assess(state, weapon, target, hulls.get(target.hull)) : null;
     const tick = connection?.lastTick ?? 0;
     const protectedSeconds = ownDto?.pu ? Math.max(0, (ownDto.pu - tick) * DT) : 0;
+    const me = ownId();
+    let attackers = 0;
+    for (const ship of remote.visible()) if (ship.kind === 'pirate' && ship.targetId === me) attackers++;
 
     camera.follow(state.x, state.y, zoom.value).apply(world, app.screen.width, app.screen.height);
     starfield.update(camera.x, camera.y, app.screen.width, app.screen.height);
@@ -293,12 +300,14 @@ async function main(): Promise<void> {
       app.screen.height,
       target && aim ? { id: target.id, state: aim.state } : null,
       { x: state.x, y: state.y, size: hull.size, protected: !dead && protectedSeconds > 0 },
+      me,
+      dev.visible,
     );
     fx.update(now, camera.zoom, locate);
     fire.render(now, !target ? 'none' : aim?.state === 'ready' ? 'ready' : 'blocked');
 
     combatHud.update(
-      ownDto && online ? { hp: ownDto.hp, maxHp: hull.hp, sh: ownDto.sh, maxSh: hull.shield, protectedSeconds } : null,
+      ownDto && online ? { hp: ownDto.hp, maxHp: hull.hp, sh: ownDto.sh, maxSh: hull.shield, protectedSeconds, attackers } : null,
       target && aim
         ? {
             name: target.name,

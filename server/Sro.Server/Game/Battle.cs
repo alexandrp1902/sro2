@@ -34,7 +34,7 @@ internal sealed class Battle(Func<double> roll, ILogger log)
         foreach (var ship in ships.Values)
         {
             if (ship.IsDead || ship.Hp > 0) continue;
-            ship.DeadUntilTick = tick + rules.RespawnTicks;
+            ship.DeadUntilTick = tick + ship.RespawnTicks(balance);
             ship.Ship.Vx = 0;
             ship.Ship.Vy = 0;
             ship.FireHeld = false;
@@ -62,7 +62,7 @@ internal sealed class Battle(Func<double> roll, ILogger log)
         if (shooter.IsDead || !shooter.FireHeld || tick < shooter.NextFireTick) return false;
         if (!ships.TryGetValue(shooter.TargetId, out var target) || target == shooter) return false;
         if (target.IsDead || target.IsProtected(tick)) return false;
-        if (!balance.Weapons.TryGetValue(shooter.WeaponId, out var weapon)) return false;
+        if (shooter.Weapon(balance) is not { } weapon) return false;
 
         var dx = target.Ship.X - shooter.Ship.X;
         var dy = target.Ship.Y - shooter.Ship.Y;
@@ -79,6 +79,7 @@ internal sealed class Battle(Func<double> roll, ILogger log)
         var (shooter, target, weapon, chance) = volley;
         shooter.NextFireTick = tick + Combat.CooldownTicks(weapon);
         shooter.ProtectedUntilTick = 0; // выстрел снимает защиту после появления (GDD §25)
+        target.LastAttackerId = shooter.Id; // и промах — нападение: пират ответит
 
         var hit = Combat.IsHit(chance, roll());
         var damage = default(DamageResult);
