@@ -2,23 +2,10 @@ import { Container, Graphics, Text } from 'pixi.js';
 import { BUOYS, PARKING, STATION } from '../game/layout';
 import { WORLD_HALF_SIZE } from '../sim/movement';
 
-const GRID_STEP = 200;
-const GRID_MAJOR_EVERY = 5;
-
-/** Сетка (по ней видны скорость и занос), граница мира и ориентиры для плейтеста. */
+/** Граница мира и ориентиры для плейтеста. Скорость и занос видны по звёздам заднего плана. */
 export function createWorldView(): Container {
   const view = new Container();
   const h = WORLD_HALF_SIZE;
-
-  const grid = new Graphics();
-  const major = new Graphics();
-  for (let i = -h / GRID_STEP; i <= h / GRID_STEP; i++) {
-    const g = i % GRID_MAJOR_EVERY === 0 ? major : grid;
-    const v = i * GRID_STEP;
-    g.moveTo(v, -h).lineTo(v, h).moveTo(-h, v).lineTo(h, v);
-  }
-  grid.stroke({ width: 1, color: 0x2a4468, alpha: 0.35 });
-  major.stroke({ width: 1.5, color: 0x3a5a88, alpha: 0.5 });
 
   const border = new Graphics().rect(-h, -h, h * 2, h * 2).stroke({ width: 6, color: 0xe0524a, alpha: 0.7 });
 
@@ -46,8 +33,6 @@ export function createWorldView(): Container {
   }
 
   view.addChild(
-    grid,
-    major,
     border,
     station,
     parking,

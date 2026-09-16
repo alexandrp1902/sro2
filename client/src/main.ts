@@ -19,6 +19,7 @@ import { Roster } from './net/roster';
 import { resolveServerUrl } from './net/serverUrl';
 import { Camera } from './render/camera';
 import { CombatFx, type FxAnchor } from './render/combatFx';
+import { Nebula } from './render/nebulaView';
 import { PlayerOverlay } from './render/playerOverlay';
 import { ShipView, engineGlow } from './render/ship';
 import { Starfield } from './render/starfield';
@@ -41,6 +42,7 @@ import { storage } from './util/storage';
 const HULL_KEY = 'sro.hull';
 const WEAPON_KEY = 'sro.weapon';
 const OWN_COLOR = 0x7fd4ff;
+const SKY_SEED = 0;
 /** Ниже этой скорости «корабль тормозит» в статусе не показываем. */
 const STOPPED_SPEED = 1;
 
@@ -77,7 +79,9 @@ async function main(): Promise<void> {
     : null;
   const roster = connection?.roster ?? new Roster();
 
-  const starfield = new Starfield();
+  // Сид неба: одна система — одно небо. В M7 у каждой системы будет своё.
+  const starfield = new Starfield(SKY_SEED);
+  const nebula = new Nebula(SKY_SEED);
   const world = new Container();
   const remote = new RemoteShips(hulls, roster);
   const ownShip = new ShipView(OWN_COLOR);
@@ -85,7 +89,7 @@ async function main(): Promise<void> {
   const fx = new CombatFx(weapons);
   const overlay = new PlayerOverlay();
   const zones = new Zones();
-  world.addChild(createWorldView(), zones.view, weaponArc.view, remote.view, ownShip.view, fx.view);
+  world.addChild(nebula.view, createWorldView(), zones.view, weaponArc.view, remote.view, ownShip.view, fx.view);
   app.stage.addChild(starfield.view, world, overlay.view);
   const camera = new Camera();
 
@@ -318,7 +322,8 @@ async function main(): Promise<void> {
     for (const ship of remote.visible()) if (ship.kind === 'pirate' && ship.targetId === me) attackers++;
 
     camera.follow(state.x, state.y, zoom.value).apply(world, app.screen.width, app.screen.height);
-    starfield.update(camera.x, camera.y, app.screen.width, app.screen.height);
+    starfield.update(camera.x, camera.y, camera.zoom, app.screen.width, app.screen.height);
+    nebula.update(now);
     weaponArc.update(state.x, state.y, state.rot, target && !dead ? weapon : null, aim?.state === 'ready');
     overlay.update(
       remote.visible(),
