@@ -27,6 +27,7 @@ public sealed class Room
     private readonly Random _jitter;
     private readonly Random _ai;
     private readonly Battle _battle;
+    private readonly LootSystem _loot;
     private readonly Dictionary<int, Player> _players = [];
     private readonly Dictionary<int, Player> _byConnection = [];
     private readonly Dictionary<string, Player> _byToken = new(StringComparer.Ordinal);
@@ -44,13 +45,16 @@ public sealed class Room
     /// <param name="roll">Случайное число из [0, 1) для бросков попадания; тесты подставляют своё.</param>
     /// <param name="jitter">Разброс точки появления.</param>
     /// <param name="ai">Случайность ИИ пиратов (точки патруля) — отдельно, чтобы пираты не сдвигали разброс спауна.</param>
-    public Room(Balance balance, ILogger log, Func<double>? roll = null, Random? jitter = null, Random? ai = null)
+    /// <param name="loot">Случайность дропа — тоже отдельно: иначе добыча сдвигала бы разброс спауна.</param>
+    public Room(Balance balance, ILogger log, Func<double>? roll = null, Random? jitter = null, Random? ai = null, Random? loot = null)
     {
         Balance = balance;
         _log = log;
         _jitter = jitter ?? Random.Shared;
         _ai = ai ?? Random.Shared;
         _battle = new Battle(roll ?? Random.Shared.NextDouble, log);
+        _loot = new LootSystem(() => ++_nextId, loot ?? Random.Shared, log);
+        _loot.SetContainers(balance.Loot.ContainerList);
         SpawnDrones();
         SpawnPirates();
     }
@@ -87,6 +91,7 @@ public sealed class Room
             _byConnection[connection.Id] = player;
             connection.Send(Welcome(player, resumed: true));
             BroadcastPlayers();
+            SendCargo(player); // иначе вернувшийся видел бы пустой трюм до первого подбора
             _log.LogInformation("Player {Id} '{Name}' resumed, online {Count}", player.Id, player.Name, OnlineCount());
             return;
         }
@@ -105,6 +110,7 @@ public sealed class Room
         if (token is not null) _byToken[token] = player;
         connection.Send(Welcome(player, resumed: false));
         BroadcastPlayers();
+        SendCargo(player); // трюм пуст, но клиенту нужна ёмкость корпуса
         _log.LogInformation("Player {Id} '{Name}' joined as {Hull}, online {Count}", player.Id, player.Name, player.HullId, OnlineCount());
     }
 
@@ -135,6 +141,7 @@ public sealed class Room
     {
         if (hullId is null || !Hulls.ContainsKey(hullId) || !_byConnection.TryGetValue(connection.Id, out var player)) return;
         ChangeHull(player, hullId);
+        SendCargo(player); // у нового корпуса своя ёмкость; груз при этом не выбрасывается (GDD §24)
         _log.LogInformation("Player {Id} switched to {Hull}", player.Id, hullId);
     }
 
@@ -155,6 +162,12 @@ public sealed class Room
     public void SetFire(IClientConnection connection, bool on)
     {
         if (_byConnection.TryGetValue(connection.Id, out var player)) player.FireHeld = on;
+    }
+
+    /// <summary>Выбранный предмет (боевой документ §45): тап только помечает его, автопилота в MVP нет.</summary>
+    public void SetLootTarget(IClientConnection connection, int lootId)
+    {
+        if (_byConnection.TryGetValue(connection.Id, out var player)) player.SelectedLootId = lootId;
     }
 
     public void Rename(IClientConnection connection, string? name)
@@ -196,8 +209,15 @@ public sealed class Room
             SpawnPirates();
         }
 
-        var message = Protocol.Encode(new ConfigMsg(balance.Hulls, balance.Weapons, balance.Rules, balance.Npc));
-        foreach (var player in _players.Values) player.Connection?.SendRaw(message);
+        if (!old.Loot.ContainerList.SequenceEqual(balance.Loot.ContainerList)) _loot.SetContainers(balance.Loot.ContainerList);
+        if (_loot.DropUnknown(balance.Loot)) ClearMissingLootTargets();
+
+        var message = Protocol.Encode(new ConfigMsg(balance.Hulls, balance.Weapons, balance.Rules, balance.Npc, balance.Loot));
+        foreach (var player in _players.Values)
+        {
+            player.Connection?.SendRaw(message);
+            SendCargo(player); // объёмы предметов и ёмкость корпуса могли измениться
+        }
 
         if (!old.Rules.DroneList.SequenceEqual(balance.Rules.DroneList))
         {
@@ -239,10 +259,17 @@ public sealed class Room
         }
 
         _battle.Run(Tick, _ships, Balance, _shots, _kills, Spawn);
+        // Дроп после боя: предмет должен пролежать хотя бы тик, иначе игрок вплотную к убитому
+        // увидит «ничего не выпало», а трюм молча пополнится.
+        _loot.DropFrom(_kills, _ships, Balance.Loot, Tick);
+        // Подбор и продажа — по команде игрока, а не сами собой: см. Grab и Sell.
+        if (_loot.Step(Tick, Balance.Loot)) ClearMissingLootTargets();
+
         // Дроны есть всегда: без игроков онлайн снапшот не нужен никому.
         if (_byConnection.Count > 0) SendSnapshot();
         _shots.Clear();
         _kills.Clear();
+        _loot.ClearPicks();
     }
 
     /// <summary>Без управляющих и невидимых символов, пробелы схлопнуты, не длиннее MaxNameLength.</summary>
@@ -361,7 +388,9 @@ public sealed class Room
             Tick,
             _shipDtos,
             _shots.Count > 0 ? _shots : null,
-            _kills.Count > 0 ? _kills : null));
+            _kills.Count > 0 ? _kills : null,
+            _loot.ToDtos(),
+            _loot.Picks.Count > 0 ? _loot.Picks : null));
         foreach (var player in _players.Values) player.Connection?.SendRaw(snapshot);
     }
 
@@ -391,7 +420,7 @@ public sealed class Room
     private static readonly string[] AiNames = ["patrol", "attack", "return"];
 
     private WelcomeMsg Welcome(Player player, bool resumed) =>
-        new(player.Id, SimConfig.TickRate, Protocol.Version, Hulls, Balance.Weapons, Balance.Rules, resumed, Balance.Npc);
+        new(player.Id, SimConfig.TickRate, Protocol.Version, Hulls, Balance.Weapons, Balance.Rules, resumed, Balance.Npc, Balance.Loot);
 
     /// <summary>Занятое другим игроком имя получает номер: «Имя 2», «Имя 3»…</summary>
     private string UniqueName(string name, Player? self)
@@ -428,6 +457,100 @@ public sealed class Room
         _players.Remove(player.Id);
         if (player.Token is not null) _byToken.Remove(player.Token);
         RemoveShip(player);
+    }
+
+    /// <summary>
+    /// Взять выбранный предмет (GDD §21). Подбор ручной: игрок помечает предмет, подлетает сам и забирает
+    /// его командой — тракторный луч не хватает всё подряд по дороге.
+    /// </summary>
+    public void Grab(IClientConnection connection)
+    {
+        if (!_byConnection.TryGetValue(connection.Id, out var player) || player.IsDead) return;
+        if (player.SelectedLootId == 0) return;
+
+        switch (_loot.TryGrab(player, player.SelectedLootId, Balance.Loot, Hulls, Tick))
+        {
+            case LootSystem.GrabResult.Taken:
+                player.SelectedLootId = 0;
+                SendCargo(player);
+                break;
+            case LootSystem.GrabResult.NoRoom:
+                WarnCargoFull(player);
+                break;
+            case LootSystem.GrabResult.TooFar:
+                connection.Send(new NoticeMsg(Protocol.TooFarNotice));
+                break;
+            default:
+                player.SelectedLootId = 0; // предмет успели забрать или он протух
+                break;
+        }
+    }
+
+    /// <summary>
+    /// Продать груз на станции: item — что именно, null — весь трюм. Сдача ручная, чтобы игрок решал,
+    /// что везти дальше, а что менять на кредиты.
+    /// </summary>
+    public void Sell(IClientConnection connection, string? item)
+    {
+        if (!_byConnection.TryGetValue(connection.Id, out var player) || player.IsDead) return;
+        var loot = Balance.Loot;
+        if (!loot.StationUnload || player.Cargo.IsEmpty) return;
+
+        var dx = player.Ship.X - SimConfig.StationX;
+        var dy = player.Ship.Y - SimConfig.StationY;
+        if (dx * dx + dy * dy > loot.StationRange * loot.StationRange)
+        {
+            connection.Send(new NoticeMsg(Protocol.TooFarNotice));
+            return;
+        }
+
+        int credits;
+        if (item is null)
+        {
+            credits = player.Cargo.Price(loot);
+            player.Cargo.Clear();
+        }
+        else
+        {
+            // Наличие проверяем до изъятия: иначе бесценный груз пропал бы, не принеся кредитов.
+            if (!player.Cargo.Items.ContainsKey(item)) return;
+            credits = player.Cargo.Take(item, loot);
+        }
+
+        player.Credits += credits;
+        player.CargoFullUntilTick = 0;
+        connection.Send(new NoticeMsg(Protocol.UnloadedNotice));
+        SendCargo(player);
+        _log.LogInformation("Player {Id} sold cargo for {Credits} credits", player.Id, credits);
+    }
+
+    /// <summary>Трюм — личное дело игрока: снапшот один на всех, места для него там нет.</summary>
+    private void SendCargo(Player player)
+    {
+        if (player.Connection is null) return;
+        var loot = Balance.Loot;
+        player.Connection.Send(new CargoMsg(
+            player.Cargo.Used(loot),
+            player.Hull(Hulls).Cargo,
+            player.Cargo.Items,
+            player.Credits));
+    }
+
+    /// <summary>«Недостаточно места в трюме» (GDD §21) — не чаще раза в FullHoldSeconds, иначе это спам.</summary>
+    private void WarnCargoFull(Player player)
+    {
+        if (Tick < player.CargoFullUntilTick) return;
+        player.CargoFullUntilTick = Tick + Balance.Loot.FullHoldTicks;
+        player.Connection?.Send(new NoticeMsg(Protocol.CargoFullNotice));
+    }
+
+    /// <summary>Предмет исчез (протух или его забрали): выбор, указывающий в пустоту, гасим.</summary>
+    private void ClearMissingLootTargets()
+    {
+        foreach (var player in _players.Values)
+        {
+            if (player.SelectedLootId != 0 && !_loot.Has(player.SelectedLootId)) player.SelectedLootId = 0;
+        }
     }
 
     /// <summary>Корабль ушёл из системы: у тех, кто в него целился, цели больше нет.</summary>

@@ -17,6 +17,7 @@ const LIGHT: HullParams = {
   shieldRegen: 20,
   evasion: 25,
   moveEvasion: 8,
+  cargo: 20,
 };
 
 function setup() {

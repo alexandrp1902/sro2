@@ -9,7 +9,8 @@ const NOSE = -Math.PI / 2;
 /**
  * Сектор стрельбы (боевой документ §35) у своего корабля, пока выбрана цель: зелёный — цель в секторе и дальности,
  * голубой — нет. Дуга внутри — оптимальная дальность, дальше неё растёт штраф к шансу.
- * Пушка бьёт во все стороны (arc 180) — вместо сектора круг дальности.
+ * Пушка, бьющая во все стороны (arc 180), не рисуется вовсе: круг дальности загораживал космос,
+ * а достаёт ли оружие — видно по дистанции в секторах в карточке цели.
  */
 export class WeaponArc {
   readonly view = new Graphics();
@@ -17,8 +18,9 @@ export class WeaponArc {
 
   /** @param weapon null — цели нет, сектор не показываем */
   update(x: number, y: number, rot: number, weapon: WeaponParams | null, ready: boolean): void {
-    this.view.visible = weapon !== null;
-    if (!weapon) return;
+    const allRound = weapon !== null && weapon.arc >= 180 - 1e-6;
+    this.view.visible = weapon !== null && !allRound;
+    if (!weapon || allRound) return;
     this.view.position.set(x, y);
     this.view.rotation = rot;
     const key = `${weapon.arc}|${weapon.optimalRange}|${weapon.maxRange}|${ready}`;
@@ -34,17 +36,6 @@ export class WeaponArc {
     const to = NOSE + half;
     const max = weapon.maxRange;
     const optimal = weapon.optimalRange;
-    if (half >= Math.PI - 1e-6) {
-      this.view
-        .clear()
-        .circle(0, 0, max)
-        .fill({ color, alpha: ready ? 0.07 : 0.04 })
-        .circle(0, 0, max)
-        .stroke({ width: 1.5, color, alpha: 0.35 })
-        .circle(0, 0, optimal)
-        .stroke({ width: 1, color, alpha: 0.25 });
-      return;
-    }
     this.view
       .clear()
       .moveTo(0, 0)

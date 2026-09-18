@@ -3,7 +3,7 @@
   "scenarios": [
     {
       "name": "\u043B\u0451\u0433\u043A\u0438\u0439: \u0440\u0430\u0437\u0433\u043E\u043D \u0432\u0432\u0435\u0440\u0445",
-      "hull": {"name":"\u041B\u0451\u0433\u043A\u0438\u0439","maxSpeed":330,"acceleration":180,"brakeAcceleration":220,"turnRate":150,"lateralDampTime":0.65,"lateralToForward":0,"size":16},
+      "hull": {"name":"\u041B\u0451\u0433\u043A\u0438\u0439","maxSpeed":330,"acceleration":180,"brakeAcceleration":220,"turnRate":150,"lateralDampTime":0.65,"lateralToForward":0,"size":16,"hp":1500,"shield":500,"shieldRegen":20,"evasion":25,"moveEvasion":8,"cargo":20},
       "start": [0, 0, 0, 0, 0],
       "inputs": [
         [0, -1, 1],
@@ -112,7 +112,7 @@
     },
     {
       "name": "\u043B\u0451\u0433\u043A\u0438\u0439: \u043F\u043E\u0432\u043E\u0440\u043E\u0442 \u043D\u0430 90\u00B0 \u043D\u0430 \u043F\u043E\u043B\u043D\u043E\u0439 \u0441\u043A\u043E\u0440\u043E\u0441\u0442\u0438",
-      "hull": {"name":"\u041B\u0451\u0433\u043A\u0438\u0439","maxSpeed":330,"acceleration":180,"brakeAcceleration":220,"turnRate":150,"lateralDampTime":0.65,"lateralToForward":0,"size":16},
+      "hull": {"name":"\u041B\u0451\u0433\u043A\u0438\u0439","maxSpeed":330,"acceleration":180,"brakeAcceleration":220,"turnRate":150,"lateralDampTime":0.65,"lateralToForward":0,"size":16,"hp":1500,"shield":500,"shieldRegen":20,"evasion":25,"moveEvasion":8,"cargo":20},
       "start": [0, 0, 0, 0, -330],
       "inputs": [
         [1, 0, 1],
@@ -201,7 +201,7 @@
     },
     {
       "name": "\u0441\u0440\u0435\u0434\u043D\u0438\u0439: \u0440\u0430\u0437\u0432\u043E\u0440\u043E\u0442 \u0440\u043E\u0432\u043D\u043E \u043D\u0430 180\u00B0",
-      "hull": {"name":"\u0421\u0440\u0435\u0434\u043D\u0438\u0439","maxSpeed":250,"acceleration":120,"brakeAcceleration":145,"turnRate":100,"lateralDampTime":1,"lateralToForward":0,"size":22},
+      "hull": {"name":"\u0421\u0440\u0435\u0434\u043D\u0438\u0439","maxSpeed":250,"acceleration":120,"brakeAcceleration":145,"turnRate":100,"lateralDampTime":1,"lateralToForward":0,"size":22,"hp":3500,"shield":1000,"shieldRegen":35,"evasion":14,"moveEvasion":5,"cargo":20},
       "start": [0, 0, 0, 0, -250],
       "inputs": [
         [0, 1, 1],
@@ -410,7 +410,7 @@
     },
     {
       "name": "\u0442\u044F\u0436\u0451\u043B\u044B\u0439: \u043F\u043E\u0447\u0442\u0438 \u0440\u0430\u0437\u0432\u043E\u0440\u043E\u0442 \u043F\u0440\u0438 60% \u0442\u044F\u0433\u0438",
-      "hull": {"name":"\u0422\u044F\u0436\u0451\u043B\u044B\u0439","maxSpeed":170,"acceleration":70,"brakeAcceleration":80,"turnRate":55,"lateralDampTime":1.5,"lateralToForward":0,"size":30},
+      "hull": {"name":"\u0422\u044F\u0436\u0451\u043B\u044B\u0439","maxSpeed":170,"acceleration":70,"brakeAcceleration":80,"turnRate":55,"lateralDampTime":1.5,"lateralToForward":0,"size":30,"hp":7000,"shield":1800,"shieldRegen":50,"evasion":5,"moveEvasion":2,"cargo":20},
       "start": [0, 0, 0, 0, -170],
       "inputs": [
         [-0.09950371902099893, 0.9950371902099893, 0.6],
@@ -659,7 +659,7 @@
     },
     {
       "name": "\u043B\u0451\u0433\u043A\u0438\u0439: \u0441\u0442\u043E\u043F \u0441 \u0437\u0430\u043D\u043E\u0441\u043E\u043C",
-      "hull": {"name":"\u041B\u0451\u0433\u043A\u0438\u0439","maxSpeed":330,"acceleration":180,"brakeAcceleration":220,"turnRate":150,"lateralDampTime":0.65,"lateralToForward":0,"size":16},
+      "hull": {"name":"\u041B\u0451\u0433\u043A\u0438\u0439","maxSpeed":330,"acceleration":180,"brakeAcceleration":220,"turnRate":150,"lateralDampTime":0.65,"lateralToForward":0,"size":16,"hp":1500,"shield":500,"shieldRegen":20,"evasion":25,"moveEvasion":8,"cargo":20},
       "start": [0, 0, 0, 150, -250],
       "inputs": [
         [0, -1, 0],
@@ -788,7 +788,7 @@
     },
     {
       "name": "\u0441\u0440\u0435\u0434\u043D\u0438\u0439: \u0437\u0438\u0433\u0437\u0430\u0433",
-      "hull": {"name":"\u0421\u0440\u0435\u0434\u043D\u0438\u0439","maxSpeed":250,"acceleration":120,"brakeAcceleration":145,"turnRate":100,"lateralDampTime":1,"lateralToForward":0,"size":22},
+      "hull": {"name":"\u0421\u0440\u0435\u0434\u043D\u0438\u0439","maxSpeed":250,"acceleration":120,"brakeAcceleration":145,"turnRate":100,"lateralDampTime":1,"lateralToForward":0,"size":22,"hp":3500,"shield":1000,"shieldRegen":35,"evasion":14,"moveEvasion":5,"cargo":20},
       "start": [0, 0, 0, 0, 0],
       "inputs": [
         [0.7071067811865475, -0.7071067811865475, 0.4],
@@ -917,7 +917,7 @@
     },
     {
       "name": "\u043B\u0451\u0433\u043A\u0438\u0439: \u0433\u0440\u0430\u043D\u0438\u0446\u0430 \u043C\u0438\u0440\u0430",
-      "hull": {"name":"\u041B\u0451\u0433\u043A\u0438\u0439","maxSpeed":330,"acceleration":180,"brakeAcceleration":220,"turnRate":150,"lateralDampTime":0.65,"lateralToForward":0,"size":16},
+      "hull": {"name":"\u041B\u0451\u0433\u043A\u0438\u0439","maxSpeed":330,"acceleration":180,"brakeAcceleration":220,"turnRate":150,"lateralDampTime":0.65,"lateralToForward":0,"size":16,"hp":1500,"shield":500,"shieldRegen":20,"evasion":25,"moveEvasion":8,"cargo":20},
       "start": [3900, 0, 1.5707963267948966, 330, 0],
       "inputs": [
         [0.9805806756909201, 0.19611613513818402, 1],
@@ -1006,7 +1006,7 @@
     },
     {
       "name": "\u043B\u0451\u0433\u043A\u0438\u0439: lateralToForward 0.5",
-      "hull": {"name":"\u041B\u0451\u0433\u043A\u0438\u0439","maxSpeed":330,"acceleration":180,"brakeAcceleration":220,"turnRate":150,"lateralDampTime":0.65,"lateralToForward":0.5,"size":16},
+      "hull": {"name":"\u041B\u0451\u0433\u043A\u0438\u0439","maxSpeed":330,"acceleration":180,"brakeAcceleration":220,"turnRate":150,"lateralDampTime":0.65,"lateralToForward":0.5,"size":16,"hp":1500,"shield":500,"shieldRegen":20,"evasion":25,"moveEvasion":8,"cargo":20},
       "start": [0, 0, 0, 0, -330],
       "inputs": [
         [1, 0, 1],

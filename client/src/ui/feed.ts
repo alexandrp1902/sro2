@@ -20,6 +20,18 @@ export function describeKill(killer: string, victim: string): string {
   return `${killer} уничтожает ${victim}`;
 }
 
+/** Короткие уведомления сервера: он шлёт код, текст живёт здесь. */
+const NOTICES: Record<string, string> = {
+  cargoFull: 'Недостаточно места в трюме',
+  unloaded: 'Груз продан',
+  tooFar: 'Слишком далеко',
+};
+
+/** @returns текст уведомления или null, если код незнакомый (сервер новее клиента). */
+export function describeNotice(code: string): string | null {
+  return NOTICES[code] ?? null;
+}
+
 /** Лента событий системы вверху экрана: сообщения живут несколько секунд. */
 export class Feed {
   constructor(private readonly root: HTMLElement) {}

@@ -12,6 +12,11 @@ namespace Sro.Sim;
 /// <param name="Arc">Сектор стрельбы от носа в каждую сторону, градусы (боевой документ §35).</param>
 /// <param name="Kind">Вид трассера на клиенте: bolt — снаряд, beam — луч, orb — плазменный шар.</param>
 /// <param name="Color">Цвет трассера, #rrggbb.</param>
+/// <param name="CloseRange">
+/// Ближе этого пушке мешает собственная неповоротливость: штраф растёт к <paramref name="ClosePenalty"/> в упор.
+/// 0 — штрафа за близость нет. Так дальнобойные орудия становятся снайперскими, а скорострельные — оружием свалки.
+/// </param>
+/// <param name="ClosePenalty">Штраф к шансу в упор, %; от CloseRange падает линейно до нуля.</param>
 public sealed record WeaponParams(
     string Name,
     double Damage,
@@ -22,7 +27,9 @@ public sealed record WeaponParams(
     double RangePenalty,
     double Arc = 60,
     string Kind = "bolt",
-    string Color = "#ffd166")
+    string Color = "#ffd166",
+    double CloseRange = 0,
+    double ClosePenalty = 0)
 {
     /// <returns>Описание ошибки или null, если параметры годятся.</returns>
     public string? Validate()
@@ -34,6 +41,9 @@ public sealed record WeaponParams(
             return "ranges must satisfy 0 <= optimalRange <= maxRange, maxRange > 0";
         if (!(RangePenalty >= 0 && RangePenalty <= 100)) return "rangePenalty must be within 0..100";
         if (!(Arc > 0 && Arc <= 180)) return "arc must be within 0..180";
+        if (!(CloseRange >= 0) || CloseRange > OptimalRange)
+            return "closeRange must be within 0..optimalRange";
+        if (!(ClosePenalty >= 0 && ClosePenalty <= 100)) return "closePenalty must be within 0..100";
         return null;
     }
 }
@@ -56,13 +66,21 @@ public static class Combat
     public static double Evasion(HullParams hull, double speed) =>
         hull.Evasion + hull.MoveEvasion * Math.Clamp(speed / hull.MaxSpeed, 0, 1);
 
-    /// <summary>Штраф за дистанцию, % (GDD §16): 0 до OptimalRange, дальше линейно до RangePenalty на MaxRange.</summary>
+    /// <summary>
+    /// Штраф за дистанцию, % (GDD §16). Два склона: от OptimalRange растёт до RangePenalty на MaxRange,
+    /// и — если у пушки задан CloseRange — от него растёт до ClosePenalty в упор. Между ними штрафа нет.
+    /// </summary>
     public static double RangePenalty(WeaponParams weapon, double distance)
     {
-        if (distance <= weapon.OptimalRange) return 0;
-        var span = weapon.MaxRange - weapon.OptimalRange;
-        if (span <= 0) return weapon.RangePenalty;
-        return weapon.RangePenalty * Math.Min(1, (distance - weapon.OptimalRange) / span);
+        if (distance > weapon.OptimalRange)
+        {
+            var span = weapon.MaxRange - weapon.OptimalRange;
+            if (span <= 0) return weapon.RangePenalty;
+            return weapon.RangePenalty * Math.Min(1, (distance - weapon.OptimalRange) / span);
+        }
+        if (weapon.CloseRange > 0 && distance < weapon.CloseRange)
+            return weapon.ClosePenalty * (1 - distance / weapon.CloseRange);
+        return 0;
     }
 
     public static bool InRange(WeaponParams weapon, double distance) => distance <= weapon.MaxRange;

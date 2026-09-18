@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import weapons from '../../../shared/weapons.json';
 import type { WeaponParams } from '../sim/combat';
-import { cycle, nearest, pickArrow, pickAt, type EdgeArrow, type ScreenView, type TargetCandidate } from './targeting';
+import { cycle, nearest, nearestLoot, pickArrow, pickAt, type EdgeArrow, type ScreenView, type TargetCandidate } from './targeting';
 
 /** Сектор ±60° — чтобы проверять выбор «сначала в секторе» независимо от баланса в weapons.json. */
 const pulse = { ...(weapons.pulse as WeaponParams), arc: 60 };
@@ -63,21 +63,57 @@ describe('nearest', () => {
   });
 });
 
-describe('cycle', () => {
-  it('goes from the nearest to the farthest and around', () => {
-    const ships = [ship(3, 0, 900), ship(1, 100, 0), ship(2, 0, -300)];
-    expect(cycle({ x: 0, y: 0 }, ships, 0)).toBe(1);
-    expect(cycle({ x: 0, y: 0 }, ships, 1)).toBe(2);
-    expect(cycle({ x: 0, y: 0 }, ships, 2)).toBe(3);
-    expect(cycle({ x: 0, y: 0 }, ships, 3)).toBe(1);
-    expect(cycle({ x: 0, y: 0 }, [], 3)).toBeNull();
+describe('nearestLoot', () => {
+  const own = { x: 0, y: 0 };
+
+  it('takes the nearest item inside the radius', () => {
+    expect(nearestLoot(own, [ship(1, 0, 400), ship(2, 0, 200)], 1200)).toBe(2);
+    expect(nearestLoot(own, [ship(1, 300, 400)], 500)).toBe(1); // ровно на границе
   });
 
-  it('goes back from the farthest to the nearest and around; starts at the nearest', () => {
-    const ships = [ship(3, 0, 900), ship(1, 100, 0), ship(2, 0, -300)];
-    expect(cycle({ x: 0, y: 0 }, ships, 3, -1)).toBe(2);
-    expect(cycle({ x: 0, y: 0 }, ships, 2, -1)).toBe(1);
-    expect(cycle({ x: 0, y: 0 }, ships, 1, -1)).toBe(3);
-    expect(cycle({ x: 0, y: 0 }, ships, 0, -1)).toBe(1);
+  it('ignores everything outside the radius', () => {
+    expect(nearestLoot(own, [ship(1, 0, 400)], 100)).toBeNull();
+    expect(nearestLoot(own, [], 1200)).toBeNull();
+  });
+});
+
+describe('cycle', () => {
+  const own = { x: 0, y: 0 };
+  // Ближнее кольцо по часовой стрелке от носа: вверх, вправо, вниз, влево. Пятый — во втором кольце.
+  const up = ship(1, 0, -100);
+  const right = ship(2, 200, 0);
+  const down = ship(3, 0, 300);
+  const left = ship(4, -400, 0);
+  const far = ship(5, 0, -1000); // 1000 > 700 — следующий виток спирали
+  const ships = [far, down, up, left, right];
+
+  it('walks the near ring clockwise, then the next one', () => {
+    expect(cycle(own, ships, 1)).toBe(2);
+    expect(cycle(own, ships, 2)).toBe(3);
+    expect(cycle(own, ships, 3)).toBe(4);
+    expect(cycle(own, ships, 4)).toBe(5); // кольцо кончилось — виток дальше
+  });
+
+  it('is a carousel: past the last one comes the first again', () => {
+    expect(cycle(own, ships, 5)).toBe(1);
+    expect(cycle(own, ships, 1, -1)).toBe(5);
+  });
+
+  it('goes counter-clockwise with the other step', () => {
+    expect(cycle(own, ships, 3, -1)).toBe(2);
+    expect(cycle(own, ships, 2, -1)).toBe(1);
+  });
+
+  it('starts at the nearest object, not at the top of the spiral', () => {
+    // Ничего не выделено: берём ближайший (up на 100), хотя по спирали первым мог оказаться другой.
+    expect(cycle(own, ships, 0)).toBe(1);
+    expect(cycle(own, [down, far], 0)).toBe(3);
+    expect(cycle(own, [], 0)).toBeNull();
+  });
+
+  it('keeps everything in one ring when the ring is wide', () => {
+    // Кольцо шире всех дистанций — остаётся чистый обход по часовой стрелке.
+    expect(cycle(own, ships, 4, 1, 100_000)).toBe(5);
+    expect(cycle(own, ships, 5, 1, 100_000)).toBe(1);
   });
 });

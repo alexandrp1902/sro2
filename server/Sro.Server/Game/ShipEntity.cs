@@ -31,6 +31,9 @@ public abstract class ShipEntity(int id, string name, string hullId, string weap
     public long ProtectedUntilTick;
     /// <summary>Кто нанёс смертельный удар — для ленты «A уничтожает B».</summary>
     public int KilledBy;
+    /// <summary>Скорость в момент гибели: Battle гасит её сразу, а обломкам нужна инерция убитого.</summary>
+    public double DeathVx;
+    public double DeathVy;
     /// <summary>Кто последним стрелял по кораблю, в том числе мимо; 0 — никто. По нему пират понимает, что на него напали.</summary>
     public int LastAttackerId;
     public DamageStats Stats;

@@ -87,7 +87,7 @@ public class NpcRulesTests
         var dir = Path.Combine(TestHulls.RepoRoot(), "shared");
         string Read(string file) => System.IO.File.ReadAllText(Path.Combine(dir, file));
 
-        Assert.False(Balance.TryParse(Read(Balance.HullsFile), Read(Balance.WeaponsFile), Read(Balance.RulesFile), "not json", out var balance, out var error));
+        Assert.False(Balance.TryParse(Read(Balance.HullsFile), Read(Balance.WeaponsFile), Read(Balance.RulesFile), "not json", Read(Balance.LootFile), out var balance, out var error));
         Assert.Null(balance);
         Assert.StartsWith(Balance.NpcsFile, error);
     }

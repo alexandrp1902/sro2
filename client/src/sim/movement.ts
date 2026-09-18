@@ -35,6 +35,8 @@ export interface HullParams {
   evasion: number;
   /** Добавка к уклонению на полной скорости, % (§40). */
   moveEvasion: number;
+  /** Ёмкость трюма в единицах объёма (§46): сколько добычи влезает в корпус. */
+  cargo: number;
 }
 
 export type HullConfig = Record<string, HullParams>;

@@ -35,6 +35,9 @@ internal sealed class Battle(Func<double> roll, ILogger log)
         {
             if (ship.IsDead || ship.Hp > 0) continue;
             ship.DeadUntilTick = tick + ship.RespawnTicks(balance);
+            // Обломки разлетаются по инерции убитого, поэтому её надо запомнить до обнуления.
+            ship.DeathVx = ship.Ship.Vx;
+            ship.DeathVy = ship.Ship.Vy;
             ship.Ship.Vx = 0;
             ship.Ship.Vy = 0;
             ship.FireHeld = false;

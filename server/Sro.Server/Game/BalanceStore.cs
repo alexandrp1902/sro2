@@ -9,7 +9,8 @@ namespace Sro.Server.Game;
 /// </summary>
 public sealed class BalanceStore : IDisposable
 {
-    private static readonly string[] Files = [Balance.HullsFile, Balance.WeaponsFile, Balance.RulesFile, Balance.NpcsFile];
+    private static readonly string[] Files =
+        [Balance.HullsFile, Balance.WeaponsFile, Balance.RulesFile, Balance.NpcsFile, Balance.LootFile];
     private const int DebounceMs = 200;
     private const int ReadAttempts = 5;
 
@@ -29,12 +30,14 @@ public sealed class BalanceStore : IDisposable
             throw new InvalidOperationException($"{_dir}: {error}");
         Balance = balance!;
         log.LogInformation(
-            "Balance loaded from {Dir}: hulls {Hulls}; weapons {Weapons}; drones {Drones}; pirates {Pirates}",
+            "Balance loaded from {Dir}: hulls {Hulls}; weapons {Weapons}; drones {Drones}; pirates {Pirates}; loot {Items} items, {Tables} tables",
             _dir,
             string.Join(", ", balance!.Hulls.Keys),
             string.Join(", ", balance.Weapons.Keys),
             balance.Rules.DroneList.Count,
-            balance.Npc.Count);
+            balance.Npc.Count,
+            balance.Loot.ItemMap.Count,
+            balance.Loot.TableMap.Count);
 
         // Редакторы сохраняют файл в несколько приёмов — реагируем на последнее событие.
         _debounce = new Timer(_ => Reload());
@@ -80,7 +83,7 @@ public sealed class BalanceStore : IDisposable
     }
 
     private static bool Parse(string[] texts, out Balance? balance, out string? error) =>
-        Balance.TryParse(texts[0], texts[1], texts[2], texts[3], out balance, out error);
+        Balance.TryParse(texts[0], texts[1], texts[2], texts[3], texts[4], out balance, out error);
 
     private string? TryRead(string file)
     {

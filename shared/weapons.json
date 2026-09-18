@@ -9,6 +9,8 @@
     "optimalRange": 500,
     "maxRange": 700,
     "rangePenalty": 10,
+    "closeRange": 0,
+    "closePenalty": 0,
     "arc": 180
   },
   "laser": {
@@ -18,9 +20,11 @@
     "damage": 40,
     "accuracy": 90,
     "cooldown": 0.5,
-    "optimalRange": 400,
-    "maxRange": 600,
-    "rangePenalty": 20,
+    "optimalRange": 300,
+    "maxRange": 500,
+    "rangePenalty": 35,
+    "closeRange": 0,
+    "closePenalty": 0,
     "arc": 180
   },
   "plasma": {
@@ -32,7 +36,9 @@
     "cooldown": 2.0,
     "optimalRange": 450,
     "maxRange": 650,
-    "rangePenalty": 15,
+    "rangePenalty": 10,
+    "closeRange": 250,
+    "closePenalty": 35,
     "arc": 180
   }
 }

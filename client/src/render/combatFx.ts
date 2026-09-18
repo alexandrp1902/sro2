@@ -30,6 +30,8 @@ const MISS_COLOR = 0x9aa4b4;
 const FLASH_MS = 260;
 const SPARK_MS = 220;
 const EXPLOSION_MS = 800;
+/** Тракторный луч (GDD §21): предмет втягивается в корабль за это время. */
+const TRACTOR_MS = 350;
 
 interface Effect {
   /** @returns false — эффект закончился */
@@ -56,6 +58,16 @@ export class CombatFx {
 
   explosion(x: number, y: number, size: number, now: number): void {
     this.add(new Explosion(this.view, x, y, size, now));
+  }
+
+  /**
+   * Предмет ушёл в трюм: луч от корабля и втягивание. Видно и у чужих кораблей — иначе непонятно,
+   * куда делся предмет.
+   * @param label подпись вроде «+Металл ×5»; пустая — не показывать (чужой подбор).
+   */
+  tractor(shipId: number, at: FxAnchor, x: number, y: number, color: number, label: string, now: number): void {
+    this.add(new TractorBeam(this.view, shipId, at, x, y, color, now));
+    if (label) this.add(new FloatingText(this.view, label, color, at, now));
   }
 
   update(now: number, zoom: number, locate: Locate): void {
@@ -193,6 +205,46 @@ class FloatingText implements Effect {
 
   destroy(): void {
     this.text.destroy();
+  }
+}
+
+/** Тракторный луч: линия от корабля к предмету и кольцо, которое стягивается вместе с ним. */
+class TractorBeam implements Effect {
+  private readonly g = new Graphics();
+
+  constructor(
+    parent: Container,
+    private readonly id: number,
+    private ship: FxAnchor,
+    private readonly x: number,
+    private readonly y: number,
+    private readonly color: number,
+    private readonly start: number,
+  ) {
+    parent.addChild(this.g);
+  }
+
+  update(now: number, _zoom: number, locate: Locate): boolean {
+    const t = (now - this.start) / TRACTOR_MS;
+    if (t >= 1) return false;
+    this.ship = copy(locate(this.id)) ?? this.ship;
+
+    // Предмет едет к кораблю, а не наоборот: корабль за это время мог сдвинуться.
+    const px = this.x + (this.ship.x - this.x) * t;
+    const py = this.y + (this.ship.y - this.y) * t;
+    const fade = 1 - t;
+    this.g
+      .clear()
+      .moveTo(this.ship.x, this.ship.y)
+      .lineTo(px, py)
+      .stroke({ width: 2, color: this.color, alpha: 0.75 * fade })
+      .circle(px, py, 10 * fade)
+      .stroke({ width: 2, color: this.color, alpha: 0.9 * fade });
+    return true;
+  }
+
+  destroy(): void {
+    this.g.destroy();
   }
 }
 

@@ -2,7 +2,7 @@ import { Container, Graphics, Text } from 'pixi.js';
 import type { EdgeArrow } from '../game/targeting';
 import type { AiState } from '../net/protocol';
 import type { RemoteShipInfo, ShipKind } from '../net/remoteShips';
-import type { AimState } from '../sim/combat';
+import { formatSectors, type AimState } from '../sim/combat';
 import type { Camera } from './camera';
 
 const COLORS: Record<ShipKind, number> = {
@@ -13,6 +13,8 @@ const COLORS: Record<ShipKind, number> = {
 const OUTLINE = 0x05060a;
 /** Выбранная цель: оранжевый контур вокруг её стрелки у края экрана и оранжевая подпись. */
 const TARGET_COLOR = 0xffa53a;
+/** Выбранный предмет: голубой — не путается ни с целью (оранжевая), ни со своим кораблём. */
+const LOOT_COLOR = 0x6fd3ff;
 /** Пират, который целится в меня: знак перед ником и крупная стрелка у края экрана. */
 const THREAT_PREFIX = '! ';
 /** Состояние ИИ под ником — при открытой dev-панели, для настройки пиратов на плейтесте. */
@@ -80,6 +82,28 @@ export interface OwnMark {
   protected: boolean;
 }
 
+/** Выбранный предмет: рамка вокруг него, а за краем экрана — своя стрелка. */
+export interface LootMark {
+  x: number;
+  y: number;
+  size: number;
+}
+
+/** Всё, что оверлей рисует за кадр. Объект, а не список параметров: их уже девять. */
+export interface OverlayFrame {
+  ships: Iterable<RemoteShipInfo>;
+  camera: Camera;
+  width: number;
+  height: number;
+  target: TargetMark | null;
+  own: OwnMark | null;
+  ownId: number;
+  showAi: boolean;
+  loot: LootMark | null;
+  /** Сколько единиц мира в одном секторе: у стрелки за краем экрана пишем дистанцию в них. */
+  sectorUnit: number;
+}
+
 /**
  * Ники, полоски корпуса и щита, рамка цели, пузыри защиты и стрелки у края экрана к кораблям за его пределами.
  * Слой в экранных координатах: размер не зависит от зума.
@@ -94,21 +118,19 @@ export class PlayerOverlay {
     .stroke({ width: 3, color: TARGET_COLOR, join: 'round' });
   private readonly ownBubble = new Graphics();
   private ownBubbleRadius = 0;
+  /** Рамка выбранного предмета и стрелка к нему, если он ушёл за край экрана. */
+  private readonly lootFrame = new Graphics();
+  private readonly lootArrow = new Graphics()
+    .poly([0, -9, 7, 6, -7, 6])
+    .fill(LOOT_COLOR)
+    .stroke({ width: 1.5, color: OUTLINE });
 
   constructor() {
-    this.view.addChild(this.ownBubble, this.frame, this.targetArrow);
+    this.view.addChild(this.ownBubble, this.frame, this.targetArrow, this.lootFrame, this.lootArrow);
   }
 
-  update(
-    ships: Iterable<RemoteShipInfo>,
-    camera: Camera,
-    width: number,
-    height: number,
-    target: TargetMark | null,
-    own: OwnMark | null,
-    ownId: number,
-    showAi: boolean,
-  ): void {
+  update(frame: OverlayFrame): void {
+    const { ships, camera, width, height, target, own, ownId, showAi } = frame;
     for (const marker of this.markers.values()) marker.seen = false;
     const cx = width / 2;
     const cy = height / 2;
@@ -119,12 +141,6 @@ export class PlayerOverlay {
       const marker = this.marker(ship);
       marker.seen = true;
       const threat = ship.kind === 'pirate' && ship.targetId === ownId;
-      let text = (threat ? THREAT_PREFIX : '') + (ship.online ? ship.name : ship.name + LOST_SUFFIX);
-      if (showAi && ship.ai) text += ` · ${AI_TEXT[ship.ai]}`;
-      if (text !== marker.text) {
-        marker.label.text = text;
-        marker.text = text;
-      }
       const alpha = ship.online ? ship.alpha : LOST_LABEL_ALPHA;
       marker.label.alpha = marker.arrow.alpha = marker.bars.alpha = alpha;
 
@@ -133,6 +149,17 @@ export class PlayerOverlay {
       const r = ship.size * camera.zoom;
       const onScreen = sx > -r && sx < width + r && sy > -r && sy < height + r;
       const isTarget = target?.id === ship.id;
+
+      let text = (threat ? THREAT_PREFIX : '') + (ship.online ? ship.name : ship.name + LOST_SUFFIX);
+      if (showAi && ship.ai) text += ` · ${AI_TEXT[ship.ai]}`;
+      // За краем экрана корабль не виден — значит нужна дистанция до него, иначе непонятно, далеко ли он.
+      if (!onScreen && own) {
+        text += ` · ${formatSectors(Math.hypot(ship.x - own.x, ship.y - own.y), frame.sectorUnit)}с`;
+      }
+      if (text !== marker.text) {
+        marker.label.text = text;
+        marker.text = text;
+      }
       if (isTarget !== marker.targeted) {
         marker.targeted = isTarget;
         marker.label.style.fill = isTarget ? TARGET_COLOR : marker.color;
@@ -148,16 +175,14 @@ export class PlayerOverlay {
         marker.label.anchor.set(0.5, 1);
         marker.label.position.set(sx, barsTop - 2);
         if (ship.protected) this.drawBubble(marker.bubble, sx, sy, r, marker);
-        if (isTarget) this.drawFrame(sx, sy, r, FRAME_COLORS[target.state]);
+        if (isTarget) this.drawFrame(this.frame, sx, sy, r, FRAME_COLORS[target.state]);
         continue;
       }
 
       // Точка на рамке экрана по лучу из центра к кораблю.
       const dx = sx - cx;
       const dy = sy - cy;
-      const t = Math.min((cx - EDGE_MARGIN) / Math.abs(dx), (cy - EDGE_MARGIN) / Math.abs(dy));
-      const ax = cx + dx * t;
-      const ay = cy + dy * t;
+      const { x: ax, y: ay } = edgePoint(cx, cy, dx, dy);
       marker.arrow.position.set(ax, ay);
       marker.arrow.rotation = Math.atan2(dx, -dy);
       marker.arrow.scale.set(isTarget || threat ? 1.4 : 1); // цель или пират, который целится в меня, — стрелка крупнее
@@ -185,6 +210,8 @@ export class PlayerOverlay {
       marker.bubble.destroy();
       this.markers.delete(id);
     }
+
+    this.drawLoot(frame.loot, camera, cx, cy, width, height);
 
     this.ownBubble.visible = own?.protected ?? false;
     if (own?.protected) {
@@ -236,11 +263,33 @@ export class PlayerOverlay {
     g.position.set(sx, sy);
   }
 
+  /**
+   * Выбранный предмет: рамка вокруг него, а за краем экрана — одна стрелка.
+   * Стрелок ко всем предметам нарочно нет: после боя их 5–10, они забили бы края и мешали выбору цели.
+   */
+  private drawLoot(loot: LootMark | null, camera: Camera, cx: number, cy: number, width: number, height: number): void {
+    this.lootFrame.visible = false;
+    this.lootArrow.visible = false;
+    if (!loot) return;
+
+    const sx = cx + (loot.x - camera.x) * camera.zoom;
+    const sy = cy + (loot.y - camera.y) * camera.zoom;
+    const r = loot.size * camera.zoom;
+    if (sx > -r && sx < width + r && sy > -r && sy < height + r) {
+      this.drawFrame(this.lootFrame, sx, sy, r, LOOT_COLOR);
+      return;
+    }
+    const { x, y } = edgePoint(cx, cy, sx - cx, sy - cy);
+    this.lootArrow.position.set(x, y);
+    this.lootArrow.rotation = Math.atan2(sx - cx, -(sy - cy));
+    this.lootArrow.visible = true;
+  }
+
   /** Уголки вокруг цели. */
-  private drawFrame(sx: number, sy: number, r: number, color: number): void {
+  private drawFrame(target: Graphics, sx: number, sy: number, r: number, color: number): void {
     const d = r + FRAME_PAD;
     const c = FRAME_CORNER;
-    const g = this.frame.clear();
+    const g = target.clear();
     for (const [kx, ky] of [
       [-1, -1],
       [1, -1],
@@ -252,7 +301,7 @@ export class PlayerOverlay {
       g.moveTo(x - kx * c, y).lineTo(x, y).lineTo(x, y - ky * c);
     }
     g.stroke({ width: 2.5, color, alpha: 0.95, cap: 'round', join: 'round' });
-    this.frame.visible = true;
+    target.visible = true;
   }
 
   private marker(ship: RemoteShipInfo): Marker {
@@ -277,6 +326,12 @@ export class PlayerOverlay {
     }
     return marker;
   }
+}
+
+/** Точка на рамке экрана по лучу из центра — там рисуется стрелка к тому, что за краем. */
+function edgePoint(cx: number, cy: number, dx: number, dy: number): { x: number; y: number } {
+  const t = Math.min((cx - EDGE_MARGIN) / Math.abs(dx), (cy - EDGE_MARGIN) / Math.abs(dy));
+  return { x: cx + dx * t, y: cy + dy * t };
 }
 
 function bubble(g: Graphics, radius: number): void {

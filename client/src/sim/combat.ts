@@ -17,6 +17,10 @@ export interface WeaponParams {
   maxRange: number;
   /** Штраф к шансу на maxRange, %; от optimalRange растёт линейно. */
   rangePenalty: number;
+  /** Ближе этого растёт штраф за стрельбу в упор; 0 — такого штрафа нет. */
+  closeRange: number;
+  /** Штраф к шансу в упор, %; от closeRange падает до нуля. */
+  closePenalty: number;
   /** Сектор стрельбы от носа в каждую сторону, градусы. */
   arc: number;
   /** Вид трассера: bolt — снаряд, beam — луч, orb — плазменный шар. */
@@ -33,6 +37,20 @@ export interface CombatRules {
   protectionSeconds: number;
   shieldRegenDelay: number;
   spawnJitter: number;
+  /** Сколько единиц мира в одном «секторе» — мере дистанции для игрока. */
+  sectorUnit: number;
+}
+
+/** Сектор по умолчанию, пока не пришли правила боя. */
+export const DEFAULT_SECTOR_UNIT = 700;
+
+/**
+ * Дистанция в секторах: 1 сектор — примерно дальность пушки по умолчанию и половина экрана телефона.
+ * «1.4» читается лучше, чем «980 метров», и сразу говорит, достаёт ли оружие.
+ */
+export function formatSectors(distance: number, sectorUnit: number): string {
+  const unit = sectorUnit > 0 ? sectorUnit : DEFAULT_SECTOR_UNIT;
+  return (distance / unit).toFixed(1);
 }
 
 export const MIN_HIT_CHANCE = 5;
@@ -48,12 +66,20 @@ export function evasion(hull: HullParams, speed: number): number {
   return hull.evasion + hull.moveEvasion * clamp(speed / hull.maxSpeed, 0, 1);
 }
 
-/** Штраф за дистанцию, % (GDD §16): 0 до optimalRange, дальше линейно до rangePenalty на maxRange. */
+/**
+ * Штраф за дистанцию, % (GDD §16). Два склона: от optimalRange растёт до rangePenalty на maxRange,
+ * и — если задан closeRange — от него растёт до closePenalty в упор. Между ними штрафа нет.
+ */
 export function rangePenalty(weapon: WeaponParams, distance: number): number {
-  if (distance <= weapon.optimalRange) return 0;
-  const span = weapon.maxRange - weapon.optimalRange;
-  if (span <= 0) return weapon.rangePenalty;
-  return weapon.rangePenalty * Math.min(1, (distance - weapon.optimalRange) / span);
+  if (distance > weapon.optimalRange) {
+    const span = weapon.maxRange - weapon.optimalRange;
+    if (span <= 0) return weapon.rangePenalty;
+    return weapon.rangePenalty * Math.min(1, (distance - weapon.optimalRange) / span);
+  }
+  if (weapon.closeRange > 0 && distance < weapon.closeRange) {
+    return weapon.closePenalty * (1 - distance / weapon.closeRange);
+  }
+  return 0;
 }
 
 export function inRange(weapon: WeaponParams, distance: number): boolean {

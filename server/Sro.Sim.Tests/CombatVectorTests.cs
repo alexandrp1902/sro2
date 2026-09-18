@@ -75,7 +75,8 @@ public class CombatVectorTests
         var chances = new List<ChanceCase>();
         foreach (var (weaponId, weapon) in weapons)
             foreach (var (hullId, hull) in hulls)
-                foreach (var distance in new[] { 0, 450, 550, 640, 700, 750 })
+                // 120 — внутри ближнего склона снайперской пушки: без него проверялись бы только края.
+                foreach (var distance in new[] { 0, 120, 450, 550, 640, 700, 750 })
                     foreach (var speedRatio in new[] { 0, 0.37, 1, 1.3 })
                     {
                         var speed = hull.MaxSpeed * speedRatio;

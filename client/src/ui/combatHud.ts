@@ -1,4 +1,4 @@
-import type { Aim, AimState } from '../sim/combat';
+import { formatSectors, type Aim, type AimState } from '../sim/combat';
 
 const RENDER_INTERVAL_MS = 100;
 
@@ -28,6 +28,8 @@ export interface TargetStatus extends Vitals {
   name: string;
   hullName: string;
   aim: Aim;
+  /** Сколько единиц мира в одном секторе — в них показываем дистанцию до цели. */
+  sectorUnit: number;
   /** Огонь включён — под карточкой «ОГОНЬ ПО ГОТОВНОСТИ» (ПК: там нет кнопки, которая бы это показала). */
   fire: boolean;
 }
@@ -148,7 +150,9 @@ export class CombatHud {
       const { state, distance, chance } = target.aim;
       setText(
         this.targetInfo,
-        state === 'dead' ? STATE_TEXT.dead : `${Math.round(distance)} м · шанс ${Math.round(chance)}% · ${STATE_TEXT[state]}`,
+        state === 'dead'
+          ? STATE_TEXT.dead
+          : `${formatSectors(distance, target.sectorUnit)} сект. · шанс ${Math.round(chance)}% · ${STATE_TEXT[state]}`,
       );
       this.targetEl.dataset.state = state;
       this.targetEl.dataset.fire = String(target.fire);

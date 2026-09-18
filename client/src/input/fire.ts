@@ -30,13 +30,17 @@ export class FireControl {
   /** Огонь включают — вызывается до отправки: здесь выбирается цель, если её нет. false — стрелять не в кого. */
   onPress: (() => boolean) | null = null;
   onChange: ((on: boolean) => void) | null = null;
+  /** Выбран предмет — та же кнопка берёт его, а не стреляет. true — команда ушла, огонь не трогаем. */
+  onGrab: (() => boolean) | null = null;
 
   private on = false;
   private reloadStart = 0;
   private reloadMs = 0;
   private shownReload = -1;
   private shownAim = '';
+  private grabMode = false;
   private readonly stateLabel: HTMLElement | null;
+  private label: HTMLElement | null = null;
 
   /** @param pad кнопки боя телефона (огонь и выбор цели): на ПК не нужны — показываем на сенсорных экранах */
   constructor(
@@ -48,8 +52,10 @@ export class FireControl {
     window.addEventListener('pointerdown', (e) => {
       if (e.pointerType === 'touch') pad.hidden = false;
     });
+    this.label = el.querySelector('.fire-label');
     el.addEventListener('pointerdown', (e) => {
       e.preventDefault();
+      if (this.onGrab?.()) return;
       this.toggle();
     });
     this.show();
@@ -74,6 +80,14 @@ export class FireControl {
   /** Выключить (цель снята, вкладка в фоне, корабль уничтожен): стрелять снова — только новым нажатием. */
   release(): void {
     this.set(false);
+  }
+
+  /** Пока выбран предмет, кнопка подписана «ВЗЯТЬ»: на телефоне другой кнопки для подбора нет. */
+  setGrabMode(on: boolean): void {
+    if (on === this.grabMode) return;
+    this.grabMode = on;
+    this.el.dataset.grab = String(on);
+    if (this.label) this.label.textContent = on ? 'ВЗЯТЬ' : 'ОГОНЬ';
   }
 
   /** Свой выстрел: кольцо перезарядки начинается заново. */
@@ -104,17 +118,20 @@ export class FireControl {
 }
 
 /**
- * Клавиши боя на ПК (GDD §7): Space — огонь вкл/выкл; Q/E, Shift+←/→, Tab/Shift+Tab — предыдущая/следующая цель;
- * Esc — снять цель.
+ * Клавиши боя на ПК (GDD §7): Space — взять выбранный предмет, а если предмет не выбран, то огонь вкл/выкл;
+ * Q/E, Shift+←/→, Tab/Shift+Tab — предыдущая/следующая цель; Esc — снять предмет, потом цель.
  */
-export function bindCombatKeys(fire: FireControl, actions: { step(direction: -1 | 1): void; clear(): void }): void {
+export function bindCombatKeys(
+  fire: FireControl,
+  actions: { step(direction: -1 | 1): void; clear(): void; grab(): boolean },
+): void {
   const isTyping = (e: Event) => e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement;
 
   window.addEventListener('keydown', (e) => {
     if (isTyping(e) || e.ctrlKey || e.metaKey || e.altKey) return;
     if (e.code === 'Space') {
       e.preventDefault(); // иначе Space нажал бы кнопку в фокусе или прокрутил страницу
-      if (!e.repeat) fire.toggle();
+      if (!e.repeat && !actions.grab()) fire.toggle();
       return;
     }
     const step = targetStep(e);

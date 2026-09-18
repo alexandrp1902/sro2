@@ -1,0 +1,235 @@
+using Sro.Server.Net;
+using Sro.Sim;
+
+namespace Sro.Server.Game;
+
+/// <summary>
+/// Лут системы (GDD §21–23): что лежит в космосе, как оно дрейфует и когда исчезает.
+/// Источник предмета системе безразличен — обломки, контейнер или метеорит зовут один и тот же <see cref="Spawn"/>.
+/// Как и <see cref="Room"/>, живёт только в потоке тика.
+/// </summary>
+/// <param name="nextId">Общий счётчик id комнаты: предметы и корабли не путаются между собой.</param>
+/// <param name="rng">Случайность дропа — отдельно от разброса спауна и от ИИ, чтобы тесты были воспроизводимы.</param>
+internal sealed class LootSystem(Func<int> nextId, Random rng, ILogger log)
+{
+    /// <summary>Точка, где стоит контейнер: пока DropId не 0 — он на месте, иначе ждёт до ReadyAtTick.</summary>
+    private sealed class ContainerSlot(LootContainer spec)
+    {
+        public LootContainer Spec { get; } = spec;
+        public int DropId;
+        public long ReadyAtTick;
+    }
+
+    private readonly List<LootDrop> _drops = [];
+    private readonly List<LootDto> _dtos = [];
+    private readonly List<PickDto> _picks = [];
+    private readonly List<ContainerSlot> _slots = [];
+    private readonly List<(string Item, int Count)> _rolled = [];
+
+    public IReadOnlyList<LootDrop> Drops => _drops;
+
+    /// <summary>Подобранное в этом тике — уходит в общий снапшот: чужой луч видят все.</summary>
+    public IReadOnlyList<PickDto> Picks => _picks;
+
+    public void ClearPicks() => _picks.Clear();
+
+    public bool Has(int id)
+    {
+        foreach (var drop in _drops)
+        {
+            if (drop.Id == id) return true;
+        }
+        return false;
+    }
+
+    /// <summary>
+    /// Кладёт предмет в космос. Возвращает null, если предмета нет в каталоге или система уже забита:
+    /// переполнение — штатная защита от засорения, а не ошибка.
+    /// </summary>
+    public LootDrop? Spawn(
+        LootRules loot,
+        long tick,
+        double x,
+        double y,
+        double vx,
+        double vy,
+        string item,
+        int count,
+        bool fromContainer = false)
+    {
+        if (count < 1 || !loot.ItemMap.ContainsKey(item)) return null;
+        if (_drops.Count >= loot.MaxItems)
+        {
+            log.LogDebug("Loot field is full ({Max}), dropping {Item} x{Count}", loot.MaxItems, item, count);
+            return null;
+        }
+        // Содержимое контейнера ждёт игрока сколько угодно: оно и есть постоянная точка на карте.
+        var expires = fromContainer ? long.MaxValue : tick + loot.LifetimeTicks;
+        var drop = new LootDrop(nextId(), item, count, x, y, vx, vy, expires, fromContainer);
+        _drops.Add(drop);
+        return drop;
+    }
+
+    /// <summary>Расставляет контейнеры заново: при старте и когда их список изменился в loot.json.</summary>
+    public void SetContainers(IReadOnlyList<LootContainer> containers)
+    {
+        for (var i = _drops.Count - 1; i >= 0; i--)
+        {
+            if (_drops[i].FromContainer) _drops.RemoveAt(i);
+        }
+        _slots.Clear();
+        foreach (var spec in containers) _slots.Add(new ContainerSlot(spec));
+    }
+
+    /// <summary>Пустые точки, у которых вышел срок, снова наполняются.</summary>
+    private void RefillContainers(long tick, LootRules loot)
+    {
+        foreach (var slot in _slots)
+        {
+            if (slot.DropId != 0 || tick < slot.ReadyAtTick) continue;
+
+            var spec = slot.Spec;
+            var item = spec.Item;
+            var count = spec.Count;
+            if (item is null && spec.Table is not null && loot.TableMap.TryGetValue(spec.Table, out var table))
+            {
+                // Контейнер — один предмет, а не облако: несколько стопок в одной точке не разобрать тапом.
+                _rolled.Clear();
+                table.Roll(1, rng.NextDouble, _rolled);
+                if (_rolled.Count == 0) continue;
+                (item, count) = _rolled[0];
+            }
+            if (item is null) continue;
+
+            slot.DropId = Spawn(loot, tick, spec.X, spec.Y, 0, 0, item, count, fromContainer: true)?.Id ?? 0;
+        }
+    }
+
+    /// <summary>Точка освободилась: контейнер появится снова через свой срок; 0 секунд — уже никогда.</summary>
+    private void Release(int dropId, long tick)
+    {
+        foreach (var slot in _slots)
+        {
+            if (slot.DropId != dropId) continue;
+            slot.DropId = 0;
+            slot.ReadyAtTick = slot.Spec.RespawnTicks > 0 ? tick + slot.Spec.RespawnTicks : long.MaxValue;
+            return;
+        }
+    }
+
+    /// <summary>
+    /// Дроп с уничтоженных в этом тике. Таблица ищется по типу NPC: имя таблицы в loot.json — это ключ типа
+    /// в npcs.json, поэтому новый тип пиратов начинает ронять добычу без правок кода.
+    /// </summary>
+    public void DropFrom(IReadOnlyList<KillDto> kills, IReadOnlyDictionary<int, ShipEntity> ships, LootRules loot, long tick)
+    {
+        foreach (var kill in kills)
+        {
+            if (ships.GetValueOrDefault(kill.Id) is not Pirate pirate) continue;
+            if (!loot.TableMap.TryGetValue(pirate.Spawn.Type, out var table)) continue;
+
+            _rolled.Clear();
+            table.Roll(pirate.Level, rng.NextDouble, _rolled);
+            foreach (var (item, count) in _rolled)
+            {
+                // Разброс по площади круга: стопка в одной точке не разбирается тапом.
+                var radius = loot.DropRadius * Math.Sqrt(rng.NextDouble());
+                var angle = rng.NextDouble() * 2 * Math.PI;
+                Spawn(
+                    loot,
+                    tick,
+                    pirate.Ship.X + radius * Math.Cos(angle),
+                    pirate.Ship.Y + radius * Math.Sin(angle),
+                    pirate.DeathVx * loot.DriftFactor,
+                    pirate.DeathVy * loot.DriftFactor,
+                    item,
+                    count);
+            }
+        }
+    }
+
+    /// <summary>Чем кончилась попытка взять предмет.</summary>
+    public enum GrabResult
+    {
+        /// <summary>Предмета уже нет: забрали или протух.</summary>
+        Gone,
+        Taken,
+        TooFar,
+        NoRoom,
+    }
+
+    /// <summary>
+    /// Взять выбранный предмет тракторным лучом (GDD §21). Подбор ручной: луч берёт ровно то, что игрок
+    /// пометил, и только когда тот подлетел ближе PickupRange.
+    /// </summary>
+    public GrabResult TryGrab(
+        Player player,
+        int lootId,
+        LootRules loot,
+        IReadOnlyDictionary<string, HullParams> hulls,
+        long tick)
+    {
+        var index = _drops.FindIndex(d => d.Id == lootId);
+        if (index < 0) return GrabResult.Gone;
+
+        var drop = _drops[index];
+        var distance = Math.Sqrt(Sq(player.Ship.X - drop.X) + Sq(player.Ship.Y - drop.Y));
+        if (distance > loot.PickupRange) return GrabResult.TooFar;
+        if (!player.Cargo.Fits(drop.Item, drop.Count, player.Hull(hulls).Cargo, loot)) return GrabResult.NoRoom;
+
+        player.Cargo.Add(drop.Item, drop.Count);
+        player.CargoFullUntilTick = 0; // место освободилось — о следующем отказе скажем сразу
+        if (drop.FromContainer) Release(drop.Id, tick);
+        _drops.RemoveAt(index);
+        _picks.Add(new PickDto(player.Id, drop.Id, drop.Item, drop.Count));
+        return GrabResult.Taken;
+    }
+
+    private static double Sq(double v) => v * v;
+
+    /// <summary>Дрейф и уборка протухшего.</summary>
+    /// <returns>true — что-то исчезло: выбор предмета у игроков мог осиротеть.</returns>
+    public bool Step(long tick, LootRules loot)
+    {
+        var removed = false;
+        for (var i = _drops.Count - 1; i >= 0; i--)
+        {
+            var drop = _drops[i];
+            if (tick >= drop.ExpiresAtTick)
+            {
+                _drops.RemoveAt(i);
+                removed = true;
+                continue;
+            }
+            drop.Step(loot.DriftDampTime, SimConfig.Dt);
+        }
+        RefillContainers(tick, loot);
+        return removed;
+    }
+
+    /// <summary>Баланс изменился: предмет мог исчезнуть из каталога — тогда его нечем подписать на экране.</summary>
+    /// <returns>true — что-то исчезло.</returns>
+    public bool DropUnknown(LootRules loot)
+    {
+        var removed = false;
+        for (var i = _drops.Count - 1; i >= 0; i--)
+        {
+            var drop = _drops[i];
+            if (loot.ItemMap.ContainsKey(drop.Item)) continue;
+            if (drop.FromContainer) Release(drop.Id, 0);
+            _drops.RemoveAt(i);
+            removed = true;
+        }
+        return removed;
+    }
+
+    /// <returns>Предметы для снапшота или null, если в космосе пусто — тогда поле не пишется вовсе.</returns>
+    public IReadOnlyList<LootDto>? ToDtos()
+    {
+        if (_drops.Count == 0) return null;
+        _dtos.Clear();
+        foreach (var drop in _drops)
+            _dtos.Add(new LootDto(drop.Id, drop.X, drop.Y, drop.Item, drop.Count, drop.ExpiresAtTick, drop.FromContainer));
+        return _dtos;
+    }
+}

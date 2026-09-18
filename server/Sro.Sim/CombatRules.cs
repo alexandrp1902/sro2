@@ -36,11 +36,16 @@ public sealed record DroneSpec(
 /// <param name="ProtectionSeconds">Защита после появления; снимается раньше, если корабль выстрелил (§25).</param>
 /// <param name="ShieldRegenDelay">Щит восстанавливается, если столько секунд не было урона (§17).</param>
 /// <param name="SpawnJitter">Разброс точки появления — корабли не появляются друг в друге.</param>
+/// <param name="SectorUnit">
+/// Сколько единиц мира в одном «секторе» — мере дистанции для игрока. Примерно дальность пушки по умолчанию
+/// и половина экрана телефона: «цель в 1.4 сектора» читается лучше, чем «в 980».
+/// </param>
 public sealed record CombatRules(
     double RespawnSeconds = 10,
     double ProtectionSeconds = 10,
     double ShieldRegenDelay = 5,
     double SpawnJitter = 120,
+    double SectorUnit = 700,
     IReadOnlyList<DroneSpec>? Drones = null)
 {
     [JsonIgnore] public int RespawnTicks => Math.Max(1, Combat.SecondsToTicks(RespawnSeconds));
@@ -54,6 +59,7 @@ public sealed record CombatRules(
         if (!(RespawnSeconds >= 0) || !(ProtectionSeconds >= 0) || !(ShieldRegenDelay >= 0))
             return "respawnSeconds, protectionSeconds and shieldRegenDelay must not be negative";
         if (!(SpawnJitter >= 0)) return "spawnJitter must not be negative";
+        if (!(SectorUnit > 0)) return "sectorUnit must be positive";
         for (var i = 0; i < DroneList.Count; i++)
         {
             var problem = DroneList[i] is null ? "is null" : DroneList[i].Validate(hulls);
@@ -87,27 +93,33 @@ public sealed record CombatRules(
     }
 }
 
-/// <summary>Весь баланс: корпуса, пушки, правила боя, NPC. Меняется только целиком.</summary>
+/// <summary>Весь баланс: корпуса, пушки, правила боя, NPC, лут. Меняется только целиком.</summary>
 /// <param name="Npcs">Пираты; null — NPC, кроме дронов, нет.</param>
+/// <param name="Loots">Лут и трюм; null — добычи нет.</param>
 public sealed record Balance(
     IReadOnlyDictionary<string, HullParams> Hulls,
     IReadOnlyDictionary<string, WeaponParams> Weapons,
     CombatRules Rules,
-    NpcRules? Npcs = null)
+    NpcRules? Npcs = null,
+    LootRules? Loots = null)
 {
     public const string HullsFile = "hulls.json";
     public const string WeaponsFile = "weapons.json";
     public const string RulesFile = "combat.json";
     public const string NpcsFile = NpcRules.File;
+    public const string LootFile = LootRules.File;
 
     public NpcRules Npc => Npcs ?? NpcRules.None;
 
-    /// <summary>Разбирает четыре файла вместе: правила и NPC ссылаются на корпуса и пушки.</summary>
+    public LootRules Loot => Loots ?? LootRules.None;
+
+    /// <summary>Разбирает пять файлов вместе: правила и NPC ссылаются на корпуса и пушки.</summary>
     public static bool TryParse(
         string hullsJson,
         string weaponsJson,
         string rulesJson,
         string npcsJson,
+        string lootJson,
         out Balance? balance,
         out string? error)
     {
@@ -132,7 +144,13 @@ public sealed record Balance(
             error = $"{NpcsFile}: {error}";
             return false;
         }
-        balance = new Balance(hulls, weapons, rules, npcs);
+        // Лут разбирается после NPC: контейнер нельзя поставить внутрь укрытия станции, а его радиус — там.
+        if (!LootRules.TryParse(lootJson, out var loot, out error, npcs.StationSafeRadius))
+        {
+            error = $"{LootFile}: {error}";
+            return false;
+        }
+        balance = new Balance(hulls, weapons, rules, npcs, loot);
         return true;
     }
 }

@@ -1,6 +1,14 @@
 import { renewSession, sessionToken } from '../util/session';
 import { FakeLag } from './fakeLag';
-import { PROTOCOL_VERSION, type ClientMessage, type ServerMessage, type SnapshotMsg, type WelcomeMsg } from './protocol';
+import {
+  PROTOCOL_VERSION,
+  type CargoMsg,
+  type ClientMessage,
+  type NoticeMsg,
+  type ServerMessage,
+  type SnapshotMsg,
+  type WelcomeMsg,
+} from './protocol';
 import { Roster, type RosterEvent } from './roster';
 
 export type ConnectionState = 'connecting' | 'online' | 'offline';
@@ -33,6 +41,8 @@ export class Connection {
   onConfig: ((message: Extract<ServerMessage, { t: 'config' }>) => void) | null = null;
   onSnapshot: ((message: SnapshotMsg) => void) | null = null;
   onRosterEvents: ((events: RosterEvent[]) => void) | null = null;
+  onCargo: ((message: CargoMsg) => void) | null = null;
+  onNotice: ((message: NoticeMsg) => void) | null = null;
 
   private ws: WebSocket | null = null;
   private pingTimer = 0;
@@ -159,6 +169,12 @@ export class Connection {
         this.lastTick = message.tick;
         this.countSnapshot();
         this.onSnapshot?.(message);
+        break;
+      case 'cargo':
+        this.onCargo?.(message);
+        break;
+      case 'notice':
+        this.onNotice?.(message);
         break;
     }
   }

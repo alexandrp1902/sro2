@@ -31,6 +31,41 @@ public class CombatTests
     }
 
     [Fact]
+    public void RangePenalty_AlsoGrowsWhenTooClose()
+    {
+        // Снайперское орудие: в упор мажет, на своей дистанции бьёт как обычно.
+        var sniper = Pulse with { CloseRange = 250, ClosePenalty = 35 };
+        Assert.Equal(35, Combat.RangePenalty(sniper, 0), 12);
+        Assert.Equal(17.5, Combat.RangePenalty(sniper, 125), 12);
+        Assert.Equal(0, Combat.RangePenalty(sniper, 250), 12);
+        Assert.Equal(0, Combat.RangePenalty(sniper, 500), 12);
+        Assert.Equal(10, Combat.RangePenalty(sniper, 700), 12);
+    }
+
+    [Fact]
+    public void WeaponWithoutCloseRange_HasNoPenaltyUpClose()
+    {
+        Assert.Equal(0, Combat.RangePenalty(Pulse, 0));
+        Assert.Equal(0, Combat.RangePenalty(Pulse, 250));
+    }
+
+    [Fact]
+    public void SharedWeapons_GiveTheLaserCloseRangeAndThePlasmaReach()
+    {
+        var dir = Path.Combine(TestHulls.RepoRoot(), "shared");
+        Assert.True(WeaponCatalog.TryParse(File.ReadAllText(Path.Combine(dir, Balance.WeaponsFile)), out var weapons, out var error), error);
+        var target = TestHulls.Heavy;
+
+        // Замысел: лазер — оружие свалки, плазма — снайперское. Разница не в шансе, а в досягаемости.
+        var laserClose = Combat.HitChance(weapons["laser"], 100, target, 0);
+        var plasmaClose = Combat.HitChance(weapons["plasma"], 100, target, 0);
+        Assert.True(laserClose > plasmaClose, $"up close: laser {laserClose}% vs plasma {plasmaClose}%");
+
+        Assert.False(Combat.InRange(weapons["laser"], 600), "the laser must not reach 600");
+        Assert.True(Combat.InRange(weapons["plasma"], 600), "the plasma must reach 600");
+    }
+
+    [Fact]
     public void InRange_EndsAtMaxRange()
     {
         Assert.True(Combat.InRange(Pulse, 700));
@@ -130,7 +165,7 @@ public class CombatTests
 
         Assert.True(
             Balance.TryParse(
-                Read(Balance.HullsFile), Read(Balance.WeaponsFile), Read(Balance.RulesFile), Read(Balance.NpcsFile), out var balance, out var error),
+                Read(Balance.HullsFile), Read(Balance.WeaponsFile), Read(Balance.RulesFile), Read(Balance.NpcsFile), Read(Balance.LootFile), out var balance, out var error),
             error);
         Assert.Contains(SimConfig.DefaultWeapon, balance!.Weapons.Keys);
         Assert.All(balance.Hulls.Values, h => Assert.True(h.Hp > 0));
@@ -152,6 +187,10 @@ public class CombatTests
     [InlineData("""{ "pulse": { "name": "x", "damage": 1, "accuracy": 150, "cooldown": 1, "optimalRange": 1, "maxRange": 2, "rangePenalty": 0 } }""")]
     [InlineData("""{ "pulse": { "name": "x", "damage": 1, "accuracy": 50, "cooldown": 1, "optimalRange": 3, "maxRange": 2, "rangePenalty": 0 } }""")]
     [InlineData("""{ "pulse": { "name": "x", "damage": 1, "accuracy": 50, "cooldown": 0, "optimalRange": 1, "maxRange": 2, "rangePenalty": 0 } }""")]
+    // closeRange не может заходить за optimalRange: иначе оба склона штрафа накладываются.
+    [InlineData("""{ "pulse": { "name": "x", "damage": 1, "accuracy": 50, "cooldown": 1, "optimalRange": 1, "maxRange": 2, "rangePenalty": 0, "closeRange": 2 } }""")]
+    [InlineData("""{ "pulse": { "name": "x", "damage": 1, "accuracy": 50, "cooldown": 1, "optimalRange": 1, "maxRange": 2, "rangePenalty": 0, "closeRange": -1 } }""")]
+    [InlineData("""{ "pulse": { "name": "x", "damage": 1, "accuracy": 50, "cooldown": 1, "optimalRange": 1, "maxRange": 2, "rangePenalty": 0, "closePenalty": 150 } }""")]
     [InlineData("not json")]
     public void WeaponCatalog_RejectsBrokenFiles(string json)
     {

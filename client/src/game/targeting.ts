@@ -104,19 +104,62 @@ export function nearest(
   return inArcId ?? inRangeId;
 }
 
+/** Ближайший предмет в радиусе — для клавиши «взять ближайший» на ПК. Автопилота нет (боевой документ §45). */
+export function nearestLoot(
+  own: { x: number; y: number },
+  items: Iterable<TargetCandidate>,
+  maxDistance: number,
+): number | null {
+  let best: number | null = null;
+  let bestDistance = maxDistance;
+  for (const item of items) {
+    const distance = Math.hypot(item.x - own.x, item.y - own.y);
+    if (distance <= bestDistance) {
+      best = item.id;
+      bestDistance = distance;
+    }
+  }
+  return best;
+}
+
+const TAU = 2 * Math.PI;
+
+/** Кольцо спирали по умолчанию — один «сектор»: дальность пушки по умолчанию. */
+export const DEFAULT_RING = 700;
+
 /**
- * Переключение целей по удалённости: step 1 — следующая дальше (после самой дальней — снова ближайшая),
- * −1 — ближе (после ближайшей — самая дальняя). Цели ещё нет — ближайшая в любом направлении.
+ * Место объекта на раскручивающейся спирали: номер кольца по дистанции плюс азимут по часовой стрелке.
+ * Ноль азимута — прямо по носу экрана (вверх), как в проверке сектора стрельбы.
+ */
+function spiralKey(own: { x: number; y: number }, item: TargetCandidate, ring: number): number {
+  const dx = item.x - own.x;
+  const dy = item.y - own.y;
+  const band = ring > 0 ? Math.floor(Math.hypot(dx, dy) / ring) : 0;
+  const bearing = Math.atan2(dx, -dy);
+  return band * TAU + (bearing < 0 ? bearing + TAU : bearing);
+}
+
+/**
+ * Переключение выделения по спирали: от ближнего кольца к дальнему, внутри кольца — по часовой стрелке.
+ * Список закольцован: после последнего снова первый, перед первым — последний.
+ * Ничего не выделено — берём ближайший объект, а дальше идём по спирали от него.
  */
 export function cycle(
   own: { x: number; y: number },
   ships: Iterable<TargetCandidate>,
   currentId: number,
   step: 1 | -1 = 1,
+  ring: number = DEFAULT_RING,
 ): number | null {
-  const sorted = [...ships].sort((a, b) => Math.hypot(a.x - own.x, a.y - own.y) - Math.hypot(b.x - own.x, b.y - own.y));
-  if (sorted.length === 0) return null;
-  const index = sorted.findIndex((ship) => ship.id === currentId);
-  if (index === -1) return sorted[0].id;
-  return sorted[(index + step + sorted.length) % sorted.length].id;
+  const list = [...ships];
+  if (list.length === 0) return null;
+  if (!list.some((ship) => ship.id === currentId)) {
+    return list.reduce((best, ship) =>
+      Math.hypot(ship.x - own.x, ship.y - own.y) < Math.hypot(best.x - own.x, best.y - own.y) ? ship : best,
+    ).id;
+  }
+
+  list.sort((a, b) => spiralKey(own, a, ring) - spiralKey(own, b, ring));
+  const index = list.findIndex((ship) => ship.id === currentId);
+  return list[(index + step + list.length) % list.length].id;
 }

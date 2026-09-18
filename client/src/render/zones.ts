@@ -1,26 +1,39 @@
 import { Container, Graphics, Text } from 'pixi.js';
 import { STATION } from '../game/layout';
+import type { LootRules } from '../sim/loot';
 import { lairs, type NpcRules } from '../sim/npcs';
 
 const SHELTER_COLOR = 0x6fa8ff;
 const LAIR_COLOR = 0xff6b5a;
+/** Круг сдачи груза у станции (GDD §21): зелёный — там с грузом делают хорошее. */
+const UNLOAD_COLOR = 0x6fe08a;
 /** Кольцо укрытия — пунктир из стольких дуг. */
 const DASHES = 72;
 const LABEL_GAP = 18;
 
 /**
- * Зоны на карте системы: кольцо укрытия у станции, куда пираты не залетают, и логова пиратов с составом.
- * Слой в мировых координатах, под кораблями; перестраивается, когда сервер присылает новый npcs.json.
+ * Зоны на карте системы: круг сдачи груза и кольцо укрытия у станции, логова пиратов с составом.
+ * Слой в мировых координатах, под кораблями; перестраивается, когда сервер присылает новый баланс.
  */
 export class Zones {
   readonly view = new Container();
   private key = '';
 
-  set(npcs: NpcRules | undefined): void {
-    const key = JSON.stringify(npcs ?? null);
+  set(npcs: NpcRules | undefined, loot?: LootRules): void {
+    const key = JSON.stringify([npcs ?? null, loot?.stationUnload ? loot.stationRange : null]);
     if (key === this.key) return;
     this.key = key;
     for (const child of this.view.removeChildren()) child.destroy();
+
+    // Круг сдачи меньше укрытия и рисуется сплошным: его ни с чем не спутать.
+    if (loot?.stationUnload && loot.stationRange > 0) {
+      const ur = loot.stationRange;
+      const unload = new Graphics()
+        .circle(STATION.x, STATION.y, ur)
+        .fill({ color: UNLOAD_COLOR, alpha: 0.06 })
+        .stroke({ width: 2, color: UNLOAD_COLOR, alpha: 0.45 });
+      this.view.addChild(unload, label('сдача груза', STATION.x, STATION.y + ur + LABEL_GAP, UNLOAD_COLOR));
+    }
     if (!npcs) return;
 
     const shelter = new Graphics();

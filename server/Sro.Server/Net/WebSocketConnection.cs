@@ -111,6 +111,15 @@ public sealed class WebSocketConnection(WebSocket socket, ILogger log) : IClient
                 case FireMsg fire when joined:
                     room.SetFire(this, fire.On);
                     break;
+                case LootTargetMsg loot when joined:
+                    room.SetLootTarget(this, loot.Id);
+                    break;
+                case GrabMsg when joined:
+                    room.Grab(this);
+                    break;
+                case SellMsg sell when joined:
+                    room.Sell(this, sell.Item);
+                    break;
                 case HullMsg hull when joined:
                     room.SetHull(this, hull.Id);
                     break;

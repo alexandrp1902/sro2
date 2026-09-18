@@ -48,6 +48,13 @@ public sealed class SystemRoom : BackgroundService
 
     public void SetFire(IClientConnection connection, bool on) => _commands.Enqueue(() => _room.SetFire(connection, on));
 
+    public void SetLootTarget(IClientConnection connection, int lootId) =>
+        _commands.Enqueue(() => _room.SetLootTarget(connection, lootId));
+
+    public void Grab(IClientConnection connection) => _commands.Enqueue(() => _room.Grab(connection));
+
+    public void Sell(IClientConnection connection, string? item) => _commands.Enqueue(() => _room.Sell(connection, item));
+
     public void Rename(IClientConnection connection, string? name) => _commands.Enqueue(() => _room.Rename(connection, name));
 
     protected override Task ExecuteAsync(CancellationToken stoppingToken) =>

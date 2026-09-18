@@ -7,8 +7,9 @@ internal static class TestBalance
 {
     public static readonly IReadOnlyDictionary<string, HullParams> Hulls = new Dictionary<string, HullParams>
     {
-        ["light"] = new("Лёгкий", 165, 180, 220, 150, 0.65, 0, 16, Hp: 400, Shield: 150, ShieldRegen: 20, Evasion: 25, MoveEvasion: 8),
-        ["heavy"] = new("Тяжёлый", 85, 70, 80, 55, 1.5, 0, 30, Hp: 1800, Shield: 500, ShieldRegen: 50, Evasion: 5, MoveEvasion: 2),
+        // Трюмы нарочно разные: на них проверяется перегруз при смене корпуса на меньший.
+        ["light"] = new("Лёгкий", 165, 180, 220, 150, 0.65, 0, 16, Hp: 400, Shield: 150, ShieldRegen: 20, Evasion: 25, MoveEvasion: 8, Cargo: 20),
+        ["heavy"] = new("Тяжёлый", 85, 70, 80, 55, 1.5, 0, 30, Hp: 1800, Shield: 500, ShieldRegen: 50, Evasion: 5, MoveEvasion: 2, Cargo: 60),
     };
 
     public static readonly IReadOnlyDictionary<string, WeaponParams> Weapons = new Dictionary<string, WeaponParams>
@@ -22,7 +23,7 @@ internal static class TestBalance
         ["doom"] = new("Тестовая пушка", 100_000, 100, 1.0, 500, 700, 0),
     };
 
-    /// <summary>Без дронов, без пиратов и без разброса спауна — корабли появляются ровно в SpawnX, SpawnY.</summary>
-    public static Balance Create(CombatRules? rules = null, NpcRules? npcs = null) =>
-        new(Hulls, Weapons, rules ?? new CombatRules(SpawnJitter: 0), npcs);
+    /// <summary>Без дронов, без пиратов, без лута и без разброса спауна — корабли появляются ровно в SpawnX, SpawnY.</summary>
+    public static Balance Create(CombatRules? rules = null, NpcRules? npcs = null, LootRules? loot = null) =>
+        new(Hulls, Weapons, rules ?? new CombatRules(SpawnJitter: 0), npcs, loot);
 }

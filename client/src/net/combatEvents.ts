@@ -1,6 +1,9 @@
-import type { KillDto, ShotDto, SnapshotMsg } from './protocol';
+import type { KillDto, PickDto, ShotDto, SnapshotMsg } from './protocol';
 
-export type CombatEvent = { kind: 'shot'; tick: number; shot: ShotDto } | { kind: 'kill'; tick: number; kill: KillDto };
+export type CombatEvent =
+  | { kind: 'shot'; tick: number; shot: ShotDto }
+  | { kind: 'kill'; tick: number; kill: KillDto }
+  | { kind: 'pick'; tick: number; pick: PickDto };
 
 /** События, отставшие от часов рендера больше чем на столько тиков (вкладка была в фоне), не проигрываются. */
 const MAX_LAG_TICKS = 10;
@@ -26,6 +29,11 @@ export class CombatEvents {
     for (const kill of snapshot.kills ?? []) {
       const event: CombatEvent = { kind: 'kill', tick, kill };
       if (kill.id === ownId) now.push(event);
+      else this.queue.push(event);
+    }
+    for (const pick of snapshot.picks ?? []) {
+      const event: CombatEvent = { kind: 'pick', tick, pick };
+      if (pick.by === ownId) now.push(event);
       else this.queue.push(event);
     }
     if (this.queue.length > MAX_QUEUE) this.queue.splice(0, this.queue.length - MAX_QUEUE);

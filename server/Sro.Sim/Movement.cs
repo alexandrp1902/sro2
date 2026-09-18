@@ -50,6 +50,7 @@ public readonly record struct MoveInput(double Dx, double Dy, double Throttle)
 /// <param name="ShieldRegen">Восстановление щита в секунду после паузы без урона.</param>
 /// <param name="Evasion">Базовое уклонение, % (боевой документ §39).</param>
 /// <param name="MoveEvasion">Добавка к уклонению на полной скорости, % (§40).</param>
+/// <param name="Cargo">Ёмкость трюма в единицах объёма (§46): сколько добычи влезает в корпус.</param>
 public sealed record HullParams(
     string Name,
     double MaxSpeed,
@@ -63,7 +64,8 @@ public sealed record HullParams(
     double Shield = 150,
     double ShieldRegen = 20,
     double Evasion = 25,
-    double MoveEvasion = 8)
+    double MoveEvasion = 8,
+    double Cargo = 20)
 {
     /// <returns>Описание ошибки или null, если параметры годятся.</returns>
     public string? Validate()
@@ -78,6 +80,7 @@ public sealed record HullParams(
         if (!(Shield >= 0) || !(ShieldRegen >= 0)) return "shield and shieldRegen must not be negative";
         if (!(Evasion >= 0 && Evasion <= 100) || !(MoveEvasion >= 0 && MoveEvasion <= 100))
             return "evasion and moveEvasion must be within 0..100";
+        if (!(Cargo >= 0)) return "cargo must not be negative";
         return null;
     }
 }

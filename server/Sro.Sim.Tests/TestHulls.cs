@@ -35,5 +35,6 @@ internal static class TestWeapons
 {
     public static readonly WeaponParams Pulse = new("Импульсная пушка Mk1", 100, 75, 1.0, 500, 700, 10, 60, "bolt");
     public static readonly WeaponParams Laser = new("Лазер Mk1", 40, 90, 0.5, 400, 600, 20, 60, "beam");
-    public static readonly WeaponParams Plasma = new("Плазма Mk1", 280, 60, 2.0, 450, 650, 15, 60, "orb");
+    // Снайперская: в упор мажет, зато достаёт дальше всех — на ней вектор проверяет оба склона штрафа за дистанцию.
+    public static readonly WeaponParams Plasma = new("Плазма Mk1", 280, 60, 2.0, 450, 650, 15, 60, "orb", CloseRange: 250, ClosePenalty: 35);
 }

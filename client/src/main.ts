@@ -1,8 +1,8 @@
 import './style.css';
 import { Application, Container } from 'pixi.js';
-import { SPAWN } from './game/layout';
+import { SPAWN, STATION } from './game/layout';
 import { FixedLoop } from './game/loop';
-import { cycle, nearest, pickArrow, pickAt } from './game/targeting';
+import { cycle, nearest, nearestLoot, pickArrow, pickAt } from './game/targeting';
 import { Controls } from './input/controls';
 import { FireControl, bindCombatKeys } from './input/fire';
 import { preventBrowserGestures } from './input/gestures';
@@ -19,6 +19,7 @@ import { Roster } from './net/roster';
 import { resolveServerUrl } from './net/serverUrl';
 import { Camera } from './render/camera';
 import { CombatFx, type FxAnchor } from './render/combatFx';
+import { LootField } from './render/lootView';
 import { Nebula } from './render/nebulaView';
 import { PlayerOverlay } from './render/playerOverlay';
 import { ShipView, engineGlow } from './render/ship';
@@ -26,13 +27,15 @@ import { Starfield } from './render/starfield';
 import { WeaponArc } from './render/weaponArc';
 import { createWorldView } from './render/world';
 import { Zones } from './render/zones';
-import { assess, cooldownTicks } from './sim/combat';
+import { DEFAULT_SECTOR_UNIT, assess, cooldownTicks } from './sim/combat';
 import { DEFAULT_HULL, Hulls } from './sim/hulls';
+import { NO_LOOT, lootLabel, rarityColor, type LootRules } from './sim/loot';
 import { DT, directionAngle, localVelocity, type MoveInput } from './sim/movement';
 import { DEFAULT_WEAPON, Weapons } from './sim/weapons';
+import { CargoHud } from './ui/cargoHud';
 import { CombatHud } from './ui/combatHud';
 import { DevOverlay } from './ui/devOverlay';
-import { Feed, describeKill } from './ui/feed';
+import { Feed, describeKill, describeNotice } from './ui/feed';
 import { FlightHud } from './ui/flightHud';
 import { PilotForm } from './ui/pilotForm';
 import { StatusHud } from './ui/statusHud';
@@ -43,6 +46,8 @@ const HULL_KEY = 'sro.hull';
 const WEAPON_KEY = 'sro.weapon';
 const OWN_COLOR = 0x7fd4ff;
 const SKY_SEED = 0;
+/** Клавиша «взять ближайший предмет» ищет его в этом радиусе — примерно экран на среднем зуме. */
+const LOOT_KEY_RANGE = 1200;
 /** Ниже этой скорости «корабль тормозит» в статусе не показываем. */
 const STOPPED_SPEED = 1;
 
@@ -72,6 +77,10 @@ async function main(): Promise<void> {
   const prediction = new Prediction(hulls, savedHull && hulls.has(savedHull) ? savedHull : DEFAULT_HULL, SPAWN);
   const savedWeapon = storage.get(WEAPON_KEY);
   let weaponId = savedWeapon && weapons.has(savedWeapon) ? savedWeapon : DEFAULT_WEAPON;
+  /** Каталог лута с сервера: названия, редкость и радиус захвата. */
+  let lootRules: LootRules = NO_LOOT;
+  /** Единица дистанции для игрока: «цель в 1.4 сектора» вместо «в 980». */
+  let sectorUnit = DEFAULT_SECTOR_UNIT;
 
   const serverUrl = resolveServerUrl();
   const connection = serverUrl
@@ -89,7 +98,8 @@ async function main(): Promise<void> {
   const fx = new CombatFx(weapons);
   const overlay = new PlayerOverlay();
   const zones = new Zones();
-  world.addChild(nebula.view, createWorldView(), zones.view, weaponArc.view, remote.view, ownShip.view, fx.view);
+  const loot = new LootField();
+  world.addChild(nebula.view, createWorldView(), zones.view, loot.view, weaponArc.view, remote.view, ownShip.view, fx.view);
   app.stage.addChild(starfield.view, world, overlay.view);
   const camera = new Camera();
 
@@ -111,9 +121,28 @@ async function main(): Promise<void> {
     if (id === targetId) return;
     targetId = id;
     if (isOnline()) connection!.send({ t: 'target', id });
+    if (id !== 0) setLoot(0); // прицел один: навёлся на корабль — отпустил груз
     if (id === 0) fire.release(); // без цели огонь выключается: кнопка не горит впустую
   };
   const combatHud = new CombatHud(el('ship'), el('target'), el('death'), () => setTarget(0));
+
+  // Прицел один на всё: он либо на противнике, либо на грузе. Наводка на предмет снимает цель и гасит огонь.
+  // Тап по предмету только помечает его; подлетать игрок должен сам, автопилота в MVP нет (боевой документ §45).
+  let selectedLootId = 0;
+  const setLoot = (id: number) => {
+    if (id === selectedLootId) return;
+    selectedLootId = id;
+    if (isOnline()) connection!.send({ t: 'loot', id });
+    if (id !== 0) setTarget(0); // прицел один: навёлся на груз — отпустил противника
+  };
+  const cargoHud = new CargoHud(
+    el('cargo'),
+    el('loot'),
+    () => setLoot(0),
+    (item) => {
+      if (isOnline()) connection!.send({ t: 'sell', item });
+    },
+  );
 
   // Огонь без цели берёт ближайший корабль: сначала в секторе, потом просто в дальности. Никого — огонь не включается.
   fire.onPress = () => {
@@ -130,10 +159,19 @@ async function main(): Promise<void> {
   fire.onChange = (on) => {
     if (isOnline()) connection!.send({ t: 'fire', on });
   };
-  // Предыдущая / следующая цель по удалённости: Q/E, Shift+←/→, Tab на ПК, кнопки < > у кнопки огня на телефоне.
-  const stepTarget = (step: -1 | 1) => {
-    const id = cycle(prediction.curr, remote.visible(), targetId, step);
-    if (id !== null) setTarget(id);
+  /**
+   * Предыдущий / следующий объект по удалённости: Q/E, Shift+←/→, Tab на ПК, кнопки < > у кнопки огня на телефоне.
+   * Перебираются и корабли, и добыча вперемешку: id у них из одного счётчика сервера, так что не столкнутся.
+   * Прицел один: шаг на корабль снимает груз, шаг на груз снимает цель.
+   */
+  const stepSelection = (step: -1 | 1) => {
+    const candidates = [...remote.visible(), ...loot.visible()];
+    const from = selectedLootId !== 0 ? selectedLootId : targetId;
+    // Кольцо спирали — сектор: сначала обходим всё вокруг себя, потом уходим на виток дальше.
+    const id = cycle(prediction.curr, candidates, from, step, sectorUnit);
+    if (id === null) return;
+    if (loot.get(id)) setLoot(id);
+    else setTarget(id);
   };
   for (const [button, step] of [
     ['target-prev', -1],
@@ -141,17 +179,48 @@ async function main(): Promise<void> {
   ] as const) {
     el(button).addEventListener('pointerdown', (e) => {
       e.preventDefault(); // без фокуса: иначе Space «нажимал» бы кнопку
-      stepTarget(step);
+      stepSelection(step);
     });
   }
-  bindCombatKeys(fire, { step: stepTarget, clear: () => setTarget(0) });
+  // Прицел на грузе — пробел берёт его; прицел на противнике — стреляет.
+  const grabSelected = (): boolean => {
+    if (selectedLootId === 0) return false;
+    if (isOnline()) connection!.send({ t: 'grab' });
+    return true;
+  };
+  fire.onGrab = grabSelected;
+  // Esc снимает сначала предмет, потом цель: отменяем самое недавнее и наименее важное.
+  bindCombatKeys(fire, {
+    step: stepSelection,
+    clear: () => {
+      if (selectedLootId !== 0) setLoot(0);
+      else setTarget(0);
+    },
+    grab: grabSelected,
+  });
+  // F — ближайший предмет: на ПК иначе до мелкого обломка не дотянуться мышью в бою.
+  window.addEventListener('keydown', (e) => {
+    if (e.code !== 'KeyF' || e.repeat || e.ctrlKey || e.metaKey || e.altKey) return;
+    const id = nearestLoot(prediction.curr, loot.visible(), LOOT_KEY_RANGE);
+    if (id !== null) setLoot(id);
+  });
   // Тап мимо кораблей цель не сбрасывает: промах пальцем в бою не должен её терять.
   // Корабль за краем экрана выбирается тапом по его стрелке или подписи у края.
   // Двойной тап по цели — огонь по ней: только что выбранной — включить, уже выбранной — переключить.
   let tapChangedTarget = false;
   new TapSelect(app.canvas, (x, y, touch, double) => {
     const view = { x: camera.x, y: camera.y, zoom: camera.zoom, width: app.screen.width, height: app.screen.height };
-    const id = pickAt(x, y, remote.visible(), view, touch) ?? pickArrow(x, y, overlay.edgeArrows(), touch);
+    // Корабль выигрывает у предмета: промах пальцем в бою не должен вместо цели выбрать мусор.
+    const shipId = pickAt(x, y, remote.visible(), view, touch);
+    if (shipId === null) {
+      const lootId = pickAt(x, y, loot.visible(), view, touch);
+      if (lootId !== null) {
+        setLoot(lootId); // двойной тап по предмету ничего не добавляет: автопилота нет
+        tapChangedTarget = false;
+        return;
+      }
+    }
+    const id = shipId ?? pickArrow(x, y, overlay.edgeArrows(), touch);
     if (id === null) {
       tapChangedTarget = false;
       return;
@@ -197,6 +266,16 @@ async function main(): Promise<void> {
       if (at) fx.explosion(at.x, at.y, at.size, now);
       return;
     }
+    if (event.kind === 'pick') {
+      // Предмета в снапшоте уже нет — берём его последнюю позицию, как трассер берёт позицию корабля.
+      const at = locate(event.pick.by);
+      const from = loot.lastSeen(event.pick.id, now);
+      if (!at || !from) return;
+      const mine = event.pick.by === ownId();
+      const label = mine ? `+${lootLabel(lootRules, event.pick.i, event.pick.n)}` : '';
+      fx.tractor(event.pick.by, at, from.x, from.y, rarityColor(lootRules, event.pick.i), label, now);
+      return;
+    }
     const shot = event.shot;
     fx.shot(shot, now, locate);
     if (shot.from === ownId()) fire.reloadFrom(now, cooldownTicks(weapons.get(shot.w)) * DT * 1000);
@@ -208,7 +287,13 @@ async function main(): Promise<void> {
     connection.onWelcome = (message) => {
       hulls.set(message.hulls);
       weapons.set(message.weapons);
-      zones.set(message.npcs);
+      zones.set(message.npcs, message.loot);
+      sectorUnit = message.combat.sectorUnit || DEFAULT_SECTOR_UNIT;
+      lootRules = message.loot ?? NO_LOOT;
+      loot.setRules(message.loot);
+      cargoHud.setRules(message.loot);
+      loot.clear();
+      selectedLootId = 0; // предметы в космосе за это время сменились — выбор не переносим
       prediction.resetNet();
       remote.clear();
       combat.clear();
@@ -221,13 +306,25 @@ async function main(): Promise<void> {
     connection.onConfig = (message) => {
       hulls.set(message.hulls);
       weapons.set(message.weapons);
-      zones.set(message.npcs);
+      zones.set(message.npcs, message.loot);
+      sectorUnit = message.combat.sectorUnit || DEFAULT_SECTOR_UNIT;
+      lootRules = message.loot ?? NO_LOOT;
+      loot.setRules(message.loot);
+      cargoHud.setRules(message.loot);
+    };
+    connection.onCargo = (message) => {
+      cargoHud.setCargo({ used: message.used, max: message.max, items: message.items, credits: message.credits ?? 0 });
+    };
+    connection.onNotice = (message) => {
+      const text = describeNotice(message.code);
+      if (text) feed.add(text);
     };
     connection.onSnapshot = (message) => {
       const now = performance.now();
       const own = connection.playerId;
       latestSnapshot = message;
       remote.push(message, now);
+      loot.push(message, now);
       for (const event of combat.push(message, own)) play(event, now);
       for (const shot of message.shots ?? []) {
         if (shot.from !== own) continue;
@@ -308,7 +405,12 @@ async function main(): Promise<void> {
     ownAnchor = { x: state.x, y: state.y, size: hull.size };
 
     remote.update(now, online ? connection!.playerId : -1);
+    loot.update(now, remote.renderTick);
     for (const event of combat.take(remote.renderTick)) play(event, now);
+
+    // Предмет забрали или он протух — снимаем выбор.
+    if (selectedLootId !== 0 && !loot.get(selectedLootId)) setLoot(0);
+    const selectedLoot = selectedLootId !== 0 ? loot.get(selectedLootId) : undefined;
 
     // Цель ушла из системы (вышла, сервер перезапустился) — снимаем.
     if (targetId !== 0 && remote.inLatest(targetId) === false) setTarget(0);
@@ -325,17 +427,20 @@ async function main(): Promise<void> {
     starfield.update(camera.x, camera.y, camera.zoom, app.screen.width, app.screen.height);
     nebula.update(now);
     weaponArc.update(state.x, state.y, state.rot, target && !dead ? weapon : null, aim?.state === 'ready');
-    overlay.update(
-      remote.visible(),
+    overlay.update({
+      ships: remote.visible(),
       camera,
-      app.screen.width,
-      app.screen.height,
-      target && aim ? { id: target.id, state: aim.state } : null,
-      { x: state.x, y: state.y, size: hull.size, protected: !dead && protectedSeconds > 0 },
-      me,
-      dev.visible,
-    );
+      width: app.screen.width,
+      height: app.screen.height,
+      target: target && aim ? { id: target.id, state: aim.state } : null,
+      own: { x: state.x, y: state.y, size: hull.size, protected: !dead && protectedSeconds > 0 },
+      ownId: me,
+      showAi: dev.visible,
+      loot: selectedLoot ? { x: selectedLoot.x, y: selectedLoot.y, size: selectedLoot.size } : null,
+      sectorUnit,
+    });
     fx.update(now, camera.zoom, locate);
+    fire.setGrabMode(selectedLootId !== 0);
     fire.render(now, !target ? 'none' : aim?.state === 'ready' ? 'ready' : 'blocked');
 
     combatHud.update(
@@ -349,10 +454,27 @@ async function main(): Promise<void> {
             sh: target.sh,
             maxSh: target.maxSh,
             aim,
+            sectorUnit,
             fire: fire.active,
           }
         : null,
       dead && ownDto?.rt ? { by: killedBy, seconds: Math.max(0, (ownDto.rt - tick) * DT) } : null,
+    );
+
+    // В круге станции трюм становится прилавком: продажа ручная, игрок выбирает, что менять на кредиты.
+    cargoHud.setAtStation(
+      !dead &&
+        lootRules.stationUnload &&
+        Math.hypot(state.x - STATION.x, state.y - STATION.y) <= lootRules.stationRange,
+    );
+    cargoHud.update(
+      selectedLoot
+        ? {
+            item: selectedLoot.item,
+            count: selectedLoot.count,
+            distance: Math.hypot(selectedLoot.x - state.x, selectedLoot.y - state.y),
+          }
+        : null,
     );
 
     const speed = Math.hypot(prediction.curr.vx, prediction.curr.vy);
