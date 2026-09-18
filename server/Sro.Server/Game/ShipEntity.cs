@@ -49,6 +49,9 @@ public abstract class ShipEntity(int id, string name, string hullId, string weap
     /// <summary>Пушка, из которой корабль стреляет; null — такой пушки больше нет.</summary>
     public virtual WeaponParams? Weapon(Balance balance) => balance.Weapons.GetValueOrDefault(WeaponId);
 
+    /// <summary>Уклонение, % (§39–40): по корпусу и текущей скорости.</summary>
+    public virtual double Evasion(Balance balance, double speed) => Combat.Evasion(Hull(balance.Hulls), speed);
+
     /// <summary>Через столько тиков уничтоженный корабль появляется снова.</summary>
     public virtual int RespawnTicks(Balance balance) => balance.Rules.RespawnTicks;
 

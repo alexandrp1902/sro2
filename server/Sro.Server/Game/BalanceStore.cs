@@ -3,14 +3,13 @@ using Sro.Sim;
 namespace Sro.Server.Game;
 
 /// <summary>
-/// Баланс из shared/ (hulls.json, weapons.json, combat.json) с горячей перезагрузкой: файлы правят во время плейтеста,
+/// Баланс из shared/ (<see cref="Balance.Files"/>: корпуса, пушки, правила боя, NPC, лут, метеориты) с горячей перезагрузкой: файлы правят во время плейтеста,
 /// сервер подхватывает их без перезапуска и рассылает клиентам. Файлы разбираются вместе (правила ссылаются
 /// на корпуса); если хоть один невалиден, остаётся прежний баланс целиком.
 /// </summary>
 public sealed class BalanceStore : IDisposable
 {
-    private static readonly string[] Files =
-        [Balance.HullsFile, Balance.WeaponsFile, Balance.RulesFile, Balance.NpcsFile, Balance.LootFile];
+    private static readonly string[] Files = Balance.Files;
     private const int DebounceMs = 200;
     private const int ReadAttempts = 5;
 
@@ -30,14 +29,15 @@ public sealed class BalanceStore : IDisposable
             throw new InvalidOperationException($"{_dir}: {error}");
         Balance = balance!;
         log.LogInformation(
-            "Balance loaded from {Dir}: hulls {Hulls}; weapons {Weapons}; drones {Drones}; pirates {Pirates}; loot {Items} items, {Tables} tables",
+            "Balance loaded from {Dir}: hulls {Hulls}; weapons {Weapons}; drones {Drones}; pirates {Pirates}; loot {Items} items, {Tables} tables; meteors {Meteors}",
             _dir,
             string.Join(", ", balance!.Hulls.Keys),
             string.Join(", ", balance.Weapons.Keys),
             balance.Rules.DroneList.Count,
             balance.Npc.Count,
             balance.Loot.ItemMap.Count,
-            balance.Loot.TableMap.Count);
+            balance.Loot.TableMap.Count,
+            balance.Meteors.Enabled ? $"up to {balance.Meteors.MaxAlive}" : "off");
 
         // Редакторы сохраняют файл в несколько приёмов — реагируем на последнее событие.
         _debounce = new Timer(_ => Reload());
@@ -83,7 +83,7 @@ public sealed class BalanceStore : IDisposable
     }
 
     private static bool Parse(string[] texts, out Balance? balance, out string? error) =>
-        Balance.TryParse(texts[0], texts[1], texts[2], texts[3], texts[4], out balance, out error);
+        Balance.TryParse(new BalanceSources(texts[0], texts[1], texts[2], texts[3], texts[4], texts[5]), out balance, out error);
 
     private string? TryRead(string file)
     {

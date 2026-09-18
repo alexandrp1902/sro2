@@ -23,7 +23,7 @@ internal static class TestBalance
         ["doom"] = new("Тестовая пушка", 100_000, 100, 1.0, 500, 700, 0),
     };
 
-    /// <summary>Без дронов, без пиратов, без лута и без разброса спауна — корабли появляются ровно в SpawnX, SpawnY.</summary>
-    public static Balance Create(CombatRules? rules = null, NpcRules? npcs = null, LootRules? loot = null) =>
-        new(Hulls, Weapons, rules ?? new CombatRules(SpawnJitter: 0), npcs, loot);
+    /// <summary>Без дронов, пиратов, лута, метеоритов и разброса спауна — корабли появляются ровно в SpawnX, SpawnY.</summary>
+    public static Balance Create(CombatRules? rules = null, NpcRules? npcs = null, LootRules? loot = null, MeteorRules? meteors = null) =>
+        new(Hulls, Weapons, rules ?? new CombatRules(SpawnJitter: 0), npcs, loot, meteors);
 }

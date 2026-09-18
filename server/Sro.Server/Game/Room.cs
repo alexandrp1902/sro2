@@ -28,6 +28,7 @@ public sealed class Room
     private readonly Random _ai;
     private readonly Battle _battle;
     private readonly LootSystem _loot;
+    private readonly MeteorSystem _meteors;
     private readonly Dictionary<int, Player> _players = [];
     private readonly Dictionary<int, Player> _byConnection = [];
     private readonly Dictionary<string, Player> _byToken = new(StringComparer.Ordinal);
@@ -46,7 +47,15 @@ public sealed class Room
     /// <param name="jitter">Разброс точки появления.</param>
     /// <param name="ai">Случайность ИИ пиратов (точки патруля) — отдельно, чтобы пираты не сдвигали разброс спауна.</param>
     /// <param name="loot">Случайность дропа — тоже отдельно: иначе добыча сдвигала бы разброс спауна.</param>
-    public Room(Balance balance, ILogger log, Func<double>? roll = null, Random? jitter = null, Random? ai = null, Random? loot = null)
+    /// <param name="meteors">Случайность метеоритов: размер, трасса, скорость, интервал.</param>
+    public Room(
+        Balance balance,
+        ILogger log,
+        Func<double>? roll = null,
+        Random? jitter = null,
+        Random? ai = null,
+        Random? loot = null,
+        Random? meteors = null)
     {
         Balance = balance;
         _log = log;
@@ -55,6 +64,7 @@ public sealed class Room
         _battle = new Battle(roll ?? Random.Shared.NextDouble, log);
         _loot = new LootSystem(() => ++_nextId, loot ?? Random.Shared, log);
         _loot.SetContainers(balance.Loot.ContainerList);
+        _meteors = new MeteorSystem(() => ++_nextId, meteors ?? Random.Shared);
         SpawnDrones();
         SpawnPirates();
     }
@@ -68,6 +78,23 @@ public sealed class Room
 
     /// <summary>Корабль по id — игрок или NPC.</summary>
     public ShipEntity? Entity(int id) => _ships.GetValueOrDefault(id);
+
+    /// <summary>Метеориты в полёте.</summary>
+    public IReadOnlyList<Meteor> Meteors => _meteors.Alive;
+
+    /// <summary>
+    /// Метеорит заданного размера в точке (x, y) со скоростью (vx, vy) — для тестов и отладки.
+    /// Обычно они появляются сами, по таймеру из meteors.json.
+    /// </summary>
+    /// <returns>null — такого размера в meteors.json нет.</returns>
+    public Meteor? LaunchMeteor(string sizeId, double x, double y, double vx, double vy)
+    {
+        var rules = Balance.Meteors;
+        if (!rules.SizeMap.TryGetValue(sizeId, out var size)) return null;
+        var meteor = _meteors.Add(sizeId, size, x, y, vx, vy, Tick + rules.LifetimeTicks);
+        _ships[meteor.Id] = meteor;
+        return meteor;
+    }
 
     public void Join(IClientConnection connection, string? token, string? name, string? hull, string? weapon = null)
     {
@@ -189,7 +216,8 @@ public sealed class Room
         var old = Balance;
         foreach (var ship in _ships.Values)
         {
-            if (ship is Pirate) continue; // у пирата корпус и максимумы — от типа, см. ниже
+            // У пирата корпус и максимумы — от типа, см. ниже; у метеорита корпуса нет, летящий камень баланс не меняет.
+            if (ship is Pirate or Meteor) continue;
             var from = ship.Hull(old.Hulls);
             var hullId = balance.Hulls.ContainsKey(ship.HullId) ? ship.HullId : SimConfig.DefaultHull;
             ship.ChangeHull(from, hullId, balance.Hulls[hullId]);
@@ -212,7 +240,7 @@ public sealed class Room
         if (!old.Loot.ContainerList.SequenceEqual(balance.Loot.ContainerList)) _loot.SetContainers(balance.Loot.ContainerList);
         if (_loot.DropUnknown(balance.Loot)) ClearMissingLootTargets();
 
-        var message = Protocol.Encode(new ConfigMsg(balance.Hulls, balance.Weapons, balance.Rules, balance.Npc, balance.Loot));
+        var message = Protocol.Encode(new ConfigMsg(balance.Hulls, balance.Weapons, balance.Rules, balance.Npc, balance.Loot, balance.Meteors));
         foreach (var player in _players.Values)
         {
             player.Connection?.SendRaw(message);
@@ -245,6 +273,7 @@ public sealed class Room
             PirateBrain.Think(pirate, _ships, _pirates, Balance, Tick, _ai, _log);
             Movement.Step(ref pirate.Ship, pirate.LastInput, pirate.Hull(Hulls), SimConfig.Dt);
         }
+        _meteors.Move();
         Tick++;
 
         if (_expired.Count > 0)
@@ -258,7 +287,12 @@ public sealed class Room
             BroadcastPlayers();
         }
 
+        StepMeteors();
+        // Таран — до боя: урон камня и урон пушек попадают в один свод смертей, и корабль, добитый
+        // одновременно пиратом и метеоритом, погибает один раз.
+        _meteors.Collide(_ships, Balance, Tick, _shots);
         _battle.Run(Tick, _ships, Balance, _shots, _kills, Spawn);
+        foreach (var meteor in _meteors.Shatter(_loot, Balance.Loot, Tick)) RemoveShip(meteor);
         // Дроп после боя: предмет должен пролежать хотя бы тик, иначе игрок вплотную к убитому
         // увидит «ничего не выпало», а трюм молча пополнится.
         _loot.DropFrom(_kills, _ships, Balance.Loot, Tick);
@@ -270,6 +304,15 @@ public sealed class Room
         _shots.Clear();
         _kills.Clear();
         _loot.ClearPicks();
+    }
+
+    /// <summary>Улетевшие метеориты исчезают, новые появляются по таймеру — только пока в системе кто-то есть.</summary>
+    private void StepMeteors()
+    {
+        var rules = Balance.Meteors;
+        foreach (var meteor in _meteors.Expired(rules, Tick)) RemoveShip(meteor);
+        if (!_meteors.Due(rules, Tick, _byConnection.Count > 0)) return;
+        if (_meteors.Launch(rules, Balance.Npc.StationSafeRadius, Tick) is { } launched) _ships[launched.Id] = launched;
     }
 
     /// <summary>Без управляющих и невидимых символов, пробелы схлопнуты, не длиннее MaxNameLength.</summary>
@@ -324,6 +367,7 @@ public sealed class Room
     /// </summary>
     private void Spawn(ShipEntity ship)
     {
+        if (ship is Meteor) return; // разбитый камень не возвращается — его убирает MeteorSystem.Shatter
         var (x, y) = ship switch
         {
             Drone drone => drone.SpawnPoint,
@@ -382,7 +426,10 @@ public sealed class Room
     private void SendSnapshot()
     {
         _shipDtos.Clear();
-        foreach (var ship in _ships.Values) _shipDtos.Add(ToDto(ship));
+        foreach (var ship in _ships.Values)
+        {
+            if (ship is not Meteor) _shipDtos.Add(ToDto(ship));
+        }
         // Все получают одни и те же байты: ack каждого игрока лежит в записи его корабля.
         var snapshot = Protocol.Encode(new SnapshotMsg(
             Tick,
@@ -390,7 +437,8 @@ public sealed class Room
             _shots.Count > 0 ? _shots : null,
             _kills.Count > 0 ? _kills : null,
             _loot.ToDtos(),
-            _loot.Picks.Count > 0 ? _loot.Picks : null));
+            _loot.Picks.Count > 0 ? _loot.Picks : null,
+            _meteors.ToDtos()));
         foreach (var player in _players.Values) player.Connection?.SendRaw(snapshot);
     }
 
@@ -420,7 +468,7 @@ public sealed class Room
     private static readonly string[] AiNames = ["patrol", "attack", "return"];
 
     private WelcomeMsg Welcome(Player player, bool resumed) =>
-        new(player.Id, SimConfig.TickRate, Protocol.Version, Hulls, Balance.Weapons, Balance.Rules, resumed, Balance.Npc, Balance.Loot);
+        new(player.Id, SimConfig.TickRate, Protocol.Version, Hulls, Balance.Weapons, Balance.Rules, resumed, Balance.Npc, Balance.Loot, Balance.Meteors);
 
     /// <summary>Занятое другим игроком имя получает номер: «Имя 2», «Имя 3»…</summary>
     private string UniqueName(string name, Player? self)
@@ -570,7 +618,9 @@ public sealed class Room
     /// <summary>Игроки и NPC: имена нужны для подписей, флаг npc — чтобы клиент не писал о NPC в ленту, kind — для цвета.</summary>
     private void BroadcastPlayers()
     {
+        // Метеориты — не в ростере: их десятки за минуту, а ростер рассылается целиком при каждом изменении.
         var list = _ships.Values
+            .Where(s => s is not Meteor)
             .OrderBy(s => s.Id)
             .Select(s => s switch
             {

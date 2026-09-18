@@ -28,6 +28,16 @@ internal static class TestHulls
         }
         throw new DirectoryNotFoundException("Repository root with shared/hulls.json not found");
     }
+
+    /// <summary>Настоящие файлы баланса из shared/ — порчу одного из них тест делает через with.</summary>
+    public static BalanceSources SharedSources()
+    {
+        var dir = Path.Combine(RepoRoot(), "shared");
+        string Read(string file) => File.ReadAllText(Path.Combine(dir, file));
+        return new BalanceSources(
+            Read(Balance.HullsFile), Read(Balance.WeaponsFile), Read(Balance.RulesFile),
+            Read(Balance.NpcsFile), Read(Balance.LootFile), Read(Balance.MeteorsFile));
+    }
 }
 
 /// <summary>Пушки из GDD (§14, §47–48). Не читаются из weapons.json, чтобы тюнинг не ломал тесты.</summary>

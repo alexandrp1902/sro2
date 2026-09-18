@@ -12,6 +12,8 @@ export interface FxAnchor {
 /** Нарисованное положение корабля по id; null — корабля уже нет. */
 export type Locate = (id: number) => FxAnchor | null;
 
+/** Псевдо-пушка тарана метеорита в ShotDto (MeteorRules.RamWeapon на сервере). */
+export const RAM_WEAPON = 'ram';
 /** Время полёта снаряда до цели, мс; луч — мгновенный. */
 const FLIGHT_MS: Record<string, number> = { bolt: 150, orb: 320, beam: 0 };
 const BEAM_MS = 120;
@@ -49,6 +51,11 @@ export class CombatFx {
   shot(shot: ShotDto, now: number, locate: Locate): void {
     const from = locate(shot.from);
     const to = locate(shot.to);
+    // Таран метеорита: снаряда нет, камень уже разбился — сразу цифры, вспышка щита и искры на корабле.
+    if (shot.w === RAM_WEAPON) {
+      if (to) this.impact(shot, to, now);
+      return;
+    }
     if (!from || !to) return;
     const weapon = this.weapons.get(shot.w);
     this.add(

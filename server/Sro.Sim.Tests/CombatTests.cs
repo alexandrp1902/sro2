@@ -160,13 +160,7 @@ public class CombatTests
     [Fact]
     public void SharedBalanceFiles_Parse()
     {
-        var dir = Path.Combine(TestHulls.RepoRoot(), "shared");
-        string Read(string file) => File.ReadAllText(Path.Combine(dir, file));
-
-        Assert.True(
-            Balance.TryParse(
-                Read(Balance.HullsFile), Read(Balance.WeaponsFile), Read(Balance.RulesFile), Read(Balance.NpcsFile), Read(Balance.LootFile), out var balance, out var error),
-            error);
+        Assert.True(Balance.TryParse(TestHulls.SharedSources(), out var balance, out var error), error);
         Assert.Contains(SimConfig.DefaultWeapon, balance!.Weapons.Keys);
         Assert.All(balance.Hulls.Values, h => Assert.True(h.Hp > 0));
         Assert.NotEmpty(balance.Rules.DroneList);

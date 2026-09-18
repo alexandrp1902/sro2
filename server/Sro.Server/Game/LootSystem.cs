@@ -127,24 +127,29 @@ internal sealed class LootSystem(Func<int> nextId, Random rng, ILogger log)
         {
             if (ships.GetValueOrDefault(kill.Id) is not Pirate pirate) continue;
             if (!loot.TableMap.TryGetValue(pirate.Spawn.Type, out var table)) continue;
+            DropAt(loot, table, pirate.Level, pirate.Ship.X, pirate.Ship.Y, pirate.DeathVx, pirate.DeathVy, tick);
+        }
+    }
 
-            _rolled.Clear();
-            table.Roll(pirate.Level, rng.NextDouble, _rolled);
-            foreach (var (item, count) in _rolled)
-            {
-                // Разброс по площади круга: стопка в одной точке не разбирается тапом.
-                var radius = loot.DropRadius * Math.Sqrt(rng.NextDouble());
-                var angle = rng.NextDouble() * 2 * Math.PI;
-                Spawn(
-                    loot,
-                    tick,
-                    pirate.Ship.X + radius * Math.Cos(angle),
-                    pirate.Ship.Y + radius * Math.Sin(angle),
-                    pirate.DeathVx * loot.DriftFactor,
-                    pirate.DeathVy * loot.DriftFactor,
-                    item,
-                    count);
-            }
+    /// <summary>Дроп по таблице вокруг точки гибели: предметы наследуют долю скорости погибшего (vx, vy).</summary>
+    public void DropAt(LootRules loot, LootTable table, int level, double x, double y, double vx, double vy, long tick)
+    {
+        _rolled.Clear();
+        table.Roll(level, rng.NextDouble, _rolled);
+        foreach (var (item, count) in _rolled)
+        {
+            // Разброс по площади круга: стопка в одной точке не разбирается тапом.
+            var radius = loot.DropRadius * Math.Sqrt(rng.NextDouble());
+            var angle = rng.NextDouble() * 2 * Math.PI;
+            Spawn(
+                loot,
+                tick,
+                x + radius * Math.Cos(angle),
+                y + radius * Math.Sin(angle),
+                vx * loot.DriftFactor,
+                vy * loot.DriftFactor,
+                item,
+                count);
         }
     }
 

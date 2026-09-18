@@ -88,11 +88,12 @@ export function inRange(weapon: WeaponParams, distance: number): boolean {
 
 /** Шанс попадания, % (GDD §46): точность − уклонение − штраф за дистанцию, в пределах 5…95. */
 export function hitChance(weapon: WeaponParams, distance: number, target: HullParams, targetSpeed: number): number {
-  return clamp(
-    weapon.accuracy - evasion(target, targetSpeed) - rangePenalty(weapon, distance),
-    MIN_HIT_CHANCE,
-    MAX_HIT_CHANCE,
-  );
+  return hitChanceByEvasion(weapon, distance, evasion(target, targetSpeed));
+}
+
+/** Шанс попадания по цели с готовым уклонением, % — для целей без корпуса (метеорит не уклоняется). */
+export function hitChanceByEvasion(weapon: WeaponParams, distance: number, targetEvasion: number): number {
+  return clamp(weapon.accuracy - targetEvasion - rangePenalty(weapon, distance), MIN_HIT_CHANCE, MAX_HIT_CHANCE);
 }
 
 /** Цель в секторе стрельбы (§35). (dx, dy) — от стрелка к цели; корабли в одной точке — в секторе. */
@@ -126,17 +127,20 @@ export interface AimTarget {
   protected: boolean;
 }
 
-/** Та же проверка, что у сервера перед выстрелом (GDD §45): уничтожена, под защитой, дальность, сектор. */
+/**
+ * Та же проверка, что у сервера перед выстрелом (GDD §45): уничтожена, под защитой, дальность, сектор.
+ * targetEvasion — уклонение цели, %: у корабля `evasion(hull, speed)`, у метеорита 0.
+ */
 export function assess(
   shooter: { x: number; y: number; rot: number },
   weapon: WeaponParams,
   target: AimTarget,
-  targetHull: HullParams,
+  targetEvasion: number,
 ): Aim {
   const dx = target.x - shooter.x;
   const dy = target.y - shooter.y;
   const distance = Math.hypot(dx, dy);
-  const chance = hitChance(weapon, distance, targetHull, Math.hypot(target.vx, target.vy));
+  const chance = hitChanceByEvasion(weapon, distance, targetEvasion);
   let state: AimState = 'ready';
   if (target.dead) state = 'dead';
   else if (target.protected) state = 'protected';

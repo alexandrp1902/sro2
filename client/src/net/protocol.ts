@@ -2,11 +2,12 @@
 
 import type { CombatRules, WeaponConfig } from '../sim/combat';
 import type { LootRules } from '../sim/loot';
+import type { MeteorRules } from '../sim/meteors';
 import type { HullConfig } from '../sim/movement';
 import type { NpcRules } from '../sim/npcs';
 
 /** Версия протокола; зеркало Protocol.Version на сервере. Сервер другой версии (или старый, без поля) — не играем. */
-export const PROTOCOL_VERSION = 6;
+export const PROTOCOL_VERSION = 7;
 
 /** Состояние ИИ пирата: патруль, бой, возврат в логово. */
 export type AiState = 'patrol' | 'attack' | 'return';
@@ -99,6 +100,22 @@ export interface PickDto {
   n: number;
 }
 
+/**
+ * Метеорит. Летит строго по прямой с постоянной скоростью: положение через Δt — x + vx·Δt, точно.
+ * Радиус и максимум прочности — из meteors.json по размеру.
+ */
+export interface MeteorDto {
+  id: number;
+  x: number;
+  y: number;
+  vx: number;
+  vy: number;
+  /** Размер — ключ sizes в meteors.json. */
+  s: string;
+  /** Прочность, округлена вверх. */
+  hp: number;
+}
+
 export interface SnapshotMsg {
   t: 'snapshot';
   tick: number;
@@ -109,6 +126,8 @@ export interface SnapshotMsg {
   /** Предметы, лежащие в космосе, и подобранное в этом тике. */
   loot?: LootDto[];
   picks?: PickDto[];
+  /** Метеориты в системе; нет — поля нет. */
+  meteors?: MeteorDto[];
 }
 
 export interface WelcomeMsg {
@@ -127,6 +146,8 @@ export interface WelcomeMsg {
   npcs?: NpcRules;
   /** Лут: радиус захвата, вид и редкость предметов. */
   loot?: LootRules;
+  /** Метеориты: размеры, прочность и пороги предупреждения о таране. */
+  meteors?: MeteorRules;
 }
 
 export interface PlayerDto {
@@ -158,6 +179,7 @@ export interface ConfigMsg {
   combat: CombatRules;
   npcs?: NpcRules;
   loot?: LootRules;
+  meteors?: MeteorRules;
 }
 
 /**

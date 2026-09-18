@@ -42,7 +42,7 @@ internal sealed class Battle(Func<double> roll, ILogger log)
             ship.Ship.Vy = 0;
             ship.FireHeld = false;
             kills.Add(new KillDto(ship.Id, ship.KilledBy));
-            LogKill(tick, ship, ships);
+            if (ship is not Meteor) LogKill(tick, ship, ships); // TTK камней плейтесту не нужен, а лог забил бы
         }
 
         foreach (var ship in ships.Values)
@@ -73,7 +73,7 @@ internal sealed class Battle(Func<double> roll, ILogger log)
         if (!Combat.InRange(weapon, distance) || !Combat.InArc(shooter.Ship.Rot, dx, dy, weapon.Arc)) return false;
 
         var speed = Math.Sqrt(target.Ship.Vx * target.Ship.Vx + target.Ship.Vy * target.Ship.Vy);
-        volley = new Volley(shooter, target, weapon, Combat.HitChance(weapon, distance, target.Hull(balance.Hulls), speed));
+        volley = new Volley(shooter, target, weapon, Combat.HitChance(weapon, distance, target.Evasion(balance, speed)));
         return true;
     }
 

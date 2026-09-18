@@ -93,64 +93,76 @@ public sealed record CombatRules(
     }
 }
 
-/// <summary>Весь баланс: корпуса, пушки, правила боя, NPC, лут. Меняется только целиком.</summary>
+/// <summary>Тексты файлов баланса — по имени, а не по позиции: шесть соседних строк легко переставить и не заметить.</summary>
+public sealed record BalanceSources(string Hulls, string Weapons, string Rules, string Npcs, string Loot, string Meteors);
+
+/// <summary>Весь баланс: корпуса, пушки, правила боя, NPC, лут, метеориты. Меняется только целиком.</summary>
 /// <param name="Npcs">Пираты; null — NPC, кроме дронов, нет.</param>
 /// <param name="Loots">Лут и трюм; null — добычи нет.</param>
+/// <param name="MeteorSet">Метеориты; null — их нет.</param>
 public sealed record Balance(
     IReadOnlyDictionary<string, HullParams> Hulls,
     IReadOnlyDictionary<string, WeaponParams> Weapons,
     CombatRules Rules,
     NpcRules? Npcs = null,
-    LootRules? Loots = null)
+    LootRules? Loots = null,
+    MeteorRules? MeteorSet = null)
 {
     public const string HullsFile = "hulls.json";
     public const string WeaponsFile = "weapons.json";
     public const string RulesFile = "combat.json";
     public const string NpcsFile = NpcRules.File;
     public const string LootFile = LootRules.File;
+    public const string MeteorsFile = MeteorRules.File;
+
+    /// <summary>Все файлы баланса в порядке разбора.</summary>
+    public static readonly string[] Files = [HullsFile, WeaponsFile, RulesFile, NpcsFile, LootFile, MeteorsFile];
 
     public NpcRules Npc => Npcs ?? NpcRules.None;
 
     public LootRules Loot => Loots ?? LootRules.None;
 
-    /// <summary>Разбирает пять файлов вместе: правила и NPC ссылаются на корпуса и пушки.</summary>
-    public static bool TryParse(
-        string hullsJson,
-        string weaponsJson,
-        string rulesJson,
-        string npcsJson,
-        string lootJson,
-        out Balance? balance,
-        out string? error)
+    public MeteorRules Meteors => MeteorSet ?? MeteorRules.None;
+
+    /// <summary>
+    /// Разбирает все файлы вместе: правила и NPC ссылаются на корпуса и пушки, лут — на укрытие из NPC,
+    /// метеориты — на корпуса, укрытие и таблицы лута.
+    /// </summary>
+    public static bool TryParse(BalanceSources sources, out Balance? balance, out string? error)
     {
         balance = null;
-        if (!HullCatalog.TryParse(hullsJson, out var hulls, out error))
+        if (!HullCatalog.TryParse(sources.Hulls, out var hulls, out error))
         {
             error = $"{HullsFile}: {error}";
             return false;
         }
-        if (!WeaponCatalog.TryParse(weaponsJson, out var weapons, out error))
+        if (!WeaponCatalog.TryParse(sources.Weapons, out var weapons, out error))
         {
             error = $"{WeaponsFile}: {error}";
             return false;
         }
-        if (!CombatRules.TryParse(rulesJson, hulls, out var rules, out error))
+        if (!CombatRules.TryParse(sources.Rules, hulls, out var rules, out error))
         {
             error = $"{RulesFile}: {error}";
             return false;
         }
-        if (!NpcRules.TryParse(npcsJson, hulls, weapons, out var npcs, out error))
+        if (!NpcRules.TryParse(sources.Npcs, hulls, weapons, out var npcs, out error))
         {
             error = $"{NpcsFile}: {error}";
             return false;
         }
         // Лут разбирается после NPC: контейнер нельзя поставить внутрь укрытия станции, а его радиус — там.
-        if (!LootRules.TryParse(lootJson, out var loot, out error, npcs.StationSafeRadius))
+        if (!LootRules.TryParse(sources.Loot, out var loot, out error, npcs.StationSafeRadius))
         {
             error = $"{LootFile}: {error}";
             return false;
         }
-        balance = new Balance(hulls, weapons, rules, npcs, loot);
+        if (!MeteorRules.TryParse(sources.Meteors, hulls, npcs.StationSafeRadius, [.. loot.TableMap.Keys], out var meteors, out error))
+        {
+            error = $"{MeteorsFile}: {error}";
+            return false;
+        }
+        balance = new Balance(hulls, weapons, rules, npcs, loot, meteors);
         return true;
     }
 }

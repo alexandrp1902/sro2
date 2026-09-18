@@ -792,3 +792,49 @@ body {
 .connect button[type='submit'] {
   background: #2f7ad6;
 }
+
+/* Метеорит на курсе тарана (M5b): плашка с отсчётом до касания над центром экрана. */
+.meteor-warn {
+  position: absolute;
+  left: 50%;
+  top: 24%;
+  transform: translateX(-50%);
+  padding: 6px 14px;
+  border: 1px solid rgba(255, 74, 74, 0.75);
+  border-radius: 10px;
+  background: rgba(40, 6, 6, 0.72);
+  color: #ff8a80;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+.meteor-warn[data-critical='true'] {
+  color: #fff;
+  background: rgba(150, 16, 16, 0.85);
+  animation: meteor-blink 0.44s ease-in-out infinite alternate;
+}
+
+/* Последние полторы секунды — красный пульс по краю экрана: заметно, даже если смотришь на цель. */
+.meteor-edge {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  box-shadow: inset 0 0 0 4px rgba(255, 60, 60, 0.75), inset 0 0 60px rgba(255, 40, 40, 0.45);
+  animation: meteor-blink 0.44s ease-in-out infinite alternate;
+}
+
+.meteor-warn[hidden],
+.meteor-edge[hidden] {
+  display: none;
+}
+
+@keyframes meteor-blink {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0.35;
+  }
+}

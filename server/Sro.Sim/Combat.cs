@@ -87,7 +87,11 @@ public static class Combat
 
     /// <summary>Шанс попадания, % (GDD §46): точность − уклонение − штраф за дистанцию, в пределах 5…95.</summary>
     public static double HitChance(WeaponParams weapon, double distance, HullParams target, double targetSpeed) =>
-        Math.Clamp(weapon.Accuracy - Evasion(target, targetSpeed) - RangePenalty(weapon, distance), MinHitChance, MaxHitChance);
+        HitChance(weapon, distance, Evasion(target, targetSpeed));
+
+    /// <summary>Шанс попадания по цели с готовым уклонением, % — для целей без корпуса (метеорит уклоняться не умеет).</summary>
+    public static double HitChance(WeaponParams weapon, double distance, double evasion) =>
+        Math.Clamp(weapon.Accuracy - evasion - RangePenalty(weapon, distance), MinHitChance, MaxHitChance);
 
     /// <param name="roll">Случайное число из [0, 1).</param>
     public static bool IsHit(double chance, double roll) => roll * 100 < chance;

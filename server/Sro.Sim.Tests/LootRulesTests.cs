@@ -169,16 +169,8 @@ public class LootRulesTests
     [Fact]
     public void SharedLootJson_KeepsContainersOutOfTheShelter()
     {
-        var dir = Path.Combine(TestHulls.RepoRoot(), "shared");
-        string Read(string file) => System.IO.File.ReadAllText(Path.Combine(dir, file));
-
         // Разбор всего набора проверяет контейнеры против настоящего радиуса укрытия из npcs.json.
-        Assert.True(
-            Balance.TryParse(
-                Read(Balance.HullsFile), Read(Balance.WeaponsFile), Read(Balance.RulesFile), Read(Balance.NpcsFile), Read(Balance.LootFile),
-                out var balance,
-                out var error),
-            error);
+        Assert.True(Balance.TryParse(TestHulls.SharedSources(), out var balance, out var error), error);
         Assert.NotEmpty(balance!.Loot.ContainerList);
     }
 
@@ -204,13 +196,7 @@ public class LootRulesTests
     [Fact]
     public void Balance_RejectsTheWholeSetWhenLootIsBroken()
     {
-        var dir = Path.Combine(TestHulls.RepoRoot(), "shared");
-        string Read(string file) => System.IO.File.ReadAllText(Path.Combine(dir, file));
-
-        Assert.False(Balance.TryParse(
-            Read(Balance.HullsFile), Read(Balance.WeaponsFile), Read(Balance.RulesFile), Read(Balance.NpcsFile), "not json",
-            out var balance,
-            out var error));
+        Assert.False(Balance.TryParse(TestHulls.SharedSources() with { Loot = "not json" }, out var balance, out var error));
         Assert.Null(balance);
         Assert.StartsWith(Balance.LootFile, error);
     }

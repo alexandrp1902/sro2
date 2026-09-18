@@ -75,6 +75,7 @@ public abstract record ServerMessage;
 /// <param name="Resumed">Игрок вернулся к кораблю, который ждал его после обрыва связи.</param>
 /// <param name="Npcs">Пираты: логова и укрытие у станции — клиент рисует их на карте.</param>
 /// <param name="Loot">Лут: радиус захвата, вид и редкость предметов — для подписей и кольца захвата.</param>
+/// <param name="Meteors">Метеориты: радиусы, прочность и пороги предупреждения о таране.</param>
 public sealed record WelcomeMsg(
     int Id,
     int TickRate,
@@ -84,7 +85,8 @@ public sealed record WelcomeMsg(
     CombatRules Combat,
     bool Resumed,
     NpcRules? Npcs = null,
-    LootRules? Loot = null) : ServerMessage;
+    LootRules? Loot = null,
+    MeteorRules? Meteors = null) : ServerMessage;
 
 public sealed record PongMsg(double C, long Tick) : ServerMessage;
 
@@ -111,7 +113,8 @@ public sealed record ConfigMsg(
     IReadOnlyDictionary<string, WeaponParams> Weapons,
     CombatRules Combat,
     NpcRules? Npcs = null,
-    LootRules? Loot = null) : ServerMessage;
+    LootRules? Loot = null,
+    MeteorRules? Meteors = null) : ServerMessage;
 
 /// <summary>
 /// Трюм игрока (GDD §21) — только своему соединению: снапшот один на всех, личному месту в нём нет.
@@ -134,13 +137,15 @@ public sealed record NoticeMsg(string Code) : ServerMessage;
 /// <param name="Kills">Уничтоженные в этом тике.</param>
 /// <param name="Loot">Предметы, лежащие в космосе.</param>
 /// <param name="Picks">Подобранное в этом тике — видно всем: чужой луч объясняет, куда делся предмет.</param>
+/// <param name="Meteors">Метеориты в системе. Отдельно от кораблей: у них нет корпуса, пушки и места в ростере.</param>
 public sealed record SnapshotMsg(
     long Tick,
     IReadOnlyList<ShipDto> Ships,
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] IReadOnlyList<ShotDto>? Shots = null,
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] IReadOnlyList<KillDto>? Kills = null,
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] IReadOnlyList<LootDto>? Loot = null,
-    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] IReadOnlyList<PickDto>? Picks = null) : ServerMessage;
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] IReadOnlyList<PickDto>? Picks = null,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] IReadOnlyList<MeteorDto>? Meteors = null) : ServerMessage;
 
 /// <param name="Th">Тяга последнего входа — для пламени двигателя у чужих кораблей.</param>
 /// <param name="Ack">Последний применённый seq владельца: состояние — ровно после этого входа.</param>
@@ -194,14 +199,22 @@ public sealed record LootDto(
 /// <param name="By">Чей тракторный луч забрал предмет.</param>
 public sealed record PickDto(int By, int Id, string I, int N);
 
+/// <summary>
+/// Метеорит. Летит строго по прямой с постоянной скоростью, поэтому клиент считает положение как x + vx·Δt —
+/// точно, без буфера кадров. Радиус и максимум прочности клиент берёт из meteors.json по размеру.
+/// </summary>
+/// <param name="S">Размер — ключ sizes в meteors.json.</param>
+/// <param name="Hp">Прочность, округлена вверх.</param>
+public sealed record MeteorDto(int Id, double X, double Y, double Vx, double Vy, string S, int Hp);
+
 public static class Protocol
 {
     /// <summary>
     /// Меняется, когда клиент и сервер разных версий уже не поймут друг друга
-    /// (3 — бой, M3; 4 — пираты, M4; 5 — лут и трюм, M5a; 6 — ручной подбор и продажа груза).
+    /// (3 — бой, M3; 4 — пираты, M4; 5 — лут и трюм, M5a; 6 — ручной подбор и продажа груза; 7 — метеориты, M5b).
     /// Зеркало PROTOCOL_VERSION в client/src/net/protocol.ts.
     /// </summary>
-    public const int Version = 6;
+    public const int Version = 7;
 
     public const string DroneKind = "drone";
     public const string PirateKind = "pirate";

@@ -15,6 +15,9 @@ const OUTLINE = 0x05060a;
 const TARGET_COLOR = 0xffa53a;
 /** Выбранный предмет: голубой — не путается ни с целью (оранжевая), ни со своим кораблём. */
 const LOOT_COLOR = 0x6fd3ff;
+/** Метеорит: рыжий, как его прожилки; опасный — красный. */
+const METEOR_COLOR = 0xd9a066;
+const DANGER_COLOR = 0xff4a4a;
 /** Пират, который целится в меня: знак перед ником и крупная стрелка у края экрана. */
 const THREAT_PREFIX = '! ';
 /** Состояние ИИ под ником — при открытой dev-панели, для настройки пиратов на плейтесте. */
@@ -61,6 +64,8 @@ interface Marker {
   bubble: Graphics;
   /** Цвет подписи по виду корабля; у выбранной цели подпись оранжевая. */
   color: number;
+  /** Метеорит на опасном курсе: стрелка и подпись красные. */
+  danger: boolean;
   targeted: boolean;
   text: string;
   barsKey: string;
@@ -89,9 +94,31 @@ export interface LootMark {
   size: number;
 }
 
+/** Метеорит: рамка цели, полоска прочности и стрелка у края — только выбранному, опасному или побитому. */
+export interface MeteorMark {
+  id: number;
+  x: number;
+  y: number;
+  size: number;
+  name: string;
+  hp: number;
+  maxHp: number;
+  /** Секунд до тарана, если курс опасный; null — разойдёмся. */
+  threat: number | null;
+}
+
+/** Полоски над объектом: корпус и, если есть, щит. */
+interface Bars {
+  hp: number;
+  maxHp: number;
+  sh: number;
+  maxSh: number;
+}
+
 /** Всё, что оверлей рисует за кадр. Объект, а не список параметров: их уже девять. */
 export interface OverlayFrame {
   ships: Iterable<RemoteShipInfo>;
+  meteors: Iterable<MeteorMark>;
   camera: Camera;
   width: number;
   height: number;
@@ -138,7 +165,7 @@ export class PlayerOverlay {
     this.targetArrow.visible = false;
 
     for (const ship of ships) {
-      const marker = this.marker(ship);
+      const marker = this.marker(ship.id, COLORS[ship.kind]);
       marker.seen = true;
       const threat = ship.kind === 'pirate' && ship.targetId === ownId;
       const alpha = ship.online ? ship.alpha : LOST_LABEL_ALPHA;
@@ -202,6 +229,8 @@ export class PlayerOverlay {
       );
     }
 
+    for (const meteor of frame.meteors) this.updateMeteor(meteor, frame, cx, cy);
+
     for (const [id, marker] of this.markers) {
       if (marker.seen) continue;
       marker.label.destroy();
@@ -238,8 +267,76 @@ export class PlayerOverlay {
     }
   }
 
+  /**
+   * Метеорит. На экране — рамка, если выбран, полоска, если побит, и подпись с отсчётом, если летит в нас.
+   * За краем — стрелка только выбранному и опасному: камней до десяти, стрелки ко всем забили бы края.
+   */
+  private updateMeteor(meteor: MeteorMark, frame: OverlayFrame, cx: number, cy: number): void {
+    const { camera, width, height, target, own } = frame;
+    const sx = cx + (meteor.x - camera.x) * camera.zoom;
+    const sy = cy + (meteor.y - camera.y) * camera.zoom;
+    const r = meteor.size * camera.zoom;
+    const onScreen = sx > -r && sx < width + r && sy > -r && sy < height + r;
+    const isTarget = target?.id === meteor.id;
+    const danger = meteor.threat !== null;
+    const damaged = meteor.hp < meteor.maxHp;
+    if (onScreen ? !isTarget && !danger && !damaged : !isTarget && !danger) return;
+
+    const marker = this.marker(meteor.id, METEOR_COLOR);
+    marker.seen = true;
+    if (danger !== marker.danger || isTarget !== marker.targeted) {
+      marker.danger = danger;
+      marker.targeted = isTarget;
+      marker.color = danger ? DANGER_COLOR : METEOR_COLOR;
+      marker.arrow.clear().poly([0, -9, 7, 6, -7, 6]).fill(marker.color).stroke({ width: 1.5, color: OUTLINE });
+      marker.label.style.fill = isTarget && !danger ? TARGET_COLOR : marker.color;
+    }
+
+    let text = danger ? `${meteor.name.toUpperCase()} · ${meteor.threat!.toFixed(1)} с` : meteor.name;
+    if (!onScreen && !danger && own) text += ` · ${formatSectors(Math.hypot(meteor.x - own.x, meteor.y - own.y), frame.sectorUnit)}с`;
+    if (text !== marker.text) {
+      marker.label.text = text;
+      marker.text = text;
+    }
+    marker.label.alpha = marker.arrow.alpha = marker.bars.alpha = 1;
+    marker.arrow.visible = !onScreen;
+    marker.bars.visible = onScreen && (isTarget || damaged);
+    marker.label.visible = !onScreen || isTarget || danger;
+    marker.bubble.visible = false;
+
+    if (onScreen) {
+      const barsHeight = marker.bars.visible ? this.drawBars(marker, { hp: meteor.hp, maxHp: meteor.maxHp, sh: 0, maxSh: 0 }) : 0;
+      const barsTop = sy - r - LABEL_GAP - barsHeight;
+      marker.bars.position.set(sx - BAR_WIDTH / 2, barsTop);
+      marker.label.anchor.set(0.5, 1);
+      marker.label.position.set(sx, barsTop - 2);
+      if (isTarget && target) this.drawFrame(this.frame, sx, sy, r, FRAME_COLORS[target.state]);
+      return;
+    }
+
+    const dx = sx - cx;
+    const dy = sy - cy;
+    const { x: ax, y: ay } = edgePoint(cx, cy, dx, dy);
+    marker.arrow.position.set(ax, ay);
+    marker.arrow.rotation = Math.atan2(dx, -dy);
+    marker.arrow.scale.set(1.4);
+    if (isTarget) {
+      this.targetArrow.visible = true;
+      this.targetArrow.position.set(ax, ay);
+      this.targetArrow.rotation = marker.arrow.rotation;
+      this.targetArrow.scale.set(1.4);
+    }
+    const length = Math.hypot(dx, dy);
+    const label = marker.label;
+    label.anchor.set(0.5);
+    label.position.set(
+      clamp(ax - (dx / length) * ARROW_LABEL_OFFSET, label.width / 2 + LABEL_PADDING, width - label.width / 2 - LABEL_PADDING),
+      clamp(ay - (dy / length) * ARROW_LABEL_OFFSET, label.height / 2 + LABEL_PADDING, height - label.height / 2 - LABEL_PADDING),
+    );
+  }
+
   /** @returns высота полосок, px */
-  private drawBars(marker: Marker, ship: RemoteShipInfo): number {
+  private drawBars(marker: Marker, ship: Bars): number {
     const hull = share(ship.hp, ship.maxHp);
     const shield = ship.maxSh > 0 ? share(ship.sh, ship.maxSh) : -1;
     const rows = shield < 0 ? 1 : 2;
@@ -304,10 +401,9 @@ export class PlayerOverlay {
     target.visible = true;
   }
 
-  private marker(ship: RemoteShipInfo): Marker {
-    let marker = this.markers.get(ship.id);
+  private marker(id: number, color: number): Marker {
+    let marker = this.markers.get(id);
     if (!marker) {
-      const color = COLORS[ship.kind];
       const label = new Text({
         text: '',
         style: {
@@ -321,8 +417,20 @@ export class PlayerOverlay {
       const bars = new Graphics();
       const bubbleView = new Graphics();
       this.view.addChild(bubbleView, bars, arrow, label);
-      marker = { label, arrow, bars, bubble: bubbleView, color, targeted: false, text: '', barsKey: '', bubbleRadius: 0, seen: true };
-      this.markers.set(ship.id, marker);
+      marker = {
+        label,
+        arrow,
+        bars,
+        bubble: bubbleView,
+        color,
+        danger: false,
+        targeted: false,
+        text: '',
+        barsKey: '',
+        bubbleRadius: 0,
+        seen: true,
+      };
+      this.markers.set(id, marker);
     }
     return marker;
   }

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import vectors from '../../../shared/test-vectors/combat.json';
-import { assess, cooldownTicks, hitChance, inArc, inRange, type AimTarget, type WeaponParams } from './combat';
+import { assess, cooldownTicks, evasion, hitChance, hitChanceByEvasion, inArc, inRange, type AimTarget, type WeaponParams } from './combat';
 import type { HullParams } from './movement';
 
 /** Одни и те же операции в .NET и V8; допуск — на последний бит atan2. */
@@ -18,6 +18,13 @@ describe('combat matches the server (shared/test-vectors/combat.json)', () => {
         throw new Error(`${JSON.stringify(c)}: got ${actual}`);
       }
       expect(inRange(weapons[c.weapon], c.distance)).toBe(c.inRange);
+    }
+  });
+
+  it('hit chance by evasion', () => {
+    for (const c of vectors.hitChanceByEvasion) {
+      const actual = hitChanceByEvasion(weapons[c.weapon], c.distance, c.evasion);
+      if (Math.abs(actual - c.chance) > TOLERANCE) throw new Error(`${JSON.stringify(c)}: got ${actual}`);
     }
   });
 
@@ -39,6 +46,7 @@ describe('combat helpers', () => {
     ...extra,
   });
   const shooter = { x: 0, y: 0, rot: 0 };
+  const lightStill = evasion(light, 0);
 
   it('rounds the cooldown up to whole ticks', () => {
     expect(cooldownTicks(pulse)).toBe(20);
@@ -47,10 +55,12 @@ describe('combat helpers', () => {
   });
 
   it('explains why the gun does not fire', () => {
-    expect(assess(shooter, pulse, target(0, -300), light)).toEqual({ state: 'ready', distance: 300, chance: 50 });
-    expect(assess(shooter, pulse, target(0, 300), light).state).toBe('arc');
-    expect(assess(shooter, pulse, target(0, -800), light).state).toBe('range');
-    expect(assess(shooter, pulse, target(0, -300, { protected: true }), light).state).toBe('protected');
-    expect(assess(shooter, pulse, target(0, -300, { dead: true, protected: true }), light).state).toBe('dead');
+    expect(assess(shooter, pulse, target(0, -300), lightStill)).toEqual({ state: 'ready', distance: 300, chance: 50 });
+    // Метеорит: уклонения нет, шанс — точность пушки.
+    expect(assess(shooter, pulse, target(0, -300), 0).chance).toBe(pulse.accuracy);
+    expect(assess(shooter, pulse, target(0, 300), lightStill).state).toBe('arc');
+    expect(assess(shooter, pulse, target(0, -800), lightStill).state).toBe('range');
+    expect(assess(shooter, pulse, target(0, -300, { protected: true }), lightStill).state).toBe('protected');
+    expect(assess(shooter, pulse, target(0, -300, { dead: true, protected: true }), lightStill).state).toBe('dead');
   });
 });

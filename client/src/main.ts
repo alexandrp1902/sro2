@@ -20,6 +20,7 @@ import { resolveServerUrl } from './net/serverUrl';
 import { Camera } from './render/camera';
 import { CombatFx, type FxAnchor } from './render/combatFx';
 import { LootField } from './render/lootView';
+import { MeteorField, type MeteorThreat } from './render/meteorView';
 import { Nebula } from './render/nebulaView';
 import { PlayerOverlay } from './render/playerOverlay';
 import { ShipView, engineGlow } from './render/ship';
@@ -27,9 +28,10 @@ import { Starfield } from './render/starfield';
 import { WeaponArc } from './render/weaponArc';
 import { createWorldView } from './render/world';
 import { Zones } from './render/zones';
-import { DEFAULT_SECTOR_UNIT, assess, cooldownTicks } from './sim/combat';
+import { DEFAULT_SECTOR_UNIT, assess, cooldownTicks, evasion } from './sim/combat';
 import { DEFAULT_HULL, Hulls } from './sim/hulls';
 import { NO_LOOT, lootLabel, rarityColor, type LootRules } from './sim/loot';
+import { NO_METEORS, interceptRisk, type MeteorRules } from './sim/meteors';
 import { DT, directionAngle, localVelocity, type MoveInput } from './sim/movement';
 import { DEFAULT_WEAPON, Weapons } from './sim/weapons';
 import { CargoHud } from './ui/cargoHud';
@@ -38,6 +40,7 @@ import { DevOverlay } from './ui/devOverlay';
 import { Feed, describeKill, describeNotice } from './ui/feed';
 import { FlightHud } from './ui/flightHud';
 import { PilotForm } from './ui/pilotForm';
+import { MeteorAlarm } from './ui/meteorAlarm';
 import { StatusHud } from './ui/statusHud';
 import { playerName, setPlayerName } from './util/playerName';
 import { storage } from './util/storage';
@@ -79,6 +82,8 @@ async function main(): Promise<void> {
   let weaponId = savedWeapon && weapons.has(savedWeapon) ? savedWeapon : DEFAULT_WEAPON;
   /** Каталог лута с сервера: названия, редкость и радиус захвата. */
   let lootRules: LootRules = NO_LOOT;
+  /** Метеориты с сервера: размеры и пороги предупреждения о таране. */
+  let meteorRules: MeteorRules = NO_METEORS;
   /** Единица дистанции для игрока: «цель в 1.4 сектора» вместо «в 980». */
   let sectorUnit = DEFAULT_SECTOR_UNIT;
 
@@ -99,11 +104,23 @@ async function main(): Promise<void> {
   const overlay = new PlayerOverlay();
   const zones = new Zones();
   const loot = new LootField();
-  world.addChild(nebula.view, createWorldView(), zones.view, loot.view, weaponArc.view, remote.view, ownShip.view, fx.view);
+  const meteors = new MeteorField();
+  world.addChild(
+    nebula.view,
+    createWorldView(),
+    zones.view,
+    loot.view,
+    meteors.view,
+    weaponArc.view,
+    remote.view,
+    ownShip.view,
+    fx.view,
+  );
   app.stage.addChild(starfield.view, world, overlay.view);
   const camera = new Camera();
 
   const feed = new Feed(el('feed'));
+  const alarm = new MeteorAlarm(el('meteor-warn'), el('meteor-edge'));
   const pilotForm = new PilotForm(el('connect'), (name) => {
     if (name === playerName()) return;
     setPlayerName(name);
@@ -144,11 +161,14 @@ async function main(): Promise<void> {
     },
   );
 
-  // Огонь без цели берёт ближайший корабль: сначала в секторе, потом просто в дальности. Никого — огонь не включается.
+  /** Всё, во что можно целиться: корабли и метеориты. Id у них из одного счётчика сервера. */
+  const targets = () => [...remote.visible(), ...meteors.visible()];
+  // Огонь без цели берёт ближайший корабль или камень: сначала в секторе, потом просто в дальности.
+  // Никого — огонь не включается.
   fire.onPress = () => {
-    const current = remote.get(targetId);
+    const current = remote.get(targetId) ?? meteors.get(targetId);
     if (current && !current.dead) return true;
-    const id = nearest(prediction.curr, remote.visible(), weapons.get(weaponId));
+    const id = nearest(prediction.curr, targets(), weapons.get(weaponId));
     if (id !== null) {
       setTarget(id);
       return true;
@@ -165,7 +185,7 @@ async function main(): Promise<void> {
    * Прицел один: шаг на корабль снимает груз, шаг на груз снимает цель.
    */
   const stepSelection = (step: -1 | 1) => {
-    const candidates = [...remote.visible(), ...loot.visible()];
+    const candidates = [...targets(), ...loot.visible()];
     const from = selectedLootId !== 0 ? selectedLootId : targetId;
     // Кольцо спирали — сектор: сначала обходим всё вокруг себя, потом уходим на виток дальше.
     const id = cycle(prediction.curr, candidates, from, step, sectorUnit);
@@ -211,7 +231,7 @@ async function main(): Promise<void> {
   new TapSelect(app.canvas, (x, y, touch, double) => {
     const view = { x: camera.x, y: camera.y, zoom: camera.zoom, width: app.screen.width, height: app.screen.height };
     // Корабль выигрывает у предмета: промах пальцем в бою не должен вместо цели выбрать мусор.
-    const shipId = pickAt(x, y, remote.visible(), view, touch);
+    const shipId = pickAt(x, y, remote.visible(), view, touch) ?? pickAt(x, y, meteors.visible(), view, touch);
     if (shipId === null) {
       const lootId = pickAt(x, y, loot.visible(), view, touch);
       if (lootId !== null) {
@@ -257,9 +277,12 @@ async function main(): Promise<void> {
   const locate = (id: number): FxAnchor | null => {
     if (id === ownId()) return ownAnchor;
     const ship = remote.get(id);
-    return ship ? { x: ship.x, y: ship.y, size: ship.size } : null;
+    if (ship) return { x: ship.x, y: ship.y, size: ship.size };
+    return meteors.lastSeen(id, performance.now());
   };
-  const nameOf = (id: number) => roster.get(id)?.name ?? '?';
+  // Метеоритов нет в ростере — их имя знает поле метеоритов, в том числе у только что разбитого.
+  const nameOf = (id: number) => roster.get(id)?.name ?? meteors.nameOf(id) ?? '?';
+  const isMeteor = (id: number) => id !== 0 && !roster.get(id) && meteors.nameOf(id) !== null;
   const play = (event: CombatEvent, now: number) => {
     if (event.kind === 'kill') {
       const at = locate(event.kill.id);
@@ -293,6 +316,9 @@ async function main(): Promise<void> {
       loot.setRules(message.loot);
       cargoHud.setRules(message.loot);
       loot.clear();
+      meteorRules = message.meteors ?? NO_METEORS;
+      meteors.setRules(message.meteors);
+      meteors.clear();
       selectedLootId = 0; // предметы в космосе за это время сменились — выбор не переносим
       prediction.resetNet();
       remote.clear();
@@ -311,6 +337,8 @@ async function main(): Promise<void> {
       lootRules = message.loot ?? NO_LOOT;
       loot.setRules(message.loot);
       cargoHud.setRules(message.loot);
+      meteorRules = message.meteors ?? NO_METEORS;
+      meteors.setRules(message.meteors);
     };
     connection.onCargo = (message) => {
       cargoHud.setCargo({ used: message.used, max: message.max, items: message.items, credits: message.credits ?? 0 });
@@ -325,6 +353,7 @@ async function main(): Promise<void> {
       latestSnapshot = message;
       remote.push(message, now);
       loot.push(message, now);
+      meteors.push(message, now);
       for (const event of combat.push(message, own)) play(event, now);
       for (const shot of message.shots ?? []) {
         if (shot.from !== own) continue;
@@ -333,7 +362,11 @@ async function main(): Promise<void> {
         fireStats.chanceSum += shot.ch;
       }
       for (const kill of message.kills ?? []) {
-        feed.add(describeKill(nameOf(kill.by), nameOf(kill.id)));
+        // Камни бьются десятками в минуту: в ленту — только если участвуем сами, иначе они выбьют из неё всё.
+        // by = 0 — камень разбился о корабль; об этом говорит сам таран.
+        const withMeteor = isMeteor(kill.id) || isMeteor(kill.by) || kill.by === 0;
+        const mine = kill.id === own || kill.by === own;
+        if (!withMeteor || (mine && kill.by !== 0)) feed.add(describeKill(nameOf(kill.by), nameOf(kill.id)));
         if (kill.id === own) killedBy = nameOf(kill.by);
       }
     };
@@ -371,6 +404,7 @@ async function main(): Promise<void> {
     if (wasOnline && !online) {
       prediction.resetNet(); // тормозим локально, при подключении примем состояние сервера
       remote.clear();
+      meteors.clear();
       combat.clear();
       ownDto = null;
     }
@@ -406,22 +440,46 @@ async function main(): Promise<void> {
 
     remote.update(now, online ? connection!.playerId : -1);
     loot.update(now, remote.renderTick);
+    meteors.update(now);
     for (const event of combat.take(remote.renderTick)) play(event, now);
 
     // Предмет забрали или он протух — снимаем выбор.
     if (selectedLootId !== 0 && !loot.get(selectedLootId)) setLoot(0);
     const selectedLoot = selectedLootId !== 0 ? loot.get(selectedLootId) : undefined;
 
-    // Цель ушла из системы (вышла, сервер перезапустился) — снимаем.
-    if (targetId !== 0 && remote.inLatest(targetId) === false) setTarget(0);
-    const target = targetId !== 0 ? remote.get(targetId) : undefined;
+    // Цель ушла из системы (вышла, сервер перезапустился) или камень разбит, улетел — снимаем.
+    const targetMeteor = targetId !== 0 ? meteors.get(targetId) : undefined;
+    if (targetId !== 0 && !targetMeteor && remote.inLatest(targetId) === false) setTarget(0);
+    const targetShip = targetId !== 0 && !targetMeteor ? remote.get(targetId) : undefined;
+    const target = targetShip ?? targetMeteor;
     const weapon = weapons.get(weaponId);
-    const aim = target ? assess(state, weapon, target, hulls.get(target.hull)) : null;
+    // Камень не уклоняется: шанс по нему — точность пушки минус штраф за дистанцию, как на сервере.
+    const aim = targetShip
+      ? assess(state, weapon, targetShip, evasion(hulls.get(targetShip.hull), Math.hypot(targetShip.vx, targetShip.vy)))
+      : targetMeteor
+        ? assess(state, weapon, targetMeteor, 0)
+        : null;
     const tick = connection?.lastTick ?? 0;
     const protectedSeconds = ownDto?.pu ? Math.max(0, (ownDto.pu - tick) * DT) : 0;
     const me = ownId();
     let attackers = 0;
     for (const ship of remote.visible()) if (ship.kind === 'pirate' && ship.targetId === me) attackers++;
+
+    // Курс метеоритов: кто из них врежется в нас, если никто не свернёт. Защищённый и мёртвый не таранятся —
+    // сервер их пропускает, значит и тревога была бы ложной.
+    const threats: MeteorThreat[] = [];
+    const threatOf = new Map<number, number>();
+    if (online && !dead && protectedSeconds <= 0) {
+      const body = { x: state.x, y: state.y, vx: prediction.curr.vx, vy: prediction.curr.vy, size: hull.size };
+      for (const meteor of meteors.visible()) {
+        const risk = interceptRisk(body, meteor, meteorRules);
+        if (!risk) continue;
+        threats.push({ id: meteor.id, seconds: risk.seconds });
+        threatOf.set(meteor.id, risk.seconds);
+      }
+    }
+    meteors.drawThreats(threats, now);
+    alarm.update(threats);
 
     camera.follow(state.x, state.y, zoom.value).apply(world, app.screen.width, app.screen.height);
     starfield.update(camera.x, camera.y, camera.zoom, app.screen.width, app.screen.height);
@@ -429,6 +487,7 @@ async function main(): Promise<void> {
     weaponArc.update(state.x, state.y, state.rot, target && !dead ? weapon : null, aim?.state === 'ready');
     overlay.update({
       ships: remote.visible(),
+      meteors: [...meteors.visible()].map((m) => ({ ...m, threat: threatOf.get(m.id) ?? null })),
       camera,
       width: app.screen.width,
       height: app.screen.height,
@@ -448,11 +507,12 @@ async function main(): Promise<void> {
       target && aim
         ? {
             name: target.name,
-            hullName: hulls.get(target.hull).name,
+            // У камня вместо корпуса — просто «Камень»: строка класса под именем размера («Крупный метеорит»).
+            hullName: targetShip ? hulls.get(targetShip.hull).name : 'Камень',
             hp: target.hp,
             maxHp: target.maxHp,
-            sh: target.sh,
-            maxSh: target.maxSh,
+            sh: targetShip?.sh ?? 0,
+            maxSh: targetShip?.maxSh ?? 0, // у камня щита нет
             aim,
             sectorUnit,
             fire: fire.active,

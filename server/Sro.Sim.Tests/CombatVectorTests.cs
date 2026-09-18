@@ -18,12 +18,16 @@ public class CombatVectorTests
 
     private sealed record ChanceCase(string Weapon, string Hull, double Distance, double Speed, double Chance, bool InRange);
 
+    /// <summary>Цель без корпуса: уклонение задано числом (метеорит — 0).</summary>
+    private sealed record EvasionCase(string Weapon, double Distance, double Evasion, double Chance);
+
     private sealed record ArcCase(double Rot, double Dx, double Dy, double Arc, bool InArc);
 
     private sealed record VectorFile(
         Dictionary<string, WeaponParams> Weapons,
         Dictionary<string, HullParams> Hulls,
         ChanceCase[] HitChance,
+        EvasionCase[] HitChanceByEvasion,
         ArcCase[] Arc);
 
     private static string VectorPath() => Path.Combine(TestHulls.RepoRoot(), "shared", "test-vectors", "combat.json");
@@ -42,6 +46,7 @@ public class CombatVectorTests
         Assert.True(File.Exists(path), $"{path} is missing: run 'SRO_UPDATE_VECTORS=1 dotnet test'");
         var stored = JsonSerializer.Deserialize<VectorFile>(File.ReadAllText(path), Json)!;
         Assert.Equal(generated.HitChance.Length, stored.HitChance.Length);
+        Assert.Equal(generated.HitChanceByEvasion.Length, stored.HitChanceByEvasion.Length);
         Assert.Equal(generated.Arc.Length, stored.Arc.Length);
 
         // Формулы проверяются на входах из файла, как в Vitest: sin/cos в .NET на Windows и Linux (CI) расходятся
@@ -52,6 +57,11 @@ public class CombatVectorTests
             var chance = Combat.HitChance(weapon, c.Distance, generated.Hulls[c.Hull], c.Speed);
             Assert.True(Math.Abs(c.Chance - chance) <= Tolerance, $"{c}: {chance}");
             Assert.Equal(c.InRange, Combat.InRange(weapon, c.Distance));
+        }
+        foreach (var c in stored.HitChanceByEvasion)
+        {
+            var chance = Combat.HitChance(generated.Weapons[c.Weapon], c.Distance, c.Evasion);
+            Assert.True(Math.Abs(c.Chance - chance) <= Tolerance, $"{c}: {chance}");
         }
         foreach (var c in stored.Arc)
             Assert.True(c.InArc == Combat.InArc(c.Rot, c.Dx, c.Dy, c.Arc), $"{c}");
@@ -84,6 +94,12 @@ public class CombatVectorTests
                             Combat.HitChance(weapon, distance, hull, speed), Combat.InRange(weapon, distance)));
                     }
 
+        var byEvasion = new List<EvasionCase>();
+        foreach (var (weaponId, weapon) in weapons)
+            foreach (var distance in new[] { 0, 120, 450, 700, 750 })
+                foreach (var evasion in new[] { 0, 12.5, 90 })
+                    byEvasion.Add(new EvasionCase(weaponId, distance, evasion, Combat.HitChance(weapon, distance, evasion)));
+
         var arcs = new List<ArcCase> { new(1, 0, 0, 60, Combat.InArc(1, 0, 0, 60)) };
         foreach (var rot in new[] { 0, 1, -3, 3.1, Math.PI / 2 })
             foreach (var offsetDeg in new[] { 0, 30, 59.9, 60, 60.1, 90, 180, -59.9, -60, -60.1, -120 })
@@ -96,7 +112,7 @@ public class CombatVectorTests
         arcs.Add(new ArcCase(0, 1, -1, 45, Combat.InArc(0, 1, -1, 45)));
         arcs.Add(new ArcCase(0, 0, 500, 180, Combat.InArc(0, 0, 500, 180)));
 
-        return new VectorFile(weapons, hulls, [.. chances], [.. arcs]);
+        return new VectorFile(weapons, hulls, [.. chances], [.. byEvasion], [.. arcs]);
     }
 
     /// <summary>По строке на случай — чтобы diff файла читался.</summary>
@@ -106,6 +122,7 @@ public class CombatVectorTests
         AppendMap(sb, "weapons", file.Weapons);
         AppendMap(sb, "hulls", file.Hulls);
         AppendList(sb, "hitChance", file.HitChance, last: false);
+        AppendList(sb, "hitChanceByEvasion", file.HitChanceByEvasion, last: false);
         AppendList(sb, "arc", file.Arc, last: true);
         sb.Append("}\n");
         return sb.ToString();
