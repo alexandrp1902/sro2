@@ -4,7 +4,7 @@ using Sro.Sim;
 namespace Sro.Server.Game;
 
 /// <summary>
-/// Метеориты системы: появление на трассе мимо укрытия, полёт по прямой, таран и минералы с расстрелянных.
+/// Метеориты системы: появление на трассе мимо укрытия, полёт по дуге, таран и минералы с расстрелянных.
 /// Сами метеориты лежат ещё и в словаре кораблей комнаты — по ним стреляет обычный <see cref="Battle"/>;
 /// добавляет и убирает их туда <see cref="Room"/>. Как и она, живёт только в потоке тика.
 /// </summary>
@@ -15,19 +15,18 @@ internal sealed class MeteorSystem(Func<int> nextId, Random rng)
     private readonly List<Meteor> _alive = [];
     private readonly List<Meteor> _gone = [];
     private readonly List<MeteorDto> _dtos = [];
-    /// <summary>0 — отсчёт не начат: первый метеорит прилетает через интервал после входа игрока, а не сразу.</summary>
-    private long _nextSpawnTick;
 
     public IReadOnlyList<Meteor> Alive => _alive;
 
-    /// <summary>Полёт по прямой без тяги и без границы мира: камень прошивает систему насквозь.</summary>
-    public void Move()
+    /// <summary>
+    /// Полёт: тяготение центра системы гнёт курс, тяги и границы мира у камня нет — он прошивает систему насквозь.
+    /// </summary>
+    public void Move(MeteorRules rules)
     {
         foreach (var meteor in _alive)
         {
             if (meteor.IsDead) continue;
-            meteor.Ship.X += meteor.Ship.Vx * SimConfig.Dt;
-            meteor.Ship.Y += meteor.Ship.Vy * SimConfig.Dt;
+            rules.Step(ref meteor.Ship.X, ref meteor.Ship.Y, ref meteor.Ship.Vx, ref meteor.Ship.Vy, SimConfig.Dt);
         }
     }
 
@@ -48,32 +47,26 @@ internal sealed class MeteorSystem(Func<int> nextId, Random rng)
         return _gone;
     }
 
-    /// <summary>Пора ли выпускать новый метеорит. Пустая система не копит камни к приходу первого игрока.</summary>
-    public bool Due(MeteorRules rules, long tick, bool anyoneOnline)
-    {
-        if (!anyoneOnline || !rules.Enabled)
-        {
-            _nextSpawnTick = 0;
-            return false;
-        }
-        if (_nextSpawnTick == 0) _nextSpawnTick = tick + NextInterval(rules);
-        if (tick < _nextSpawnTick) return false;
-        _nextSpawnTick = tick + NextInterval(rules);
-        return _alive.Count < rules.MaxAlive;
-    }
-
-    private long NextInterval(MeteorRules rules) =>
-        Math.Max(1, (long)Math.Round(rules.SpawnIntervalTicks * (1 + rules.SpawnJitter * (2 * rng.NextDouble() - 1))));
+    /// <summary>
+    /// Выпускать ли камень в этом тике. Не расписание, а монета на каждый тик: интервал в файле — это среднее,
+    /// а на деле камни идут неровно, как и положено небу. Пустая система их не копит к приходу первого игрока.
+    /// </summary>
+    public bool Due(MeteorRules rules, bool anyoneOnline) =>
+        anyoneOnline && rules.Enabled && _alive.Count < rules.MaxAlive && rng.NextDouble() < rules.SpawnChancePerTick;
 
     /// <summary>
-    /// Новый метеорит на краю мира. Трасса идёт через случайную точку круга AimRadius — то есть через обитаемую
-    /// часть, — но никогда через укрытие у станции: там безопасно и от пиратов, и от камней.
+    /// Новый метеорит на краю мира. Прицеливаемся в случайную точку круга AimRadius — то есть в обитаемую часть, —
+    /// а потом проигрываем всю дугу вперёд: тяготение уводит камень с прямой, поэтому только по настоящей трассе
+    /// и видно, не заденет ли он укрытие. Укрытие остаётся чистым и от пиратов, и от камней.
     /// </summary>
     /// <returns>null — за SpawnAttempts попыток трасса мимо укрытия не нашлась, появление пропускается.</returns>
     public Meteor? Launch(MeteorRules rules, double stationSafeRadius, long tick)
     {
         if (rules.PickSize(rng.NextDouble()) is not { } sizeId) return null;
         var size = rules.SizeMap[sizeId];
+        // Тип траектории решает, насколько близко к центру камень целится и как быстро идёт: от почти прямого
+        // пролёта по краю до медленной дуги, которую тяготение загибает вокруг центра системы.
+        var track = rules.Track(rules.PickTrack(rng.NextDouble()));
         // Вход за границей мира, но ближе черты исчезновения: камень вылетает из-за края, а не из пустоты.
         var entry = Movement.WorldHalfSize + rules.DespawnMargin * 0.8;
 
@@ -87,7 +80,7 @@ internal sealed class MeteorSystem(Func<int> nextId, Random rng)
                 2 => (along, entry),
                 _ => (-entry, along),
             };
-            var aimRadius = rules.AimRadius * Math.Sqrt(rng.NextDouble());
+            var aimRadius = rules.AimRadius * track.AimFactor * Math.Sqrt(rng.NextDouble());
             var aimAngle = rng.NextDouble() * 2 * Math.PI;
             var dx = SimConfig.StationX + aimRadius * Math.Cos(aimAngle) - x;
             var dy = SimConfig.StationY + aimRadius * Math.Sin(aimAngle) - y;
@@ -95,9 +88,10 @@ internal sealed class MeteorSystem(Func<int> nextId, Random rng)
             if (length < 1) continue;
             dx /= length;
             dy /= length;
-            if (PassDistance(x, y, dx, dy, SimConfig.StationX, SimConfig.StationY) < stationSafeRadius + size.Radius) continue;
-
-            var speed = size.SpeedMin + (size.SpeedMax - size.SpeedMin) * rng.NextDouble();
+            var speed = (size.SpeedMin + (size.SpeedMax - size.SpeedMin) * rng.NextDouble()) * track.SpeedFactor;
+            // Мимо укрытия, но всё-таки через обитаемую часть: тяготение могло и увести дугу по краю мира.
+            var closest = Trace(rules, x, y, dx * speed, dy * speed);
+            if (closest < stationSafeRadius + size.Radius || closest > rules.AimRadius) continue;
             return Add(sizeId, size, x, y, dx * speed, dy * speed, tick + rules.LifetimeTicks);
         }
         return null;
@@ -114,13 +108,26 @@ internal sealed class MeteorSystem(Func<int> nextId, Random rng)
         return meteor;
     }
 
-    /// <summary>Как близко к точке (px, py) пройдёт луч из (x, y) по единичному направлению (dx, dy).</summary>
-    public static double PassDistance(double x, double y, double dx, double dy, double px, double py)
+    /// <summary>
+    /// Проигрывает дугу до конца жизни камня тем же шагом и той же схемой, что и сама симуляция.
+    /// </summary>
+    /// <returns>Ближайший подход к центру системы за всю жизнь камня.</returns>
+    public static double Trace(MeteorRules rules, double x, double y, double vx, double vy)
     {
-        var t = Math.Max(0, (px - x) * dx + (py - y) * dy);
-        var cx = x + dx * t - px;
-        var cy = y + dy * t - py;
-        return Math.Sqrt(cx * cx + cy * cy);
+        // Шаг — ровно тик симуляции: тогда отбраковка идёт по той самой дуге, по которой камень и полетит.
+        const double step = SimConfig.Dt;
+        // Дуга проверяется целиком, до выхода из мира: срок жизни — предохранитель от вечных орбит,
+        // а не часть замысла трассы, и укладывать в него проверку значило бы мерить не то.
+        const double maxSeconds = 240;
+        var limit = Movement.WorldHalfSize + rules.DespawnMargin;
+        var closest = double.MaxValue;
+        for (var t = 0.0; t < maxSeconds; t += step)
+        {
+            rules.Step(ref x, ref y, ref vx, ref vy, step);
+            closest = Math.Min(closest, Math.Sqrt(x * x + y * y));
+            if ((Math.Abs(x) > limit || Math.Abs(y) > limit) && x * vx + y * vy > 0) break;
+        }
+        return closest;
     }
 
     /// <summary>

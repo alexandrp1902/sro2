@@ -21,16 +21,22 @@ export interface ScreenView {
 
 /** Палец толще курсора: радиус касания не меньше этого, px. */
 const TOUCH_MIN_RADIUS_PX = 36;
+/** Мелкий предмет мышью не поймать по его размеру: даём ему такой радиус клика, px. */
+export const LOOT_MOUSE_RADIUS_PX = 26;
 const TOUCH_SLACK_PX = 8;
 const MOUSE_SLACK_PX = 6;
 
-/** @returns id корабля, ближайшего к точке экрана в пределах радиуса касания, или null */
+/**
+ * @param minRadiusPx мышью: радиус клика не меньше этого — иначе в мелкий обломок не попасть.
+ * @returns id корабля, ближайшего к точке экрана в пределах радиуса касания, или null
+ */
 export function pickAt(
   sx: number,
   sy: number,
   ships: Iterable<TargetCandidate>,
   view: ScreenView,
   touch: boolean,
+  minRadiusPx = 0,
 ): number | null {
   let best: number | null = null;
   let bestDistance = Infinity;
@@ -38,7 +44,7 @@ export function pickAt(
     const px = view.width / 2 + (ship.x - view.x) * view.zoom;
     const py = view.height / 2 + (ship.y - view.y) * view.zoom;
     const r = ship.size * view.zoom;
-    const radius = touch ? Math.max(r + TOUCH_SLACK_PX, TOUCH_MIN_RADIUS_PX) : r + MOUSE_SLACK_PX;
+    const radius = touch ? Math.max(r + TOUCH_SLACK_PX, TOUCH_MIN_RADIUS_PX) : Math.max(r + MOUSE_SLACK_PX, minRadiusPx);
     const distance = Math.hypot(sx - px, sy - py);
     if (distance <= radius && distance < bestDistance) {
       best = ship.id;

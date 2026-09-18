@@ -15,9 +15,8 @@ const OUTLINE = 0x05060a;
 const TARGET_COLOR = 0xffa53a;
 /** Выбранный предмет: голубой — не путается ни с целью (оранжевая), ни со своим кораблём. */
 const LOOT_COLOR = 0x6fd3ff;
-/** Метеорит: рыжий, как его прожилки; опасный — красный. */
+/** Метеорит: рыжий, как его прожилки. */
 const METEOR_COLOR = 0xd9a066;
-const DANGER_COLOR = 0xff4a4a;
 /** Пират, который целится в меня: знак перед ником и крупная стрелка у края экрана. */
 const THREAT_PREFIX = '! ';
 /** Состояние ИИ под ником — при открытой dev-панели, для настройки пиратов на плейтесте. */
@@ -64,8 +63,6 @@ interface Marker {
   bubble: Graphics;
   /** Цвет подписи по виду корабля; у выбранной цели подпись оранжевая. */
   color: number;
-  /** Метеорит на опасном курсе: стрелка и подпись красные. */
-  danger: boolean;
   targeted: boolean;
   text: string;
   barsKey: string;
@@ -94,7 +91,7 @@ export interface LootMark {
   size: number;
 }
 
-/** Метеорит: рамка цели, полоска прочности и стрелка у края — только выбранному, опасному или побитому. */
+/** Метеорит: рамка цели, полоска прочности и стрелка у края — только выбранному или побитому. */
 export interface MeteorMark {
   id: number;
   x: number;
@@ -103,8 +100,6 @@ export interface MeteorMark {
   name: string;
   hp: number;
   maxHp: number;
-  /** Секунд до тарана, если курс опасный; null — разойдёмся. */
-  threat: number | null;
 }
 
 /** Полоски над объектом: корпус и, если есть, щит. */
@@ -268,8 +263,8 @@ export class PlayerOverlay {
   }
 
   /**
-   * Метеорит. На экране — рамка, если выбран, полоска, если побит, и подпись с отсчётом, если летит в нас.
-   * За краем — стрелка только выбранному и опасному: камней до десяти, стрелки ко всем забили бы края.
+   * Метеорит. На экране — рамка, если выбран, и полоска, если побит. За краем — стрелка только выбранному:
+   * камней до десяти, стрелки ко всем забили бы края. О будущем таране никто не предупреждает — смотрите сами.
    */
   private updateMeteor(meteor: MeteorMark, frame: OverlayFrame, cx: number, cy: number): void {
     const { camera, width, height, target, own } = frame;
@@ -278,22 +273,18 @@ export class PlayerOverlay {
     const r = meteor.size * camera.zoom;
     const onScreen = sx > -r && sx < width + r && sy > -r && sy < height + r;
     const isTarget = target?.id === meteor.id;
-    const danger = meteor.threat !== null;
     const damaged = meteor.hp < meteor.maxHp;
-    if (onScreen ? !isTarget && !danger && !damaged : !isTarget && !danger) return;
+    if (!isTarget && !(onScreen && damaged)) return;
 
     const marker = this.marker(meteor.id, METEOR_COLOR);
     marker.seen = true;
-    if (danger !== marker.danger || isTarget !== marker.targeted) {
-      marker.danger = danger;
+    if (isTarget !== marker.targeted) {
       marker.targeted = isTarget;
-      marker.color = danger ? DANGER_COLOR : METEOR_COLOR;
-      marker.arrow.clear().poly([0, -9, 7, 6, -7, 6]).fill(marker.color).stroke({ width: 1.5, color: OUTLINE });
-      marker.label.style.fill = isTarget && !danger ? TARGET_COLOR : marker.color;
+      marker.label.style.fill = isTarget ? TARGET_COLOR : marker.color;
     }
 
-    let text = danger ? `${meteor.name.toUpperCase()} · ${meteor.threat!.toFixed(1)} с` : meteor.name;
-    if (!onScreen && !danger && own) text += ` · ${formatSectors(Math.hypot(meteor.x - own.x, meteor.y - own.y), frame.sectorUnit)}с`;
+    let text = meteor.name;
+    if (!onScreen && own) text += ` · ${formatSectors(Math.hypot(meteor.x - own.x, meteor.y - own.y), frame.sectorUnit)}с`;
     if (text !== marker.text) {
       marker.label.text = text;
       marker.text = text;
@@ -301,7 +292,7 @@ export class PlayerOverlay {
     marker.label.alpha = marker.arrow.alpha = marker.bars.alpha = 1;
     marker.arrow.visible = !onScreen;
     marker.bars.visible = onScreen && (isTarget || damaged);
-    marker.label.visible = !onScreen || isTarget || danger;
+    marker.label.visible = !onScreen || isTarget;
     marker.bubble.visible = false;
 
     if (onScreen) {
@@ -423,7 +414,6 @@ export class PlayerOverlay {
         bars,
         bubble: bubbleView,
         color,
-        danger: false,
         targeted: false,
         text: '',
         barsKey: '',

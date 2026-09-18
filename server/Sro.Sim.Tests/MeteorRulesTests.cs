@@ -39,7 +39,8 @@ public class MeteorRulesTests
         Assert.True(Parse(Valid, out var rules, out var error), error);
         Assert.True(rules.Enabled);
         Assert.Equal(2, rules.SizeMap.Count);
-        Assert.Equal(140, rules.SpawnIntervalTicks);
+        // Средний интервал 7 с — вероятность на тик такая, что за 140 тиков камень появляется примерно один раз.
+        Assert.Equal(1 - Math.Exp(-SimConfig.Dt / 7), rules.SpawnChancePerTick, 12);
     }
 
     [Fact]
@@ -60,6 +61,48 @@ public class MeteorRulesTests
         Assert.StartsWith("speed is too high for the tick rate", error);
     }
 
+    [Fact]
+    public void Validate_CountsTheSpeedGravityAdds()
+    {
+        // Сама по себе скорость проходит, но разгон к центру системы выводит её за предел тика.
+        Assert.True(Parse(Valid, out var gentle, out var error), error);
+        Assert.True(gentle.TopSpeed(900) > 300, "gravity must speed a falling rock up");
+
+        var json = Valid.Replace("\"maxAlive\": 10", "\"maxAlive\": 10, \"gravity\": 200000000");
+        Assert.False(Parse(json, out _, out var heavy));
+        Assert.StartsWith("speed is too high for the tick rate", heavy);
+        Assert.Contains("Top meteor speed with gravity", heavy);
+    }
+
+    [Fact]
+    public void Validate_RejectsBrokenTracks()
+    {
+        var withTracks = Valid.Replace("\"maxAlive\": 10", "\"maxAlive\": 10, \"tracks\": { \"arc\": { \"name\": \"Дуга\", \"aimFactor\": 2 } }");
+        Assert.False(Parse(withTracks, out _, out var error));
+        Assert.Equal("tracks.arc: aimFactor must be within 0..1", error);
+
+        var zeroWeights = Valid.Replace("\"maxAlive\": 10", "\"maxAlive\": 10, \"tracks\": { \"arc\": { \"name\": \"Дуга\", \"weight\": 0 } }");
+        Assert.False(Parse(zeroWeights, out _, out var weightError));
+        Assert.Equal("at least one track must have a positive weight", weightError);
+    }
+
+    [Fact]
+    public void Tracks_ArePickedByWeightAndFallBackToThePlainOne()
+    {
+        var json = Valid.Replace(
+            "\"maxAlive\": 10",
+            "\"maxAlive\": 10, \"tracks\": { \"flyby\": { \"name\": \"Пролёт\", \"weight\": 0.75 }, \"arc\": { \"name\": \"Дуга\", \"aimFactor\": 0.4, \"speedFactor\": 0.8, \"weight\": 0.25 } }");
+        Assert.True(Parse(json, out var rules, out var error), error);
+
+        Assert.Equal("flyby", rules.PickTrack(0));
+        Assert.Equal("arc", rules.PickTrack(0.8));
+        Assert.Equal(0.4, rules.Track("arc").AimFactor);
+        // Неизвестная и отсутствующая траектория — обычная: целимся во весь круг на своей скорости.
+        Assert.Equal(1, rules.Track("nope").AimFactor);
+        Assert.Equal(1, rules.Track(null).SpeedFactor);
+        Assert.Null(MeteorRules.None.PickTrack(0.5));
+    }
+
     [Theory]
     [InlineData("\"radius\": 14", "\"radius\": 0", "sizes.small: radius must be positive")]
     [InlineData("\"speedMin\": 240", "\"speedMin\": 400", "sizes.small: speedMax must not be less than speedMin")]
@@ -69,7 +112,8 @@ public class MeteorRulesTests
     [InlineData("\"maxAlive\": 10", "\"maxAlive\": -1", "maxAlive must not be negative")]
     [InlineData("\"maxAlive\": 10", "\"maxAlive\": 10, \"aimRadius\": 500", "aimRadius must be within")]
     [InlineData("\"maxAlive\": 10", "\"maxAlive\": 10, \"ramMinFactor\": 2", "ramMinFactor must be positive and not above ramMaxFactor")]
-    [InlineData("\"maxAlive\": 10", "\"maxAlive\": 10, \"warnMissFactor\": 0.5", "warnMissFactor must be at least 1")]
+    [InlineData("\"maxAlive\": 10", "\"maxAlive\": 10, \"gravity\": -1", "gravity must not be negative")]
+    [InlineData("\"maxAlive\": 10", "\"maxAlive\": 10, \"gravityMinRadius\": 0", "gravityMinRadius must be positive")]
     public void Validate_RejectsBrokenFiles(string from, string to, string? expected)
     {
         var ok = Parse(Valid.Replace(from, to), out _, out var error);

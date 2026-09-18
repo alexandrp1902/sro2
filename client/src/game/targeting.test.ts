@@ -1,7 +1,17 @@
 import { describe, expect, it } from 'vitest';
 import weapons from '../../../shared/weapons.json';
 import type { WeaponParams } from '../sim/combat';
-import { cycle, nearest, nearestLoot, pickArrow, pickAt, type EdgeArrow, type ScreenView, type TargetCandidate } from './targeting';
+import {
+  LOOT_MOUSE_RADIUS_PX,
+  cycle,
+  nearest,
+  nearestLoot,
+  pickArrow,
+  pickAt,
+  type EdgeArrow,
+  type ScreenView,
+  type TargetCandidate,
+} from './targeting';
 
 /** Сектор ±60° — чтобы проверять выбор «сначала в секторе» независимо от баланса в weapons.json. */
 const pulse = { ...(weapons.pulse as WeaponParams), arc: 60 };
@@ -16,6 +26,14 @@ describe('pickAt', () => {
     expect(pickAt(230, 400, ships, view, true)).toBe(1);
     expect(pickAt(230, 400, ships, view, false)).toBeNull();
     expect(pickAt(215, 400, ships, view, false)).toBe(1);
+  });
+
+  it('gives a small item a wider mouse radius, so it can be clicked at all', () => {
+    // Обломок радиусом 11: без запаса мышь промахивается уже в 20 px от него.
+    const drop = [ship(9, 0, 0, 11)];
+    expect(pickAt(220, 400, drop, view, false)).toBeNull();
+    expect(pickAt(220, 400, drop, view, false, LOOT_MOUSE_RADIUS_PX)).toBe(9);
+    expect(pickAt(240, 400, drop, view, false, LOOT_MOUSE_RADIUS_PX)).toBeNull();
   });
 
   it('takes the nearest ship and scales with zoom', () => {

@@ -1,17 +1,23 @@
 {
-  "spawnIntervalSeconds": 7,
-  "spawnJitter": 0.5,
-  "maxAlive": 10,
+  "spawnIntervalSeconds": 20,
+  "maxAlive": 4,
   "aimRadius": 2600,
   "despawnMargin": 600,
   "lifetimeSeconds": 90,
-  "warnSeconds": 4,
-  "warnMissFactor": 1.6,
   "ramMinFactor": 0.5,
   "ramMaxFactor": 1.6,
+  "gravity": 15000000,
+  "gravityMinRadius": 600,
   "sizes": {
     "small": { "name": "Мелкий метеорит", "radius": 14, "hp": 60, "speedMin": 240, "speedMax": 300, "ramDamage": 110, "weight": 0.45, "table": "rockSmall" },
     "medium": { "name": "Метеорит", "radius": 22, "hp": 140, "speedMin": 210, "speedMax": 260, "ramDamage": 190, "weight": 0.4, "table": "rockMedium" },
     "large": { "name": "Крупный метеорит", "radius": 34, "hp": 320, "speedMin": 180, "speedMax": 220, "ramDamage": 300, "weight": 0.15, "table": "rockLarge" }
+  },
+  "tracks": {
+    "flyby": { "name": "Пролёт", "aimFactor": 1, "speedFactor": 1, "weight": 0.4 },
+    "arc": { "name": "Дуга", "aimFactor": 0.55, "speedFactor": 0.8, "weight": 0.25 },
+    "grazer": { "name": "Ныряющий", "aimFactor": 0.32, "speedFactor": 0.62, "weight": 0.15 },
+    "comet": { "name": "Комета", "aimFactor": 0.85, "speedFactor": 1.15, "weight": 0.12 },
+    "drifter": { "name": "Бродяга", "aimFactor": 0.7, "speedFactor": 0.45, "weight": 0.08 }
   }
 }

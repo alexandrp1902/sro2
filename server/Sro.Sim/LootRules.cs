@@ -81,12 +81,14 @@ public sealed record LootTable(
 }
 
 /// <summary>
-/// Контейнер (GDD §21): предмет, который ждёт на месте и появляется снова через RespawnSeconds.
-/// Для ядра это обычный дроп — просто бессрочный и без дрейфа.
+/// Точка, где может лежать контейнер (GDD §21). Точек больше, чем контейнеров: каждая время от времени
+/// бросает свою монету, поэтому одни и те же места пустуют и наполняются по-разному, а не по расписанию.
+/// Для ядра контейнер — обычный дроп, просто бессрочный и без дрейфа.
 /// </summary>
 /// <param name="Item">Фиксированное содержимое; задаётся либо оно, либо Table.</param>
 /// <param name="Table">Таблица из tables: содержимое разное при каждом появлении.</param>
-/// <param name="RespawnSeconds">0 — контейнер одноразовый и больше не появится.</param>
+/// <param name="RespawnSeconds">Среднее время до следующей попытки; 0 — точка одноразовая.</param>
+/// <param name="Chance">Вероятность, что попытка удастся: 0.2 — место редкое, 1 — почти всегда занято.</param>
 public sealed record LootContainer(
     string Name,
     double X,
@@ -94,7 +96,8 @@ public sealed record LootContainer(
     string? Item = null,
     int Count = 1,
     string? Table = null,
-    double RespawnSeconds = 120)
+    double RespawnSeconds = 120,
+    double Chance = 1)
 {
     [JsonIgnore] public int RespawnTicks => RespawnSeconds > 0 ? Math.Max(1, Combat.SecondsToTicks(RespawnSeconds)) : 0;
 
@@ -110,6 +113,7 @@ public sealed record LootContainer(
         if (Table is not null && !tables.ContainsKey(Table)) return $"unknown table '{Table}'";
         if (Count < 1 || Count > LootRoll.MaxCount) return $"count must be within 1..{LootRoll.MaxCount}";
         if (!(RespawnSeconds >= 0)) return "respawnSeconds must not be negative";
+        if (!(Chance > 0 && Chance <= 1)) return "chance must be within 0..1";
         if (!(Math.Abs(X) <= NpcRules.WorldLimit) || !(Math.Abs(Y) <= NpcRules.WorldLimit))
             return $"x and y must be within ±{NpcRules.WorldLimit}";
 
@@ -137,6 +141,7 @@ public sealed record LootContainer(
 /// <param name="FullHoldSeconds">Не чаще раза в столько секунд игроку говорят, что трюм полон.</param>
 /// <param name="StationUnload">Выключатель сдачи груза на станции.</param>
 /// <param name="StationRange">Ближе этого к станции груз превращается в кредиты.</param>
+/// <param name="MaxContainers">Сколько контейнеров лежит в системе одновременно; 0 — сколько угодно.</param>
 public sealed record LootRules(
     double PickupRange = 130,
     double LifetimeSeconds = 120,
@@ -148,6 +153,7 @@ public sealed record LootRules(
     double FullHoldSeconds = 5,
     bool StationUnload = true,
     double StationRange = 200,
+    int MaxContainers = 0,
     IReadOnlyDictionary<string, LootItem>? Items = null,
     IReadOnlyDictionary<string, LootTable>? Tables = null,
     IReadOnlyList<LootContainer>? Containers = null)
@@ -182,6 +188,7 @@ public sealed record LootRules(
         if (!(DriftDampTime > 0)) return "driftDampTime must be positive";
         if (!(FullHoldSeconds >= 0)) return "fullHoldSeconds must not be negative";
         if (!(StationRange > 0)) return "stationRange must be positive";
+        if (MaxContainers < 0) return "maxContainers must not be negative";
 
         foreach (var (id, item) in ItemMap)
         {

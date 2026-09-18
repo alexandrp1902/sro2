@@ -42,6 +42,7 @@ public class LootTests
         int maxItems = 200,
         double dropRadius = 40,
         bool stationUnload = true,
+        int maxContainers = 0,
         IReadOnlyList<LootContainer>? containers = null,
         IReadOnlyDictionary<string, LootTable>? tables = null,
         IReadOnlyDictionary<string, LootItem>? items = null) =>
@@ -51,6 +52,7 @@ public class LootTests
             MaxItems: maxItems,
             DropRadius: dropRadius,
             StationUnload: stationUnload,
+            MaxContainers: maxContainers,
             Containers: containers,
             Items: items ?? Items,
             Tables: tables ?? new Dictionary<string, LootTable>
@@ -569,11 +571,26 @@ public class LootTests
     private static LootContainer Box(double respawnSeconds = 5, string? item = "metal", string? table = null) =>
         new("Ящик", BoxX, BoxY, item, 3, table, respawnSeconds);
 
+    /// <summary>
+    /// Ждёт, пока точка бросит удачную монету и контейнер появится. Появление вероятностное: срок в файле —
+    /// это среднее время между попытками, а не расписание.
+    /// </summary>
+    /// <returns>Тики, которые пришлось прождать; -1 — так и не появился.</returns>
+    private int WaitForBox(FakeConnection observer, int maxTicks = 20 * SimConfig.TickRate)
+    {
+        for (var i = 0; i < maxTicks; i++)
+        {
+            _room.Step();
+            if (LootOf(observer).Any(d => d.C)) return i;
+        }
+        return -1;
+    }
+
     /// <summary>Подлетает к контейнеру и забирает его.</summary>
     private FakeConnection TakeBox()
     {
         var a = Connect();
-        _room.Step();
+        Assert.True(WaitForBox(a) >= 0, "the container never appeared");
         var box = Assert.Single(LootOf(a));
         Assert.True(box.C);
 
@@ -584,11 +601,11 @@ public class LootTests
     }
 
     [Fact]
-    public void Container_AppearsAtOnceAndNeverExpires()
+    public void Container_AppearsAndNeverExpires()
     {
         _room = NewRoom(Loot(lifetimeSeconds: 0.5, containers: [Box()]));
         var a = Connect();
-        _room.Step();
+        Assert.True(WaitForBox(a) >= 0, "the container never appeared");
 
         var box = Assert.Single(LootOf(a));
         Assert.Equal(("metal", 3, true), (box.I, box.N, box.C));
@@ -600,18 +617,76 @@ public class LootTests
     }
 
     [Fact]
-    public void Container_ComesBackAfterItsTimer()
+    public void Container_ComesBackAfterAWhile()
     {
         _room = NewRoom(Loot(containers: [Box(respawnSeconds: 5)]));
         var a = TakeBox();
         Assert.Equal(3, PlayerOf(a).Cargo.Items["metal"]);
 
-        // Границу в один тик не проверяем: важно, что до срока пусто, а после срока предмет снова на месте.
-        Steps(SimConfig.TickRate * 3);
+        // Срок вразнобой: раньше половины среднего точка не наполняется никогда, к полутора — уже наверняка.
+        Steps(SimConfig.TickRate * 2);
         Assert.Empty(LootOf(a));
 
-        Steps(SimConfig.TickRate * 4);
+        Steps(SimConfig.TickRate * 6);
         Assert.Single(LootOf(a));
+    }
+
+    [Fact]
+    public void ContainerPoints_RollTheirOwnChance()
+    {
+        // Точка с шансом 0.2 ждёт своего контейнера в несколько раз дольше, чем точка, которая не промахивается:
+        // усредняем по сидам, потому что каждая отдельная попытка — это монета.
+        var waits = new List<double>();
+        foreach (var chance in new[] { 0.2, 1.0 })
+        {
+            var total = 0.0;
+            for (var seed = 1; seed <= 12; seed++)
+            {
+                _nextConnection = 0;
+                _room = NewRoom(Loot(containers: [new LootContainer("Точка", BoxX, BoxY, "metal", 3, null, 2, chance)]), seed: seed);
+                var a = Connect();
+                var waited = WaitForBox(a, 60 * SimConfig.TickRate);
+                Assert.True(waited >= 0, $"chance {chance}, seed {seed}: the container never appeared");
+                total += waited;
+            }
+            waits.Add(total / 12);
+        }
+
+        Assert.True(waits[0] > waits[1] * 2, $"chance did not matter: {waits[0]:0} vs {waits[1]:0} ticks of waiting");
+    }
+
+    [Fact]
+    public void MaxContainers_CapsTheField()
+    {
+        var points = Enumerable.Range(0, 10)
+            .Select(i => new LootContainer($"Точка {i}", 1500 + i * 120, 0, "metal", 1, null, 1))
+            .ToList();
+        _room = NewRoom(Loot(containers: points, maxContainers: 3));
+        var a = Connect();
+
+        Steps(30 * SimConfig.TickRate);
+
+        Assert.Equal(3, LootOf(a).Count(d => d.C));
+    }
+
+    [Fact]
+    public void ContainerPoints_DoNotFillAllAtOnce()
+    {
+        // Десять точек с одним сроком: при старте комнаты они получают разные первые попытки, а не тикают в такт.
+        var points = Enumerable.Range(0, 10)
+            .Select(i => new LootContainer($"Точка {i}", 1500 + i * 120, 0, "metal", 1, null, 20))
+            .ToList();
+        _room = NewRoom(Loot(containers: points));
+        var a = Connect();
+
+        Steps(2 * SimConfig.TickRate);
+        var early = LootOf(a).Count(d => d.C);
+
+        Steps(40 * SimConfig.TickRate);
+        var later = LootOf(a).Count(d => d.C);
+
+        Assert.InRange(early, 0, 4);
+        Assert.True(later > early, $"points did not fill over time: {early} → {later}");
     }
 
     [Fact]
@@ -635,7 +710,7 @@ public class LootTests
                 ["cache"] = new([new LootRoll("tech", 1, 1, 2)]),
             }));
         var a = Connect();
-        _room.Step();
+        Assert.True(WaitForBox(a) >= 0, "the container never appeared");
 
         // Контейнер — один предмет, а не облако: несколько стопок в одной точке не разобрать тапом.
         var box = Assert.Single(LootOf(a));
@@ -648,12 +723,12 @@ public class LootTests
     {
         _room = NewRoom(Loot(containers: [Box()]));
         var a = Connect();
-        _room.Step();
+        Assert.True(WaitForBox(a) >= 0, "the container never appeared");
         Assert.Equal(BoxX, Assert.Single(LootOf(a)).X);
 
         var moved = new LootContainer("Ящик", -1500, 0, "metal", 3, null, 5);
         _room.ApplyBalance(TestBalance.Create(Rules, Npcs(), Loot(containers: [moved])));
-        _room.Step();
+        Assert.True(WaitForBox(a) >= 0, "the moved container never appeared");
 
         Assert.Equal(-1500, Assert.Single(LootOf(a)).X);
     }

@@ -273,7 +273,7 @@ public sealed class Room
             PirateBrain.Think(pirate, _ships, _pirates, Balance, Tick, _ai, _log);
             Movement.Step(ref pirate.Ship, pirate.LastInput, pirate.Hull(Hulls), SimConfig.Dt);
         }
-        _meteors.Move();
+        _meteors.Move(Balance.Meteors);
         Tick++;
 
         if (_expired.Count > 0)
@@ -311,7 +311,7 @@ public sealed class Room
     {
         var rules = Balance.Meteors;
         foreach (var meteor in _meteors.Expired(rules, Tick)) RemoveShip(meteor);
-        if (!_meteors.Due(rules, Tick, _byConnection.Count > 0)) return;
+        if (!_meteors.Due(rules, _byConnection.Count > 0)) return;
         if (_meteors.Launch(rules, Balance.Npc.StationSafeRadius, Tick) is { } launched) _ships[launched.Id] = launched;
     }
 

@@ -12,7 +12,7 @@ namespace Sro.Server.Game;
 /// <param name="rng">Случайность дропа — отдельно от разброса спауна и от ИИ, чтобы тесты были воспроизводимы.</param>
 internal sealed class LootSystem(Func<int> nextId, Random rng, ILogger log)
 {
-    /// <summary>Точка, где стоит контейнер: пока DropId не 0 — он на месте, иначе ждёт до ReadyAtTick.</summary>
+    /// <summary>Точка контейнера: пока DropId не 0 — он на месте, иначе ждёт до ReadyAtTick следующей попытки.</summary>
     private sealed class ContainerSlot(LootContainer spec)
     {
         public LootContainer Spec { get; } = spec;
@@ -79,16 +79,31 @@ internal sealed class LootSystem(Func<int> nextId, Random rng, ILogger log)
         }
         _slots.Clear();
         foreach (var spec in containers) _slots.Add(new ContainerSlot(spec));
+        // Первые попытки — вразнобой по всему сроку: иначе при старте комнаты все точки наполнились бы разом.
+        foreach (var slot in _slots) slot.ReadyAtTick = (long)(rng.NextDouble() * Math.Max(1, slot.Spec.RespawnTicks));
     }
 
-    /// <summary>Пустые точки, у которых вышел срок, снова наполняются.</summary>
+    /// <summary>
+    /// Пустые точки, у которых вышел срок, бросают монету: повезло — контейнер появился, нет — ждём ещё срок.
+    /// Поэтому места наполняются вразнобой, а богатые точки пустуют чаще бедных.
+    /// </summary>
     private void RefillContainers(long tick, LootRules loot)
     {
+        var filled = 0;
+        foreach (var slot in _slots)
+        {
+            if (slot.DropId != 0) filled++;
+        }
+
         foreach (var slot in _slots)
         {
             if (slot.DropId != 0 || tick < slot.ReadyAtTick) continue;
+            if (loot.MaxContainers > 0 && filled >= loot.MaxContainers) continue;
 
             var spec = slot.Spec;
+            // Следующая попытка назначается независимо от исхода: неудача — это просто «в этот раз не легло».
+            slot.ReadyAtTick = spec.RespawnTicks > 0 ? tick + NextWait(spec.RespawnTicks) : long.MaxValue;
+            if (rng.NextDouble() >= spec.Chance) continue;
             var item = spec.Item;
             var count = spec.Count;
             if (item is null && spec.Table is not null && loot.TableMap.TryGetValue(spec.Table, out var table))
@@ -102,17 +117,21 @@ internal sealed class LootSystem(Func<int> nextId, Random rng, ILogger log)
             if (item is null) continue;
 
             slot.DropId = Spawn(loot, tick, spec.X, spec.Y, 0, 0, item, count, fromContainer: true)?.Id ?? 0;
+            if (slot.DropId != 0) filled++;
         }
     }
 
-    /// <summary>Точка освободилась: контейнер появится снова через свой срок; 0 секунд — уже никогда.</summary>
+    /// <summary>Срок до следующей попытки: половина — полтора от среднего, чтобы точки не тикали в такт.</summary>
+    private long NextWait(int respawnTicks) => Math.Max(1, (long)Math.Round(respawnTicks * (0.5 + rng.NextDouble())));
+
+    /// <summary>Точка освободилась: следующая попытка — через свой срок вразнобой; 0 секунд — уже никогда.</summary>
     private void Release(int dropId, long tick)
     {
         foreach (var slot in _slots)
         {
             if (slot.DropId != dropId) continue;
             slot.DropId = 0;
-            slot.ReadyAtTick = slot.Spec.RespawnTicks > 0 ? tick + slot.Spec.RespawnTicks : long.MaxValue;
+            slot.ReadyAtTick = slot.Spec.RespawnTicks > 0 ? tick + NextWait(slot.Spec.RespawnTicks) : long.MaxValue;
             return;
         }
     }
