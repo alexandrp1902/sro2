@@ -1,4 +1,5 @@
 import { lootItem, rarityColor, type LootRules } from '../sim/loot';
+import { formatCredits } from '../sim/shop';
 
 /** Трюм игрока, как его прислал сервер (GDD §21). */
 export interface CargoState {
@@ -10,38 +11,52 @@ export interface CargoState {
 
 /** Выбранный предмет: что это и далеко ли до него. */
 export interface LootCardState {
+  kind: 'loot';
   item: string;
   count: number;
   distance: number;
 }
 
+/** Выбранная станция: далеко ли и можно ли уже пристыковаться. */
+export interface StationCardState {
+  kind: 'station';
+  distance: number;
+  inRange: boolean;
+}
+
+export type SelectionCardState = LootCardState | StationCardState;
+
+/** Зелёный, как круг дока. */
+const STATION_COLOR = 0x6fe08a;
+
 /**
  * Трюм и карточка выбранного предмета. Отдельно от боевого HUD: тот про бой и обновляется каждый кадр,
  * а трюм приходит событием и живёт своей жизнью.
  * На узком экране трюм свёрнут — левая колонка и так занята статусом, полётом, полосками и лентой.
+ * Продают груз в доке станции (ui/dockScreen.ts), а не здесь.
  */
 export class CargoHud {
   private state: CargoState | null = null;
   private rules: LootRules | null = null;
   private open = false;
-  private atStation = false;
   private lastKey = '';
+  /** Карточка перестраивается, только когда меняется выбор; дистанция — просто текст. */
+  private cardKey = '';
+  private distanceEl: HTMLElement | null = null;
 
+  /** @param onClearSelection ✕ на карточке: снять выбранный предмет или станцию */
   constructor(
     private readonly root: HTMLElement,
     private readonly lootRoot: HTMLElement,
-    private readonly onClearLoot: () => void,
-    private readonly onSell: (item?: string) => void,
+    private readonly onClearSelection: () => void,
   ) {
-    this.root.addEventListener('click', (e) => {
-      if (e.target instanceof HTMLButtonElement) return; // клик по кнопке продажи панель не сворачивает
-      this.setOpen(!this.open);
-    });
+    this.root.addEventListener('click', () => this.setOpen(!this.open));
   }
 
   setRules(rules: LootRules | undefined): void {
     this.rules = rules ?? null;
     this.lastKey = ''; // названия и редкость могли поменяться на лету
+    this.cardKey = '';
     this.render();
   }
 
@@ -50,31 +65,34 @@ export class CargoHud {
     this.render();
   }
 
-  /** В круге станции трюм превращается в прилавок: у каждого груза появляется цена и кнопка продажи. */
-  setAtStation(at: boolean): void {
-    if (at === this.atStation) return;
-    this.atStation = at;
-    if (at) this.setOpen(true); // иначе кнопки продажи остались бы спрятанными в свёрнутой панели
-    this.lastKey = '';
-    this.render();
-  }
-
-  /** Карточка выбранного предмета; null — предмет не выбран. */
-  update(loot: LootCardState | null): void {
-    if (!loot || !this.rules) {
+  /** Карточка выбранного предмета или станции; null — ничего не выбрано. Зовётся каждый кадр. */
+  update(card: SelectionCardState | null): void {
+    const rules = this.rules;
+    if (!card || (card.kind === 'loot' && !rules)) {
       this.lootRoot.hidden = true;
+      this.cardKey = '';
       return;
     }
-    const item = lootItem(this.rules, loot.item);
-    const name = item?.name ?? loot.item;
-    const count = loot.count > 1 ? ` ×${loot.count}` : '';
-    this.lootRoot.hidden = false;
-    this.lootRoot.innerHTML = '';
-    this.lootRoot.append(
-      row('loot-name', `${name}${count}`, color(rarityColor(this.rules, loot.item))),
-      row('loot-distance', `${Math.round(loot.distance)} м`),
-      clearButton(this.onClearLoot),
-    );
+    const key = card.kind === 'loot' ? `loot|${card.item}|${card.count}` : `station|${card.inRange}`;
+    if (key !== this.cardKey) {
+      this.cardKey = key;
+      this.distanceEl = row('loot-distance', '');
+      this.lootRoot.replaceChildren();
+      if (card.kind === 'loot') {
+        const item = lootItem(rules!, card.item);
+        const count = card.count > 1 ? ` ×${card.count}` : '';
+        this.lootRoot.append(row('loot-name', `${item?.name ?? card.item}${count}`, color(rarityColor(rules!, card.item))));
+        this.lootRoot.append(this.distanceEl);
+      } else {
+        this.lootRoot.append(row('loot-name', 'Станция', color(STATION_COLOR)), this.distanceEl);
+        this.lootRoot.append(row('loot-hint', card.inRange ? 'можно в док' : 'подлетите ближе, чтобы пристыковаться'));
+      }
+      this.lootRoot.append(clearButton(this.onClearSelection));
+      this.lootRoot.dataset.kind = card.kind;
+      this.lootRoot.hidden = false;
+    }
+    const distance = `${Math.round(card.distance)} м`;
+    if (this.distanceEl && this.distanceEl.textContent !== distance) this.distanceEl.textContent = distance;
   }
 
   private render(): void {
@@ -84,7 +102,7 @@ export class CargoHud {
       return;
     }
 
-    const key = `${state.used}|${state.max}|${state.credits}|${this.atStation}|${JSON.stringify(state.items)}`;
+    const key = `${state.used}|${state.max}|${state.credits}|${JSON.stringify(state.items)}`;
     if (key === this.lastKey) return;
     this.lastKey = key;
 
@@ -96,7 +114,7 @@ export class CargoHud {
     const head = document.createElement('div');
     head.className = 'cargo-head';
     head.append(row('cargo-title', `Трюм ${round(state.used)} / ${round(state.max)}`));
-    if (state.credits > 0) head.append(row('cargo-credits', `${state.credits} кр`));
+    head.append(row('cargo-credits', formatCredits(state.credits)));
     this.root.append(head);
 
     const bar = document.createElement('div');
@@ -116,44 +134,15 @@ export class CargoHud {
       dot.className = 'cargo-dot';
       dot.style.background = color(rarityColor(rules, id));
       line.append(dot, document.createTextNode(`${lootItem(rules, id)?.name ?? id} ×${count}`));
-      if (this.atStation) {
-        const price = (lootItem(rules, id)?.price ?? 0) * count;
-        line.append(sellButton(`${price} кр`, () => this.onSell(id)));
-      }
       list.append(line);
     }
     this.root.append(list);
-
-    if (this.atStation && Object.keys(state.items).length > 1) {
-      const all = sellButton(`Продать всё · ${totalPrice(state, rules)} кр`, () => this.onSell());
-      all.classList.add('cargo-sell-all');
-      this.root.append(all);
-    }
   }
 
   private setOpen(open: boolean): void {
     this.open = open;
     this.root.dataset.open = String(open);
   }
-}
-
-function sellButton(label: string, onClick: () => void): HTMLButtonElement {
-  const button = document.createElement('button');
-  button.type = 'button';
-  button.className = 'cargo-sell';
-  button.textContent = label;
-  button.addEventListener('click', (e) => {
-    e.stopPropagation();
-    button.blur(); // иначе Space «нажмёт» кнопку вместо подбора или огня
-    onClick();
-  });
-  return button;
-}
-
-function totalPrice(state: CargoState, rules: LootRules): number {
-  let total = 0;
-  for (const [id, count] of Object.entries(state.items)) total += (lootItem(rules, id)?.price ?? 0) * count;
-  return total;
 }
 
 function row(className: string, text: string, textColor?: string): HTMLElement {
@@ -168,17 +157,17 @@ function clearButton(onClear: () => void): HTMLElement {
   const button = document.createElement('button');
   button.type = 'button';
   button.className = 'loot-clear';
-  button.setAttribute('aria-label', 'Снять выбор предмета');
+  button.setAttribute('aria-label', 'Снять выбор');
   button.textContent = '✕';
   button.addEventListener('click', onClear);
   return button;
 }
 
-function color(value: number): string {
+export function color(value: number): string {
   return `#${value.toString(16).padStart(6, '0')}`;
 }
 
 /** Объём показываем без хвоста «.0»: 12, а не 12.0. */
-function round(value: number): string {
+export function round(value: number): string {
   return String(Math.round(value * 10) / 10);
 }

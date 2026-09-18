@@ -18,6 +18,7 @@ class Client {
     this.welcome = null;
     this.cargo = null;
     this.notices = [];
+    this.hangar = null;
     this.snapshots = [];
     this.seq = 0;
     this.timer = 0;
@@ -56,6 +57,7 @@ class Client {
           resolve(message);
         } else if (message.t === 'cargo') this.cargo = message;
         else if (message.t === 'notice') this.notices.push(message.code);
+        else if (message.t === 'hangar') this.hangar = message;
         else if (message.t === 'snapshot') {
           this.snapshots.push(message);
           if (this.snapshots.length > 2000) this.snapshots.splice(0, 1000);
@@ -209,15 +211,23 @@ async function main() {
     'reaching the station',
   );
 
-  // Продажа тоже ручная: стоять в круге мало.
+  // Продажа тоже ручная: стоять в круге мало. Продают в доке (M6).
   a.control = () => [0, -1, 0];
   await new Promise((resolve) => setTimeout(resolve, 600));
   check('standing at the station does not sell the cargo', total(a.cargo.items) > 0);
-
   a.send({ t: 'sell' });
-  await a.until(() => a.notices.includes('unloaded'), 5000, 'the cargo is sold at the station');
+  await a.until(() => a.notices.includes('tooFar'), 5000, 'selling outside the dock is refused');
+
+  const creditsBefore = a.cargo.credits;
+  a.send({ t: 'dock', on: true });
+  await a.until(() => a.hangar?.docked, 5000, 'docking at the station');
+  a.send({ t: 'sell' });
+  await a.until(() => a.notices.includes('unloaded'), 5000, 'the cargo is sold in the dock');
   await a.until(() => a.cargo && total(a.cargo.items) === 0, 2000, 'the hold is empty after selling');
-  check(`cargo sold for ${a.cargo.credits} credits`, a.cargo.credits > 0 && a.cargo.used === 0);
+  check(`cargo sold for ${a.cargo.credits - creditsBefore} credits`, a.cargo.credits > creditsBefore && a.cargo.used === 0);
+
+  a.send({ t: 'dock', on: false });
+  await a.until(() => a.me, 5000, 'the ship is back in space after undocking');
   check(`own ship alive at the station: hull ${a.me.hp}`, !a.me.rt);
 
   a.close();

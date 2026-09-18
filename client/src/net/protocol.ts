@@ -5,16 +5,28 @@ import type { LootRules } from '../sim/loot';
 import type { MeteorRules } from '../sim/meteors';
 import type { HullConfig } from '../sim/movement';
 import type { NpcRules } from '../sim/npcs';
+import type { ShopRules } from '../sim/shop';
 
 /** Версия протокола; зеркало Protocol.Version на сервере. Сервер другой версии (или старый, без поля) — не играем. */
-export const PROTOCOL_VERSION = 7;
+export const PROTOCOL_VERSION = 8;
 
 /** Состояние ИИ пирата: патруль, бой, возврат в логово. */
 export type AiState = 'patrol' | 'attack' | 'return';
 
 export type ClientMessage =
-  /** token — сессия вкладки: с ней после обрыва связи игрок возвращается к своему кораблю. */
-  | { t: 'hello'; name: string; hull: string; weapon: string; token: string }
+  /**
+   * Вход. С паролем или ключом устройства — пилот с аккаунтом: корабль, кредиты и трюм сервер берёт из аккаунта.
+   * Без них — гость без сохранения (тесты, смоук-скрипты); hull, weapon и token нужны только гостю.
+   */
+  | {
+      t: 'hello';
+      name?: string;
+      hull?: string;
+      weapon?: string;
+      token?: string;
+      password?: string;
+      key?: string;
+    }
   | { t: 'ping'; c: number }
   /** Только управление (§49): направление на экране и тяга; координаты клиент не присылает. */
   | { t: 'input'; seq: number; dx: number; dy: number; th: number }
@@ -29,8 +41,17 @@ export type ClientMessage =
   | { t: 'loot'; id: number }
   /** Взять выбранный предмет: подбор ручной, сам луч ничего не хватает. */
   | { t: 'grab' }
-  /** Продать груз на станции; item — что именно, без него — весь трюм. */
-  | { t: 'sell'; item?: string };
+  /** Продать груз в доке; item — что именно, без него — весь трюм. */
+  | { t: 'sell'; item?: string }
+  /** Пристыковаться к станции или вылететь из дока. */
+  | { t: 'dock'; on: boolean }
+  /** Купить в доке корпус или пушку; купленное сразу ставится на корабль. */
+  | { t: 'buy'; kind: BuyKind; id: string }
+  /** Починить корпус и зарядить щит в доке. */
+  | { t: 'repair' };
+
+/** Что покупают в доке. */
+export type BuyKind = 'hull' | 'weapon';
 
 export interface ShipDto {
   id: number;
@@ -148,6 +169,8 @@ export interface WelcomeMsg {
   loot?: LootRules;
   /** Метеориты: размеры, прочность и пороги предупреждения о таране. */
   meteors?: MeteorRules;
+  /** Магазин станции: цены корпусов, пушек и ремонта. */
+  shop?: ShopRules;
 }
 
 export interface PlayerDto {
@@ -180,6 +203,39 @@ export interface ConfigMsg {
   npcs?: NpcRules;
   loot?: LootRules;
   meteors?: MeteorRules;
+  shop?: ShopRules;
+}
+
+/** Вход принят; приходит раньше welcome. */
+export interface AccountMsg {
+  t: 'account';
+  /** Ник аккаунта так, как он записан на сервере. */
+  name: string;
+  /** Новый ключ устройства — только после входа по паролю: храним его вместо пароля. */
+  key?: string;
+}
+
+/** Причина отказа во входе; следом сервер закрывает соединение. */
+export type DeniedCode = 'badName' | 'badPassword' | 'wrongPassword' | 'badKey';
+
+export interface DeniedMsg {
+  t: 'denied';
+  code: DeniedCode;
+}
+
+/** Ангар пилота (GDD §51): что куплено, что стоит на корабле, в доке ли он. */
+export interface HangarMsg {
+  t: 'hangar';
+  hull: string;
+  weapon: string;
+  /** Свои корпуса и пушки; у гостя — все. */
+  hulls: string[];
+  weapons: string[];
+  /** Корабль в доке: в космосе его нет, экран станции открыт. */
+  docked: boolean;
+  /** Прочность корпуса — в доке снапшот о своём корабле молчит. */
+  hp: number;
+  maxHp: number;
 }
 
 /**
@@ -193,7 +249,7 @@ export interface CargoMsg {
   max: number;
   /** Что лежит: идентификатор предмета — количество. */
   items: Record<string, number>;
-  /** Кредиты за сданный груз. */
+  /** Кредиты пилота. */
   credits?: number;
 }
 
@@ -210,4 +266,7 @@ export type ServerMessage =
   | ConfigMsg
   | SnapshotMsg
   | CargoMsg
-  | NoticeMsg;
+  | NoticeMsg
+  | AccountMsg
+  | DeniedMsg
+  | HangarMsg;

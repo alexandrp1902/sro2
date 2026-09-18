@@ -33,18 +33,18 @@ import { DEFAULT_HULL, Hulls } from './sim/hulls';
 import { NO_LOOT, lootLabel, rarityColor, type LootRules } from './sim/loot';
 import { DT, directionAngle, localVelocity, type MoveInput } from './sim/movement';
 import { DEFAULT_WEAPON, Weapons } from './sim/weapons';
-import { CargoHud } from './ui/cargoHud';
+import { CargoHud, type CargoState } from './ui/cargoHud';
 import { CombatHud } from './ui/combatHud';
 import { DevOverlay } from './ui/devOverlay';
+import { DockScreen } from './ui/dockScreen';
 import { Feed, describeKill, describeNotice } from './ui/feed';
 import { FlightHud } from './ui/flightHud';
-import { PilotForm } from './ui/pilotForm';
+import { PilotForm, describeDenied } from './ui/pilotForm';
 import { StatusHud } from './ui/statusHud';
-import { playerName, setPlayerName } from './util/playerName';
-import { storage } from './util/storage';
+import { account } from './util/account';
 
-const HULL_KEY = 'sro.hull';
-const WEAPON_KEY = 'sro.weapon';
+/** Id станции в прицеле: отрицательный, чтобы не совпасть с id кораблей и добычи от сервера. */
+const STATION_ID = -1;
 const OWN_COLOR = 0x7fd4ff;
 const SKY_SEED = 0;
 /** Клавиша «взять ближайший предмет» ищет его в этом радиусе — примерно экран на среднем зуме. */
@@ -74,19 +74,16 @@ async function main(): Promise<void> {
   const stick = new Stick(el('stick'), controls);
   const zoom = new Zoom(app.canvas);
 
-  const savedHull = storage.get(HULL_KEY);
-  const prediction = new Prediction(hulls, savedHull && hulls.has(savedHull) ? savedHull : DEFAULT_HULL, SPAWN);
-  const savedWeapon = storage.get(WEAPON_KEY);
-  let weaponId = savedWeapon && weapons.has(savedWeapon) ? savedWeapon : DEFAULT_WEAPON;
+  // Корпус и пушку сообщает сервер из аккаунта (hangar); до этого летим на стартовых.
+  const prediction = new Prediction(hulls, DEFAULT_HULL, SPAWN);
+  let weaponId = DEFAULT_WEAPON;
   /** Каталог лута с сервера: названия, редкость и радиус захвата. */
   let lootRules: LootRules = NO_LOOT;
   /** Единица дистанции для игрока: «цель в 1.4 сектора» вместо «в 980». */
   let sectorUnit = DEFAULT_SECTOR_UNIT;
 
   const serverUrl = resolveServerUrl();
-  const connection = serverUrl
-    ? new Connection(serverUrl, playerName(), () => prediction.hullId, () => weaponId)
-    : null;
+  const connection = serverUrl ? new Connection(serverUrl) : null;
   const roster = connection?.roster ?? new Roster();
 
   // Сид неба: одна система — одно небо. В M7 у каждой системы будет своё.
@@ -116,12 +113,27 @@ async function main(): Promise<void> {
   const camera = new Camera();
 
   const feed = new Feed(el('feed'));
-  const pilotForm = new PilotForm(el('connect'), (name) => {
-    if (name === playerName()) return;
-    setPlayerName(name);
-    connection?.rename(name);
+  // Вход (GDD §61): ник и пароль один раз, дальше — ключ устройства. Выход забывает ключ.
+  const pilotForm = new PilotForm(el('connect'), {
+    onLogin: (name, password) => {
+      account.setName(name);
+      connection?.login({ name, password });
+    },
+    onLogout: () => {
+      if (serverUrl) account.forget(serverUrl);
+      connection?.logout();
+    },
   });
-  const status = new StatusHud(el('status'), () => pilotForm.show(serverUrl, playerName()));
+  const showPilotForm = (error = '') =>
+    pilotForm.show(
+      { url: serverUrl, name: connection?.accountName || account.name(), loggedIn: connection?.hasCredentials ?? false },
+      error,
+    );
+  // Тап по статусу: корабль забрало другое устройство — вернуть его сюда; иначе — окно «Пилот».
+  const status = new StatusHud(el('status'), () => {
+    if (connection?.replaced) connection.resume();
+    else showPilotForm();
+  });
 
   const isOnline = () => connection?.state === 'online';
   const ownId = () => (isOnline() ? connection!.playerId : -1);
@@ -133,34 +145,67 @@ async function main(): Promise<void> {
     if (id === targetId) return;
     targetId = id;
     if (isOnline()) connection!.send({ t: 'target', id });
-    if (id !== 0) setLoot(0); // прицел один: навёлся на корабль — отпустил груз
+    if (id !== 0) {
+      // прицел один: навёлся на корабль — отпустил груз и станцию
+      setLoot(0);
+      setStation(false);
+    }
     if (id === 0) fire.release(); // без цели огонь выключается: кнопка не горит впустую
   };
   const combatHud = new CombatHud(el('ship'), el('target'), el('death'), () => setTarget(0));
 
-  // Прицел один на всё: он либо на противнике, либо на грузе. Наводка на предмет снимает цель и гасит огонь.
+  // Прицел один на всё: он на противнике, на грузе или на станции. Наводка на предмет снимает цель и гасит огонь.
   // Тап по предмету только помечает его; подлетать игрок должен сам, автопилота в MVP нет (боевой документ §45).
   let selectedLootId = 0;
   const setLoot = (id: number) => {
     if (id === selectedLootId) return;
     selectedLootId = id;
     if (isOnline()) connection!.send({ t: 'loot', id });
-    if (id !== 0) setTarget(0); // прицел один: навёлся на груз — отпустил противника
+    if (id !== 0) {
+      // прицел один: навёлся на груз — отпустил противника и станцию
+      setTarget(0);
+      setStation(false);
+    }
   };
-  const cargoHud = new CargoHud(
-    el('cargo'),
-    el('loot'),
-    () => setLoot(0),
-    (item) => {
-      if (isOnline()) connection!.send({ t: 'sell', item });
-    },
-  );
+
+  // Станция тоже выбирается прицелом (тап, клик, Q/E), но стрелять в неё нельзя: прицел на ней — чтобы
+  // пристыковаться. Выбор живёт только на клиенте: сервер про него не знает, id станции ни с чем не совпадёт.
+  let stationSelected = false;
+  const stationMark = { id: STATION_ID, x: STATION.x, y: STATION.y, size: STATION.radius };
+  function setStation(on: boolean): void {
+    if (on === stationSelected) return;
+    stationSelected = on;
+    if (on) {
+      setTarget(0);
+      setLoot(0);
+    }
+  }
+  const stationDistance = () => Math.hypot(prediction.curr.x - STATION.x, prediction.curr.y - STATION.y);
+  const cargoHud = new CargoHud(el('cargo'), el('loot'), () => {
+    setLoot(0);
+    setStation(false);
+  });
+
+  // Док станции (GDD §26): корабль уходит из космоса, поверх мира — торговля, магазин и ангар.
+  // Пока пристыкованы, полёт стоит: входы не шлём, при вылете их нумерация начинается заново.
+  let docked = false;
+  const send = (message: Parameters<Connection['send']>[0]) => {
+    if (isOnline()) connection!.send(message);
+  };
+  const dockScreen = new DockScreen(el('dock'), hulls, weapons, {
+    onSell: (item) => send({ t: 'sell', item }),
+    onBuy: (kind, id) => send({ t: 'buy', kind, id }),
+    onEquip: (kind, id) => send(kind === 'hull' ? { t: 'hull', id } : { t: 'weapon', id }),
+    onRepair: () => send({ t: 'repair' }),
+    onUndock: () => send({ t: 'dock', on: false }),
+  });
 
   /** Всё, во что можно целиться: корабли и метеориты. Id у них из одного счётчика сервера. */
   const targets = () => [...remote.visible(), ...meteors.visible()];
   // Огонь без цели берёт ближайший корабль или камень: сначала в секторе, потом просто в дальности.
   // Никого — огонь не включается.
   fire.onPress = () => {
+    if (docked) return false;
     const current = remote.get(targetId) ?? meteors.get(targetId);
     if (current && !current.dead) return true;
     const id = nearest(prediction.curr, targets(), weapons.get(weaponId));
@@ -176,16 +221,17 @@ async function main(): Promise<void> {
   };
   /**
    * Предыдущий / следующий объект по удалённости: Q/E, Shift+←/→, Tab на ПК, кнопки < > у кнопки огня на телефоне.
-   * Перебираются и корабли, и добыча вперемешку: id у них из одного счётчика сервера, так что не столкнутся.
-   * Прицел один: шаг на корабль снимает груз, шаг на груз снимает цель.
+   * Перебираются корабли, добыча и станция вперемешку: id кораблей и добычи из одного счётчика сервера,
+   * у станции свой, отрицательный. Прицел один: шаг на что-то одно снимает остальное.
    */
   const stepSelection = (step: -1 | 1) => {
-    const candidates = [...targets(), ...loot.visible()];
-    const from = selectedLootId !== 0 ? selectedLootId : targetId;
+    const candidates = [...targets(), ...loot.visible(), stationMark];
+    const from = stationSelected ? STATION_ID : selectedLootId !== 0 ? selectedLootId : targetId;
     // Кольцо спирали — сектор: сначала обходим всё вокруг себя, потом уходим на виток дальше.
     const id = cycle(prediction.curr, candidates, from, step, sectorUnit);
     if (id === null) return;
-    if (loot.get(id)) setLoot(id);
+    if (id === STATION_ID) setStation(true);
+    else if (loot.get(id)) setLoot(id);
     else setTarget(id);
   };
   for (const [button, step] of [
@@ -197,8 +243,18 @@ async function main(): Promise<void> {
       stepSelection(step);
     });
   }
-  // Прицел на грузе — пробел берёт его; прицел на противнике — стреляет.
+  // Пробел и кнопка огня — по тому, на чём прицел: груз берут, к станции стыкуются (в доке — вылет),
+  // по противнику стреляют.
   const grabSelected = (): boolean => {
+    if (docked) {
+      send({ t: 'dock', on: false });
+      return true;
+    }
+    if (stationSelected) {
+      if (stationDistance() <= lootRules.stationRange) send({ t: 'dock', on: true });
+      else feed.add('Подлетите ближе к станции');
+      return true;
+    }
     if (selectedLootId === 0) return false;
     if (isOnline()) connection!.send({ t: 'grab' });
     return true;
@@ -209,6 +265,7 @@ async function main(): Promise<void> {
     step: stepSelection,
     clear: () => {
       if (selectedLootId !== 0) setLoot(0);
+      else if (stationSelected) setStation(false);
       else setTarget(0);
     },
     grab: grabSelected,
@@ -235,6 +292,12 @@ async function main(): Promise<void> {
         tapChangedTarget = false;
         return;
       }
+      // Станция — последней: она большая и не должна перехватывать тап по тому, что рядом с ней.
+      if (pickAt(x, y, [stationMark], view, touch) !== null) {
+        setStation(true);
+        tapChangedTarget = false;
+        return;
+      }
     }
     const id = shipId ?? pickArrow(x, y, overlay.edgeArrows(), touch);
     if (id === null) {
@@ -251,17 +314,7 @@ async function main(): Promise<void> {
     setTarget(id);
   });
 
-  const selectHull = (id: string) => {
-    storage.set(HULL_KEY, id);
-    prediction.hullId = id; // сервер подтвердит в снапшоте
-    if (isOnline()) connection!.send({ t: 'hull', id });
-  };
-  const selectWeapon = (id: string) => {
-    storage.set(WEAPON_KEY, id);
-    weaponId = id; // сервер подтвердит в снапшоте
-    if (isOnline()) connection!.send({ t: 'weapon', id });
-  };
-  const dev = new DevOverlay(el('dev'), hulls, selectHull, connection?.lag ?? null, weapons, selectWeapon);
+  const dev = new DevOverlay(el('dev'), connection?.lag ?? null);
   const flight = new FlightHud(el('flight'), () => dev.toggle());
 
   // Бой: события из снапшотов, эффекты и статистика своих выстрелов для dev-панели.
@@ -311,6 +364,7 @@ async function main(): Promise<void> {
       lootRules = message.loot ?? NO_LOOT;
       loot.setRules(message.loot);
       cargoHud.setRules(message.loot);
+      dockScreen.setRules(message.loot, message.shop);
       loot.clear();
       meteors.setRules(message.meteors);
       meteors.clear();
@@ -332,10 +386,40 @@ async function main(): Promise<void> {
       lootRules = message.loot ?? NO_LOOT;
       loot.setRules(message.loot);
       cargoHud.setRules(message.loot);
+      dockScreen.setRules(message.loot, message.shop);
       meteors.setRules(message.meteors);
     };
     connection.onCargo = (message) => {
-      cargoHud.setCargo({ used: message.used, max: message.max, items: message.items, credits: message.credits ?? 0 });
+      const cargo: CargoState = { used: message.used, max: message.max, items: message.items, credits: message.credits ?? 0 };
+      cargoHud.setCargo(cargo);
+      dockScreen.setCargo(cargo);
+    };
+    connection.onHangar = (message) => {
+      const was = docked;
+      docked = message.docked;
+      prediction.hullId = message.hull;
+      weaponId = message.weapon;
+      dockScreen.setHangar(message);
+      if (docked && !was) {
+        // В доке не целятся и не стреляют; после вылета корабль не рванёт с места сам.
+        setTarget(0);
+        setLoot(0);
+        setStation(false); // после вылета пробел снова стреляет, а не стыкует
+        fire.release();
+        stick.reset();
+        controls.setThrottle(0);
+      }
+      // Вылет: сервер начал буфер входов заново — и мы нумеруем их с 1, первый снапшот принимаем как есть.
+      if (!docked && was) prediction.resetNet();
+    };
+    connection.onAccount = (message) => {
+      if (message.key && serverUrl) account.setKey(serverUrl, message.key);
+      account.setName(message.name);
+      pilotForm.hide();
+    };
+    connection.onDenied = (code) => {
+      if (code === 'badKey' && serverUrl) account.forget(serverUrl);
+      showPilotForm(describeDenied(code));
     };
     connection.onNotice = (message) => {
       const text = describeNotice(message.code);
@@ -365,9 +449,11 @@ async function main(): Promise<void> {
       }
     };
     connection.onRosterEvents = (events) => feed.push(events);
-    connection.connect();
+    const key = account.key(connection.url);
+    if (key) connection.login({ key });
+    else showPilotForm();
   } else {
-    pilotForm.show(null, playerName());
+    showPilotForm();
   }
 
   // Связи нет, а сервер задан: корабль тормозит, как его копия на сервере, — после возврата не будет рывка.
@@ -379,6 +465,7 @@ async function main(): Promise<void> {
   };
 
   const loop = new FixedLoop(() => {
+    if (docked) return; // корабль в доке: ни шагов, ни входов
     keyboard.apply(prediction.curr, hulls.get(prediction.hullId));
     prediction.step(
       flightInput(),
@@ -401,6 +488,8 @@ async function main(): Promise<void> {
       meteors.clear();
       combat.clear();
       ownDto = null;
+      docked = false; // с новым соединением сервер заново скажет, где корабль
+      dockScreen.setHangar(null);
     }
     wasOnline = online;
     if (latestSnapshot && online) {
@@ -428,7 +517,7 @@ async function main(): Promise<void> {
     const hull = hulls.get(prediction.hullId);
     const input = flightInput();
     const desired = input.throttle > 0 && controls.source === 'stick' ? directionAngle(input.dx, input.dy) : null;
-    ownShip.view.visible = !dead;
+    ownShip.view.visible = !dead && !docked;
     ownShip.update(state.x, state.y, state.rot, hull, engineGlow(prediction.curr, input.throttle, hull), desired);
     ownAnchor = { x: state.x, y: state.y, size: hull.size };
 
@@ -462,7 +551,7 @@ async function main(): Promise<void> {
     camera.follow(state.x, state.y, zoom.value).apply(world, app.screen.width, app.screen.height);
     starfield.update(camera.x, camera.y, camera.zoom, app.screen.width, app.screen.height);
     nebula.update(now);
-    weaponArc.update(state.x, state.y, state.rot, target && !dead ? weapon : null, aim?.state === 'ready');
+    weaponArc.update(state.x, state.y, state.rot, target && !dead && !docked ? weapon : null, aim?.state === 'ready');
     overlay.update({
       ships: remote.visible(),
       meteors: meteors.visible(),
@@ -474,10 +563,11 @@ async function main(): Promise<void> {
       ownId: me,
       showAi: dev.visible,
       loot: selectedLoot ? { x: selectedLoot.x, y: selectedLoot.y, size: selectedLoot.size } : null,
+      station: stationSelected ? stationMark : null,
       sectorUnit,
     });
     fx.update(now, camera.zoom, locate);
-    fire.setGrabMode(selectedLootId !== 0);
+    fire.setMode(stationSelected ? 'dock' : selectedLootId !== 0 ? 'grab' : 'fire');
     fire.render(now, !target ? 'none' : aim?.state === 'ready' ? 'ready' : 'blocked');
 
     combatHud.update(
@@ -499,20 +589,18 @@ async function main(): Promise<void> {
       dead && ownDto?.rt ? { by: killedBy, seconds: Math.max(0, (ownDto.rt - tick) * DT) } : null,
     );
 
-    // В круге станции трюм становится прилавком: продажа ручная, игрок выбирает, что менять на кредиты.
-    cargoHud.setAtStation(
-      !dead &&
-        lootRules.stationUnload &&
-        Math.hypot(state.x - STATION.x, state.y - STATION.y) <= lootRules.stationRange,
-    );
+    const toStation = Math.hypot(state.x - STATION.x, state.y - STATION.y);
     cargoHud.update(
       selectedLoot
         ? {
+            kind: 'loot',
             item: selectedLoot.item,
             count: selectedLoot.count,
             distance: Math.hypot(selectedLoot.x - state.x, selectedLoot.y - state.y),
           }
-        : null,
+        : stationSelected
+          ? { kind: 'station', distance: toStation, inRange: toStation <= lootRules.stationRange }
+          : null,
     );
 
     const speed = Math.hypot(prediction.curr.vx, prediction.curr.vy);
@@ -534,8 +622,6 @@ async function main(): Promise<void> {
       peakCorrection: prediction.takePeakCorrection(),
       snaps: prediction.snaps,
       online: prediction.isSynced,
-      hullId: prediction.hullId,
-      weaponId,
       interpMs: remote.clock.delayMs,
       jitterMs: remote.clock.jitterMs,
       extrapolations: remote.extrapolations,

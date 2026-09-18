@@ -140,7 +140,7 @@ public sealed record LootContainer(
 /// <param name="DriftDampTime">За это время дрейф гаснет примерно до 5%.</param>
 /// <param name="FullHoldSeconds">Не чаще раза в столько секунд игроку говорят, что трюм полон.</param>
 /// <param name="StationUnload">Выключатель сдачи груза на станции.</param>
-/// <param name="StationRange">Ближе этого к станции груз превращается в кредиты.</param>
+/// <param name="StationRange">Радиус станции: ближе этого корабль может пристыковаться (M6), в доке продают груз.</param>
 /// <param name="MaxContainers">Сколько контейнеров лежит в системе одновременно; 0 — сколько угодно.</param>
 public sealed record LootRules(
     double PickupRange = 130,

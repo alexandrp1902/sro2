@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Text;
+using Sro.Server.Accounts;
 using Sro.Server.Net;
 using Sro.Sim;
 
@@ -29,6 +30,7 @@ public sealed class Room
     private readonly Battle _battle;
     private readonly LootSystem _loot;
     private readonly MeteorSystem _meteors;
+    private readonly AccountStore? _accounts;
     private readonly Dictionary<int, Player> _players = [];
     private readonly Dictionary<int, Player> _byConnection = [];
     private readonly Dictionary<string, Player> _byToken = new(StringComparer.Ordinal);
@@ -48,6 +50,7 @@ public sealed class Room
     /// <param name="ai">Случайность ИИ пиратов (точки патруля) — отдельно, чтобы пираты не сдвигали разброс спауна.</param>
     /// <param name="loot">Случайность дропа — тоже отдельно: иначе добыча сдвигала бы разброс спауна.</param>
     /// <param name="meteors">Случайность метеоритов: размер, трасса, скорость, интервал.</param>
+    /// <param name="accounts">Аккаунты пилотов; null — сохранять некуда (тесты без аккаунтов).</param>
     public Room(
         Balance balance,
         ILogger log,
@@ -55,7 +58,8 @@ public sealed class Room
         Random? jitter = null,
         Random? ai = null,
         Random? loot = null,
-        Random? meteors = null)
+        Random? meteors = null,
+        AccountStore? accounts = null)
     {
         Balance = balance;
         _log = log;
@@ -65,6 +69,7 @@ public sealed class Room
         _loot = new LootSystem(() => ++_nextId, loot ?? Random.Shared, log);
         _loot.SetContainers(balance.Loot.ContainerList);
         _meteors = new MeteorSystem(() => ++_nextId, meteors ?? Random.Shared);
+        _accounts = accounts;
         SpawnDrones();
         SpawnPirates();
     }
@@ -78,6 +83,9 @@ public sealed class Room
 
     /// <summary>Корабль по id — игрок или NPC.</summary>
     public ShipEntity? Entity(int id) => _ships.GetValueOrDefault(id);
+
+    /// <summary>Игрок по id — в том числе в доке, когда его корабля в космосе нет.</summary>
+    public Player? Pilot(int id) => _players.GetValueOrDefault(id);
 
     /// <summary>Метеориты в полёте.</summary>
     public IReadOnlyList<Meteor> Meteors => _meteors.Alive;
@@ -96,6 +104,7 @@ public sealed class Room
         return meteor;
     }
 
+    /// <summary>Гость без аккаунта: ничего не сохраняется, весь ангар открыт. Так входят тесты и смоук-скрипты.</summary>
     public void Join(IClientConnection connection, string? token, string? name, string? hull, string? weapon = null)
     {
         if (_byConnection.ContainsKey(connection.Id)) return;
@@ -103,23 +112,12 @@ public sealed class Room
         var hullId = hull is not null && Hulls.ContainsKey(hull) ? hull : null;
         var weaponId = weapon is not null && Balance.Weapons.ContainsKey(weapon) ? weapon : null;
 
-        if (token is not null && _byToken.TryGetValue(token, out var player))
+        if (token is not null && _byToken.TryGetValue(token, out var player) && player.IsGuest)
         {
-            // Старое соединение могло ещё не заметить обрыв (iOS усыпил вкладку) или это дубль вкладки.
-            if (player.Connection is { } old)
-            {
-                _byConnection.Remove(old.Id);
-                old.Close(ReplacedCloseCode, "replaced");
-            }
-            player.Attach(connection);
             player.Name = UniqueName(SanitizeName(name), player);
             if (hullId is not null) ChangeHull(player, hullId);
             if (weaponId is not null) player.WeaponId = weaponId;
-            _byConnection[connection.Id] = player;
-            connection.Send(Welcome(player, resumed: true));
-            BroadcastPlayers();
-            SendCargo(player); // иначе вернувшийся видел бы пустой трюм до первого подбора
-            _log.LogInformation("Player {Id} '{Name}' resumed, online {Count}", player.Id, player.Name, OnlineCount());
+            Resume(player, connection);
             return;
         }
 
@@ -128,17 +126,78 @@ public sealed class Room
             token,
             UniqueName(SanitizeName(name), null),
             hullId ?? SimConfig.DefaultHull,
-            weaponId ?? SimConfig.DefaultWeapon);
+            weaponId ?? SimConfig.DefaultWeapon)
+        {
+            Credits = Balance.Shop.StartCredits,
+        };
+        Enter(player, connection);
+    }
+
+    /// <summary>
+    /// Пилот с аккаунтом: ник и пароль (или ключ устройства) уже проверены в сетевом потоке, см. <see cref="AccountStore"/>.
+    /// Корабль, который ещё ждёт после обрыва, достаётся новому соединению — даже с другого устройства (GDD §61).
+    /// </summary>
+    public void JoinAccount(IClientConnection connection, string accountId, string name)
+    {
+        if (_byConnection.ContainsKey(connection.Id)) return;
+        if (_byToken.TryGetValue(accountId, out var player))
+        {
+            Resume(player, connection);
+            return;
+        }
+
+        var profile = _accounts?.Profile(accountId);
+        player = new Player(++_nextId, accountId, UniqueName(SanitizeName(name), null), SimConfig.DefaultHull, SimConfig.DefaultWeapon, accountId);
+        if (profile is null)
+        {
+            player.Credits = Balance.Shop.StartCredits; // GDD §54: новый пилот получает стартовый капитал
+        }
+        else
+        {
+            player.Credits = profile.Credits;
+            // Корпус или пушку могли убрать из баланса, пока пилот отсутствовал, — такие просто пропадают из ангара.
+            foreach (var id in profile.Hulls) if (Hulls.ContainsKey(id)) player.Hulls.Add(id);
+            foreach (var id in profile.Weapons) if (Balance.Weapons.ContainsKey(id)) player.Weapons.Add(id);
+            if (player.Hulls.Contains(profile.Hull) && Hulls.ContainsKey(profile.Hull)) player.HullId = profile.Hull;
+            if (player.Weapons.Contains(profile.Weapon) && Balance.Weapons.ContainsKey(profile.Weapon)) player.WeaponId = profile.Weapon;
+            foreach (var (item, count) in profile.Cargo) if (count > 0) player.Cargo.Add(item, count);
+        }
+        Enter(player, connection);
+        if (profile is null) Save(player);
+    }
+
+    /// <summary>Новый корабль в системе: у станции, с защитой (GDD §25).</summary>
+    private void Enter(Player player, IClientConnection connection)
+    {
         Spawn(player);
         player.Attach(connection);
         _players[player.Id] = player;
         _ships[player.Id] = player;
         _byConnection[connection.Id] = player;
-        if (token is not null) _byToken[token] = player;
+        if (player.Token is not null) _byToken[player.Token] = player;
         connection.Send(Welcome(player, resumed: false));
         BroadcastPlayers();
         SendCargo(player); // трюм пуст, но клиенту нужна ёмкость корпуса
+        SendHangar(player);
         _log.LogInformation("Player {Id} '{Name}' joined as {Hull}, online {Count}", player.Id, player.Name, player.HullId, OnlineCount());
+    }
+
+    /// <summary>Возврат к кораблю, который ждал после обрыва связи.</summary>
+    private void Resume(Player player, IClientConnection connection)
+    {
+        // Старое соединение могло ещё не заметить обрыв (iOS усыпил вкладку), или это дубль вкладки, или другое устройство.
+        if (player.Connection is { } old)
+        {
+            _byConnection.Remove(old.Id);
+            old.Close(ReplacedCloseCode, "replaced");
+        }
+        player.Attach(connection);
+        _byConnection[connection.Id] = player;
+        connection.Send(Welcome(player, resumed: true));
+        BroadcastPlayers();
+        SendCargo(player); // иначе вернувшийся видел бы пустой трюм до первого подбора
+        SendHangar(player); // в том числе — что корабль всё ещё в доке
+        _log.LogInformation("Player {Id} '{Name}' resumed, online {Count}", player.Id, player.Name, OnlineCount());
     }
 
     /// <summary>Соединение закрылось. Корабль остаётся ждать игрока, если у того есть сессия.</summary>
@@ -164,18 +223,26 @@ public sealed class Room
         if (_byConnection.TryGetValue(connection.Id, out var player)) player.Inputs.Enqueue(seq, input);
     }
 
+    /// <summary>Поставить корпус из ангара (GDD §51): пилоту с аккаунтом — только свой и только в доке.</summary>
     public void SetHull(IClientConnection connection, string? hullId)
     {
         if (hullId is null || !Hulls.ContainsKey(hullId) || !_byConnection.TryGetValue(connection.Id, out var player)) return;
+        if (!player.IsGuest && (!player.Docked || !player.OwnsHull(hullId))) return;
         ChangeHull(player, hullId);
         SendCargo(player); // у нового корпуса своя ёмкость; груз при этом не выбрасывается (GDD §24)
+        SendHangar(player);
+        Save(player);
         _log.LogInformation("Player {Id} switched to {Hull}", player.Id, hullId);
     }
 
+    /// <summary>Поставить пушку: пилоту с аккаунтом — только свою и только в доке.</summary>
     public void SetWeapon(IClientConnection connection, string? weaponId)
     {
         if (weaponId is null || !Balance.Weapons.ContainsKey(weaponId) || !_byConnection.TryGetValue(connection.Id, out var player)) return;
+        if (!player.IsGuest && (!player.Docked || !player.OwnsWeapon(weaponId))) return;
         player.WeaponId = weaponId;
+        SendHangar(player);
+        Save(player);
         _log.LogInformation("Player {Id} switched to {Weapon}", player.Id, weaponId);
     }
 
@@ -197,9 +264,10 @@ public sealed class Room
         if (_byConnection.TryGetValue(connection.Id, out var player)) player.SelectedLootId = lootId;
     }
 
+    /// <summary>Смена ника — только у гостя: у пилота с аккаунтом ник и есть вход.</summary>
     public void Rename(IClientConnection connection, string? name)
     {
-        if (!_byConnection.TryGetValue(connection.Id, out var player)) return;
+        if (!_byConnection.TryGetValue(connection.Id, out var player) || !player.IsGuest) return;
         var unique = UniqueName(SanitizeName(name), player);
         if (unique == player.Name) return;
         _log.LogInformation("Player {Id} renamed '{Old}' → '{New}'", player.Id, player.Name, unique);
@@ -214,7 +282,8 @@ public sealed class Room
     public void ApplyBalance(Balance balance)
     {
         var old = Balance;
-        foreach (var ship in _ships.Values)
+        // Корабли в доке — не в космосе, но корпус и пушка у них те же, что и у всех.
+        foreach (var ship in _ships.Values.Concat(DockedPlayers()))
         {
             // У пирата корпус и максимумы — от типа, см. ниже; у метеорита корпуса нет, летящий камень баланс не меняет.
             if (ship is Pirate or Meteor) continue;
@@ -240,11 +309,12 @@ public sealed class Room
         if (!old.Loot.ContainerList.SequenceEqual(balance.Loot.ContainerList)) _loot.SetContainers(balance.Loot.ContainerList);
         if (_loot.DropUnknown(balance.Loot)) ClearMissingLootTargets();
 
-        var message = Protocol.Encode(new ConfigMsg(balance.Hulls, balance.Weapons, balance.Rules, balance.Npc, balance.Loot, balance.Meteors));
+        var message = Protocol.Encode(new ConfigMsg(balance.Hulls, balance.Weapons, balance.Rules, balance.Npc, balance.Loot, balance.Meteors, balance.Shop));
         foreach (var player in _players.Values)
         {
             player.Connection?.SendRaw(message);
             SendCargo(player); // объёмы предметов и ёмкость корпуса могли измениться
+            SendHangar(player); // корпус или пушку могли убрать из баланса
         }
 
         if (!old.Rules.DroneList.SequenceEqual(balance.Rules.DroneList))
@@ -352,9 +422,11 @@ public sealed class Room
                 _expired.Add(player);
                 return;
             }
-            if (!player.IsDead) Movement.Step(ref player.Ship, player.StopInput, hull, SimConfig.Dt);
+            if (!player.IsDead && !player.Docked) Movement.Step(ref player.Ship, player.StopInput, hull, SimConfig.Dt);
             return;
         }
+        // В доке входы не нужны: клиент их не шлёт, а при вылете буфер начинается заново.
+        if (player.Docked) return;
 
         var count = player.Inputs.Tick(_steps);
         if (player.IsDead) return;
@@ -468,7 +540,7 @@ public sealed class Room
     private static readonly string[] AiNames = ["patrol", "attack", "return"];
 
     private WelcomeMsg Welcome(Player player, bool resumed) =>
-        new(player.Id, SimConfig.TickRate, Protocol.Version, Hulls, Balance.Weapons, Balance.Rules, resumed, Balance.Npc, Balance.Loot, Balance.Meteors);
+        new(player.Id, SimConfig.TickRate, Protocol.Version, Hulls, Balance.Weapons, Balance.Rules, resumed, Balance.Npc, Balance.Loot, Balance.Meteors, Balance.Shop);
 
     /// <summary>Занятое другим игроком имя получает номер: «Имя 2», «Имя 3»…</summary>
     private string UniqueName(string name, Player? self)
@@ -485,7 +557,7 @@ public sealed class Room
     /// <summary>Имя занято другим игроком или NPC: игрок не назовётся «Пират Ур.2».</summary>
     private bool IsTaken(string name, Player? self)
     {
-        foreach (var ship in _ships.Values)
+        foreach (var ship in _ships.Values.Concat(DockedPlayers()))
         {
             if (ship != self && string.Equals(ship.Name, name, StringComparison.OrdinalIgnoreCase)) return true;
         }
@@ -502,6 +574,7 @@ public sealed class Room
 
     private void Remove(Player player)
     {
+        Save(player);
         _players.Remove(player.Id);
         if (player.Token is not null) _byToken.Remove(player.Token);
         RemoveShip(player);
@@ -521,6 +594,7 @@ public sealed class Room
             case LootSystem.GrabResult.Taken:
                 player.SelectedLootId = 0;
                 SendCargo(player);
+                Save(player);
                 break;
             case LootSystem.GrabResult.NoRoom:
                 WarnCargoFull(player);
@@ -535,18 +609,15 @@ public sealed class Room
     }
 
     /// <summary>
-    /// Продать груз на станции: item — что именно, null — весь трюм. Сдача ручная, чтобы игрок решал,
+    /// Продать груз в доке: item — что именно, null — весь трюм. Сдача ручная, чтобы игрок решал,
     /// что везти дальше, а что менять на кредиты.
     /// </summary>
     public void Sell(IClientConnection connection, string? item)
     {
-        if (!_byConnection.TryGetValue(connection.Id, out var player) || player.IsDead) return;
+        if (!_byConnection.TryGetValue(connection.Id, out var player)) return;
         var loot = Balance.Loot;
         if (!loot.StationUnload || player.Cargo.IsEmpty) return;
-
-        var dx = player.Ship.X - SimConfig.StationX;
-        var dy = player.Ship.Y - SimConfig.StationY;
-        if (dx * dx + dy * dy > loot.StationRange * loot.StationRange)
+        if (!player.Docked)
         {
             connection.Send(new NoticeMsg(Protocol.TooFarNotice));
             return;
@@ -569,7 +640,145 @@ public sealed class Room
         player.CargoFullUntilTick = 0;
         connection.Send(new NoticeMsg(Protocol.UnloadedNotice));
         SendCargo(player);
+        Save(player);
         _log.LogInformation("Player {Id} sold cargo for {Credits} credits", player.Id, credits);
+    }
+
+    /// <summary>
+    /// Стыковка (GDD §26): в круге станции корабль уходит в док — из космоса, из прицелов и с пути метеоритов.
+    /// Вылет — там же, где стыковались, стоя на месте и с защитой, как после появления (§25).
+    /// </summary>
+    public void Dock(IClientConnection connection, bool on)
+    {
+        if (!_byConnection.TryGetValue(connection.Id, out var player)) return;
+        if (on == player.Docked)
+        {
+            SendHangar(player); // клиент мог не знать, что уже там
+            return;
+        }
+        if (on)
+        {
+            if (player.IsDead) return;
+            if (!AtStation(player))
+            {
+                connection.Send(new NoticeMsg(Protocol.TooFarNotice));
+                return;
+            }
+            player.Docked = true;
+            player.Ship.Vx = player.Ship.Vy = 0;
+            player.FireHeld = false;
+            player.TargetId = 0;
+            player.SelectedLootId = 0;
+            RemoveShip(player);
+            _log.LogInformation("Player {Id} docked", player.Id);
+        }
+        else
+        {
+            player.Docked = false;
+            player.ResetInputs();
+            player.ProtectedUntilTick = Tick + Balance.Rules.ProtectionTicks;
+            _ships[player.Id] = player;
+            _log.LogInformation("Player {Id} undocked", player.Id);
+        }
+        SendHangar(player);
+    }
+
+    /// <summary>Купить в доке корпус или пушку (GDD §26, §30). Купленное сразу ставится на корабль.</summary>
+    public void Buy(IClientConnection connection, string? kind, string? id)
+    {
+        if (id is null || !_byConnection.TryGetValue(connection.Id, out var player) || !player.Docked) return;
+        var shop = Balance.Shop;
+        var (price, owned) = kind switch
+        {
+            Protocol.HullItem when Hulls.ContainsKey(id) => (shop.HullPrice(id), player.OwnsHull(id)),
+            Protocol.WeaponItem when Balance.Weapons.ContainsKey(id) => (shop.WeaponPrice(id), player.OwnsWeapon(id)),
+            _ => (null, false),
+        };
+        if (owned || price is not { } cost) return;
+        if (player.Credits < cost)
+        {
+            connection.Send(new NoticeMsg(Protocol.NoCreditsNotice));
+            return;
+        }
+
+        player.Credits -= cost;
+        if (kind == Protocol.HullItem)
+        {
+            player.Hulls.Add(id);
+            ChangeHull(player, id);
+        }
+        else
+        {
+            player.Weapons.Add(id);
+            player.WeaponId = id;
+        }
+        SendCargo(player); // кредиты, а у корпуса — ещё и ёмкость трюма
+        SendHangar(player);
+        Save(player);
+        _log.LogInformation("Player {Id} bought {Kind} {Item} for {Credits} credits", player.Id, kind, id, cost);
+    }
+
+    /// <summary>Ремонт в доке: корпус и щит до полных, по repairPrice из shop.json за единицу корпуса.</summary>
+    public void Repair(IClientConnection connection)
+    {
+        if (!_byConnection.TryGetValue(connection.Id, out var player) || !player.Docked) return;
+        var hull = player.Hull(Hulls);
+        var maxHp = player.MaxHp(hull);
+        var maxShield = player.MaxShield(hull);
+        if (player.Hp >= maxHp && player.Shield >= maxShield) return;
+        var cost = Balance.Shop.RepairCost(maxHp - player.Hp);
+        if (player.Credits < cost)
+        {
+            connection.Send(new NoticeMsg(Protocol.NoCreditsNotice));
+            return;
+        }
+        player.Credits -= cost;
+        player.Hp = maxHp;
+        player.Shield = maxShield;
+        SendCargo(player);
+        SendHangar(player);
+        if (cost > 0) Save(player);
+    }
+
+    private bool AtStation(Player player)
+    {
+        var dx = player.Ship.X - SimConfig.StationX;
+        var dy = player.Ship.Y - SimConfig.StationY;
+        var range = Balance.Loot.StationRange;
+        return dx * dx + dy * dy <= range * range;
+    }
+
+    private IEnumerable<Player> DockedPlayers() => _players.Values.Where(p => p.Docked);
+
+    /// <summary>Ангар — личное дело пилота, как и трюм.</summary>
+    private void SendHangar(Player player)
+    {
+        if (player.Connection is null) return;
+        var hull = player.Hull(Hulls);
+        player.Connection.Send(new HangarMsg(
+            player.HullId,
+            player.WeaponId,
+            player.IsGuest ? [.. Hulls.Keys] : [.. player.Hulls.Where(Hulls.ContainsKey).Order(StringComparer.Ordinal)],
+            player.IsGuest ? [.. Balance.Weapons.Keys] : [.. player.Weapons.Where(Balance.Weapons.ContainsKey).Order(StringComparer.Ordinal)],
+            player.Docked,
+            (int)Math.Ceiling(player.Hp),
+            (int)Math.Ceiling(player.MaxHp(hull))));
+    }
+
+    /// <summary>
+    /// Состояние пилота — в аккаунт (GDD §62). Здесь только память: на диск его запишет AccountStore,
+    /// поэтому звать можно после каждого изменения, не думая о цене.
+    /// </summary>
+    private void Save(Player player)
+    {
+        if (_accounts is null || player.AccountId is null) return;
+        _accounts.Save(player.AccountId, new AccountProfile(
+            player.Credits,
+            player.HullId,
+            player.WeaponId,
+            [.. player.Hulls.Order(StringComparer.Ordinal)],
+            [.. player.Weapons.Order(StringComparer.Ordinal)],
+            new Dictionary<string, int>(player.Cargo.Items)));
     }
 
     /// <summary>Трюм — личное дело игрока: снапшот один на всех, места для него там нет.</summary>
@@ -619,8 +828,10 @@ public sealed class Room
     private void BroadcastPlayers()
     {
         // Метеориты — не в ростере: их десятки за минуту, а ростер рассылается целиком при каждом изменении.
+        // Пилоты в доке остаются в списке: они в системе, просто не в космосе.
         var list = _ships.Values
             .Where(s => s is not Meteor)
+            .Concat(DockedPlayers())
             .OrderBy(s => s.Id)
             .Select(s => s switch
             {

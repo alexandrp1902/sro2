@@ -12,7 +12,7 @@ const DASHES = 72;
 const LABEL_GAP = 18;
 
 /**
- * Зоны на карте системы: круг сдачи груза и кольцо укрытия у станции, логова пиратов с составом.
+ * Зоны на карте системы: круг дока и кольцо укрытия у станции, логова пиратов с составом.
  * Слой в мировых координатах, под кораблями; перестраивается, когда сервер присылает новый баланс.
  */
 export class Zones {
@@ -20,19 +20,20 @@ export class Zones {
   private key = '';
 
   set(npcs: NpcRules | undefined, loot?: LootRules): void {
-    const key = JSON.stringify([npcs ?? null, loot?.stationUnload ? loot.stationRange : null]);
+    const key = JSON.stringify([npcs ?? null, loot?.stationRange ?? null]);
     if (key === this.key) return;
     this.key = key;
     for (const child of this.view.removeChildren()) child.destroy();
 
-    // Круг сдачи меньше укрытия и рисуется сплошным: его ни с чем не спутать.
-    if (loot?.stationUnload && loot.stationRange > 0) {
+    // Круг дока меньше укрытия и рисуется сплошным: его ни с чем не спутать. Внутри — кнопка «ДОК».
+    if (loot && loot.stationRange > 0) {
       const ur = loot.stationRange;
-      const unload = new Graphics()
+      const dock = new Graphics()
         .circle(STATION.x, STATION.y, ur)
         .fill({ color: UNLOAD_COLOR, alpha: 0.06 })
         .stroke({ width: 2, color: UNLOAD_COLOR, alpha: 0.45 });
-      this.view.addChild(unload, label('сдача груза', STATION.x, STATION.y + ur + LABEL_GAP, UNLOAD_COLOR));
+      // Подпись сверху: снизу к кольцу примыкает парковка, и «док» читался бы как её название.
+      this.view.addChild(dock, label('док', STATION.x, STATION.y - ur - LABEL_GAP, UNLOAD_COLOR));
     }
     if (!npcs) return;
 

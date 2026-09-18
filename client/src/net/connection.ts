@@ -1,9 +1,11 @@
-import { renewSession, sessionToken } from '../util/session';
 import { FakeLag } from './fakeLag';
 import {
   PROTOCOL_VERSION,
+  type AccountMsg,
   type CargoMsg,
   type ClientMessage,
+  type DeniedCode,
+  type HangarMsg,
   type NoticeMsg,
   type ServerMessage,
   type SnapshotMsg,
@@ -13,18 +15,25 @@ import { Roster, type RosterEvent } from './roster';
 
 export type ConnectionState = 'connecting' | 'online' | 'offline';
 
+/** Вход по нику и паролю (свободный ник заводит аккаунт) или по ключу устройства. */
+export type Credentials = { name: string; password: string } | { key: string };
+
 const PING_INTERVAL_MS = 1000;
 const FIRST_RETRY_MS = 500;
 const MAX_RETRY_MS = 5000;
 
 /** Вкладка ушла в фон: закрываемся сами, чтобы корабль на сервере сразу начал тормозить. */
 const CLOSE_HIDDEN = 4000;
-/** От сервера: к нашему кораблю подключилась вкладка с той же сессией (вкладку продублировали). */
+/** От сервера: корабль забрало другое соединение того же аккаунта — другое устройство или вкладка. */
 const CLOSE_REPLACED = 4001;
 /** Закрываемся сами: сервер другой версии протокола. */
 const CLOSE_VERSION = 4002;
+/** От сервера: вход отклонён, причина пришла в denied. */
+const CLOSE_DENIED = 4003;
+/** Закрываемся сами: пилот вышел или входит под другим ником. */
+const CLOSE_LOGOUT = 1000;
 
-/** WebSocket-соединение с игровым сервером: автопереподключение, сессия, список игроков, пинг. */
+/** WebSocket-соединение с игровым сервером: вход, автопереподключение, список игроков, пинг. */
 export class Connection {
   state: ConnectionState = 'offline';
   playerId = 0;
@@ -36,6 +45,10 @@ export class Connection {
   readonly roster = new Roster();
   /** Версия протокола сервера, если она не совпала с нашей: играть нельзя, сервер или страницу нужно обновить. */
   serverVersion: number | null = null;
+  /** Корабль забрало другое устройство: сами не переподключаемся, иначе устройства отбирали бы его друг у друга. */
+  replaced = false;
+  /** Ник аккаунта, под которым вошли. */
+  accountName = '';
 
   onWelcome: ((message: WelcomeMsg) => void) | null = null;
   onConfig: ((message: Extract<ServerMessage, { t: 'config' }>) => void) | null = null;
@@ -43,39 +56,72 @@ export class Connection {
   onRosterEvents: ((events: RosterEvent[]) => void) | null = null;
   onCargo: ((message: CargoMsg) => void) | null = null;
   onNotice: ((message: NoticeMsg) => void) | null = null;
+  onAccount: ((message: AccountMsg) => void) | null = null;
+  onDenied: ((code: DeniedCode) => void) | null = null;
+  onHangar: ((message: HangarMsg) => void) | null = null;
 
   private ws: WebSocket | null = null;
+  private credentials: Credentials | null = null;
   private pingTimer = 0;
   private retryTimer = 0;
   private retryMs = FIRST_RETRY_MS;
   private rateWindowStart = 0;
   private rateCount = 0;
 
-  constructor(
-    readonly url: string,
-    private name: string,
-    private readonly hullId: () => string,
-    private readonly weaponId: () => string,
-  ) {
+  constructor(readonly url: string) {
     document.addEventListener('visibilitychange', () => {
-      if (document.visibilityState === 'hidden') {
-        this.suspend();
-      } else if (this.state === 'offline') {
-        window.clearTimeout(this.retryTimer);
-        this.retryMs = FIRST_RETRY_MS;
-        this.connect();
-      }
+      if (document.visibilityState === 'hidden') this.close(CLOSE_HIDDEN);
+      else if (this.state === 'offline') this.resume(); // вернулись на вкладку — в том числе забираем корабль назад
     });
   }
 
-  connect(): void {
+  /** Есть ли с чем входить: без ника с паролем или ключа соединения нет. */
+  get hasCredentials(): boolean {
+    return this.credentials !== null;
+  }
+
+  /** Войти — в том числе заново, под другим ником. */
+  login(credentials: Credentials): void {
+    this.credentials = credentials;
+    this.close(CLOSE_LOGOUT);
+    this.resume();
+  }
+
+  /** Выйти: соединение закрывается, следующий вход — через форму. */
+  logout(): void {
+    this.credentials = null;
+    this.accountName = '';
+    this.close(CLOSE_LOGOUT);
+  }
+
+  /** Подключиться сейчас, не дожидаясь повтора: после возврата на вкладку или тапа «вернуть корабль». */
+  resume(): void {
+    if (!this.credentials || this.state !== 'offline') return;
+    window.clearTimeout(this.retryTimer);
+    this.retryMs = FIRST_RETRY_MS;
+    this.replaced = false;
+    this.connect();
+  }
+
+  send(message: ClientMessage): void {
+    const ws = this.ws;
+    if (!ws) return;
+    const text = JSON.stringify(message);
+    this.lag.send(() => {
+      if (ws.readyState === WebSocket.OPEN) ws.send(text);
+    });
+  }
+
+  private connect(): void {
+    const credentials = this.credentials;
+    if (!credentials) return;
     this.state = 'connecting';
     const ws = new WebSocket(this.url);
     this.ws = ws;
 
     ws.onopen = () => {
       this.retryMs = FIRST_RETRY_MS;
-      this.send({ t: 'hello', name: this.name, hull: this.hullId(), weapon: this.weaponId(), token: sessionToken() });
+      this.send({ t: 'hello', ...credentials });
       this.ping();
       this.pingTimer = window.setInterval(() => this.ping(), PING_INTERVAL_MS);
     };
@@ -88,10 +134,9 @@ export class Connection {
     ws.onclose = (e) => {
       if (this.ws !== ws) return;
       this.drop();
+      if (e.code === CLOSE_DENIED) return; // ждём пилота с формой входа
       if (e.code === CLOSE_REPLACED) {
-        // Корабль остался у вкладки-дубля, а эта летит дальше новым пилотом.
-        renewSession();
-        this.retryTimer = window.setTimeout(() => this.connect(), 0);
+        this.replaced = true;
         return;
       }
       this.retryTimer = window.setTimeout(() => this.connect(), this.retryMs);
@@ -99,28 +144,13 @@ export class Connection {
     };
   }
 
-  send(message: ClientMessage): void {
-    const ws = this.ws;
-    if (!ws) return;
-    const text = JSON.stringify(message);
-    this.lag.send(() => {
-      if (ws.readyState === WebSocket.OPEN) ws.send(text);
-    });
-  }
-
-  /** Смена ника на лету; при следующем подключении он уйдёт в hello. */
-  rename(name: string): void {
-    this.name = name;
-    if (this.state === 'online') this.send({ t: 'name', name });
-  }
-
-  /** Фон: iOS всё равно порвёт сокет, но позже — а до тех пор сервер вёл бы корабль по последнему входу. */
-  private suspend(): void {
+  /** Фон (CLOSE_HIDDEN): iOS всё равно порвёт сокет, но позже — а до тех пор сервер вёл бы корабль по последнему входу. */
+  private close(code: number): void {
     window.clearTimeout(this.retryTimer);
     const ws = this.ws;
     if (!ws) return;
     this.drop();
-    ws.close(CLOSE_HIDDEN, 'hidden');
+    ws.close(code, code === CLOSE_HIDDEN ? 'hidden' : 'logout');
   }
 
   private drop(): void {
@@ -136,6 +166,16 @@ export class Connection {
 
   private handle(message: ServerMessage): void {
     switch (message.t) {
+      case 'account':
+        this.accountName = message.name;
+        // Пароль больше не нужен: дальше входим по ключу устройства.
+        if (message.key && this.credentials) this.credentials = { key: message.key };
+        this.onAccount?.(message);
+        break;
+      case 'denied':
+        this.credentials = null;
+        this.onDenied?.(message.code);
+        break;
       case 'welcome':
         if ((message.version ?? 0) !== PROTOCOL_VERSION) {
           // Старый сервер не пришлёт корпус и щит и не поймёт огонь — вместо NaN честно говорим, в чём дело.
@@ -175,6 +215,9 @@ export class Connection {
         break;
       case 'notice':
         this.onNotice?.(message);
+        break;
+      case 'hangar':
+        this.onHangar?.(message);
         break;
     }
   }

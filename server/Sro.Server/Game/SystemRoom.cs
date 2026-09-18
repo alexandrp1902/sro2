@@ -1,5 +1,6 @@
 using System.Collections.Concurrent;
 using System.Diagnostics;
+using Sro.Server.Accounts;
 using Sro.Server.Net;
 using Sro.Sim;
 
@@ -19,10 +20,10 @@ public sealed class SystemRoom : BackgroundService
     private readonly Room _room;
     private long _tick;
 
-    public SystemRoom(BalanceStore balance, ILogger<SystemRoom> log, ILogger<Room> roomLog)
+    public SystemRoom(BalanceStore balance, AccountStore accounts, ILogger<SystemRoom> log, ILogger<Room> roomLog)
     {
         _log = log;
-        _room = new Room(balance.Balance, roomLog);
+        _room = new Room(balance.Balance, roomLog, accounts: accounts);
         balance.Changed += b => _commands.Enqueue(() => _room.ApplyBalance(b));
     }
 
@@ -30,6 +31,10 @@ public sealed class SystemRoom : BackgroundService
 
     public void Join(IClientConnection connection, HelloMsg hello) =>
         _commands.Enqueue(() => _room.Join(connection, hello.Token, hello.Name, hello.Hull, hello.Weapon));
+
+    /// <summary>Пилот с аккаунтом: вход уже проверен в сетевом потоке.</summary>
+    public void JoinAccount(IClientConnection connection, string accountId, string name) =>
+        _commands.Enqueue(() => _room.JoinAccount(connection, accountId, name));
 
     public void Leave(IClientConnection connection) => _commands.Enqueue(() => _room.Disconnect(connection));
 
@@ -56,6 +61,12 @@ public sealed class SystemRoom : BackgroundService
     public void Sell(IClientConnection connection, string? item) => _commands.Enqueue(() => _room.Sell(connection, item));
 
     public void Rename(IClientConnection connection, string? name) => _commands.Enqueue(() => _room.Rename(connection, name));
+
+    public void Dock(IClientConnection connection, bool on) => _commands.Enqueue(() => _room.Dock(connection, on));
+
+    public void Buy(IClientConnection connection, string? kind, string? id) => _commands.Enqueue(() => _room.Buy(connection, kind, id));
+
+    public void Repair(IClientConnection connection) => _commands.Enqueue(() => _room.Repair(connection));
 
     protected override Task ExecuteAsync(CancellationToken stoppingToken) =>
         Task.Factory.StartNew(() => Run(stoppingToken), stoppingToken, TaskCreationOptions.LongRunning, TaskScheduler.Default);

@@ -3,11 +3,19 @@ using Sro.Sim;
 
 namespace Sro.Server.Game;
 
-/// <param name="token">Сессия клиента; null — вернуться к кораблю после обрыва нельзя, он удаляется сразу.</param>
-public sealed class Player(int id, string? token, string name, string hullId, string weaponId)
+/// <param name="token">
+/// Ключ возврата к кораблю после обрыва связи: у пилота с аккаунтом — id аккаунта, у гостя — сессия вкладки;
+/// null — вернуться нельзя, корабль удаляется сразу.
+/// </param>
+/// <param name="accountId">Аккаунт (GDD §61–62); null — гость, у него ничего не сохраняется и весь ангар открыт.</param>
+public sealed class Player(int id, string? token, string name, string hullId, string weaponId, string? accountId = null)
     : ShipEntity(id, name, hullId, weaponId)
 {
     public string? Token { get; } = token;
+
+    public string? AccountId { get; } = accountId;
+
+    public bool IsGuest => AccountId is null;
 
     /// <summary>null — связи нет: корабль висит в космосе и тормозит, пока игрок не вернётся.</summary>
     public IClientConnection? Connection { get; private set; }
@@ -15,7 +23,7 @@ public sealed class Player(int id, string? token, string name, string hullId, st
 
     /// <summary>
     /// Выбранный предмет (боевой документ §45); 0 — нет. На подбор не влияет: тракторный луч берёт всё,
-    /// что попало в радиус. Сервер хранит выбор, чтобы гасить его, когда предмет исчез, и ради M6.
+    /// что попало в радиус. Сервер хранит выбор, чтобы гасить его, когда предмет исчез.
     /// </summary>
     public int SelectedLootId { get; set; }
 
@@ -25,20 +33,38 @@ public sealed class Player(int id, string? token, string name, string hullId, st
     /// <summary>До этого тика про полный трюм молчим: иначе сообщение повторялось бы каждый тик у обломков.</summary>
     public long CargoFullUntilTick;
 
-    /// <summary>Кредиты за сданный на станции груз.</summary>
+    /// <summary>Кредиты (GDD §27).</summary>
     public int Credits;
+
+    /// <summary>Купленные корпуса — ангар (GDD §51). Стартовый есть всегда.</summary>
+    public HashSet<string> Hulls { get; } = new(StringComparer.Ordinal) { SimConfig.DefaultHull };
+
+    /// <summary>Купленные пушки. Стартовая есть всегда.</summary>
+    public HashSet<string> Weapons { get; } = new(StringComparer.Ordinal) { SimConfig.DefaultWeapon };
+
+    /// <summary>
+    /// Корабль в доке станции: его нет в космосе — ни в снапшоте, ни среди целей, ни на пути метеоритов.
+    /// Пилот в это время торгует и меняет корабль.
+    /// </summary>
+    public bool Docked;
 
     public InputBuffer Inputs { get; private set; } = new(new MoveInput(0, -1, 0));
 
     /// <summary>Вход корабля без связи: курс прежний, тяга 0 — Movement сам гасит скорость.</summary>
     public MoveInput StopInput => Inputs.Last with { Throttle = 0 };
 
+    public bool OwnsHull(string id) => IsGuest || Hulls.Contains(id);
+
+    public bool OwnsWeapon(string id) => IsGuest || Weapons.Contains(id);
+
     public void Attach(IClientConnection connection)
     {
         Connection = connection;
-        // Новая сессия нумерует входы с 1 — старый буфер отбросил бы их как устаревшие.
-        Inputs = new InputBuffer(StopInput);
+        ResetInputs();
     }
+
+    /// <summary>Новая сессия или вылет из дока: клиент нумерует входы с 1 — старый буфер отбросил бы их как устаревшие.</summary>
+    public void ResetInputs() => Inputs = new InputBuffer(StopInput);
 
     public void Detach(long tick)
     {

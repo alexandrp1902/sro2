@@ -4,7 +4,10 @@ import { PROTOCOL_VERSION } from '../net/protocol';
 const LABELS = { connecting: 'подключение…', online: 'онлайн', offline: 'нет связи' } as const;
 const RENDER_INTERVAL_MS = 250;
 
-/** Строка статуса в левом верхнем углу. Тап по ней открывает окно «Пилот»: ник и сервер. */
+/**
+ * Строка статуса в левом верхнем углу. Тап по ней открывает окно «Пилот»: вход и сервер,
+ * а если корабль забрало другое устройство — возвращает его сюда.
+ */
 export class StatusHud {
   private lastRender = 0;
 
@@ -28,8 +31,16 @@ export class StatusHud {
       parts.push(
         connection.serverVersion < PROTOCOL_VERSION ? 'сервер устарел — перезапустите его' : 'клиент устарел — обновите страницу',
       );
+    } else if (connection.replaced) {
+      parts.push('корабль на другом устройстве — нажмите, чтобы вернуть');
+    } else if (!connection.hasCredentials && state === 'offline') {
+      parts.push('вход не выполнен');
     } else if (state === 'online') {
-      parts.push(`${LABELS.online} ${connection.roster.onlineCount}`, `пинг ${Math.round(connection.rttMs)} мс`);
+      parts.push(
+        connection.accountName,
+        `${LABELS.online} ${connection.roster.onlineCount}`,
+        `пинг ${Math.round(connection.rttMs)} мс`,
+      );
     } else parts.push(LABELS[state]);
     if (braking) parts.push('корабль тормозит');
     parts.push(`${Math.round(fps)} FPS`);

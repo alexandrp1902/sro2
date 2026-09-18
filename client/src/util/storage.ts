@@ -14,4 +14,11 @@ export const storage = {
       // данные просто не запомнятся
     }
   },
+  remove(key: string): void {
+    try {
+      localStorage.removeItem(key);
+    } catch {
+      // и так не запомнилось
+    }
+  },
 };

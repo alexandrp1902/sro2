@@ -25,6 +25,7 @@ const NOTICES: Record<string, string> = {
   cargoFull: 'Недостаточно места в трюме',
   unloaded: 'Груз продан',
   tooFar: 'Слишком далеко',
+  noCredits: 'Не хватает кредитов',
 };
 
 /** @returns текст уведомления или null, если код незнакомый (сервер новее клиента). */

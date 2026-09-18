@@ -6,6 +6,7 @@ describe('describeNotice', () => {
     expect(describeNotice('cargoFull')).toBe('Недостаточно места в трюме');
     expect(describeNotice('unloaded')).toBe('Груз продан');
     expect(describeNotice('tooFar')).toBe('Слишком далеко');
+    expect(describeNotice('noCredits')).toBe('Не хватает кредитов');
   });
 
   it('ignores an unknown code instead of showing it raw', () => {

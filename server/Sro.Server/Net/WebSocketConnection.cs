@@ -1,5 +1,6 @@
 using System.Net.WebSockets;
 using System.Threading.Channels;
+using Sro.Server.Accounts;
 using Sro.Server.Game;
 
 namespace Sro.Server.Net;
@@ -47,13 +48,13 @@ public sealed class WebSocketConnection(WebSocket socket, ILogger log) : IClient
         _outbox.Writer.TryComplete(); // send-loop отправит остаток очереди и close-фрейм
     }
 
-    public async Task RunAsync(SystemRoom room, CancellationToken ct)
+    public async Task RunAsync(SystemRoom room, AccountStore accounts, CancellationToken ct)
     {
         using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
         var sending = SendLoopAsync(cts);
         try
         {
-            await ReceiveLoopAsync(room, cts.Token);
+            await ReceiveLoopAsync(room, accounts, cts.Token);
         }
         catch (Exception e) when (e is WebSocketException or OperationCanceledException)
         {
@@ -68,7 +69,7 @@ public sealed class WebSocketConnection(WebSocket socket, ILogger log) : IClient
         }
     }
 
-    private async Task ReceiveLoopAsync(SystemRoom room, CancellationToken ct)
+    private async Task ReceiveLoopAsync(SystemRoom room, AccountStore accounts, CancellationToken ct)
     {
         var buffer = new byte[MaxMessageBytes];
         var joined = false;
@@ -98,9 +99,31 @@ public sealed class WebSocketConnection(WebSocket socket, ILogger log) : IClient
 
             switch (Protocol.TryDecode(buffer.AsSpan(0, length)))
             {
-                case HelloMsg hello when !joined:
+                case HelloMsg { Password: null, Key: null } hello when !joined:
                     joined = true;
                     room.Join(this, hello);
+                    break;
+                case HelloMsg hello when !joined:
+                    // Хеш пароля — десятки миллисекунд: считаем здесь, в сетевом потоке, а не в тике комнаты.
+                    var login = hello.Password is null ? accounts.Resume(hello.Key) : accounts.Login(hello.Name, hello.Password);
+                    if (!login.Ok)
+                    {
+                        Send(new DeniedMsg(DeniedCode(login.Error)));
+                        Close(Protocol.DeniedCloseCode, "denied");
+                        break;
+                    }
+                    joined = true;
+                    Send(new AccountMsg(login.Name, login.Key));
+                    room.JoinAccount(this, login.Id, login.Name);
+                    break;
+                case DockMsg dock when joined:
+                    room.Dock(this, dock.On);
+                    break;
+                case BuyMsg buy when joined:
+                    room.Buy(this, buy.Kind, buy.Id);
+                    break;
+                case RepairMsg when joined:
+                    room.Repair(this);
                     break;
                 case InputMsg input when joined:
                     room.Input(this, input);
@@ -139,6 +162,14 @@ public sealed class WebSocketConnection(WebSocket socket, ILogger log) : IClient
             }
         }
     }
+
+    private static string DeniedCode(LoginError error) => error switch
+    {
+        LoginError.BadName => Protocol.BadNameDenied,
+        LoginError.BadPassword => Protocol.BadPasswordDenied,
+        LoginError.WrongPassword => Protocol.WrongPasswordDenied,
+        _ => Protocol.BadKeyDenied,
+    };
 
     private async Task SendLoopAsync(CancellationTokenSource cts)
     {

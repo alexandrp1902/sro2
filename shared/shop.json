@@ -1,0 +1,14 @@
+{
+  "startCredits": 1000,
+  "repairPrice": 0.25,
+  "hulls": {
+    "light": 0,
+    "medium": 3000,
+    "heavy": 8000
+  },
+  "weapons": {
+    "pulse": 0,
+    "laser": 800,
+    "plasma": 1800
+  }
+}

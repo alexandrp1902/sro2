@@ -1,6 +1,4 @@
 import { LAG_PRESETS, type FakeLag } from '../net/fakeLag';
-import type { Hulls } from '../sim/hulls';
-import type { Weapons } from '../sim/weapons';
 import { storage } from '../util/storage';
 
 const STORAGE_KEY = 'sro.dev';
@@ -21,8 +19,6 @@ export interface DevInfo {
   peakCorrection: number;
   snaps: number;
   online: boolean;
-  hullId: string;
-  weaponId: string;
   /** Задержка интерполяции чужих кораблей и джиттер снапшотов, мс. */
   interpMs: number;
   jitterMs: number;
@@ -33,34 +29,29 @@ export interface DevInfo {
   chanceSum: number;
 }
 
-/** Dev-панель плейтеста: `` ` `` (Ё) или тап по строке полёта. */
+/**
+ * Dev-панель плейтеста: `` ` `` (Ё) или тап по строке полёта.
+ * Корпус и пушку здесь больше не выбирают: с M6 их покупают и меняют в доке станции.
+ */
 export class DevOverlay {
   private readonly stats: HTMLElement;
-  private readonly hullRow: HTMLElement;
-  private readonly weaponRow: HTMLElement;
   private readonly lagRow: HTMLElement;
   private lastRender = 0;
 
   constructor(
     private readonly root: HTMLElement,
-    private readonly hulls: Hulls,
-    private readonly onHull: (id: string) => void,
     private readonly lag: FakeLag | null,
-    private readonly weapons: Weapons,
-    private readonly onWeapon: (id: string) => void,
   ) {
     this.stats = document.createElement('pre');
-    this.hullRow = document.createElement('div');
-    this.weaponRow = document.createElement('div');
     this.lagRow = document.createElement('div');
-    this.hullRow.className = this.weaponRow.className = this.lagRow.className = 'dev-row';
-    root.append(this.stats, this.hullRow, this.weaponRow, this.lagRow);
+    this.lagRow.className = 'dev-row';
+    root.append(this.stats, this.lagRow);
 
     root.hidden = storage.get(STORAGE_KEY) !== '1';
     window.addEventListener('keydown', (e) => {
       if (e.code === 'Backquote' && !(e.target instanceof HTMLInputElement)) this.toggle();
     });
-    this.renderButtons('', '');
+    this.renderButtons();
   }
 
   get visible(): boolean {
@@ -94,20 +85,13 @@ export class DevOverlay {
       `входов в пути ${info.pending} · коррекция ${info.correction.toFixed(2)} (пик ${info.peakCorrection.toFixed(2)}) · щелчков ${info.snaps}`,
       fire,
     ].join('\n');
-    this.renderButtons(info.hullId, info.weaponId);
+    this.renderButtons();
   }
 
-  private renderButtons(hullId: string, weaponId: string): void {
-    const key = `${hullId}|${this.hulls.ids().join(',')}|${weaponId}|${this.weapons.ids().join(',')}|${this.lag?.rttMs ?? '-'}`;
+  private renderButtons(): void {
+    const key = String(this.lag?.rttMs ?? '-');
     if (this.root.dataset.buttons === key) return;
     this.root.dataset.buttons = key;
-
-    this.hullRow.replaceChildren(
-      ...this.hulls.ids().map((id) => button(this.hulls.get(id).name, id === hullId, () => this.onHull(id))),
-    );
-    this.weaponRow.replaceChildren(
-      ...this.weapons.ids().map((id) => button(this.weapons.get(id).name, id === weaponId, () => this.onWeapon(id))),
-    );
 
     const lag = this.lag;
     if (!lag) {

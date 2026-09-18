@@ -93,20 +93,22 @@ public sealed record CombatRules(
     }
 }
 
-/// <summary>Тексты файлов баланса — по имени, а не по позиции: шесть соседних строк легко переставить и не заметить.</summary>
-public sealed record BalanceSources(string Hulls, string Weapons, string Rules, string Npcs, string Loot, string Meteors);
+/// <summary>Тексты файлов баланса — по имени, а не по позиции: семь соседних строк легко переставить и не заметить.</summary>
+public sealed record BalanceSources(string Hulls, string Weapons, string Rules, string Npcs, string Loot, string Meteors, string Shop);
 
-/// <summary>Весь баланс: корпуса, пушки, правила боя, NPC, лут, метеориты. Меняется только целиком.</summary>
+/// <summary>Весь баланс: корпуса, пушки, правила боя, NPC, лут, метеориты, магазин станции. Меняется только целиком.</summary>
 /// <param name="Npcs">Пираты; null — NPC, кроме дронов, нет.</param>
 /// <param name="Loots">Лут и трюм; null — добычи нет.</param>
 /// <param name="MeteorSet">Метеориты; null — их нет.</param>
+/// <param name="ShopSet">Магазин станции; null — ничего не продают, кредитов на старте нет.</param>
 public sealed record Balance(
     IReadOnlyDictionary<string, HullParams> Hulls,
     IReadOnlyDictionary<string, WeaponParams> Weapons,
     CombatRules Rules,
     NpcRules? Npcs = null,
     LootRules? Loots = null,
-    MeteorRules? MeteorSet = null)
+    MeteorRules? MeteorSet = null,
+    ShopRules? ShopSet = null)
 {
     public const string HullsFile = "hulls.json";
     public const string WeaponsFile = "weapons.json";
@@ -114,9 +116,10 @@ public sealed record Balance(
     public const string NpcsFile = NpcRules.File;
     public const string LootFile = LootRules.File;
     public const string MeteorsFile = MeteorRules.File;
+    public const string ShopFile = ShopRules.File;
 
     /// <summary>Все файлы баланса в порядке разбора.</summary>
-    public static readonly string[] Files = [HullsFile, WeaponsFile, RulesFile, NpcsFile, LootFile, MeteorsFile];
+    public static readonly string[] Files = [HullsFile, WeaponsFile, RulesFile, NpcsFile, LootFile, MeteorsFile, ShopFile];
 
     public NpcRules Npc => Npcs ?? NpcRules.None;
 
@@ -124,9 +127,11 @@ public sealed record Balance(
 
     public MeteorRules Meteors => MeteorSet ?? MeteorRules.None;
 
+    public ShopRules Shop => ShopSet ?? ShopRules.None;
+
     /// <summary>
     /// Разбирает все файлы вместе: правила и NPC ссылаются на корпуса и пушки, лут — на укрытие из NPC,
-    /// метеориты — на корпуса, укрытие и таблицы лута.
+    /// метеориты — на корпуса, укрытие и таблицы лута, магазин — на корпуса и пушки.
     /// </summary>
     public static bool TryParse(BalanceSources sources, out Balance? balance, out string? error)
     {
@@ -162,7 +167,12 @@ public sealed record Balance(
             error = $"{MeteorsFile}: {error}";
             return false;
         }
-        balance = new Balance(hulls, weapons, rules, npcs, loot, meteors);
+        if (!ShopRules.TryParse(sources.Shop, hulls, weapons, out var shop, out error))
+        {
+            error = $"{ShopFile}: {error}";
+            return false;
+        }
+        balance = new Balance(hulls, weapons, rules, npcs, loot, meteors, shop);
         return true;
     }
 }

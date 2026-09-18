@@ -80,7 +80,7 @@ public class LootTests
         return connection;
     }
 
-    private Player PlayerOf(FakeConnection connection) => (Player)_room.Entity(IdOf(connection))!;
+    private Player PlayerOf(FakeConnection connection) => _room.Pilot(IdOf(connection))!;
 
     /// <summary>Ставит игрока вплотную к предмету, чтобы его забрал тракторный луч.</summary>
     private void PlaceNear(FakeConnection connection, LootDto drop, double offset) =>
@@ -496,11 +496,12 @@ public class LootTests
     }
 
     [Fact]
-    public void SellingAtTheStation_TurnsCargoIntoCredits()
+    public void SellingInTheDock_TurnsCargoIntoCredits()
     {
         var a = WithCargo();
 
         Place(IdOf(a), SimConfig.StationX, SimConfig.StationY);
+        _room.Dock(a, true);
         _room.Sell(a, null);
 
         Assert.True(PlayerOf(a).Cargo.IsEmpty);
@@ -517,6 +518,7 @@ public class LootTests
         PlayerOf(a).Cargo.Add("tech", 1); // «Компонент» по 200
 
         Place(IdOf(a), SimConfig.StationX, SimConfig.StationY);
+        _room.Dock(a, true);
         _room.Sell(a, "metal");
 
         Assert.Equal(20, PlayerOf(a).Credits);
@@ -529,8 +531,10 @@ public class LootTests
     {
         var a = WithCargo();
 
-        // Сдача ручная: стоять в круге станции мало.
+        // Сдача ручная: даже в доке груз сам не продаётся.
         Place(IdOf(a), SimConfig.StationX, SimConfig.StationY);
+        _room.Dock(a, true);
+        Assert.True(PlayerOf(a).Docked);
         Steps(20);
 
         Assert.Equal(2, PlayerOf(a).Cargo.Items["metal"]);
@@ -538,11 +542,12 @@ public class LootTests
     }
 
     [Fact]
-    public void SellingFarFromTheStation_SaysSoAndKeepsTheCargo()
+    public void SellingOutsideTheDock_SaysSoAndKeepsTheCargo()
     {
         var a = WithCargo();
 
-        Place(IdOf(a), SimConfig.StationX, SimConfig.StationY + 260); // дальше stationRange 200
+        // Продают в доке (M6): просто стоять в круге станции мало.
+        Place(IdOf(a), SimConfig.StationX, SimConfig.StationY);
         _room.Sell(a, null);
 
         Assert.Equal(2, PlayerOf(a).Cargo.Items["metal"]);
@@ -557,6 +562,7 @@ public class LootTests
         var a = WithCargo();
 
         Place(IdOf(a), SimConfig.StationX, SimConfig.StationY);
+        _room.Dock(a, true);
         _room.Sell(a, null);
 
         // Продажу выключают на лету — механику можно снять прямо на плейтесте.

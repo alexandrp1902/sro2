@@ -117,6 +117,13 @@ describe('cycle', () => {
     expect(cycle(own, ships, 1, -1)).toBe(5);
   });
 
+  it('takes the station (a negative id) like any other object', () => {
+    const station = ship(-1, -150, 150); // станция в прицеле: id не от сервера, отрицательный; юго-запад
+    const withStation = [...ships, station];
+    expect(cycle(own, withStation, 3)).toBe(-1); // после «внизу» по часовой — станция
+    expect(cycle(own, withStation, -1)).toBe(4); // и дальше от неё — «слева»
+  });
+
   it('goes counter-clockwise with the other step', () => {
     expect(cycle(own, ships, 3, -1)).toBe(2);
     expect(cycle(own, ships, 2, -1)).toBe(1);

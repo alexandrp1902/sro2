@@ -15,6 +15,8 @@ const OUTLINE = 0x05060a;
 const TARGET_COLOR = 0xffa53a;
 /** Выбранный предмет: голубой — не путается ни с целью (оранжевая), ни со своим кораблём. */
 const LOOT_COLOR = 0x6fd3ff;
+/** Выбранная станция — зелёная, как круг дока. */
+const STATION_COLOR = 0x6fe08a;
 /** Метеорит: рыжий, как его прожилки. */
 const METEOR_COLOR = 0xd9a066;
 /** Пират, который целится в меня: знак перед ником и крупная стрелка у края экрана. */
@@ -122,6 +124,8 @@ export interface OverlayFrame {
   ownId: number;
   showAi: boolean;
   loot: LootMark | null;
+  /** Выбранная станция: в неё нельзя стрелять, прицел на ней — чтобы пристыковаться. */
+  station: LootMark | null;
   /** Сколько единиц мира в одном секторе: у стрелки за краем экрана пишем дистанцию в них. */
   sectorUnit: number;
 }
@@ -142,13 +146,21 @@ export class PlayerOverlay {
   private ownBubbleRadius = 0;
   /** Рамка выбранного предмета и стрелка к нему, если он ушёл за край экрана. */
   private readonly lootFrame = new Graphics();
-  private readonly lootArrow = new Graphics()
-    .poly([0, -9, 7, 6, -7, 6])
-    .fill(LOOT_COLOR)
-    .stroke({ width: 1.5, color: OUTLINE });
+  private readonly lootArrow = arrowTo(LOOT_COLOR);
+  /** Рамка выбранной станции и стрелка к ней за краем экрана. */
+  private readonly stationFrame = new Graphics();
+  private readonly stationArrow = arrowTo(STATION_COLOR);
 
   constructor() {
-    this.view.addChild(this.ownBubble, this.frame, this.targetArrow, this.lootFrame, this.lootArrow);
+    this.view.addChild(
+      this.ownBubble,
+      this.frame,
+      this.targetArrow,
+      this.lootFrame,
+      this.lootArrow,
+      this.stationFrame,
+      this.stationArrow,
+    );
   }
 
   update(frame: OverlayFrame): void {
@@ -235,7 +247,8 @@ export class PlayerOverlay {
       this.markers.delete(id);
     }
 
-    this.drawLoot(frame.loot, camera, cx, cy, width, height);
+    this.drawMark(this.lootFrame, this.lootArrow, frame.loot, LOOT_COLOR, camera, cx, cy, width, height);
+    this.drawMark(this.stationFrame, this.stationArrow, frame.station, STATION_COLOR, camera, cx, cy, width, height);
 
     this.ownBubble.visible = own?.protected ?? false;
     if (own?.protected) {
@@ -352,25 +365,35 @@ export class PlayerOverlay {
   }
 
   /**
-   * Выбранный предмет: рамка вокруг него, а за краем экрана — одна стрелка.
+   * Выбранный предмет или станция: рамка вокруг, а за краем экрана — одна стрелка.
    * Стрелок ко всем предметам нарочно нет: после боя их 5–10, они забили бы края и мешали выбору цели.
    */
-  private drawLoot(loot: LootMark | null, camera: Camera, cx: number, cy: number, width: number, height: number): void {
-    this.lootFrame.visible = false;
-    this.lootArrow.visible = false;
-    if (!loot) return;
+  private drawMark(
+    frameGraphics: Graphics,
+    arrow: Graphics,
+    mark: LootMark | null,
+    color: number,
+    camera: Camera,
+    cx: number,
+    cy: number,
+    width: number,
+    height: number,
+  ): void {
+    frameGraphics.visible = false;
+    arrow.visible = false;
+    if (!mark) return;
 
-    const sx = cx + (loot.x - camera.x) * camera.zoom;
-    const sy = cy + (loot.y - camera.y) * camera.zoom;
-    const r = loot.size * camera.zoom;
+    const sx = cx + (mark.x - camera.x) * camera.zoom;
+    const sy = cy + (mark.y - camera.y) * camera.zoom;
+    const r = mark.size * camera.zoom;
     if (sx > -r && sx < width + r && sy > -r && sy < height + r) {
-      this.drawFrame(this.lootFrame, sx, sy, r, LOOT_COLOR);
+      this.drawFrame(frameGraphics, sx, sy, r, color);
       return;
     }
     const { x, y } = edgePoint(cx, cy, sx - cx, sy - cy);
-    this.lootArrow.position.set(x, y);
-    this.lootArrow.rotation = Math.atan2(sx - cx, -(sy - cy));
-    this.lootArrow.visible = true;
+    arrow.position.set(x, y);
+    arrow.rotation = Math.atan2(sx - cx, -(sy - cy));
+    arrow.visible = true;
   }
 
   /** Уголки вокруг цели. */
@@ -444,4 +467,9 @@ function share(value: number, max: number): number {
 
 function clamp(value: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, value));
+}
+
+/** Стрелка у края экрана к выбранному предмету или станции. */
+function arrowTo(color: number): Graphics {
+  return new Graphics().poly([0, -9, 7, 6, -7, 6]).fill(color).stroke({ width: 1.5, color: OUTLINE });
 }

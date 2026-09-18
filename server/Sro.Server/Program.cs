@@ -1,10 +1,15 @@
 using Microsoft.Extensions.FileProviders;
+using Sro.Server.Accounts;
 using Sro.Server.Game;
 using Sro.Server.Net;
 
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddSingleton<BalanceStore>();
+// Аккаунты пилотов — JSON-файлы в папке данных (по умолчанию data/accounts в корне репозитория, вне git).
+builder.Services.AddSingleton(sp => new AccountStore(
+    Path.GetFullPath(Path.Combine(builder.Environment.ContentRootPath, builder.Configuration["DataDir"]!, "accounts")),
+    sp.GetRequiredService<ILogger<AccountStore>>()));
 builder.Services.AddSingleton<SystemRoom>();
 builder.Services.AddHostedService(sp => sp.GetRequiredService<SystemRoom>());
 
@@ -27,7 +32,7 @@ else
 
 app.MapGet("/health", () => Results.Ok(new { ok = true }));
 
-app.Map("/ws", async (HttpContext context, SystemRoom room, ILogger<WebSocketConnection> log) =>
+app.Map("/ws", async (HttpContext context, SystemRoom room, AccountStore accounts, ILogger<WebSocketConnection> log) =>
 {
     if (!context.WebSockets.IsWebSocketRequest)
     {
@@ -36,7 +41,7 @@ app.Map("/ws", async (HttpContext context, SystemRoom room, ILogger<WebSocketCon
     }
 
     using var socket = await context.WebSockets.AcceptWebSocketAsync();
-    await new WebSocketConnection(socket, log).RunAsync(room, context.RequestAborted);
+    await new WebSocketConnection(socket, log).RunAsync(room, accounts, context.RequestAborted);
 });
 
 app.Run();

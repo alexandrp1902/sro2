@@ -19,12 +19,27 @@ namespace Sro.Server.Net;
 [JsonDerivedType(typeof(LootTargetMsg), "loot")]
 [JsonDerivedType(typeof(GrabMsg), "grab")]
 [JsonDerivedType(typeof(SellMsg), "sell")]
+[JsonDerivedType(typeof(DockMsg), "dock")]
+[JsonDerivedType(typeof(BuyMsg), "buy")]
+[JsonDerivedType(typeof(RepairMsg), "repair")]
 public abstract record ClientMessage;
 
-/// <param name="Hull">Класс корпуса, сохранённый на устройстве.</param>
-/// <param name="Token">Сессия вкладки: с ней после обрыва связи игрок возвращается к своему кораблю.</param>
-/// <param name="Weapon">Пушка, сохранённая на устройстве.</param>
-public sealed record HelloMsg(string? Name, string? Hull, string? Token, string? Weapon = null) : ClientMessage;
+/// <summary>
+/// Вход. С паролем или ключом — пилот с аккаунтом (GDD §61): корпус, пушку, кредиты и трюм сервер берёт из аккаунта,
+/// а Hull, Weapon и Token не смотрит. Без них — гость без сохранения: так входят тесты и смоук-скрипты.
+/// </summary>
+/// <param name="Hull">Гость: класс корпуса, сохранённый на устройстве.</param>
+/// <param name="Token">Гость: сессия вкладки — с ней после обрыва связи он возвращается к своему кораблю.</param>
+/// <param name="Weapon">Гость: пушка, сохранённая на устройстве.</param>
+/// <param name="Password">Пароль; свободный ник с ним заводит новый аккаунт.</param>
+/// <param name="Key">Ключ устройства из <see cref="AccountMsg"/>: вход без пароля.</param>
+public sealed record HelloMsg(
+    string? Name,
+    string? Hull,
+    string? Token,
+    string? Weapon = null,
+    string? Password = null,
+    string? Key = null) : ClientMessage;
 
 /// <param name="C">Время клиента, возвращается в pong как есть для замера RTT.</param>
 public sealed record PingMsg(double C) : ClientMessage;
@@ -32,13 +47,13 @@ public sealed record PingMsg(double C) : ClientMessage;
 /// <summary>Только управление (§49): направление на экране и тяга. Координаты клиент не присылает.</summary>
 public sealed record InputMsg(int Seq, double Dx, double Dy, double Th) : ClientMessage;
 
-/// <summary>Смена класса корпуса из dev-панели.</summary>
+/// <summary>Поставить корпус из ангара: пилоту с аккаунтом — только свой и только в доке, гостю — любой.</summary>
 public sealed record HullMsg(string? Id) : ClientMessage;
 
-/// <summary>Смена пушки из dev-панели.</summary>
+/// <summary>Поставить пушку: пилоту с аккаунтом — только свою и только в доке, гостю — любую.</summary>
 public sealed record WeaponMsg(string? Id) : ClientMessage;
 
-/// <summary>Смена ника на лету.</summary>
+/// <summary>Смена ника на лету — только у гостя: у пилота с аккаунтом ник и есть вход.</summary>
 public sealed record NameMsg(string? Name) : ClientMessage;
 
 /// <summary>Выбранная цель (GDD §9); 0 — цели нет.</summary>
@@ -53,8 +68,18 @@ public sealed record LootTargetMsg(int Id) : ClientMessage;
 /// <summary>Взять выбранный предмет: подбор ручной, тракторный луч сам ничего не хватает.</summary>
 public sealed record GrabMsg : ClientMessage;
 
-/// <summary>Продать груз на станции; Item — что именно, null — весь трюм.</summary>
+/// <summary>Продать груз в доке; Item — что именно, null — весь трюм.</summary>
 public sealed record SellMsg(string? Item = null) : ClientMessage;
+
+/// <summary>Пристыковаться к станции (On) или вылететь из дока.</summary>
+public sealed record DockMsg(bool On) : ClientMessage;
+
+/// <summary>Купить в доке корпус или пушку (GDD §26); купленное сразу ставится на корабль.</summary>
+/// <param name="Kind"><see cref="Protocol.HullItem"/> или <see cref="Protocol.WeaponItem"/>.</param>
+public sealed record BuyMsg(string? Kind, string? Id) : ClientMessage;
+
+/// <summary>Починить корпус в доке и зарядить щит — по цене repairPrice из shop.json.</summary>
+public sealed record RepairMsg : ClientMessage;
 
 // Сервер → клиент
 [JsonPolymorphic(TypeDiscriminatorPropertyName = "t")]
@@ -65,6 +90,9 @@ public sealed record SellMsg(string? Item = null) : ClientMessage;
 [JsonDerivedType(typeof(SnapshotMsg), "snapshot")]
 [JsonDerivedType(typeof(CargoMsg), "cargo")]
 [JsonDerivedType(typeof(NoticeMsg), "notice")]
+[JsonDerivedType(typeof(AccountMsg), "account")]
+[JsonDerivedType(typeof(DeniedMsg), "denied")]
+[JsonDerivedType(typeof(HangarMsg), "hangar")]
 public abstract record ServerMessage;
 
 /// <param name="Id">Id своего корабля в снапшотах.</param>
@@ -76,6 +104,7 @@ public abstract record ServerMessage;
 /// <param name="Npcs">Пираты: логова и укрытие у станции — клиент рисует их на карте.</param>
 /// <param name="Loot">Лут: радиус захвата, вид и редкость предметов — для подписей и кольца захвата.</param>
 /// <param name="Meteors">Метеориты: радиусы, прочность и пороги предупреждения о таране.</param>
+/// <param name="Shop">Магазин станции: цены корпусов, пушек и ремонта.</param>
 public sealed record WelcomeMsg(
     int Id,
     int TickRate,
@@ -86,7 +115,8 @@ public sealed record WelcomeMsg(
     bool Resumed,
     NpcRules? Npcs = null,
     LootRules? Loot = null,
-    MeteorRules? Meteors = null) : ServerMessage;
+    MeteorRules? Meteors = null,
+    ShopRules? Shop = null) : ServerMessage;
 
 public sealed record PongMsg(double C, long Tick) : ServerMessage;
 
@@ -114,7 +144,38 @@ public sealed record ConfigMsg(
     CombatRules Combat,
     NpcRules? Npcs = null,
     LootRules? Loot = null,
-    MeteorRules? Meteors = null) : ServerMessage;
+    MeteorRules? Meteors = null,
+    ShopRules? Shop = null) : ServerMessage;
+
+/// <summary>Вход принят. Приходит раньше <see cref="WelcomeMsg"/>.</summary>
+/// <param name="Name">Ник аккаунта так, как он записан на сервере.</param>
+/// <param name="Key">Новый ключ устройства — только после входа по паролю; клиент хранит его вместо пароля.</param>
+public sealed record AccountMsg(
+    string Name,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? Key = null) : ServerMessage;
+
+/// <summary>Вход отклонён; следом сервер закрывает соединение с кодом <see cref="Protocol.DeniedCloseCode"/>.</summary>
+/// <param name="Code">Причина: <see cref="Protocol.BadNameDenied"/> и соседние.</param>
+public sealed record DeniedMsg(string Code) : ServerMessage;
+
+/// <summary>
+/// Ангар пилота (GDD §51) — только своему соединению. Шлётся при входе, стыковке, покупке, смене корабля и ремонте.
+/// </summary>
+/// <param name="Hull">Активный корпус.</param>
+/// <param name="Weapon">Активная пушка.</param>
+/// <param name="Hulls">Свои корпуса; у гостя — все.</param>
+/// <param name="Weapons">Свои пушки; у гостя — все.</param>
+/// <param name="Docked">Корабль в доке: в космосе его нет, экран станции открыт.</param>
+/// <param name="Hp">Прочность корпуса, округлена вверх: в доке снапшот о своём корабле молчит.</param>
+/// <param name="MaxHp">Полная прочность активного корпуса.</param>
+public sealed record HangarMsg(
+    string Hull,
+    string Weapon,
+    IReadOnlyList<string> Hulls,
+    IReadOnlyList<string> Weapons,
+    bool Docked,
+    int Hp,
+    int MaxHp) : ServerMessage;
 
 /// <summary>
 /// Трюм игрока (GDD §21) — только своему соединению: снапшот один на всех, личному месту в нём нет.
@@ -123,7 +184,7 @@ public sealed record ConfigMsg(
 /// <param name="Used">Занято объёма.</param>
 /// <param name="Max">Ёмкость трюма текущего корпуса.</param>
 /// <param name="Items">Что лежит: идентификатор предмета — количество.</param>
-/// <param name="Credits">Кредиты за сданный груз.</param>
+/// <param name="Credits">Кредиты пилота.</param>
 public sealed record CargoMsg(
     double Used,
     double Max,
@@ -211,18 +272,33 @@ public static class Protocol
 {
     /// <summary>
     /// Меняется, когда клиент и сервер разных версий уже не поймут друг друга
-    /// (3 — бой, M3; 4 — пираты, M4; 5 — лут и трюм, M5a; 6 — ручной подбор и продажа груза; 7 — метеориты, M5b).
+    /// (3 — бой, M3; 4 — пираты, M4; 5 — лут и трюм, M5a; 6 — ручной подбор и продажа груза; 7 — метеориты, M5b;
+    /// 8 — аккаунты, док и магазин станции, M6).
     /// Зеркало PROTOCOL_VERSION в client/src/net/protocol.ts.
     /// </summary>
-    public const int Version = 7;
+    public const int Version = 8;
 
     public const string DroneKind = "drone";
     public const string PirateKind = "pirate";
+
+    /// <summary>Что покупают в доке (<see cref="BuyMsg.Kind"/>).</summary>
+    public const string HullItem = "hull";
+    public const string WeaponItem = "weapon";
 
     /// <summary>Коды уведомлений (<see cref="NoticeMsg"/>); текст подставляет клиент.</summary>
     public const string CargoFullNotice = "cargoFull";
     public const string UnloadedNotice = "unloaded";
     public const string TooFarNotice = "tooFar";
+    public const string NoCreditsNotice = "noCredits";
+
+    /// <summary>Причины отказа во входе (<see cref="DeniedMsg"/>).</summary>
+    public const string BadNameDenied = "badName";
+    public const string BadPasswordDenied = "badPassword";
+    public const string WrongPasswordDenied = "wrongPassword";
+    public const string BadKeyDenied = "badKey";
+
+    /// <summary>Код закрытия WebSocket после <see cref="DeniedMsg"/>: клиент не переподключается сам, а ждёт пилота.</summary>
+    public const int DeniedCloseCode = 4003;
 
     private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web)
     {

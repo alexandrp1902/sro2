@@ -235,27 +235,6 @@ body {
   gap: 6px;
 }
 
-/* Прилавок: цена и кнопка появляются только в круге станции. */
-.cargo-sell {
-  margin-left: auto;
-  padding: 1px 7px;
-  border: 1px solid rgba(111, 224, 138, 0.5);
-  border-radius: 7px;
-  background: rgba(111, 224, 138, 0.12);
-  color: #9ee08a;
-  font: inherit;
-  line-height: 16px;
-  white-space: nowrap;
-  cursor: pointer;
-}
-
-.cargo-sell-all {
-  display: block;
-  width: 100%;
-  margin: 5px 0 0;
-  text-align: center;
-}
-
 .cargo-dot {
   display: inline-block;
   width: 7px;
@@ -282,6 +261,15 @@ body {
   line-height: 18px;
   white-space: nowrap;
   pointer-events: auto;
+}
+
+/* Выбранная станция — зелёная рамка, как круг дока. */
+.loot-card[data-kind='station'] {
+  border-color: rgba(111, 224, 138, 0.55);
+}
+
+.loot-hint {
+  color: #9ee08a;
 }
 
 .loot-distance {
@@ -677,6 +665,11 @@ body {
   opacity: 0.75;
 }
 
+/* «ВЗЯТЬ» и «ДОК» — одно нажатие, а не переключатель: «вкл/выкл» под ними сбивает с толку. */
+.fire[data-grab='true'] .fire-state {
+  display: none;
+}
+
 .fire[data-aim='ready'] {
   border-color: rgba(74, 224, 122, 0.85);
 }
@@ -791,4 +784,201 @@ body {
 
 .connect button[type='submit'] {
   background: #2f7ad6;
+}
+
+/* Экран дока: поверх мира, стика и кнопки огня; мир виден сквозь затемнение. */
+.dock {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: calc(env(safe-area-inset-top) + 12px) calc(env(safe-area-inset-right) + 12px)
+    calc(env(safe-area-inset-bottom) + 12px) calc(env(safe-area-inset-left) + 12px);
+  background: rgba(3, 5, 10, 0.72);
+  touch-action: manipulation;
+}
+
+.dock[hidden] {
+  display: none;
+}
+
+/* Размер окна постоянный: от числа позиций во вкладке он не зависит, длинный список прокручивается внутри. */
+.dock-card {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-width: 560px;
+  height: 100%;
+  max-height: 680px;
+  border: 1px solid #1f3350;
+  border-radius: 12px;
+  background: #0b1322;
+  overflow: hidden;
+}
+
+.dock-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  border-bottom: 1px solid #1f3350;
+}
+
+.dock-title {
+  font-size: 17px;
+  font-weight: 600;
+}
+
+.dock-credits {
+  margin-left: auto;
+  color: #ffd166;
+  font-size: 15px;
+  font-variant-numeric: tabular-nums;
+}
+
+.dock-ship {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 12px;
+  padding: 10px 14px;
+  border-bottom: 1px solid #1f3350;
+  font-size: 13px;
+}
+
+.dock-ship-name {
+  font-weight: 600;
+}
+
+.dock-ship-hp {
+  color: #8fb4e8;
+}
+
+.dock-ship .dock-buy {
+  margin-left: auto;
+}
+
+.dock-tabs {
+  display: flex;
+  border-bottom: 1px solid #1f3350;
+}
+
+.dock-tab {
+  flex: 1;
+  padding: 11px 0;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: transparent;
+  color: #8fb4e8;
+  font: inherit;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.dock-tab[aria-pressed='true'] {
+  border-bottom-color: #2f7ad6;
+  color: #e6f0ff;
+}
+
+.dock-body {
+  flex: 1;
+  min-height: 0;
+  padding: 6px 14px 14px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-y;
+}
+
+.dock-note,
+.dock-empty {
+  margin: 8px 0;
+  color: #8fb4e8;
+  font-size: 13px;
+}
+
+.dock-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 2px 10px;
+  padding: 10px 0;
+  border-bottom: 1px solid rgba(31, 51, 80, 0.6);
+}
+
+.dock-row:last-child {
+  border-bottom: 0;
+}
+
+.dock-name {
+  font-size: 15px;
+}
+
+.dock-stats {
+  grid-column: 1;
+  color: #7f97b8;
+  font-size: 12px;
+}
+
+.dock-row > .dock-buy,
+.dock-row > .dock-tag {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+}
+
+.dock-row[data-state='active'] .dock-name {
+  color: #7fd4ff;
+}
+
+.dock-tag {
+  color: #7f97b8;
+  font-size: 13px;
+}
+
+.dock-buy,
+.dock-undock {
+  padding: 8px 12px;
+  border: 0;
+  border-radius: 8px;
+  background: #1d3a60;
+  color: #e6f0ff;
+  font: inherit;
+  font-size: 14px;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.dock-buy:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.dock-undock {
+  background: #2f7ad6;
+  font-weight: 600;
+}
+
+.dock-sell-all {
+  display: block;
+  width: 100%;
+  margin-top: 10px;
+  background: rgba(111, 224, 138, 0.18);
+  color: #b6f0a8;
+}
+
+.connect-hint {
+  margin-bottom: 6px;
+  color: #7f97b8;
+  font-size: 13px;
+}
+
+.connect button[hidden] {
+  display: none;
+}
+
+.connect .connect-logout {
+  margin-right: auto;
+  background: transparent;
+  color: #ff9a90;
 }

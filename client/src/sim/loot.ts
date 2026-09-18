@@ -21,7 +21,7 @@ export interface LootRules {
   fadeSeconds: number;
   /** Сдача груза на станции включена. */
   stationUnload: boolean;
-  /** Ближе этого к станции груз превращается в кредиты. */
+  /** Радиус станции: ближе этого можно пристыковаться (M6), в доке продают груз. */
   stationRange: number;
   /** Каталог предметов; сервер может прислать null, если лута нет. */
   items?: Record<string, LootItem> | null;

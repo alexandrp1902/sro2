@@ -24,6 +24,11 @@ internal static class TestBalance
     };
 
     /// <summary>Без дронов, пиратов, лута, метеоритов и разброса спауна — корабли появляются ровно в SpawnX, SpawnY.</summary>
-    public static Balance Create(CombatRules? rules = null, NpcRules? npcs = null, LootRules? loot = null, MeteorRules? meteors = null) =>
-        new(Hulls, Weapons, rules ?? new CombatRules(SpawnJitter: 0), npcs, loot, meteors);
+    public static Balance Create(
+        CombatRules? rules = null,
+        NpcRules? npcs = null,
+        LootRules? loot = null,
+        MeteorRules? meteors = null,
+        ShopRules? shop = null) =>
+        new(Hulls, Weapons, rules ?? new CombatRules(SpawnJitter: 0), npcs, loot, meteors, shop);
 }

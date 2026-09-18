@@ -1,5 +1,10 @@
 export type FireAim = 'ready' | 'blocked' | 'none';
 
+/** Что делает кнопка огня: стреляет, берёт выбранный предмет или стыкует со станцией. */
+export type FireMode = 'fire' | 'grab' | 'dock';
+
+const MODE_LABELS: Record<FireMode, string> = { fire: 'ОГОНЬ', grab: 'ВЗЯТЬ', dock: 'ДОК' };
+
 /**
  * Шаг выбора цели по клавише (ПК): Q, Shift+←, Shift+Tab — предыдущая; E, Shift+→, Tab — следующая.
  * @returns 0 — клавиша не выбирает цель (← и → без Shift поворачивают корпус)
@@ -30,7 +35,7 @@ export class FireControl {
   /** Огонь включают — вызывается до отправки: здесь выбирается цель, если её нет. false — стрелять не в кого. */
   onPress: (() => boolean) | null = null;
   onChange: ((on: boolean) => void) | null = null;
-  /** Выбран предмет — та же кнопка берёт его, а не стреляет. true — команда ушла, огонь не трогаем. */
+  /** Выбран предмет или станция — та же кнопка берёт его или стыкует, а не стреляет. true — огонь не трогаем. */
   onGrab: (() => boolean) | null = null;
 
   private on = false;
@@ -38,7 +43,7 @@ export class FireControl {
   private reloadMs = 0;
   private shownReload = -1;
   private shownAim = '';
-  private grabMode = false;
+  private mode: FireMode = 'fire';
   private readonly stateLabel: HTMLElement | null;
   private label: HTMLElement | null = null;
 
@@ -82,12 +87,15 @@ export class FireControl {
     this.set(false);
   }
 
-  /** Пока выбран предмет, кнопка подписана «ВЗЯТЬ»: на телефоне другой кнопки для подбора нет. */
-  setGrabMode(on: boolean): void {
-    if (on === this.grabMode) return;
-    this.grabMode = on;
-    this.el.dataset.grab = String(on);
-    if (this.label) this.label.textContent = on ? 'ВЗЯТЬ' : 'ОГОНЬ';
+  /**
+   * Пока выбран предмет, кнопка подписана «ВЗЯТЬ», пока выбрана станция — «ДОК»:
+   * на телефоне других кнопок для подбора и стыковки нет.
+   */
+  setMode(mode: FireMode): void {
+    if (mode === this.mode) return;
+    this.mode = mode;
+    this.el.dataset.grab = String(mode !== 'fire');
+    if (this.label) this.label.textContent = MODE_LABELS[mode];
   }
 
   /** Свой выстрел: кольцо перезарядки начинается заново. */
@@ -118,8 +126,9 @@ export class FireControl {
 }
 
 /**
- * Клавиши боя на ПК (GDD §7): Space — взять выбранный предмет, а если предмет не выбран, то огонь вкл/выкл;
- * Q/E, Shift+←/→, Tab/Shift+Tab — предыдущая/следующая цель; Esc — снять предмет, потом цель.
+ * Клавиши боя на ПК (GDD §7): Space — взять выбранный предмет, пристыковаться к выбранной станции или вылететь
+ * из дока, а иначе огонь вкл/выкл;
+ * Q/E, Shift+←/→, Tab/Shift+Tab — предыдущая/следующая цель; Esc — снять предмет или станцию, потом цель.
  */
 export function bindCombatKeys(
   fire: FireControl,
