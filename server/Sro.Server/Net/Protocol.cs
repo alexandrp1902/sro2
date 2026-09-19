@@ -126,6 +126,7 @@ public sealed record MissionMsg(string? Action, string? Id = null) : ClientMessa
 [JsonDerivedType(typeof(DeniedMsg), "denied")]
 [JsonDerivedType(typeof(HangarMsg), "hangar")]
 [JsonDerivedType(typeof(MissionsMsg), "missions")]
+[JsonDerivedType(typeof(SosMsg), "sos")]
 public abstract record ServerMessage;
 
 /// <param name="Id">Id своего корабля в снапшотах.</param>
@@ -320,6 +321,13 @@ public sealed record MissionsMsg(
 /// <summary>Короткое уведомление игроку по коду; текст подставляет клиент (см. ui/feed.ts).</summary>
 public sealed record NoticeMsg(string Code) : ServerMessage;
 
+/// <summary>
+/// SOS торговца всем пилотам системы: на него напали (<see cref="Protocol.SosOn"/> — и потом раз в секунду, где он),
+/// отбился (<see cref="Protocol.SosSaved"/>) или погиб (<see cref="Protocol.SosLost"/>).
+/// </summary>
+/// <param name="Reward">Кредиты этому пилоту за помощь — только в «спасён» и только тем, кто помогал.</param>
+public sealed record SosMsg(int Id, string Name, double X, double Y, string State, int Reward = 0) : ServerMessage;
+
 /// <param name="Shots">Выстрелы этого тика; нет — поле не пишется.</param>
 /// <param name="Kills">Уничтоженные в этом тике.</param>
 /// <param name="Loot">Предметы, лежащие в космосе.</param>
@@ -413,10 +421,10 @@ public static class Protocol
     /// Меняется, когда клиент и сервер разных версий уже не поймут друг друга
     /// (3 — бой, M3; 4 — пираты, M4; 5 — лут и трюм, M5a; 6 — ручной подбор и продажа груза; 7 — метеориты, M5b;
     /// 8 — аккаунты, док и магазин станции, M6; 9 — системы, врата, топливо, радар и бинарные дельта-снапшоты, M7;
-    /// 10 — звезда, орбиты и налёты; 11 — задания и обучение, M8; 12 — слоты, модули, ракеты, торговцы, M9).
+    /// 10 — звезда, орбиты и налёты; 11 — задания и обучение, M8; 12 — слоты, модули, ракеты, торговцы, M9; 13 — SOS торговцев).
     /// Зеркало PROTOCOL_VERSION в client/src/net/protocol.ts.
     /// </summary>
-    public const int Version = 12;
+    public const int Version = 13;
 
     public const string DroneKind = "drone";
     public const string PirateKind = "pirate";
@@ -435,11 +443,18 @@ public static class Protocol
     public const string NoFuelNotice = "noFuel";
     public const string GateFarNotice = "gateFar";
     public const string JumpCancelledNotice = "jumpCancelled";
+    /// <summary>Подготовку прыжка сбило попадание.</summary>
+    public const string JumpHitNotice = "jumpHit";
     public const string NoPowerNotice = "noPower";
     public const string BadClassNotice = "badClass";
     public const string BadSlotNotice = "badSlot";
     /// <summary>Рейнджеры пошли на пилота: он напал на торговца.</summary>
     public const string RangersNotice = "rangers";
+
+    /// <summary>Состояния SOS торговца (<see cref="SosMsg.State"/>).</summary>
+    public const string SosOn = "on";
+    public const string SosSaved = "saved";
+    public const string SosLost = "lost";
 
     /// <summary>Действия с заданиями (<see cref="MissionMsg.Action"/>).</summary>
     public const string AcceptMission = "accept";

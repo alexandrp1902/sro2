@@ -51,6 +51,32 @@ const TABS: { id: Tab; label: string }[] = [
   { id: 'fitting', label: 'Оснащение' },
 ];
 
+/** Где стоит корабль: станция или планета (город) — от этого фон сцены. Пока док только на станциях. */
+export type Place = 'station' | 'planet';
+
+/** Сцена слева на ПК: у каждой вкладки своё место в доке и свой собеседник. */
+interface Scene {
+  /** Имя картинки фона: public/dock/{place}-{art}.webp. */
+  art: string;
+  /** Кто говорит в подписи; пусто — подписи нет. */
+  who: string;
+  line: string;
+  /** Показывать ли свой корабль поверх фона. */
+  ship: boolean;
+}
+
+const SCENES: Record<Tab, Scene> = {
+  missions: { art: 'office', who: 'Диспетчер', line: 'Работа есть всегда. Вопрос — сколько вы готовы рискнуть.', ship: false },
+  cargo: { art: 'trader', who: 'Торговец', line: 'Показывайте, что привезли. Честная цена — моя цена.', ship: false },
+  hulls: { art: 'shipyard', who: 'Мастер верфи', line: 'Корпус выбирают под задачу, а не под мечту.', ship: true },
+  fitting: { art: 'hangar', who: '', line: '', ship: true },
+};
+
+/** Адрес фона сцены: относительный, как и спрайты. */
+export function sceneUrl(place: Place, tab: Tab): string {
+  return `dock/${place}-${SCENES[tab].art}.webp`;
+}
+
 /** Что можно сделать с пушкой или модулем для выбранного слота. */
 export type SlotOffer =
   /** Уже стоит в этом слоте. */
@@ -124,6 +150,7 @@ export class DockScreen {
   private loot: LootRules | null = null;
   private shop: ShopRules = NO_SHOP;
   private station = 'Станция';
+  private place: Place = 'station';
   private here: string | null = null;
   private missions: MissionsMsg | null = null;
   /** Слот, для которого открыт список пушек или модулей; null — ни один. */
@@ -195,6 +222,7 @@ export class DockScreen {
     head.append(el('div', 'dock-title', this.station), el('div', 'dock-credits', formatCredits(credits)));
     head.append(button('Вылет', 'dock-undock', () => this.handlers.onUndock()));
     card.append(head);
+    card.append(this.scene(hangar));
     card.append(this.shipLine(hangar, credits));
 
     const tabs = el('div', 'dock-tabs');
@@ -221,6 +249,35 @@ export class DockScreen {
     const scroll = old?.dataset.tab === this.tab ? old.scrollTop : 0;
     this.root.replaceChildren(card);
     body.scrollTop = scroll;
+  }
+
+  /**
+   * Сцена дока — только на широком экране (на телефоне её прячет CSS, и фон там не грузится: картинка
+   * задана переменной, которую читает лишь правило для ПК). Пока фона нет, под ним видна заливка сцены.
+   */
+  private scene(hangar: HangarMsg): HTMLElement {
+    const scene = SCENES[this.tab];
+    const view = el('div', 'dock-scene');
+    view.dataset.scene = scene.art;
+    view.style.setProperty('--scene-art', `url("${sceneUrl(this.place, this.tab)}")`);
+    if (scene.ship) {
+      const ship = icon(shipSprite(hangar.hull, false));
+      ship.className = 'dock-scene-ship';
+      view.append(ship);
+    }
+    if (scene.who) {
+      const caption = el('div', 'dock-scene-caption');
+      caption.append(el('div', 'dock-scene-who', scene.who), el('div', 'dock-scene-line', scene.line));
+      view.append(caption);
+    }
+    return view;
+  }
+
+  /** На верфи корабль в сцене — тот, над чьей строкой мышь; ушла — снова свой. */
+  private previewHull(id: string | null): void {
+    const ship = this.root.querySelector<HTMLImageElement>('.dock-scene-ship');
+    const hull = id ?? this.hangar?.hull;
+    if (ship && hull) ship.src = spriteUrl(shipSprite(hull, false));
   }
 
   /** Свой корабль: корпус, пушка, прочность и ремонт. */
@@ -478,6 +535,8 @@ export class DockScreen {
   private offer(id: string, name: string, stats: string, state: OfferState): HTMLElement {
     const row = el('div', 'dock-row');
     row.dataset.state = state;
+    row.addEventListener('mouseenter', () => this.previewHull(id));
+    row.addEventListener('mouseleave', () => this.previewHull(null));
     row.append(icon(shipSprite(id, false)));
     row.append(el('div', 'dock-name', name), el('div', 'dock-stats', stats));
     const cost = price(this.shop.hulls, id) ?? 0;

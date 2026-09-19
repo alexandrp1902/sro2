@@ -253,11 +253,20 @@ public sealed record GalaxyRules(
 /// <param name="RespawnSeconds">Через столько после ухода или гибели появляется новый.</param>
 /// <param name="Type">Тип из npcs.json: корпус, прочность и таблица лута.</param>
 /// <param name="Throttle">Тяга в пути, 0…1: гружёный торговец не гонит.</param>
-public sealed record TraderRules(int Count = 1, double RespawnSeconds = 40, string Type = "trader", double Throttle = 0.7)
+/// <param name="SosReward">Столько кредитов торговец платит каждому пилоту, который отбивал его от нападавших и спас.</param>
+/// <param name="SosQuietSeconds">Столько секунд без выстрелов по торговцу — и SOS снят: он спасён.</param>
+public sealed record TraderRules(
+    int Count = 1,
+    double RespawnSeconds = 40,
+    string Type = "trader",
+    double Throttle = 0.7,
+    int SosReward = 150,
+    double SosQuietSeconds = 8)
 {
     public const int MaxCount = 10;
 
     [JsonIgnore] public int RespawnTicks => Math.Max(1, Combat.SecondsToTicks(RespawnSeconds));
+    [JsonIgnore] public int SosQuietTicks => Math.Max(1, Combat.SecondsToTicks(SosQuietSeconds));
 
     public string? Validate(IReadOnlyDictionary<string, NpcType> types)
     {
@@ -266,6 +275,8 @@ public sealed record TraderRules(int Count = 1, double RespawnSeconds = 40, stri
         if (Type is null || !types.TryGetValue(Type, out var type)) return $"unknown type '{Type}'";
         if (type.Faction != NpcType.TraderFaction) return $"type '{Type}' must have faction '{NpcType.TraderFaction}'";
         if (!(Throttle > 0 && Throttle <= 1)) return "throttle must be within 0..1";
+        if (SosReward < 0) return "sosReward must not be negative";
+        if (!(SosQuietSeconds > 0)) return "sosQuietSeconds must be positive";
         return null;
     }
 }

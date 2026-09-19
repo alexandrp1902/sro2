@@ -5,7 +5,7 @@ namespace Sro.Server.Game;
 /// <summary>
 /// ИИ пирата и рейнджера — конечный автомат: патруль → бой → возврат в логово (GDD §31). Пират ищет пилотов
 /// и торговцев; рейнджер — тех, кто недавно напал на торговца (offenders в <see cref="Think"/>).
-/// Пираты и рейнджеры враждуют: кто по кому выстрелил, того и бьют в ответ. Раз в тик выставляет пирату вход, огонь
+/// Пираты и рейнджеры враждуют: кто по кому выстрелил, того и бьют в ответ — и в пути, и над торговцем. Раз в тик выставляет пирату вход, огонь
 /// и цель — ровно то, что игрок присылает с клиента; сектор, дальность и шанс проверяет Battle, как для всех.
 /// </summary>
 internal static class PirateBrain
@@ -68,9 +68,24 @@ internal static class PirateBrain
         var attacker = pirate.LastAttackerId;
         pirate.LastAttackerId = 0; // нападение учитывается один раз
 
+        // По пирату в пути стреляют. Целый налётчик, который летит к точке или уходит, разворачивается и дерётся;
+        // подбитый, пират логова на поводке и тот, кто уже готовит прыжок, огрызаются на ходу, не сворачивая.
+        if (pirate.State is PirateState.Leave or PirateState.Return &&
+            ships.GetValueOrDefault(attacker) is { } foe && IsCandidate(pirate, foe, tick, shelter) && Distance(pirate, foe) <= npc.DropRange)
+        {
+            if (pirate.IsRaider && pirate.LeaveAtTick == 0 && pirate.Hp > pirate.MaxHp(hull) * pirate.Type.RetreatHp)
+            {
+                pirate.State = PirateState.Attack;
+                pirate.TargetId = foe.Id;
+                log.LogInformation("{Pirate} turns on {Target} on its way", pirate, foe.Name);
+            }
+            else pirate.Avenge = foe.Id;
+        }
+
         if (pirate.State == PirateState.Leave)
         {
             Leave(pirate, balance, tick, log);
+            ReturnFire(pirate, ships, npc.DropRange, tick);
             return;
         }
 
@@ -79,8 +94,10 @@ internal static class PirateBrain
             if (Distance(pirate.Ship.X, pirate.Ship.Y, pirate.HomeX, pirate.HomeY) > HomeRadius)
             {
                 FlyTo(pirate, pirate.HomeX, pirate.HomeY, 1);
+                ReturnFire(pirate, ships, npc.DropRange, tick);
                 return;
             }
+            pirate.Avenge = 0;
             pirate.Repair(hull);
             pirate.State = PirateState.Patrol;
             pirate.HasWaypoint = false;
@@ -93,16 +110,31 @@ internal static class PirateBrain
         {
             var target = ships.GetValueOrDefault(pirate.TargetId);
             // Рейнджер идёт на обидчика издалека (defendRange) — и бросать его должен не ближе, иначе дёргался бы каждый тик.
+            // Добивает торговца, а по нему самому стреляют пилот или рейнджер — отвечает тому, кто опаснее.
+            if (target is Trader && ships.GetValueOrDefault(attacker) is { } rival and not Trader &&
+                IsCandidate(pirate, rival, tick, shelter) && Distance(pirate, rival) <= npc.DropRange)
+            {
+                target = rival;
+                pirate.TargetId = rival.Id;
+                log.LogInformation("{Pirate} leaves the trader for {Target}", pirate, rival.Name);
+            }
             if (target is null || !CanFight(pirate, target, tick) || Distance(pirate, target) > Math.Max(npc.DropRange, pirate.Type.DefendRange))
             {
                 pirate.State = PirateState.Patrol;
                 pirate.TargetId = 0;
                 log.LogInformation("{Pirate} lost its target", pirate);
+                // Налётчика перехватили в пути — бой окончен, и он летит дальше, куда летел.
+                if (pirate.IsRaider && pirate.PatrolUntilTick == 0)
+                {
+                    pirate.State = PirateState.Return;
+                    Think(pirate, ships, pirates, balance, tick, rng, log, station, offenders);
+                    return;
+                }
             }
-            else if (ReturnReason(pirate, target, hull, npc, shelter) is { } reason)
+            else if (ReturnReason(pirate, target, hull, npc, shelter, OnTheWay(pirate, tick)) is { } reason)
             {
-                // Подбитый налётчик не чинится дома, а бежит из системы.
-                if (pirate.IsRaider && reason == "retreat") StartLeave(pirate, reason, log);
+                // Подбитый налётчик не чинится дома, а бежит из системы; уходивший — уходит дальше.
+                if (pirate.IsRaider && (reason == "retreat" || Leaving(pirate, tick))) StartLeave(pirate, reason, log);
                 else StartReturn(pirate, reason, log);
                 Think(pirate, ships, pirates, balance, tick, rng, log, station, offenders);
                 return;
@@ -138,6 +170,25 @@ internal static class PirateBrain
             return;
         }
         Patrol(pirate, npc, tick, rng);
+    }
+
+    /// <summary>Налётчик ещё летит к точке патруля или уже уходит: его поводок — не логово, а маршрут.</summary>
+    private static bool OnTheWay(Pirate pirate, long tick) => pirate.IsRaider && (pirate.PatrolUntilTick == 0 || Leaving(pirate, tick));
+
+    private static bool Leaving(Pirate pirate, long tick) => pirate.IsRaider && pirate.PatrolUntilTick > 0 && tick >= pirate.PatrolUntilTick;
+
+    /// <summary>Огонь на ходу по тому, кто стрелял в пути, пока тот цел и рядом; курс не меняется.</summary>
+    private static void ReturnFire(Pirate pirate, IReadOnlyDictionary<int, ShipEntity> ships, double range, long tick)
+    {
+        if (ships.GetValueOrDefault(pirate.Avenge) is { } foe && CanFight(pirate, foe, tick) && Distance(pirate, foe) <= range)
+        {
+            pirate.TargetId = foe.Id;
+            pirate.FireHeld = true;
+            return;
+        }
+        pirate.Avenge = 0;
+        pirate.TargetId = 0;
+        pirate.FireHeld = false;
     }
 
     private static void StartLeave(Pirate pirate, string reason, ILogger log)
@@ -249,13 +300,14 @@ internal static class PirateBrain
     }
 
     /// <returns>Причина бросить бой и уйти в логово, или null — продолжать.</returns>
-    private static string? ReturnReason(Pirate pirate, ShipEntity target, HullParams hull, NpcRules npc, Shelter shelter)
+    /// <param name="onTheWay">Налётчик в пути: поводка от точки патруля нет, бой держит только DropRange.</param>
+    private static string? ReturnReason(Pirate pirate, ShipEntity target, HullParams hull, NpcRules npc, Shelter shelter, bool onTheWay)
     {
         if (pirate.Hp <= pirate.MaxHp(hull) * pirate.Type.RetreatHp) return "retreat";
         if (shelter.Contains(target)) return "target in the shelter";
         if (shelter.Contains(pirate, SafeMargin))
             return "too close to the shelter";
-        if (Distance(pirate.Ship.X, pirate.Ship.Y, pirate.HomeX, pirate.HomeY) > (pirate.Type.LeashRange ?? npc.LeashRange)) return "too far from home";
+        if (!onTheWay && Distance(pirate.Ship.X, pirate.Ship.Y, pirate.HomeX, pirate.HomeY) > (pirate.Type.LeashRange ?? npc.LeashRange)) return "too far from home";
         return null;
     }
 

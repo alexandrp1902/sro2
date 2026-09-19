@@ -34,6 +34,7 @@ const NOTICES: Record<string, string> = {
   noFuel: 'Не хватает топлива на прыжок',
   gateFar: 'Подлетите ближе к вратам',
   jumpCancelled: 'Прыжок сорван',
+  jumpHit: 'Прыжок сбит — по вам попали',
   noPower: 'Не хватает энергии генератора',
   badClass: 'Класс не подходит к слоту',
   badSlot: 'Сюда это не встаёт',
@@ -53,9 +54,10 @@ export class Feed {
     for (const event of events) this.add(describe(event));
   }
 
-  add(text: string): void {
+  /** alert — тревога (SOS): строка заметнее остальных. */
+  add(text: string, alert = false): void {
     const item = document.createElement('div');
-    item.className = 'feed-item';
+    item.className = alert ? 'feed-item feed-alert' : 'feed-item';
     item.textContent = text;
     this.root.append(item);
     while (this.root.children.length > MAX_ITEMS) this.root.firstElementChild!.remove();

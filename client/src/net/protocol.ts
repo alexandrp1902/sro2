@@ -9,7 +9,7 @@ import type { NpcRules } from '../sim/npcs';
 import type { ShopRules } from '../sim/shop';
 
 /** Версия протокола; зеркало Protocol.Version на сервере. Сервер другой версии (или старый, без поля) — не играем. */
-export const PROTOCOL_VERSION = 12;
+export const PROTOCOL_VERSION = 13;
 
 /** Состояние ИИ пирата: патруль, бой, возврат в логово (налётчик — полёт от врат к точке), уход из системы. */
 export type AiState = 'patrol' | 'attack' | 'return' | 'leave';
@@ -469,6 +469,20 @@ export interface NoticeMsg {
   code: string;
 }
 
+/**
+ * SOS торговца всем пилотам системы: on — на него напали (и потом раз в секунду — где он), saved — отбился или
+ * долетел, lost — погиб. reward — кредиты этому пилоту за помощь, только в saved.
+ */
+export interface SosMsg {
+  t: 'sos';
+  id: number;
+  name: string;
+  x: number;
+  y: number;
+  state: 'on' | 'saved' | 'lost';
+  reward: number;
+}
+
 export type ServerMessage =
   | WelcomeMsg
   | { t: 'pong'; c: number; tick: number }
@@ -480,4 +494,5 @@ export type ServerMessage =
   | AccountMsg
   | DeniedMsg
   | HangarMsg
-  | MissionsMsg;
+  | MissionsMsg
+  | SosMsg;

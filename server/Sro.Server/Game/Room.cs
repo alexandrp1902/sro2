@@ -57,6 +57,8 @@ public sealed class Room
     private readonly List<Player> _expired = [];
     private readonly MoveInput[] _steps = new MoveInput[InputBuffer.MaxBudget];
     private readonly List<Player> _jumping = [];
+    /// <summary>По кому попали в этот тик: их подготовка прыжка сбита.</summary>
+    private readonly HashSet<int> _hit = [];
     /// <summary>Налётчики, которые ушли из системы или погибли: убираются после шага.</summary>
     private readonly List<Pirate> _gonePirates = [];
     private int _nextId;
@@ -463,7 +465,33 @@ public sealed class Room
     }
 
     /// <summary>
-    /// Подготовка прыжка: сбивается, если корабль погиб, ушёл в док, потерял связь или отошёл от врат;
+    /// Под огнём в портал не уйти: попадание сбивает подготовку прыжка — у пилота, у налётчика и у торговца.
+    /// Пилот начинает прыжок заново сам; NPC у врат начнёт его снова в следующий тик, и новый выстрел снова собьёт.
+    /// </summary>
+    private void InterruptJumps()
+    {
+        _hit.Clear();
+        foreach (var shot in _shots) if (shot.Hit) _hit.Add(shot.To);
+        foreach (var id in _hit)
+        {
+            switch (_ships.GetValueOrDefault(id))
+            {
+                case Player { JumpTo: not null } player:
+                    CancelJump(player, notify: false);
+                    player.Connection?.Send(new NoticeMsg(Protocol.JumpHitNotice));
+                    break;
+                case Pirate { LeaveAtTick: > 0 } pirate:
+                    pirate.LeaveAtTick = 0;
+                    break;
+                case Trader { LeaveAtTick: > 0 } trader:
+                    trader.LeaveAtTick = 0;
+                    break;
+            }
+        }
+    }
+
+    /// <summary>
+    /// Подготовка прыжка: сбивается, если корабль погиб, ушёл в док, потерял связь, отошёл от врат или по нему попали;
     /// по готовности топливо списывается, и галактика переводит корабль в соседнюю систему.
     /// </summary>
     private void StepJumps()
@@ -731,8 +759,12 @@ public sealed class Room
             foreach (var trader in _traders)
             {
                 if (trader.IsDead) continue;
-                // Напавший на торговца — обидчик: рейнджеры системы идут на него.
-                if (trader.LastAttackerId != 0) _offenders[trader.LastAttackerId] = Tick + OffenderTicks;
+                // Напавший на торговца — обидчик: рейнджеры системы идут на него. А торговец зовёт на помощь.
+                if (trader.LastAttackerId != 0)
+                {
+                    _offenders[trader.LastAttackerId] = Tick + OffenderTicks;
+                    Distress(trader, trader.LastAttackerId, traders);
+                }
                 TraderBrain.Think(
                     trader, traders, Tick, Balance.Galaxy.JumpTicks, station, Balance.Loot.StationRange, heat, _ships, Balance.Npc.DropRange);
                 if (trader.Gone) _goneTraders.Add(trader);
@@ -767,6 +799,7 @@ public sealed class Room
             if (_players.GetValueOrDefault(kill.By) is { } killer) CountKill(killer, _ships.GetValueOrDefault(kill.Id));
         }
         foreach (var meteor in _meteors.Shatter(_loot, Balance.Loot, Tick)) RemoveShip(meteor);
+        StepSos();
         RemoveGonePirates();
         StepRaids();
         RemoveGoneTraders();
@@ -776,6 +809,7 @@ public sealed class Room
         _loot.DropFrom(_kills, _ships, Balance.Loot, Tick);
         // Подбор и продажа — по команде игрока, а не сами собой: см. Grab и Sell.
         if (_loot.Step(Tick, Balance.Loot)) ClearMissingLootTargets();
+        InterruptJumps();
         StepJumps();
 
         // Дроны есть всегда: без игроков онлайн снапшот не нужен никому.
@@ -1132,6 +1166,74 @@ public sealed class Room
         _ships[trader.Id] = trader;
     }
 
+    /// <summary>По торговцу стреляют: SOS всей системе (если он ещё не зовёт), и тишина отсчитывается заново.</summary>
+    private void Distress(Trader trader, int attackerId, TraderRules rules)
+    {
+        trader.Aggressors.Add(attackerId);
+        trader.Helpers.Remove(attackerId); // напал сам — за помощь не платят
+        var start = !trader.InDistress;
+        trader.SosUntilTick = Tick + rules.SosQuietTicks;
+        if (!start) return;
+        trader.SosPingTick = Tick + SimConfig.TickRate;
+        SendSos(trader, Protocol.SosOn);
+        _log.LogInformation("{Trader} sends SOS: attacked by {Attacker}", trader, attackerId);
+    }
+
+    /// <summary>
+    /// SOS в этот тик: пилоты, попавшие по нападавшим или добившие их, — помощники; кто зовёт давно — снова говорит,
+    /// где он; по кому давно не стреляли — спасён, и помощникам платят.
+    /// </summary>
+    private void StepSos()
+    {
+        foreach (var trader in _traders)
+        {
+            if (!trader.InDistress) continue;
+            foreach (var shot in _shots) if (shot.Hit) NoteHelp(trader, shot.From, shot.To);
+            foreach (var kill in _kills) NoteHelp(trader, kill.By, kill.Id);
+            if (trader.IsDead) continue; // гибель разошлёт уборка торговцев
+            if (Tick >= trader.SosUntilTick) EndSos(trader, saved: true);
+            else if (Tick >= trader.SosPingTick)
+            {
+                trader.SosPingTick = Tick + SimConfig.TickRate;
+                SendSos(trader, Protocol.SosOn);
+            }
+        }
+    }
+
+    private void NoteHelp(Trader trader, int by, int target)
+    {
+        if (trader.Aggressors.Contains(target) && _players.ContainsKey(by) && !trader.Aggressors.Contains(by)) trader.Helpers.Add(by);
+    }
+
+    /// <summary>SOS снят: торговец отбился или долетел (платит помощникам), либо погиб.</summary>
+    private void EndSos(Trader trader, bool saved)
+    {
+        var reward = saved ? Balance.Traders?.SosReward ?? 0 : 0;
+        foreach (var player in _players.Values)
+        {
+            var paid = reward > 0 && trader.Helpers.Contains(player.Id) ? reward : 0;
+            if (paid > 0)
+            {
+                player.Credits += paid;
+                SendCargo(player);
+                Save(player);
+            }
+            player.Connection?.Send(new SosMsg(
+                trader.Id, trader.Name, trader.Ship.X, trader.Ship.Y, saved ? Protocol.SosSaved : Protocol.SosLost, paid));
+        }
+        _log.LogInformation(
+            "{Trader} SOS is over: {Outcome}, {Helpers} helpers paid {Reward}", trader, saved ? "saved" : "lost", trader.Helpers.Count, reward);
+        trader.SosUntilTick = 0;
+        trader.Aggressors.Clear();
+        trader.Helpers.Clear();
+    }
+
+    private void SendSos(Trader trader, string state)
+    {
+        var message = new SosMsg(trader.Id, trader.Name, trader.Ship.X, trader.Ship.Y, state);
+        foreach (var player in _players.Values) player.Connection?.Send(message);
+    }
+
     /// <summary>Долетевшие и погибшие торговцы покидают систему; через срок появятся новые.</summary>
     private void RemoveGoneTraders()
     {
@@ -1139,6 +1241,8 @@ public sealed class Room
         foreach (var trader in _goneTraders)
         {
             if (!_traders.Remove(trader)) continue;
+            // Долетел, пока звал на помощь, — спасён; сбит — погиб.
+            if (trader.InDistress) EndSos(trader, saved: !trader.IsDead);
             RemoveShip(trader);
         }
         _goneTraders.Clear();
@@ -1255,6 +1359,7 @@ public sealed class Room
             ship switch
             {
                 Pirate { IsDead: false, State: PirateState.Attack } attacking => attacking.TargetId,
+                Pirate { IsDead: false, FireHeld: true } firing => firing.TargetId, // огрызается на ходу
                 Trader { IsDead: false, FireHeld: true } firing => firing.TargetId,
                 _ => 0,
             },

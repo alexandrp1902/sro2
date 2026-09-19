@@ -34,6 +34,17 @@ public sealed class Trader(int id, string typeId, NpcType type, NpcRules rules) 
     /// <summary>Ушёл из системы: комната уберёт его после шага.</summary>
     public bool Gone;
 
+    /// <summary>Подал SOS: пока не наступил этот тик без новых выстрелов по нему, он зовёт на помощь; 0 — не зовёт.</summary>
+    public long SosUntilTick;
+    /// <summary>Когда снова разослать, где он: SOS видно на миникарте и за радаром.</summary>
+    public long SosPingTick;
+    /// <summary>Кто по нему стрелял, пока идёт SOS: попадания по ним — помощь.</summary>
+    public readonly HashSet<int> Aggressors = [];
+    /// <summary>Пилоты, которые били нападавших: спасённый торговец заплатит каждому.</summary>
+    public readonly HashSet<int> Helpers = [];
+
+    public bool InDistress => SosUntilTick > 0;
+
     public override double MaxHp(HullParams hull) => Type.Hp ?? hull.Hp;
 
     public override double MaxShield(HullParams hull) => Type.Shield ?? hull.Shield;

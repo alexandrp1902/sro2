@@ -237,4 +237,67 @@ public class OrbitRaidTests
         Assert.Null(room.Entity(raider.Id));
         Assert.Empty(Pirates(room, pilot));
     }
+
+    /// <summary>Налётчик в пути: ставит у врат, будто он только прилетел или уже уходит, — и пилот в упор под носом.</summary>
+    private (Room Room, FakeConnection Pilot, Pirate Raider) RaiderOnTheWay(Func<Pirate, PirateState> setup)
+    {
+        var raids = new RaidRules(MaxGroups: 1, IntervalSeconds: 600, PatrolMinSeconds: 600, PatrolMaxSeconds: 600, Groups: [new RaidGroup("pirate")]);
+        var room = NewRoom(raids);
+        var pilot = Connect(room);
+        var raider = Pirates(room, pilot).Single();
+        raider.Ship = new ShipState { X = 2600, Y = 0 };
+        raider.State = setup(raider);
+        var player = room.Pilot(IdOf(pilot))!;
+        player.Ship = new ShipState { X = 2600, Y = 300 };
+        room.SetTarget(pilot, raider.Id);
+        room.SetFire(pilot, true);
+        return (room, pilot, raider);
+    }
+
+    /// <summary>Плейтест: налётчик, летевший к точке патруля, не отвечал на огонь.</summary>
+    [Fact]
+    public void ArrivingRaider_FightsBack_ThenFliesOn()
+    {
+        var (room, pilot, raider) = RaiderOnTheWay(r =>
+        {
+            r.PatrolUntilTick = 0;
+            return PirateState.Return;
+        });
+        Steps(room, 3);
+        Assert.Equal((PirateState.Attack, IdOf(pilot)), (raider.State, raider.TargetId));
+
+        // Пилот ушёл — налётчик летит дальше к своей точке.
+        room.SetFire(pilot, false);
+        room.Pilot(IdOf(pilot))!.Ship = new ShipState { X = -3500, Y = -3500 };
+        Steps(room, 3);
+        Assert.Equal(PirateState.Return, raider.State);
+    }
+
+    /// <summary>Плейтест: уходящий налётчик не отвечал на огонь.</summary>
+    [Fact]
+    public void LeavingRaider_FightsBack()
+    {
+        var (room, pilot, raider) = RaiderOnTheWay(r =>
+        {
+            r.PatrolUntilTick = 1;
+            return PirateState.Leave;
+        });
+        Steps(room, 3);
+        Assert.Equal((PirateState.Attack, IdOf(pilot)), (raider.State, raider.TargetId));
+    }
+
+    [Fact]
+    public void RetreatingRaider_KeepsFleeing_ButFiresBack()
+    {
+        var (room, pilot, raider) = RaiderOnTheWay(r =>
+        {
+            r.PatrolUntilTick = 1;
+            r.Hp = 10;
+            return PirateState.Leave;
+        });
+        Steps(room, 3);
+        Assert.Equal(PirateState.Leave, raider.State);
+        Assert.Equal(IdOf(pilot), raider.TargetId);
+        Assert.True(raider.FireHeld);
+    }
 }

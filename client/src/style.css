@@ -144,6 +144,13 @@ body {
   transition: opacity 0.4s;
 }
 
+/* Тревога — SOS торговца. */
+.feed-alert {
+  background: rgba(120, 24, 18, 0.75);
+  color: #ffd9d4;
+  font-weight: 600;
+}
+
 .feed-out {
   opacity: 0;
 }
@@ -806,16 +813,12 @@ body {
   background: #2f7ad6;
 }
 
-/* Экран дока: поверх мира, стика и кнопки огня; мир виден сквозь затемнение. */
+/* Экран дока: во весь экран поверх мира, стика и кнопки огня — и на телефоне, и на ПК. */
 .dock {
   position: fixed;
   inset: 0;
   display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: calc(env(safe-area-inset-top) + 12px) calc(env(safe-area-inset-right) + 12px)
-    calc(env(safe-area-inset-bottom) + 12px) calc(env(safe-area-inset-left) + 12px);
-  background: rgba(3, 5, 10, 0.72);
+  background: #0b1322;
   touch-action: manipulation;
 }
 
@@ -823,18 +826,121 @@ body {
   display: none;
 }
 
-/* Размер окна постоянный: от числа позиций во вкладке он не зависит, длинный список прокручивается внутри. */
+/* Окно занимает весь экран, длинный список прокручивается внутри. Вырезы телефона — отступами внутри окна. */
 .dock-card {
   display: flex;
   flex-direction: column;
   width: 100%;
-  max-width: 560px;
   height: 100%;
-  max-height: 680px;
-  border: 1px solid #1f3350;
-  border-radius: 12px;
+  box-sizing: border-box;
+  padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom)
+    env(safe-area-inset-left);
   background: #0b1322;
   overflow: hidden;
+}
+
+/* Сцена дока (корабль в ангаре, торговец, диспетчер) — только на ПК, на телефоне её нет совсем. */
+.dock-scene {
+  display: none;
+}
+
+/*
+ * ПК и планшет: слева сцена, справа панель с вкладками. Телефон в альбомной ориентации сюда не попадает —
+ * он низкий. Фон сцены — картинка из --scene-art поверх заливки: пока арта нет, видна заливка.
+ */
+@media (min-width: 900px) and (min-height: 500px) {
+  .dock-card {
+    display: grid;
+    grid-template-columns: 1fr minmax(420px, 34%);
+    grid-template-rows: auto auto auto 1fr;
+    grid-template-areas:
+      'head head'
+      'scene ship'
+      'scene tabs'
+      'scene body';
+  }
+
+  .dock-head {
+    grid-area: head;
+  }
+
+  .dock-ship {
+    grid-area: ship;
+  }
+
+  .dock-tabs {
+    grid-area: tabs;
+  }
+
+  .dock-body {
+    grid-area: body;
+  }
+
+  .dock-ship,
+  .dock-tabs,
+  .dock-body {
+    border-left: 1px solid #1f3350;
+  }
+
+  .dock-scene {
+    --scene-fill: radial-gradient(ellipse at 50% 75%, rgba(47, 122, 214, 0.35), transparent 60%);
+    grid-area: scene;
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 0;
+    overflow: hidden;
+    background:
+      var(--scene-art) center / cover no-repeat,
+      var(--scene-fill),
+      repeating-linear-gradient(90deg, rgba(31, 51, 80, 0.35) 0 1px, transparent 1px 80px),
+      linear-gradient(#0b1322, #050912);
+  }
+
+  .dock-scene[data-scene='trader'] {
+    --scene-fill: radial-gradient(ellipse at 50% 70%, rgba(255, 209, 102, 0.28), transparent 60%);
+  }
+
+  .dock-scene[data-scene='office'] {
+    --scene-fill: radial-gradient(ellipse at 50% 40%, rgba(127, 212, 255, 0.22), transparent 60%);
+  }
+
+  .dock-scene[data-scene='shipyard'] {
+    --scene-fill: radial-gradient(ellipse at 50% 75%, rgba(111, 224, 138, 0.22), transparent 60%);
+  }
+
+  /* Свой корабль (или тот, что на витрине верфи) носом вверх, посреди ангара. */
+  .dock-scene-ship {
+    width: min(46%, 420px);
+    max-height: 70%;
+    object-fit: contain;
+    filter: drop-shadow(0 24px 30px rgba(0, 0, 0, 0.6));
+    pointer-events: none;
+  }
+
+  .dock-scene-caption {
+    position: absolute;
+    left: 24px;
+    right: 24px;
+    bottom: 24px;
+    max-width: 560px;
+    padding: 12px 16px;
+    border-left: 3px solid #ffd166;
+    border-radius: 8px;
+    background: rgba(5, 9, 18, 0.78);
+  }
+
+  .dock-scene-who {
+    color: #ffd166;
+    font-size: 13px;
+    font-weight: 600;
+  }
+
+  .dock-scene-line {
+    margin-top: 4px;
+    font-size: 15px;
+  }
 }
 
 .dock-head {

@@ -22,7 +22,11 @@ const COLORS = {
   missile: '#ff4a3a',
   target: '#ffffff',
   objective: '#ffd166',
+  sos: '#ff5a4a',
 };
+
+/** Полупериод мигания SOS, мс. */
+const SOS_BLINK_MS = 400;
 
 /** Точка на миникарте: корабль в радаре. */
 export interface MinimapShip {
@@ -50,6 +54,8 @@ export interface MinimapFrame {
   objective?: { x: number; y: number } | null;
   /** Ракеты в полёте. */
   missiles?: readonly { x: number; y: number }[];
+  /** Торговцы, которые зовут на помощь: мигающее красное кольцо — и за радаром. */
+  sos?: readonly { x: number; y: number }[];
 }
 
 /**
@@ -160,6 +166,16 @@ export class Minimap {
       const s = 1.2 * dpr;
       ctx.fillStyle = COLORS.missile;
       ctx.fillRect(px(missile.x) - s, px(missile.y) - s, s * 2, s * 2);
+    }
+
+    if (Math.floor(now / SOS_BLINK_MS) % 2 === 0) {
+      for (const call of frame.sos ?? []) {
+        ctx.beginPath();
+        ctx.arc(px(call.x), px(call.y), 6.5 * dpr, 0, 2 * Math.PI);
+        ctx.strokeStyle = COLORS.sos;
+        ctx.lineWidth = 2 * dpr;
+        ctx.stroke();
+      }
     }
 
     if (frame.objective) {

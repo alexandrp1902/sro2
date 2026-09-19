@@ -48,6 +48,7 @@ import { Feed, describeBurn, describeKill, describeNotice } from './ui/feed';
 import { FlightHud } from './ui/flightHud';
 import { GalaxyMap } from './ui/galaxyMap';
 import { Minimap } from './ui/minimap';
+import { SosBoard } from './ui/sos';
 import { ObjectiveHud } from './ui/objectiveHud';
 import { PilotForm, describeDenied } from './ui/pilotForm';
 import { StatusHud } from './ui/statusHud';
@@ -276,6 +277,7 @@ async function main(): Promise<void> {
 
   // Карта галактики (GDD §55): M на ПК, тап по миникарте — везде.
   const galaxyMap = new GalaxyMap(el('galaxy'));
+  const sos = new SosBoard();
   const minimap = new Minimap(el('minimap') as HTMLCanvasElement, () => galaxyMap.toggle());
   const refreshGalaxyMap = () =>
     galaxyMap.set(
@@ -497,6 +499,7 @@ async function main(): Promise<void> {
     }
     dockScreen.setStation(system?.station ? system.name : null, system?.id ?? null);
     if (was?.id !== system?.id) {
+      sos.clear();
       setMark(0);
       setTarget(0);
       fire.release();
@@ -639,6 +642,10 @@ async function main(): Promise<void> {
       if (code === 'badKey' && serverUrl) account.forget(serverUrl);
       showPilotForm(describeDenied(code));
     };
+    connection.onSos = (message) => {
+      const text = sos.apply(message, performance.now());
+      if (text) feed.add(text, message.state === 'on');
+    };
     connection.onNotice = (message) => {
       const text = describeNotice(message.code);
       if (text) feed.add(text);
@@ -716,6 +723,7 @@ async function main(): Promise<void> {
       dockScreen.setHangar(null);
       missions = null;
       dockScreen.setMissions(null);
+      sos.clear();
     }
     wasOnline = online;
     if (latestSnapshot && online) {
@@ -878,6 +886,10 @@ async function main(): Promise<void> {
         targetId,
         objective: goal,
         missiles: missiles.visible(),
+        sos: sos.active(now, (id) => {
+          const ship = remote.get(id);
+          return ship && !ship.dead ? ship : null;
+        }),
       },
       now,
     );

@@ -8,6 +8,7 @@ import {
   type HangarMsg,
   type MissionsMsg,
   type NoticeMsg,
+  type SosMsg,
   type ServerMessage,
   type SnapshotMsg,
   type WelcomeMsg,
@@ -70,6 +71,7 @@ export class Connection {
   onDenied: ((code: DeniedCode) => void) | null = null;
   onHangar: ((message: HangarMsg) => void) | null = null;
   onMissions: ((message: MissionsMsg) => void) | null = null;
+  onSos: ((message: SosMsg) => void) | null = null;
 
   private ws: WebSocket | null = null;
   private credentials: Credentials | null = null;
@@ -245,6 +247,9 @@ export class Connection {
         break;
       case 'missions':
         this.onMissions?.(message);
+        break;
+      case 'sos':
+        this.onSos?.(message);
         break;
     }
   }

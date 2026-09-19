@@ -525,4 +525,100 @@ public sealed class FittingRoomTests : IDisposable
         }
         Assert.True(ToRobber() < start - 300, $"ranger did not close in: {start:0} → {ToRobber():0}");
     }
+
+    /// <summary>Плейтест: пират, добивавший торговца, не отвечал пилоту, который по нему стрелял.</summary>
+    [Fact]
+    public void PirateOverATrader_TurnsOnThePilotWhoShootsIt()
+    {
+        var merchant = PatrolledSystem(rangers: 0, pirate: true);
+        var hero = Guest("Hero");
+        var pirate = NpcOf(hero, Protocol.PirateKind);
+        merchant.Ship = new ShipState { X = 500, Y = 800 };
+        pirate.Ship = new ShipState { X = 500, Y = 500 };
+        PlayerOf(hero).Ship = new ShipState { X = 500, Y = 1500 };
+        Steps(30);
+        Assert.Equal(merchant.Id, pirate.TargetId);
+
+        PlayerOf(hero).Ship = new ShipState { X = pirate.Ship.X, Y = pirate.Ship.Y + 300 };
+        _room.SetTarget(hero, pirate.Id);
+        _room.SetFire(hero, true);
+        Steps(3);
+
+        Assert.Equal((PirateState.Attack, IdOf(hero)), (pirate.State, pirate.TargetId));
+    }
+
+    [Fact]
+    public void AttackedTrader_SendsSos_AndPaysThePilotWhoSavedIt()
+    {
+        var merchant = PatrolledSystem(rangers: 0, pirate: true);
+        var hero = Guest("Hero");
+        var bystander = Guest("Bystander");
+        var pirate = NpcOf(hero, Protocol.PirateKind);
+        PlayerOf(bystander).Ship = new ShipState { X = -3500, Y = 3500 };
+        PlayerOf(hero).Ship = new ShipState { X = -3500, Y = -3500 };
+        merchant.Ship = new ShipState { X = 500, Y = 800 };
+        pirate.Ship = new ShipState { X = 500, Y = 500 };
+        for (var i = 0; i < 60 && !bystander.Messages.OfType<SosMsg>().Any(); i++) _room.Step();
+
+        // SOS слышат все пилоты системы — с тем, где торговец.
+        var call = bystander.Last<SosMsg>();
+        Assert.Equal((merchant.Id, Protocol.SosOn), (call.Id, call.State));
+        Assert.Equal(Protocol.SosOn, hero.Last<SosMsg>().State);
+
+        var credits = PlayerOf(hero).Credits;
+        PlayerOf(hero).Ship = new ShipState { X = pirate.Ship.X, Y = pirate.Ship.Y + 300 };
+        _room.SetTarget(hero, pirate.Id);
+        _room.SetFire(hero, true);
+        for (var i = 0; i < 30 * SimConfig.TickRate && hero.Last<SosMsg>().State == Protocol.SosOn; i++)
+        {
+            _room.Step();
+            // Пират уничтожен — дальше не стреляем: в логове появится новый, а тишина нужна торговцу.
+            if (pirate.IsDead) _room.SetFire(hero, false);
+        }
+
+        var thanks = hero.Last<SosMsg>();
+        Assert.Equal((Protocol.SosSaved, 150), (thanks.State, thanks.Reward));
+        Assert.Equal(credits + 150, PlayerOf(hero).Credits);
+        Assert.Equal(credits + 150, hero.Last<CargoMsg>().Credits);
+        Assert.Equal((Protocol.SosSaved, 0), (bystander.Last<SosMsg>().State, bystander.Last<SosMsg>().Reward));
+    }
+
+    [Fact]
+    public void Robber_IsNotPaid_ForTheTraderItAttacked()
+    {
+        var merchant = PatrolledSystem(rangers: 0);
+        var robber = Guest("Robber");
+        merchant.Ship = new ShipState { X = 1000, Y = 1000 };
+        PlayerOf(robber).Ship = new ShipState { X = 1000, Y = 1300 };
+        _room.SetTarget(robber, merchant.Id);
+        _room.SetFire(robber, true);
+        Steps(2);
+        _room.SetFire(robber, false);
+        Assert.Equal(Protocol.SosOn, robber.Last<SosMsg>().State);
+
+        Steps(10 * SimConfig.TickRate);
+
+        Assert.Equal((Protocol.SosSaved, 0), (robber.Last<SosMsg>().State, robber.Last<SosMsg>().Reward));
+    }
+
+    /// <summary>Под огнём в портал не уйти: попадание сбивает и прыжок торговца у врат.</summary>
+    [Fact]
+    public void HitTrader_CannotJumpAway()
+    {
+        var merchant = PatrolledSystem(rangers: 0);
+        var robber = Guest("Robber");
+        merchant.Ship = new ShipState { X = 2950, Y = 0 };
+        (merchant.ToStation, merchant.DestX, merchant.DestY) = (false, 2950, 0);
+        Steps(1);
+        Assert.True(merchant.LeaveAtTick > 0);
+        var charging = merchant.LeaveAtTick;
+
+        PlayerOf(robber).Ship = new ShipState { X = 2950, Y = 300 };
+        _room.SetTarget(robber, merchant.Id);
+        _room.SetFire(robber, true);
+        Steps(1);
+
+        Assert.True(merchant.LeaveAtTick == 0 || merchant.LeaveAtTick > charging, "the hit did not reset the jump");
+        Assert.NotNull(_room.Entity(merchant.Id));
+    }
 }

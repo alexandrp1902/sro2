@@ -511,4 +511,27 @@ public sealed class GalaxyTests : IDisposable
         Assert.Same(before, _galaxy.Balance);
         Assert.Equal("home", RoomOf(a).SystemId);
     }
+
+    /// <summary>Под огнём в портал не уйти: попадание сбивает подготовку прыжка.</summary>
+    [Fact]
+    public void Hit_InterruptsAJump()
+    {
+        var a = Guest("Runner");
+        var b = Guest("Hunter");
+        JumpTo(a, "wild");
+        JumpTo(b, "wild");
+        var gate = RoomOf(a).Balance.SystemDef.GateTo("home")!;
+        Place(a, gate.X, gate.Y);
+        Place(b, gate.X, gate.Y + 300);
+        Do(a, r => r.Jump(a, "home"));
+        Assert.NotNull(PlayerOf(a).JumpTo);
+
+        Do(b, r => r.SetTarget(b, IdOf(a)));
+        Do(b, r => r.SetFire(b, true));
+        Steps(JumpTicks + 2);
+
+        Assert.Equal("wild", RoomOf(a).SystemId);
+        Assert.Null(PlayerOf(a).JumpTo);
+        Assert.Contains(a.Messages.OfType<NoticeMsg>(), n => n.Code == Protocol.JumpHitNotice);
+    }
 }
