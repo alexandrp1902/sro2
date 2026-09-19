@@ -259,7 +259,8 @@ export class DockScreen {
     const scene = SCENES[this.tab];
     const view = el('div', 'dock-scene');
     view.dataset.scene = scene.art;
-    view.style.setProperty('--scene-art', `url("${sceneUrl(this.place, this.tab)}")`);
+    // Абсолютный адрес: относительный url() в CSS-переменной браузер отсчитывает от файла стилей (assets/), а не от страницы.
+    view.style.setProperty('--scene-art', `url("${new URL(sceneUrl(this.place, this.tab), document.baseURI).href}")`);
     if (scene.ship) {
       const ship = icon(shipSprite(hangar.hull, false));
       ship.className = 'dock-scene-ship';
