@@ -155,6 +155,22 @@
     "w": 127,
     "h": 128
   },
+  "modules-engine": {
+    "w": 126,
+    "h": 128
+  },
+  "modules-shield": {
+    "w": 128,
+    "h": 121
+  },
+  "modules-cargo": {
+    "w": 128,
+    "h": 127
+  },
+  "modules-scanner": {
+    "w": 112,
+    "h": 128
+  },
   "explosions-f0": {
     "w": 256,
     "h": 256

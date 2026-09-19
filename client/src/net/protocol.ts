@@ -1,6 +1,7 @@
 // Зеркало server/Sro.Server/Net/Protocol.cs. Поле t — тип сообщения.
 
 import type { CombatRules, WeaponConfig } from '../sim/combat';
+import type { ModuleConfig, ShipFit } from '../sim/fitting';
 import type { LootRules } from '../sim/loot';
 import type { MeteorRules } from '../sim/meteors';
 import type { HullConfig } from '../sim/movement';
@@ -8,7 +9,7 @@ import type { NpcRules } from '../sim/npcs';
 import type { ShopRules } from '../sim/shop';
 
 /** Версия протокола; зеркало Protocol.Version на сервере. Сервер другой версии (или старый, без поля) — не играем. */
-export const PROTOCOL_VERSION = 11;
+export const PROTOCOL_VERSION = 12;
 
 /** Состояние ИИ пирата: патруль, бой, возврат в логово (налётчик — полёт от врат к точке), уход из системы. */
 export type AiState = 'patrol' | 'attack' | 'return' | 'leave';
@@ -32,6 +33,10 @@ export type ClientMessage =
   | { t: 'input'; seq: number; dx: number; dy: number; th: number }
   | { t: 'hull'; id: string }
   | { t: 'weapon'; id: string }
+  /** Поставить в слот пушку или модуль со склада; id = null — снять на склад. */
+  | { t: 'fit'; slot: string; id: string | null }
+  /** Продать со склада пушку или модуль — за долю цены. */
+  | { t: 'sellItem'; id: string }
   | { t: 'name'; name: string }
   /** Выбранная цель (GDD §9); 0 — цели нет. */
   | { t: 'target'; id: number }
@@ -45,8 +50,11 @@ export type ClientMessage =
   | { t: 'sell'; item?: string }
   /** Пристыковаться к станции или вылететь из дока. */
   | { t: 'dock'; on: boolean }
-  /** Купить в доке корпус или пушку; купленное сразу ставится на корабль. */
-  | { t: 'buy'; kind: BuyKind; id: string }
+  /**
+   * Купить в доке корпус (сразу ставится), пушку или модуль: со slot — сразу в этот слот (старое — на склад),
+   * без него — в свободный подходящий слот или на склад.
+   */
+  | { t: 'buy'; kind: BuyKind; id: string; slot?: string }
   /** Починить корпус и зарядить щит в доке. */
   | { t: 'repair' }
   /** Начать гиперпрыжок через врата в систему to (GDD §5); null — отменить подготовку. */
@@ -62,7 +70,7 @@ export type ClientMessage =
 export type MissionAction = 'accept' | 'abandon' | 'complete' | 'skip';
 
 /** Что покупают в доке. */
-export type BuyKind = 'hull' | 'weapon';
+export type BuyKind = 'hull' | 'item';
 
 export interface ShipDto {
   id: number;
@@ -78,7 +86,7 @@ export interface ShipDto {
   /** Корпус и щит, округлены вверх. */
   hp: number;
   sh: number;
-  /** Пушка. */
+  /** Первая стоящая пушка; "" — пушек нет. */
   w: string;
   /** Уничтожен и появится в этот тик; нет поля — цел. */
   rt?: number;
@@ -150,6 +158,21 @@ export interface MeteorDto {
   hp: number;
 }
 
+/** Ракета в полёте (боевой документ §37): скорость — из пушки w, курс — r; между кадрами клиент ведёт её сам. */
+export interface MissileDto {
+  id: number;
+  x: number;
+  y: number;
+  /** Курс, как у корабля: 0 — нос вверх. */
+  r: number;
+  /** Кто запустил. */
+  o: number;
+  /** В кого летит. */
+  t: number;
+  /** Ракетница — ключ weapons.json. */
+  w: string;
+}
+
 export interface SnapshotMsg {
   t: 'snapshot';
   tick: number;
@@ -162,6 +185,8 @@ export interface SnapshotMsg {
   picks?: PickDto[];
   /** Метеориты в системе; нет — поля нет. */
   meteors?: MeteorDto[];
+  /** Ракеты в полёте; нет — поля нет. */
+  missiles?: MissileDto[];
 }
 
 export interface WelcomeMsg {
@@ -188,6 +213,8 @@ export interface WelcomeMsg {
   system?: SystemDto;
   /** Карта галактики. */
   galaxy?: GalaxyDto;
+  /** Модули кораблей; нет — сервер без modules.json: щит, радар и бак даёт корпус. */
+  modules?: ModuleConfig | null;
 }
 
 /** PvP в системе (GDD §34): off — нет; border — нет у станции; free — везде. */
@@ -302,7 +329,7 @@ export interface PlayerDto {
   kind?: NpcKind;
 }
 
-export type NpcKind = 'drone' | 'pirate';
+export type NpcKind = 'drone' | 'pirate' | 'trader';
 
 /** Весь список кораблей с именами — игроки и NPC; приходит при любом изменении. */
 export interface PlayersMsg {
@@ -324,6 +351,7 @@ export interface ConfigMsg {
   shop?: ShopRules;
   system?: SystemDto;
   galaxy?: GalaxyDto;
+  modules?: ModuleConfig | null;
 }
 
 /** Вход принят; приходит раньше welcome. */
@@ -343,14 +371,16 @@ export interface DeniedMsg {
   code: DeniedCode;
 }
 
-/** Ангар пилота (GDD §51): что куплено, что стоит на корабле, в доке ли он. */
+/** Ангар пилота (GDD §51): что куплено, что стоит на корабле, что на складе, в доке ли он. */
 export interface HangarMsg {
   t: 'hangar';
   hull: string;
-  weapon: string;
-  /** Свои корпуса и пушки; у гостя — все. */
+  /** Что стоит на корабле: пушки по слотам и модули. */
+  fit: ShipFit;
+  /** Свои корпуса; у гостя — все. */
   hulls: string[];
-  weapons: string[];
+  /** Склад: пушки и модули, которые куплены или сняты и сейчас не стоят, — id и сколько. */
+  storage: Record<string, number>;
   /** Корабль в доке: в космосе его нет, экран станции открыт. */
   docked: boolean;
   /** Прочность корпуса — в доке снапшот о своём корабле молчит. */
@@ -361,6 +391,11 @@ export interface HangarMsg {
   maxFuel?: number;
   /** Система последней стыковки: здесь корабль появится после гибели и после входа. */
   home?: string;
+  /** Сколько энергии забирает оснащение и сколько даёт генератор (GDD §18); powerMax 0 — энергию не считают. */
+  power?: number;
+  powerMax?: number;
+  /** Гость: склада нет, ставить можно что угодно где угодно. */
+  guest?: boolean;
 }
 
 

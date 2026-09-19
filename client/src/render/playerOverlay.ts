@@ -9,6 +9,7 @@ const COLORS: Record<ShipKind, number> = {
   player: 0xffd6a0,
   drone: 0xc3d6c2,
   pirate: 0xff8a7a,
+  trader: 0xf2d46b,
 };
 const OUTLINE = 0x05060a;
 /** Выбранная цель: оранжевый контур вокруг её стрелки у края экрана и оранжевая подпись. */

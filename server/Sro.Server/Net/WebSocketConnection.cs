@@ -140,7 +140,7 @@ public sealed class WebSocketConnection(WebSocket socket, ILogger log) : IClient
                     room.Dock(this, dock.On);
                     break;
                 case BuyMsg buy when joined:
-                    room.Buy(this, buy.Kind, buy.Id);
+                    room.Buy(this, buy.Kind, buy.Id, buy.Slot);
                     break;
                 case RepairMsg when joined:
                     room.Repair(this);
@@ -177,6 +177,12 @@ public sealed class WebSocketConnection(WebSocket socket, ILogger log) : IClient
                     break;
                 case WeaponMsg weapon when joined:
                     room.SetWeapon(this, weapon.Id);
+                    break;
+                case FitMsg fit when joined:
+                    room.Fit(this, fit.Slot, fit.Id);
+                    break;
+                case SellItemMsg sell when joined:
+                    room.SellItem(this, sell.Id);
                     break;
                 case NameMsg name when joined:
                     room.Rename(this, name.Name);

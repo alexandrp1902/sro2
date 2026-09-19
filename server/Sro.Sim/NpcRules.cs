@@ -3,27 +3,38 @@ using System.Text.Json.Serialization;
 
 namespace Sro.Sim;
 
-/// <summary>Тип NPC (GDD §31): корпус, пушка, живучесть и манера боя.</summary>
+/// <summary>Тип NPC (GDD §31): корпус, пушки, живучесть и манера боя.</summary>
+/// <param name="Weapon">Одна пушка; null — без неё. Если задан <paramref name="Weapons"/>, не смотрится.</param>
 /// <param name="Hp">Своя прочность на 1-м уровне вместо корпусной; null — как у корпуса.</param>
 /// <param name="Shield">Свой щит на 1-м уровне вместо корпусного; null — как у корпуса.</param>
 /// <param name="Damage">Множитель урона пушки на 1-м уровне: пираты слабее игрока.</param>
 /// <param name="HoldRange">Дистанция, которую NPC держит в бою, от центра до центра.</param>
 /// <param name="RetreatHp">При такой доле корпуса NPC уходит в логово чиниться; 0 — бьётся до конца.</param>
+/// <param name="Weapons">Пушки по слотам (GDD §12); пустой — NPC не стреляет (торговец).</param>
+/// <param name="Table">Таблица лута из loot.json; null — таблица с id типа, как у пиратов.</param>
 public sealed record NpcType(
     string Name,
     string Hull,
-    string Weapon,
+    string? Weapon = null,
     double? Hp = null,
     double? Shield = null,
     double Damage = 1,
     double HoldRange = 320,
-    double RetreatHp = 0)
+    double RetreatHp = 0,
+    IReadOnlyList<string>? Weapons = null,
+    string? Table = null)
 {
+    [JsonIgnore] public IReadOnlyList<string> WeaponList => Weapons ?? (Weapon is null ? [] : [Weapon]);
+
     public string? Validate(IReadOnlyDictionary<string, HullParams> hulls, IReadOnlyDictionary<string, WeaponParams> weapons)
     {
         if (string.IsNullOrWhiteSpace(Name)) return "name is empty";
         if (Hull is null || !hulls.ContainsKey(Hull)) return $"unknown hull '{Hull}'";
-        if (Weapon is null || !weapons.ContainsKey(Weapon)) return $"unknown weapon '{Weapon}'";
+        if (WeaponList.Count > Fitting.MaxWeaponSlots) return $"at most {Fitting.MaxWeaponSlots} weapons";
+        foreach (var weapon in WeaponList)
+        {
+            if (weapon is null || !weapons.ContainsKey(weapon)) return $"unknown weapon '{weapon}'";
+        }
         if (Hp is { } hp && !(hp > 0)) return "hp must be positive";
         if (Shield is { } shield && !(shield >= 0)) return "shield must not be negative";
         if (!(Damage > 0)) return "damage must be positive";

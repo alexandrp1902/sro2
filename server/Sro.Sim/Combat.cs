@@ -17,6 +17,9 @@ namespace Sro.Sim;
 /// 0 — штрафа за близость нет. Так дальнобойные орудия становятся снайперскими, а скорострельные — оружием свалки.
 /// </param>
 /// <param name="ClosePenalty">Штраф к шансу в упор, %; от CloseRange падает линейно до нуля.</param>
+/// <param name="Class">Класс (GDD §20): встаёт в оружейный слот того же класса или старше.</param>
+/// <param name="Power">Сколько энергии генератора забирает (GDD §18).</param>
+/// <param name="Missile">Ракетница (боевой документ §37): пушка запускает самонаводящуюся ракету вместо броска на попадание.</param>
 public sealed record WeaponParams(
     string Name,
     double Damage,
@@ -29,8 +32,13 @@ public sealed record WeaponParams(
     string Kind = "bolt",
     string Color = "#ffd166",
     double CloseRange = 0,
-    double ClosePenalty = 0)
+    double ClosePenalty = 0,
+    string Class = EquipClass.S,
+    double Power = 0,
+    MissileParams? Missile = null)
 {
+    public const string MissileKind = "missile";
+
     /// <returns>Описание ошибки или null, если параметры годятся.</returns>
     public string? Validate()
     {
@@ -44,6 +52,10 @@ public sealed record WeaponParams(
         if (!(CloseRange >= 0) || CloseRange > OptimalRange)
             return "closeRange must be within 0..optimalRange";
         if (!(ClosePenalty >= 0 && ClosePenalty <= 100)) return "closePenalty must be within 0..100";
+        if (!EquipClass.IsValid(Class)) return "class must be S, M or L";
+        if (!(Power >= 0)) return "power must not be negative";
+        if ((Kind == MissileKind) != (Missile is not null)) return "kind 'missile' and the missile block go together";
+        if (Missile?.Validate() is { } missile) return $"missile: {missile}";
         return null;
     }
 }

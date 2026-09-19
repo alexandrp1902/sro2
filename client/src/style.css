@@ -1303,3 +1303,37 @@ body {
   font-size: 12px;
   color: #7f93b0;
 }
+
+/* Вкладка «Оснащение»: энергия генератора (GDD §18) — полоса над слотами. */
+.dock-power {
+  position: relative;
+  height: 22px;
+  margin: 8px 0;
+  overflow: hidden;
+  border-radius: 6px;
+  background: rgba(31, 51, 80, 0.7);
+}
+
+.dock-power-fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  background: linear-gradient(90deg, #2f7ad6, #6fd3ff);
+}
+
+.dock-power-text {
+  position: relative;
+  padding: 3px 8px;
+  color: #e6f0ff;
+  font-size: 13px;
+}
+
+/* Открытый слот: что туда встаёт — со сдвигом под строкой слота. */
+.dock-slot-list {
+  margin: 0 0 6px 16px;
+  padding-left: 10px;
+  border-left: 2px solid rgba(127, 212, 255, 0.35);
+}
+
+.dock-slot-list > .dock-link {
+  display: block;
+}

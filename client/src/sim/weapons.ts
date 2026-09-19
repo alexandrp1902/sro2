@@ -6,7 +6,8 @@ export const DEFAULT_WEAPON = 'pulse';
 
 /** Параметры пушек. Встроенные значения из shared/weapons.json заменяются присланными сервером. */
 export class Weapons {
-  private config: WeaponConfig = defaults as WeaponConfig;
+  /** Весь каталог — для расчёта энергии и проверки слотов (sim/fitting.ts). */
+  config: WeaponConfig = defaults as WeaponConfig;
 
   set(config: WeaponConfig): void {
     if (Object.keys(config).length > 0) this.config = config;

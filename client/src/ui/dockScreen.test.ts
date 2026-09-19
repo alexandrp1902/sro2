@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { offerState, weaponLabel } from './dockScreen';
+import { offerState, slotOffer, weaponLabel } from './dockScreen';
 
 describe('offerState', () => {
   it('puts what is on the ship first, then the hangar', () => {
@@ -22,5 +22,26 @@ describe('weaponLabel', () => {
       rangePenalty: 35, closeRange: 0, closePenalty: 0, arc: 180, kind: 'beam', color: '#6ff0ff',
     });
     expect(label).toBe('урон 40 · раз в 0.5 с · точность 90% · дальность 500');
+  });
+});
+
+describe('slotOffer', () => {
+  it('prefers what is installed, then the storage, then the shop', () => {
+    expect(slotOffer(true, 3, 100, 0, null)).toEqual({ action: 'installed' });
+    expect(slotOffer(false, 1, 100, 0, 'power')).toEqual({ action: 'install', problem: 'power' });
+    expect(slotOffer(false, 0, 100, 99, null)).toEqual({ action: 'buy', cost: 100, problem: null, poor: true });
+    expect(slotOffer(false, 0, 100, 100, null)).toEqual({ action: 'buy', cost: 100, problem: null, poor: false });
+    expect(slotOffer(false, 0, null, 1e9, null)).toEqual({ action: 'none' });
+  });
+});
+
+describe('weaponLabel for a launcher', () => {
+  it('says the missile homes instead of showing accuracy', () => {
+    const label = weaponLabel({
+      name: 'Ракетница', damage: 220, accuracy: 100, cooldown: 5, optimalRange: 700, maxRange: 700,
+      rangePenalty: 0, closeRange: 0, closePenalty: 0, arc: 90, kind: 'missile', color: '#ff6b3d',
+      class: 'M', power: 25, missile: { speed: 330, turnRate: 120, lifetime: 5, hitRadius: 10 },
+    });
+    expect(label).toBe('M · урон 220 · раз в 5 с · самонаведение · дальность 700 · энергия 25');
   });
 });

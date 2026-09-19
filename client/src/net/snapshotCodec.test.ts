@@ -21,6 +21,7 @@ describe('SnapshotDecoder', () => {
       expect(sorted(snapshot.ships)).toEqual(expected.ships);
       expect(sorted(snapshot.loot)).toEqual(expected.loot);
       expect(sorted(snapshot.meteors)).toEqual(expected.meteors);
+      expect(sorted(snapshot.missiles)).toEqual(expected.missiles);
       expect(snapshot.shots ?? null).toEqual(expected.shots);
       expect(snapshot.kills ?? null).toEqual(expected.kills);
       expect(snapshot.picks ?? null).toEqual(expected.picks);

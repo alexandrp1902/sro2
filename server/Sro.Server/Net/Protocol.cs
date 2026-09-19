@@ -13,6 +13,8 @@ namespace Sro.Server.Net;
 [JsonDerivedType(typeof(InputMsg), "input")]
 [JsonDerivedType(typeof(HullMsg), "hull")]
 [JsonDerivedType(typeof(WeaponMsg), "weapon")]
+[JsonDerivedType(typeof(FitMsg), "fit")]
+[JsonDerivedType(typeof(SellItemMsg), "sellItem")]
 [JsonDerivedType(typeof(NameMsg), "name")]
 [JsonDerivedType(typeof(TargetMsg), "target")]
 [JsonDerivedType(typeof(FireMsg), "fire")]
@@ -53,8 +55,18 @@ public sealed record InputMsg(int Seq, double Dx, double Dy, double Th) : Client
 /// <summary>Поставить корпус из ангара: пилоту с аккаунтом — только свой и только в доке, гостю — любой.</summary>
 public sealed record HullMsg(string? Id) : ClientMessage;
 
-/// <summary>Поставить пушку: пилоту с аккаунтом — только свою и только в доке, гостю — любую.</summary>
+/// <summary>Поставить пушку в первый слот: пилоту с аккаунтом — только со склада и только в доке, гостю — любую.</summary>
 public sealed record WeaponMsg(string? Id) : ClientMessage;
+
+/// <summary>
+/// Оснащение (GDD §20): поставить в слот пушку или модуль со склада, Id = null — снять на склад.
+/// Пилоту с аккаунтом — только в доке; гостю — где угодно и что угодно.
+/// </summary>
+/// <param name="Slot">w0…w5 — оружейные слоты, engine, shield, radar, tank, generator — модули.</param>
+public sealed record FitMsg(string? Slot, string? Id = null) : ClientMessage;
+
+/// <summary>Продать со склада пушку или модуль (в доке) — за долю цены.</summary>
+public sealed record SellItemMsg(string? Id) : ClientMessage;
 
 /// <summary>Смена ника на лету — только у гостя: у пилота с аккаунтом ник и есть вход.</summary>
 public sealed record NameMsg(string? Name) : ClientMessage;
@@ -77,9 +89,12 @@ public sealed record SellMsg(string? Item = null) : ClientMessage;
 /// <summary>Пристыковаться к станции (On) или вылететь из дока.</summary>
 public sealed record DockMsg(bool On) : ClientMessage;
 
-/// <summary>Купить в доке корпус или пушку (GDD §26); купленное сразу ставится на корабль.</summary>
-/// <param name="Kind"><see cref="Protocol.HullItem"/> или <see cref="Protocol.WeaponItem"/>.</param>
-public sealed record BuyMsg(string? Kind, string? Id) : ClientMessage;
+/// <summary>Купить в доке корпус, пушку или модуль (GDD §26). Корпус сразу ставится.</summary>
+/// <param name="Kind"><see cref="Protocol.HullItem"/> или <see cref="Protocol.ItemKind"/>.</param>
+/// <param name="Slot">
+/// Пушку или модуль — сразу в этот слот (старое уходит на склад); null — в свободный подходящий слот или на склад.
+/// </param>
+public sealed record BuyMsg(string? Kind, string? Id, string? Slot = null) : ClientMessage;
 
 /// <summary>Починить корпус в доке и зарядить щит — по цене repairPrice из shop.json.</summary>
 public sealed record RepairMsg : ClientMessage;
@@ -125,6 +140,7 @@ public abstract record ServerMessage;
 /// <param name="Shop">Магазин станции: цены корпусов, пушек и ремонта.</param>
 /// <param name="System">Система, где сейчас корабль: небо, станция, врата. После прыжка приходит новый welcome.</param>
 /// <param name="Galaxy">Карта галактики: системы и маршруты с ценой прыжка.</param>
+/// <param name="Modules">Модули кораблей: клиент считает по ним скорость, щит, радар и энергию, как сервер.</param>
 public sealed record WelcomeMsg(
     int Id,
     int TickRate,
@@ -138,7 +154,8 @@ public sealed record WelcomeMsg(
     MeteorRules? Meteors = null,
     ShopRules? Shop = null,
     SystemDto? System = null,
-    GalaxyDto? Galaxy = null) : ServerMessage;
+    GalaxyDto? Galaxy = null,
+    IReadOnlyDictionary<string, ModuleParams>? Modules = null) : ServerMessage;
 
 /// <summary>Врата в системе: куда ведут, как называется та система и сколько топлива стоит прыжок.</summary>
 public sealed record GateDto(string To, string Name, double X, double Y, int Cost);
@@ -193,7 +210,7 @@ public sealed record PlayersMsg(IReadOnlyList<PlayerDto> Players, int Total = 0)
 /// <param name="Npc">Дрон или другой NPC: о нём не пишут в ленту и не считают в «онлайн».</param>
 /// <param name="MaxHp">Своя прочность NPC вместо корпусной; нет — как у корпуса.</param>
 /// <param name="MaxSh">Свой щит NPC вместо корпусного; нет — как у корпуса.</param>
-/// <param name="Kind">Вид NPC: <see cref="Protocol.DroneKind"/> или <see cref="Protocol.PirateKind"/>; у игроков нет.</param>
+/// <param name="Kind">Вид NPC: <see cref="Protocol.DroneKind"/>, <see cref="Protocol.PirateKind"/> или <see cref="Protocol.TraderKind"/>; у игроков нет.</param>
 public sealed record PlayerDto(
     int Id,
     string Name,
@@ -213,7 +230,8 @@ public sealed record ConfigMsg(
     MeteorRules? Meteors = null,
     ShopRules? Shop = null,
     SystemDto? System = null,
-    GalaxyDto? Galaxy = null) : ServerMessage;
+    GalaxyDto? Galaxy = null,
+    IReadOnlyDictionary<string, ModuleParams>? Modules = null) : ServerMessage;
 
 /// <summary>Вход принят. Приходит раньше <see cref="WelcomeMsg"/>.</summary>
 /// <param name="Name">Ник аккаунта так, как он записан на сервере.</param>
@@ -227,29 +245,35 @@ public sealed record AccountMsg(
 public sealed record DeniedMsg(string Code) : ServerMessage;
 
 /// <summary>
-/// Ангар пилота (GDD §51) — только своему соединению. Шлётся при входе, стыковке, покупке, смене корабля и ремонте.
+/// Ангар пилота (GDD §51) — только своему соединению. Шлётся при входе, стыковке, покупке, смене оснащения и ремонте.
 /// </summary>
 /// <param name="Hull">Активный корпус.</param>
-/// <param name="Weapon">Активная пушка.</param>
+/// <param name="Fit">Что стоит на корабле: пушки по слотам и модули.</param>
 /// <param name="Hulls">Свои корпуса; у гостя — все.</param>
-/// <param name="Weapons">Свои пушки; у гостя — все.</param>
+/// <param name="Storage">Склад: пушки и модули, которые куплены или сняты и сейчас не стоят, — id и сколько.</param>
 /// <param name="Docked">Корабль в доке: в космосе его нет, экран станции открыт.</param>
 /// <param name="Hp">Прочность корпуса, округлена вверх: в доке снапшот о своём корабле молчит.</param>
 /// <param name="MaxHp">Полная прочность активного корпуса.</param>
 /// <param name="Fuel">Топливо в баке (GDD §6). Меняется только прыжком и заправкой — тогда hangar приходит снова.</param>
 /// <param name="MaxFuel">Бак активного корпуса.</param>
 /// <param name="Home">Система последней стыковки: здесь корабль появится после гибели и после входа.</param>
+/// <param name="Power">Сколько энергии забирает оснащение (GDD §18).</param>
+/// <param name="PowerMax">Сколько даёт генератор; 0 — энергию не считают (баланс без modules.json).</param>
+/// <param name="Guest">Гость: склада нет, ставить можно что угодно где угодно.</param>
 public sealed record HangarMsg(
     string Hull,
-    string Weapon,
+    ShipFit Fit,
     IReadOnlyList<string> Hulls,
-    IReadOnlyList<string> Weapons,
+    IReadOnlyDictionary<string, int> Storage,
     bool Docked,
     int Hp,
     int MaxHp,
     int Fuel = 0,
     int MaxFuel = 0,
-    string? Home = null) : ServerMessage;
+    string? Home = null,
+    int Power = 0,
+    int PowerMax = 0,
+    bool Guest = false) : ServerMessage;
 
 /// <summary>
 /// Трюм игрока (GDD §21) — только своему соединению: снапшот один на всех, личному месту в нём нет.
@@ -301,6 +325,7 @@ public sealed record NoticeMsg(string Code) : ServerMessage;
 /// <param name="Loot">Предметы, лежащие в космосе.</param>
 /// <param name="Picks">Подобранное в этом тике — видно всем: чужой луч объясняет, куда делся предмет.</param>
 /// <param name="Meteors">Метеориты в системе. Отдельно от кораблей: у них нет корпуса, пушки и места в ростере.</param>
+/// <param name="Missiles">Ракеты в полёте.</param>
 public sealed record SnapshotMsg(
     long Tick,
     IReadOnlyList<ShipDto> Ships,
@@ -308,13 +333,14 @@ public sealed record SnapshotMsg(
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] IReadOnlyList<KillDto>? Kills = null,
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] IReadOnlyList<LootDto>? Loot = null,
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] IReadOnlyList<PickDto>? Picks = null,
-    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] IReadOnlyList<MeteorDto>? Meteors = null) : ServerMessage;
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] IReadOnlyList<MeteorDto>? Meteors = null,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] IReadOnlyList<MissileDto>? Missiles = null) : ServerMessage;
 
 /// <param name="Th">Тяга последнего входа — для пламени двигателя у чужих кораблей.</param>
 /// <param name="Ack">Последний применённый seq владельца: состояние — ровно после этого входа.</param>
 /// <param name="Hp">Корпус, округлён вверх.</param>
 /// <param name="Sh">Щит, округлён вверх.</param>
-/// <param name="W">Пушка.</param>
+/// <param name="W">Первая стоящая пушка; "" — пушек нет.</param>
 /// <param name="Rt">Корабль уничтожен и появится в этот тик; 0 — цел.</param>
 /// <param name="Pu">Под защитой до этого тика; 0 — без защиты.</param>
 /// <param name="Tg">Цель пирата в бою; 0 — нет (и у игроков).</param>
@@ -372,23 +398,33 @@ public sealed record PickDto(int By, int Id, string I, int N);
 /// <param name="Hp">Прочность, округлена вверх.</param>
 public sealed record MeteorDto(int Id, double X, double Y, double Vx, double Vy, string S, int Hp);
 
+/// <summary>
+/// Ракета в полёте (боевой документ §37). Скорость — из пушки W, курс — R: клиент ведёт её сам между кадрами.
+/// </summary>
+/// <param name="R">Курс, как у корабля: 0 — нос вверх.</param>
+/// <param name="O">Кто запустил.</param>
+/// <param name="T">В кого летит.</param>
+/// <param name="W">Ракетница — ключ weapons.json.</param>
+public sealed record MissileDto(int Id, double X, double Y, double R, int O, int T, string W);
+
 public static class Protocol
 {
     /// <summary>
     /// Меняется, когда клиент и сервер разных версий уже не поймут друг друга
     /// (3 — бой, M3; 4 — пираты, M4; 5 — лут и трюм, M5a; 6 — ручной подбор и продажа груза; 7 — метеориты, M5b;
     /// 8 — аккаунты, док и магазин станции, M6; 9 — системы, врата, топливо, радар и бинарные дельта-снапшоты, M7;
-    /// 10 — звезда, орбиты и налёты; 11 — задания и обучение, M8).
+    /// 10 — звезда, орбиты и налёты; 11 — задания и обучение, M8; 12 — слоты, модули, ракеты, торговцы, M9).
     /// Зеркало PROTOCOL_VERSION в client/src/net/protocol.ts.
     /// </summary>
-    public const int Version = 11;
+    public const int Version = 12;
 
     public const string DroneKind = "drone";
     public const string PirateKind = "pirate";
+    public const string TraderKind = "trader";
 
     /// <summary>Что покупают в доке (<see cref="BuyMsg.Kind"/>).</summary>
     public const string HullItem = "hull";
-    public const string WeaponItem = "weapon";
+    public const string ItemKind = "item";
 
     /// <summary>Коды уведомлений (<see cref="NoticeMsg"/>); текст подставляет клиент.</summary>
     public const string CargoFullNotice = "cargoFull";
@@ -398,6 +434,9 @@ public static class Protocol
     public const string NoFuelNotice = "noFuel";
     public const string GateFarNotice = "gateFar";
     public const string JumpCancelledNotice = "jumpCancelled";
+    public const string NoPowerNotice = "noPower";
+    public const string BadClassNotice = "badClass";
+    public const string BadSlotNotice = "badSlot";
 
     /// <summary>Действия с заданиями (<see cref="MissionMsg.Action"/>).</summary>
     public const string AcceptMission = "accept";

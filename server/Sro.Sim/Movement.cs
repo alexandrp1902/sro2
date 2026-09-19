@@ -51,6 +51,12 @@ public readonly record struct MoveInput(double Dx, double Dy, double Throttle)
 /// <param name="Evasion">Базовое уклонение, % (боевой документ §39).</param>
 /// <param name="MoveEvasion">Добавка к уклонению на полной скорости, % (§40).</param>
 /// <param name="Cargo">Ёмкость трюма в единицах объёма (§46): сколько добычи влезает в корпус.</param>
+/// <param name="Shield">
+/// Щит, <paramref name="ShieldRegen"/>, <paramref name="Fuel"/> и <paramref name="Radar"/> — у NPC; у пилота их задают модули
+/// (<see cref="Fitting.Effective"/>), а без modules.json — корпус, как до M9.
+/// </param>
+/// <param name="Class">Старший класс оборудования, которое встаёт на корпус (GDD §20): S, M или L.</param>
+/// <param name="WeaponSlots">Оружейные слоты и их классы (GDD §12, §20); null — один слот класса корпуса.</param>
 public sealed record HullParams(
     string Name,
     double MaxSpeed,
@@ -67,8 +73,14 @@ public sealed record HullParams(
     double MoveEvasion = 8,
     double Cargo = 20,
     double Fuel = 100,
-    double Radar = 2000)
+    double Radar = 2000,
+    string Class = EquipClass.L,
+    IReadOnlyList<string>? WeaponSlots = null)
 {
+    /// <summary>Классы оружейных слотов по порядку.</summary>
+    [System.Text.Json.Serialization.JsonIgnore]
+    public IReadOnlyList<string> Slots => WeaponSlots ?? [Class];
+
     /// <returns>Описание ошибки или null, если параметры годятся.</returns>
     public string? Validate()
     {
@@ -85,6 +97,13 @@ public sealed record HullParams(
         if (!(Cargo >= 0)) return "cargo must not be negative";
         if (!(Fuel >= 0)) return "fuel must not be negative";
         if (!(Radar > 0)) return "radar must be positive";
+        if (!EquipClass.IsValid(Class)) return "class must be S, M or L";
+        if (Slots.Count is < 1 or > Fitting.MaxWeaponSlots) return $"weaponSlots must have 1..{Fitting.MaxWeaponSlots} slots";
+        foreach (var slot in Slots)
+        {
+            if (!EquipClass.IsValid(slot)) return "weaponSlots must be S, M or L";
+            if (EquipClass.Rank(slot) > EquipClass.Rank(Class)) return "a weapon slot must not be above the hull class";
+        }
         return null;
     }
 }

@@ -70,7 +70,16 @@
       ]
     },
     "cache": { "rolls": [{ "item": "crystals", "chance": 1, "min": 1, "max": 2 }] },
-    "drone": { "rolls": [{ "item": "metal", "chance": 1, "min": 2, "max": 3 }] }
+    "drone": { "rolls": [{ "item": "metal", "chance": 1, "min": 2, "max": 3 }] },
+    "trader": {
+      "rolls": [
+        { "item": "metal", "chance": 1, "min": 3, "max": 6 },
+        { "item": "titanium", "chance": 0.7, "min": 1, "max": 3 },
+        { "item": "energy", "chance": 0.5, "min": 1, "max": 2 },
+        { "item": "crystals", "chance": 0.35, "min": 1, "max": 2 },
+        { "item": "rareMetal", "chance": 0.15, "min": 1, "max": 1 }
+      ]
+    }
   },
   "maxContainers": 6
 }

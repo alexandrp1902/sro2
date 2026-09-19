@@ -1,0 +1,21 @@
+{
+  "engineS": { "name": "Двигатель «Искра»", "slot": "engine", "class": "S", "power": 5, "speed": 1, "accel": 1 },
+  "engineM": { "name": "Двигатель «Вихрь»", "slot": "engine", "class": "M", "power": 10, "speed": 1.1, "accel": 1.15 },
+  "engineL": { "name": "Двигатель «Буран»", "slot": "engine", "class": "L", "power": 15, "speed": 1.2, "accel": 1.3 },
+
+  "shieldS": { "name": "Щит «Заслон»", "slot": "shield", "class": "S", "power": 10, "shield": 150, "shieldRegen": 20 },
+  "shieldM": { "name": "Щит «Бастион»", "slot": "shield", "class": "M", "power": 20, "shield": 300, "shieldRegen": 35 },
+  "shieldL": { "name": "Щит «Цитадель»", "slot": "shield", "class": "L", "power": 30, "shield": 500, "shieldRegen": 50 },
+
+  "radarS": { "name": "Гражданский радар", "slot": "radar", "class": "S", "power": 5, "radar": 2000 },
+  "radarM": { "name": "Улучшенный радар", "slot": "radar", "class": "M", "power": 8, "radar": 2500 },
+  "radarL": { "name": "Военный радар", "slot": "radar", "class": "L", "power": 12, "radar": 3000 },
+
+  "tankS": { "name": "Малый бак", "slot": "tank", "class": "S", "fuel": 100 },
+  "tankM": { "name": "Средний бак", "slot": "tank", "class": "M", "fuel": 180 },
+  "tankL": { "name": "Большой бак", "slot": "tank", "class": "L", "fuel": 300 },
+
+  "generatorS": { "name": "Генератор «Огонёк»", "slot": "generator", "class": "S", "output": 60 },
+  "generatorM": { "name": "Генератор «Пламя»", "slot": "generator", "class": "M", "output": 110 },
+  "generatorL": { "name": "Генератор «Солнце»", "slot": "generator", "class": "L", "output": 170 }
+}

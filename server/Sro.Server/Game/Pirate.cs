@@ -28,12 +28,12 @@ public sealed class Pirate : ShipEntity
     private const double SlotAngle = 2.39996;
 
     private NpcRules _rules;
-    private WeaponParams? _weapon;
-    private Balance? _weaponFor;
+    private readonly WeaponParams?[] _weapons = new WeaponParams?[Fitting.MaxWeaponSlots];
+    private Balance? _weaponsFor;
 
     /// <param name="slot">Номер в логове: от него место появления, дистанция боя и сторона захода.</param>
     public Pirate(int id, NpcSpawn spawn, int slot, NpcType type, NpcRules rules)
-        : base(id, NpcRules.Name(type, spawn.Level), type.Hull, type.Weapon)
+        : base(id, NpcRules.Name(type, spawn.Level), type.Hull, type.WeaponList)
     {
         Spawn = spawn;
         Slot = slot;
@@ -91,15 +91,20 @@ public sealed class Pirate : ShipEntity
 
     public override double MaxShield(HullParams hull) => _rules.MaxShield(Type, Level, hull);
 
-    /// <summary>Пушка типа с уроном и точностью уровня; пересчитывается только при смене баланса.</summary>
-    public override WeaponParams? Weapon(Balance balance)
+    /// <summary>Пушки типа с уроном и точностью уровня; пересчитываются только при смене баланса.</summary>
+    public override WeaponParams? WeaponAt(Balance balance, int slot)
     {
-        if (!ReferenceEquals(_weaponFor, balance))
+        if (!ReferenceEquals(_weaponsFor, balance))
         {
-            _weaponFor = balance;
-            _weapon = balance.Weapons.TryGetValue(WeaponId, out var weapon) ? _rules.ScaledWeapon(Type, Level, weapon) : null;
+            _weaponsFor = balance;
+            for (var i = 0; i < _weapons.Length; i++)
+            {
+                _weapons[i] = i < WeaponIds.Count && WeaponIds[i] is { } id && balance.Weapons.TryGetValue(id, out var weapon)
+                    ? _rules.ScaledWeapon(Type, Level, weapon)
+                    : null;
+            }
         }
-        return _weapon;
+        return slot < _weapons.Length ? _weapons[slot] : null;
     }
 
     public override int RespawnTicks(Balance balance) => balance.Npc.RespawnTicks;
@@ -127,10 +132,10 @@ public sealed class Pirate : ShipEntity
 
         Type = type;
         _rules = rules;
-        _weaponFor = null;
+        _weaponsFor = null;
         Name = NpcRules.Name(type, Level);
         HullId = newHulls.ContainsKey(type.Hull) ? type.Hull : SimConfig.DefaultHull;
-        WeaponId = type.Weapon;
+        WeaponIds = type.WeaponList;
 
         var newHull = newHulls[HullId];
         Hp = hpShare * MaxHp(newHull);

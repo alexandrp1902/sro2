@@ -15,7 +15,7 @@ public sealed class StationTests : IDisposable
         StartCredits: 1000,
         RepairPrice: 1,
         Hulls: new Dictionary<string, int> { ["light"] = 0, ["heavy"] = 900 },
-        Weapons: new Dictionary<string, int> { ["pulse"] = 0, ["laser"] = 300, ["plasma"] = 5000 });
+        Items: new Dictionary<string, int> { ["pulse"] = 100, ["laser"] = 300, ["plasma"] = 5000 });
 
     private static readonly LootRules Loot = new(
         Items: new Dictionary<string, LootItem> { ["metal"] = new("Металл", Volume: 1, Price: 10) });
@@ -86,9 +86,9 @@ public sealed class StationTests : IDisposable
 
         Assert.Equal(1000, a.Last<CargoMsg>().Credits);
         var hangar = a.Last<HangarMsg>();
-        Assert.Equal(("light", "pulse", false), (hangar.Hull, hangar.Weapon, hangar.Docked));
+        Assert.Equal(("light", "pulse", false), (hangar.Hull, hangar.Fit.Weapons[0], hangar.Docked));
         Assert.Equal(["light"], hangar.Hulls);
-        Assert.Equal(["pulse"], hangar.Weapons);
+        Assert.Empty(hangar.Storage);
         Assert.NotNull(a.Last<WelcomeMsg>().Shop);
     }
 
@@ -152,7 +152,7 @@ public sealed class StationTests : IDisposable
         var a = Pilot();
         var player = Docked(a);
 
-        _room.Buy(a, Protocol.WeaponItem, "plasma");
+        _room.Buy(a, Protocol.ItemKind, "plasma");
 
         Assert.Equal(Protocol.NoCreditsNotice, a.Last<NoticeMsg>().Code);
         Assert.Equal(("pulse", 1000), (player.WeaponId, player.Credits));
@@ -164,16 +164,18 @@ public sealed class StationTests : IDisposable
         var a = Pilot();
         var player = Docked(a);
 
-        _room.Buy(a, Protocol.WeaponItem, "laser");
+        _room.Buy(a, Protocol.ItemKind, "laser", "w0");
 
         Assert.Equal(("laser", 700), (player.WeaponId, player.Credits));
         Assert.Equal(700, a.Last<CargoMsg>().Credits);
-        Assert.Equal(["laser", "pulse"], a.Last<HangarMsg>().Weapons);
+        Assert.Equal(1, a.Last<HangarMsg>().Storage["pulse"]); // снятая пушка — на склад
         var profile = _accounts.Profile(AccountOf(a))!;
-        Assert.Equal(("laser", 700), (profile.Weapon, profile.Credits));
+        Assert.Equal(("laser", 700), (profile.Fit!.Weapons[0], profile.Credits));
+        Assert.Equal(1, profile.Storage!["pulse"]);
 
-        _room.Buy(a, Protocol.WeaponItem, "laser"); // уже куплена — второй раз не списывается
-        Assert.Equal(700, player.Credits);
+        _room.Buy(a, Protocol.ItemKind, "laser"); // вторая такая же: свободного слота нет — на склад
+        Assert.Equal(400, player.Credits);
+        Assert.Equal(("laser", 1), (player.WeaponId, player.Storage["laser"]));
     }
 
     [Fact]
@@ -181,7 +183,7 @@ public sealed class StationTests : IDisposable
     {
         var a = Pilot();
 
-        _room.Buy(a, Protocol.WeaponItem, "laser");
+        _room.Buy(a, Protocol.ItemKind, "laser");
 
         Assert.Equal(("pulse", 1000), (PlayerOf(a).WeaponId, PlayerOf(a).Credits));
     }
@@ -192,7 +194,7 @@ public sealed class StationTests : IDisposable
         var a = Pilot();
         var player = Docked(a);
 
-        _room.Buy(a, Protocol.WeaponItem, "doom"); // есть в weapons, нет в прайсе
+        _room.Buy(a, Protocol.ItemKind, "doom"); // есть в weapons, нет в прайсе
         _room.Buy(a, "cloak", "laser");
 
         Assert.Equal(("pulse", 1000), (player.WeaponId, player.Credits));

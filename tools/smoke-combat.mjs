@@ -237,7 +237,9 @@ async function main() {
   const awayStart = a.snapshot.tick;
   await sleep(1000);
   const arc = weapons[a.ship(idA).w].arc;
-  if (arc >= 180) check('turned away: an all-around gun keeps firing', a.shots(idA, awayStart).length > 0);
+  // B мог и погибнуть от предыдущих попаданий — тогда стрелять не по кому, это не провал сектора.
+  const bDown = (a.ship(idB)?.rt ?? 0) > 0;
+  if (arc >= 180) check(`turned away: an all-around gun keeps firing${bDown ? ' (B is down)' : ''}`, bDown || a.shots(idA, awayStart).length > 0);
   else check(`turned away: no shots outside the ±${arc}° arc`, a.shots(idA, awayStart).length === 0);
   a.send({ t: 'fire', on: false });
 

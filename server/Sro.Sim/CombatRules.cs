@@ -98,9 +98,10 @@ public sealed record CombatRules(
 /// <summary>Тексты файлов баланса — по имени, а не по позиции: восемь соседних строк легко переставить и не заметить.</summary>
 /// <param name="Galaxy">galaxy.json; null — одна система, раскладка из npcs.json, loot.json и combat.json.</param>
 /// <param name="Missions">missions.json; null — заданий и обучения нет.</param>
+/// <param name="Modules">modules.json; null — модулей нет: щит, радар и бак пилоту даёт корпус, как до M9.</param>
 public sealed record BalanceSources(
     string Hulls, string Weapons, string Rules, string Npcs, string Loot, string Meteors, string Shop,
-    string? Galaxy = null, string? Missions = null);
+    string? Galaxy = null, string? Missions = null, string? Modules = null);
 
 /// <summary>
 /// Весь баланс: корпуса, пушки, правила боя, NPC, лут, метеориты, магазин станции, галактика, задания.
@@ -118,6 +119,7 @@ public sealed record BalanceSources(
 /// укрытия нет, а звезда в центре никуда не делась.
 /// </param>
 /// <param name="MissionSet">Задания и обучение; null — их нет.</param>
+/// <param name="Modules">Модули кораблей (GDD §13); null — их нет: щит, радар и бак пилоту даёт корпус, энергию не считают.</param>
 public sealed record Balance(
     IReadOnlyDictionary<string, HullParams> Hulls,
     IReadOnlyDictionary<string, WeaponParams> Weapons,
@@ -129,7 +131,8 @@ public sealed record Balance(
     GalaxyRules? GalaxySet = null,
     string? SystemId = null,
     double? CoreRadius = null,
-    MissionRules? MissionSet = null)
+    MissionRules? MissionSet = null,
+    IReadOnlyDictionary<string, ModuleParams>? Modules = null)
 {
     public const string HullsFile = "hulls.json";
     public const string WeaponsFile = "weapons.json";
@@ -140,9 +143,11 @@ public sealed record Balance(
     public const string ShopFile = ShopRules.File;
     public const string GalaxyFile = GalaxyRules.File;
     public const string MissionsFile = MissionRules.File;
+    public const string ModulesFile = ModuleCatalog.File;
 
     /// <summary>Все файлы баланса в порядке разбора.</summary>
-    public static readonly string[] Files = [HullsFile, WeaponsFile, RulesFile, NpcsFile, LootFile, MeteorsFile, ShopFile, GalaxyFile, MissionsFile];
+    public static readonly string[] Files =
+        [HullsFile, WeaponsFile, RulesFile, NpcsFile, LootFile, MeteorsFile, ShopFile, GalaxyFile, MissionsFile, ModulesFile];
 
     public NpcRules Npc => Npcs ?? NpcRules.None;
 
@@ -169,6 +174,9 @@ public sealed record Balance(
 
     /// <summary>Налёты пиратов; null — только логова (и всегда так без galaxy.json).</summary>
     public RaidRules? Raids => GalaxySet is null ? null : SystemDef.Pirates;
+
+    /// <summary>Торговцы; null — их нет (и всегда так без galaxy.json).</summary>
+    public TraderRules? Traders => GalaxySet is null ? null : SystemDef.Traders;
 
     /// <summary>Орбита станции; у системы без galaxy.json станция стоит в центре.</summary>
     public OrbitDef StationPath => GalaxySet is null ? OrbitDef.Center : SystemDef.StationPath;
@@ -223,6 +231,7 @@ public sealed record Balance(
         }
         if (view.Npc.Validate(b.Hulls, b.Weapons, orbit) is { } npcs) return npcs;
         if (system.Pirates?.Validate(b.Npc.TypeMap) is { } raids) return $"pirates: {raids}";
+        if (system.Traders?.Validate(b.Npc.TypeMap) is { } traders) return $"traders: {traders}";
         return view.Loot.Validate(view.Npc.StationSafeRadius, orbit);
     }
 
@@ -243,6 +252,24 @@ public sealed record Balance(
         {
             error = $"{WeaponsFile}: {error}";
             return false;
+        }
+        IReadOnlyDictionary<string, ModuleParams>? modules = null;
+        if (sources.Modules is not null)
+        {
+            if (!ModuleCatalog.TryParse(sources.Modules, out var parsedModules, out error))
+            {
+                error = $"{ModulesFile}: {error}";
+                return false;
+            }
+            modules = parsedModules;
+            // Новый пилот обязан взлететь: стартовый комплект должен влезть в стартовый корпус.
+            var hull = hulls[SimConfig.DefaultHull];
+            var starter = Fitting.Refit(hull, Fitting.Starter, weapons, modules);
+            if (!starter.Items().SequenceEqual(Fitting.Starter.Items()))
+            {
+                error = $"{ModulesFile}: the starter kit does not fit the '{SimConfig.DefaultHull}' hull (class or generator power)";
+                return false;
+            }
         }
         if (!CombatRules.TryParse(sources.Rules, hulls, out var rules, out error))
         {
@@ -265,12 +292,20 @@ public sealed record Balance(
             error = $"{MeteorsFile}: {error}";
             return false;
         }
-        if (!ShopRules.TryParse(sources.Shop, hulls, weapons, out var shop, out error))
+        if (!ShopRules.TryParse(sources.Shop, hulls, weapons, modules, out var shop, out error))
         {
             error = $"{ShopFile}: {error}";
             return false;
         }
-        var parsed = new Balance(hulls, weapons, rules, npcs, loot, meteors, shop);
+        foreach (var (id, type) in npcs.TypeMap)
+        {
+            if (type.Table is { } table && !loot.TableMap.ContainsKey(table))
+            {
+                error = $"{NpcsFile}: types.{id}: unknown loot table '{table}'";
+                return false;
+            }
+        }
+        var parsed = new Balance(hulls, weapons, rules, npcs, loot, meteors, shop, Modules: modules);
         if (sources.Galaxy is not null)
         {
             if (!GalaxyRules.TryParse(sources.Galaxy, (_, system) => ValidateLayout(parsed, system), out var galaxy, out error))

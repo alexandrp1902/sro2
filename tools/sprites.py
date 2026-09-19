@@ -36,6 +36,7 @@ SHEETS = [
     ("resources", 3, 3,
      ["metal", "ore", "energy", "titanium", "crystals", "rareMetal", "plasma", "container", "electronics"], 128, "trim"),
     ("weapons", 2, 2, ["pulse", "laser", "plasma", "rockets"], 128, "trim"),
+    ("modules", 2, 2, ["engine", "shield", "cargo", "scanner"], 128, "trim"),
     ("explosions", 3, 3, [f"f{i}" for i in range(9)], 256, "cell"),
     ("weapon-shots", 3, 3,
      ["bolt", "bolt-flash", "bolt-hit", "beam", "beam-flash", "beam-hit", "orb", "orb-flash", "orb-hit"], 192, "trim"),

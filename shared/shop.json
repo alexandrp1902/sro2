@@ -2,14 +2,33 @@
   "startCredits": 1000,
   "repairPrice": 0.25,
   "fuelPrice": 1,
+  "sellShare": 0.5,
   "hulls": {
     "light": 0,
     "medium": 3000,
     "heavy": 8000
   },
-  "weapons": {
-    "pulse": 0,
+  "items": {
+    "pulse": 300,
     "laser": 800,
-    "plasma": 1800
+    "cannon": 1500,
+    "plasma": 1800,
+    "missiles": 2500,
+    "heavyLaser": 4500,
+    "engineS": 200,
+    "engineM": 1500,
+    "engineL": 4000,
+    "shieldS": 200,
+    "shieldM": 1500,
+    "shieldL": 4000,
+    "radarS": 150,
+    "radarM": 1000,
+    "radarL": 2500,
+    "tankS": 100,
+    "tankM": 600,
+    "tankL": 1500,
+    "generatorS": 200,
+    "generatorM": 1500,
+    "generatorL": 4000
   }
 }

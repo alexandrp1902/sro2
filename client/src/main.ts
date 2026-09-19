@@ -22,6 +22,7 @@ import { CombatFx, type FxAnchor } from './render/combatFx';
 import { JumpFx, type Jumper } from './render/jumpFx';
 import { LootField } from './render/lootView';
 import { MeteorField } from './render/meteorView';
+import { MissileField } from './render/missiles';
 import { Nebula } from './render/nebulaView';
 import { PlayerOverlay } from './render/playerOverlay';
 import { ShipView, engineGlow } from './render/ship';
@@ -29,7 +30,8 @@ import { loadSprites } from './render/sprites';
 import { Starfield } from './render/starfield';
 import { WeaponArc } from './render/weaponArc';
 import { GATE_SIZE, SystemView } from './render/world';
-import { DEFAULT_SECTOR_UNIT, assess, cooldownTicks, evasion } from './sim/combat';
+import { DEFAULT_SECTOR_UNIT, assessBest, cooldownTicks, evasion, longestRange } from './sim/combat';
+import { Modules, effectiveHull, fitWeapons, type ShipFit } from './sim/fitting';
 import { describeSystem, gateIndex, gateMarkId, pvpName } from './sim/galaxy';
 import { DEFAULT_HULL, Hulls } from './sim/hulls';
 import { NO_LOOT, lootLabel, rarityColor, type LootRules } from './sim/loot';
@@ -84,15 +86,23 @@ async function main(): Promise<void> {
 
   const hulls = new Hulls();
   const weapons = new Weapons();
+  const modules = new Modules();
+  /** Что стоит на своём корабле — из ангара; до него летим на стартовом. */
+  let fit: ShipFit | null = null;
+  /** Свой корабль летает и держит щит на корпусе с модулями — как его считает сервер. */
+  const ownHulls = { get: (id: string) => effectiveHull(hulls.get(id), fit, modules.catalog) };
+  /** Свои пушки по слотам; до ангара — стартовая. */
+  const ownWeapons = () => (fit ? fitWeapons(fit, weapons) : [weapons.get(DEFAULT_WEAPON)]);
+  /** Пушка первого слота: по её выстрелам крутится кольцо перезарядки на кнопке огня. */
+  const mainWeaponId = () => fit?.weapons.find((id) => !!id) ?? DEFAULT_WEAPON;
   const controls = new Controls();
   const keyboard = new KeyboardControls(controls);
   bindKeyboard(keyboard);
   const stick = new Stick(el('stick'), controls);
   const zoom = new Zoom(app.canvas);
 
-  // Корпус и пушку сообщает сервер из аккаунта (hangar); до этого летим на стартовых.
-  const prediction = new Prediction(hulls, DEFAULT_HULL, SPAWN);
-  let weaponId = DEFAULT_WEAPON;
+  // Корпус и оснащение сообщает сервер из аккаунта (hangar); до этого летим на стартовых.
+  const prediction = new Prediction(ownHulls, DEFAULT_HULL, SPAWN);
   /** Каталог лута с сервера: названия, редкость и радиус захвата. */
   let lootRules: LootRules = NO_LOOT;
   /** Единица дистанции для игрока: «цель в 1.4 сектора» вместо «в 980». */
@@ -114,6 +124,7 @@ async function main(): Promise<void> {
   const overlay = new PlayerOverlay();
   const loot = new LootField();
   const meteors = new MeteorField();
+  const missiles = new MissileField(weapons);
   const jumpFx = new JumpFx();
   let systemView = new SystemView(null);
   world.addChild(
@@ -122,6 +133,7 @@ async function main(): Promise<void> {
     jumpFx.view,
     loot.view,
     meteors.view,
+    missiles.view,
     weaponArc.view,
     remote.view,
     ownShip.view,
@@ -247,10 +259,12 @@ async function main(): Promise<void> {
   const send = (message: Parameters<Connection['send']>[0]) => {
     if (isOnline()) connection!.send(message);
   };
-  const dockScreen = new DockScreen(el('dock'), hulls, weapons, {
+  const dockScreen = new DockScreen(el('dock'), hulls, weapons, modules, {
     onSell: (item) => send({ t: 'sell', item }),
-    onBuy: (kind, id) => send({ t: 'buy', kind, id }),
-    onEquip: (kind, id) => send(kind === 'hull' ? { t: 'hull', id } : { t: 'weapon', id }),
+    onBuy: (kind, id, slot) => send({ t: 'buy', kind, id, slot }),
+    onEquip: (id) => send({ t: 'hull', id }),
+    onFit: (slot, id) => send({ t: 'fit', slot, id }),
+    onSellItem: (id) => send({ t: 'sellItem', id }),
     onRepair: () => send({ t: 'repair' }),
     onRefuel: () => send({ t: 'refuel' }),
     onUndock: () => send({ t: 'dock', on: false }),
@@ -294,7 +308,8 @@ async function main(): Promise<void> {
       return true;
     }
     const candidates = pvpOff() ? targets().filter((t) => !('kind' in t) || t.kind !== 'player') : targets();
-    const id = nearest(prediction.curr, candidates, weapons.get(weaponId));
+    const reach = longestRange(ownWeapons());
+    const id = reach ? nearest(prediction.curr, candidates, reach) : null;
     if (id !== null) {
       setTarget(id);
       return true;
@@ -447,7 +462,9 @@ async function main(): Promise<void> {
     }
     const shot = event.shot;
     fx.shot(shot, now, locate);
-    if (shot.from === ownId()) fire.reloadFrom(now, cooldownTicks(weapons.get(shot.w)) * DT * 1000);
+    if (shot.from === ownId() && shot.w === mainWeaponId() && !weapons.get(shot.w).missile) {
+      fire.reloadFrom(now, cooldownTicks(weapons.get(shot.w)) * DT * 1000);
+    }
   };
 
   /**
@@ -536,6 +553,7 @@ async function main(): Promise<void> {
     connection.onWelcome = (message) => {
       hulls.set(message.hulls);
       weapons.set(message.weapons);
+      modules.set(message.modules);
       // Прыжок и возврат домой после гибели тоже приходят как resumed, но с другой системой — о ней и скажем.
       const sameSystem = (message.system?.id ?? null) === (system?.id ?? null);
       applySystem(message.system, message.galaxy, true);
@@ -548,6 +566,7 @@ async function main(): Promise<void> {
       loot.clear();
       meteors.setRules(message.meteors);
       meteors.clear();
+      missiles.clear();
       selectedLootId = 0; // предметы в космосе за это время сменились — выбор не переносим
       prediction.resetNet();
       remote.clear();
@@ -561,6 +580,7 @@ async function main(): Promise<void> {
     connection.onConfig = (message) => {
       hulls.set(message.hulls);
       weapons.set(message.weapons);
+      modules.set(message.modules);
       if (message.system) applySystem(message.system, message.galaxy, false);
       sectorUnit = message.combat.sectorUnit || DEFAULT_SECTOR_UNIT;
       lootRules = message.loot ?? NO_LOOT;
@@ -569,6 +589,7 @@ async function main(): Promise<void> {
       cargoHud.setRules(message.loot);
       dockScreen.setRules(message.loot, message.shop);
       meteors.setRules(message.meteors);
+      dockScreen.refresh();
     };
     connection.onCargo = (message) => {
       const cargo: CargoState = {
@@ -585,7 +606,7 @@ async function main(): Promise<void> {
       const was = docked;
       docked = message.docked;
       prediction.hullId = message.hull;
-      weaponId = message.weapon;
+      fit = message.fit;
       fuel = { fuel: message.fuel ?? 0, max: message.maxFuel ?? 0 };
       home = message.home ?? null;
       refreshGalaxyMap();
@@ -628,6 +649,7 @@ async function main(): Promise<void> {
       remote.push(message, now);
       loot.push(message, now);
       meteors.push(message, now);
+      missiles.push(message);
       for (const event of combat.push(message, own)) play(event, now);
       for (const shot of message.shots ?? []) {
         if (shot.from !== own) continue;
@@ -665,7 +687,7 @@ async function main(): Promise<void> {
 
   const loop = new FixedLoop(() => {
     if (docked) return; // корабль в доке: ни шагов, ни входов
-    keyboard.apply(prediction.curr, hulls.get(prediction.hullId));
+    keyboard.apply(prediction.curr, ownHulls.get(prediction.hullId));
     prediction.step(
       flightInput(),
       isOnline() ? (seq, input) => connection!.send({ t: 'input', seq, dx: input.dx, dy: input.dy, th: input.throttle }) : null,
@@ -675,6 +697,7 @@ async function main(): Promise<void> {
   let lastFrame = performance.now();
   let wasOnline = false;
   let wasDead = false;
+  let missileWarned = false;
   app.ticker.add(() => {
     const now = performance.now();
     const frameSeconds = Math.min(0.1, (now - lastFrame) / 1000);
@@ -685,6 +708,7 @@ async function main(): Promise<void> {
       prediction.resetNet(); // тормозим локально, при подключении примем состояние сервера
       remote.clear();
       meteors.clear();
+      missiles.clear();
       combat.clear();
       ownDto = null;
       docked = false; // с новым соединением сервер заново скажет, где корабль
@@ -698,7 +722,6 @@ async function main(): Promise<void> {
       if (own) {
         prediction.reconcile(own);
         ownDto = own;
-        weaponId = own.w;
       }
     }
     latestSnapshot = null;
@@ -715,7 +738,7 @@ async function main(): Promise<void> {
 
     const alpha = loop.advance(now);
     const state = prediction.render(alpha, frameSeconds);
-    const hull = hulls.get(prediction.hullId);
+    const hull = ownHulls.get(prediction.hullId);
     const input = flightInput();
     const desired = input.throttle > 0 && controls.source === 'stick' ? directionAngle(input.dx, input.dy) : null;
     ownShip.view.visible = !dead && !docked;
@@ -733,6 +756,11 @@ async function main(): Promise<void> {
     jumpFx.update(jumpers, remote.renderTick, (system?.jumpSeconds ?? 3) / DT, now);
     loot.update(now, remote.renderTick);
     meteors.update(now);
+    missiles.update(remote.renderTick, ownId());
+    // Ракета в меня — одна строка в ленте, пока летит хоть одна: от неё уходят манёвром.
+    const incoming = online && !dead && !docked ? missiles.incoming(ownId()) : 0;
+    if (incoming > 0 && !missileWarned) feed.add('Ракета! Уходите манёвром');
+    missileWarned = incoming > 0;
     for (const event of combat.take(remote.renderTick)) play(event, now);
 
     // Предмет забрали или он протух — снимаем выбор.
@@ -744,13 +772,15 @@ async function main(): Promise<void> {
     if (targetId !== 0 && !targetMeteor && remote.inLatest(targetId) === false) setTarget(0);
     const targetShip = targetId !== 0 && !targetMeteor ? remote.get(targetId) : undefined;
     const target = targetShip ?? targetMeteor;
-    const weapon = weapons.get(weaponId);
     // Камень не уклоняется: шанс по нему — точность пушки минус штраф за дистанцию, как на сервере.
-    const aim = targetShip
-      ? assess(state, weapon, targetShip, evasion(hulls.get(targetShip.hull), Math.hypot(targetShip.vx, targetShip.vy)))
+    // Пушек несколько — карточка и сектор по той, что готова стрелять, иначе по самой дальнобойной.
+    const best = targetShip
+      ? assessBest(state, ownWeapons(), targetShip, evasion(hulls.get(targetShip.hull), Math.hypot(targetShip.vx, targetShip.vy)))
       : targetMeteor
-        ? assess(state, weapon, targetMeteor, 0)
+        ? assessBest(state, ownWeapons(), targetMeteor, 0)
         : null;
+    const aim = best?.aim ?? null;
+    const weapon = best?.weapon ?? null;
     const tick = connection?.lastTick ?? 0;
     const protectedSeconds = ownDto?.pu ? Math.max(0, (ownDto.pu - tick) * DT) : 0;
     const me = ownId();
@@ -846,6 +876,7 @@ async function main(): Promise<void> {
         ships: [...remote.visible()].map((s) => ({ id: s.id, x: s.x, y: s.y, kind: s.kind, dead: s.dead })),
         targetId,
         objective: goal,
+        missiles: missiles.visible(),
       },
       now,
     );

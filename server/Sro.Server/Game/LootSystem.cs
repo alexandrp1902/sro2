@@ -148,6 +148,7 @@ internal sealed class LootSystem(Func<int> nextId, Random rng, ILogger log)
             {
                 Pirate pirate => (pirate.Spawn.Type, pirate.Level),
                 Drone { Spec.Table: { } own } => (own, 1),
+                Trader trader => (trader.LootTable, 1),
                 _ => (null, 0),
             };
             if (tableId is null || !loot.TableMap.TryGetValue(tableId, out var table)) continue;

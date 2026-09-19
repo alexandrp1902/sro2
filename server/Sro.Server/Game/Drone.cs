@@ -6,7 +6,7 @@ namespace Sro.Server.Game;
 /// Учебный дрон (GDD §54): не стреляет, стоит на месте или кружит вокруг своей точки. Летает по той же модели,
 /// что игроки, поэтому уклонение от скорости у кружащего дрона настоящее.
 /// </summary>
-public sealed class Drone(int id, DroneSpec spec) : ShipEntity(id, spec.Name, spec.Hull, SimConfig.DefaultWeapon)
+public sealed class Drone(int id, DroneSpec spec) : ShipEntity(id, spec.Name, spec.Hull, [])
 {
     /// <summary>Насколько сильно дрон тянется обратно к кругу, если его снесло с орбиты.</summary>
     private const double OrbitPull = 1.5;

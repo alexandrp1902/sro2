@@ -6,7 +6,7 @@ namespace Sro.Server.Net;
 
 /// <summary>
 /// Бинарный снапшот (M7): MessagePack-массив вместо JSON, только то, что видит радар игрока, и только изменившиеся поля.
-/// Кадр: <c>[1, tick, key, ships, goneShips, loot, goneLoot, meteors, goneMeteors, shots, kills, picks]</c>.
+/// Кадр: <c>[1, tick, key, ships, goneShips, loot, goneLoot, meteors, goneMeteors, shots, kills, picks, missiles, goneMissiles]</c>.
 /// Сущность — <c>[id, mask, …поля, чьи биты стоят в mask, по порядку битов]</c>; новая сущность и ключевой кадр — все поля.
 /// Координаты и скорости чужих — float32, своего корабля — float64: иначе сверка предсказания видела бы шум округления.
 /// Зеркало: client/src/net/snapshotCodec.ts, общий эталон — shared/test-vectors/snapshot.json.
@@ -29,6 +29,12 @@ public static class SnapshotCodec
     public const int MeteorX = 0, MeteorY = 1, MeteorVx = 2, MeteorVy = 3, MeteorS = 4, MeteorHp = 5;
     public const int MeteorFields = 6;
 
+    public const int MissileX = 0, MissileY = 1, MissileR = 2, MissileO = 3, MissileT = 4, MissileW = 5;
+    public const int MissileFields = 6;
+
+    /// <summary>Элементов в кадре; клиент прошлой версии без ракет читал 12.</summary>
+    public const int FrameLength = 14;
+
     /// <summary>Всё, что сущности этого тика и события, до отсечения радаром.</summary>
     public readonly record struct World(
         long Tick,
@@ -37,7 +43,8 @@ public static class SnapshotCodec
         IReadOnlyList<MeteorDto>? Meteors,
         IReadOnlyList<ShotDto> Shots,
         IReadOnlyList<KillDto> Kills,
-        IReadOnlyList<PickDto> Picks);
+        IReadOnlyList<PickDto> Picks,
+        IReadOnlyList<MissileDto>? Missiles = null);
 
     /// <summary>
     /// Что уже знает один клиент — от этого считаются дельты. Живёт у игрока; сбрасывается при входе в систему,
@@ -48,6 +55,7 @@ public static class SnapshotCodec
         private readonly Dictionary<int, ShipDto> _ships = [];
         private readonly Dictionary<int, LootDto> _loot = [];
         private readonly Dictionary<int, MeteorDto> _meteors = [];
+        private readonly Dictionary<int, MissileDto> _missiles = [];
         private readonly HashSet<int> _seen = [];
         private readonly HashSet<int> _gone = [];
         private readonly List<ShotDto> _shots = [];
@@ -67,13 +75,14 @@ public static class SnapshotCodec
                 _ships.Clear();
                 _loot.Clear();
                 _meteors.Clear();
+                _missiles.Clear();
                 // Разнос по тикам: ключевые кадры разных игроков не совпадают и не дают общий всплеск трафика.
                 _nextKeyTick = world.Tick + KeyframeTicks;
             }
 
             _buffer.Clear();
             var w = new MessagePackWriter(_buffer);
-            w.WriteArrayHeader(12);
+            w.WriteArrayHeader(FrameLength);
             w.Write(FrameType);
             w.Write(world.Tick);
             w.Write(key);
@@ -95,6 +104,7 @@ public static class SnapshotCodec
             WriteShots(ref w, world.Shots);
             WriteKills(ref w, world.Kills);
             WritePicks(ref w, world.Picks);
+            WriteMissiles(ref w, world.Missiles, visible);
             w.Flush();
             return _buffer.WrittenSpan.ToArray();
         }
@@ -192,6 +202,35 @@ public static class SnapshotCodec
                 }
             }
             WriteGone(ref w, _meteors);
+        }
+
+        private void WriteMissiles(ref MessagePackWriter w, IReadOnlyList<MissileDto>? missiles, Func<double, double, bool> visible)
+        {
+            var count = 0;
+            if (missiles is not null) foreach (var missile in missiles) if (visible(missile.X, missile.Y)) count++;
+            w.WriteArrayHeader(count);
+            _gone.Clear();
+            _gone.UnionWith(_missiles.Keys);
+            if (missiles is not null)
+            {
+                foreach (var missile in missiles)
+                {
+                    if (!visible(missile.X, missile.Y)) continue;
+                    _gone.Remove(missile.Id);
+                    var mask = _missiles.TryGetValue(missile.Id, out var was) ? MissileMask(was, missile) : (1 << MissileFields) - 1;
+                    _missiles[missile.Id] = missile;
+                    w.WriteArrayHeader(2 + BitOperations.PopCount((uint)mask));
+                    w.Write(missile.Id);
+                    w.Write(mask);
+                    if (Has(mask, MissileX)) w.Write((float)missile.X);
+                    if (Has(mask, MissileY)) w.Write((float)missile.Y);
+                    if (Has(mask, MissileR)) w.Write((float)missile.R);
+                    if (Has(mask, MissileO)) w.Write(missile.O);
+                    if (Has(mask, MissileT)) w.Write(missile.T);
+                    if (Has(mask, MissileW)) w.Write(missile.W);
+                }
+            }
+            WriteGone(ref w, _missiles);
         }
 
         /// <summary>Ушедшие из радара или из системы: список id, и клиент их забывает.</summary>
@@ -301,6 +340,10 @@ public static class SnapshotCodec
         Bit(Differs(a.X, b.X), MeteorX) | Bit(Differs(a.Y, b.Y), MeteorY) | Bit(Differs(a.Vx, b.Vx), MeteorVx) |
         Bit(Differs(a.Vy, b.Vy), MeteorVy) | Bit(a.S != b.S, MeteorS) | Bit(a.Hp != b.Hp, MeteorHp);
 
+    private static int MissileMask(MissileDto a, MissileDto b) =>
+        Bit(Differs(a.X, b.X), MissileX) | Bit(Differs(a.Y, b.Y), MissileY) | Bit(Differs(a.R, b.R), MissileR) |
+        Bit(a.O != b.O, MissileO) | Bit(a.T != b.T, MissileT) | Bit(a.W != b.W, MissileW);
+
     private static void WriteCoord(ref MessagePackWriter w, double value, bool precise)
     {
         if (precise) w.Write(value);
@@ -321,6 +364,7 @@ public static class SnapshotCodec
         private readonly Dictionary<int, ShipDto> _ships = [];
         private readonly Dictionary<int, LootDto> _loot = [];
         private readonly Dictionary<int, MeteorDto> _meteors = [];
+        private readonly Dictionary<int, MissileDto> _missiles = [];
 
         /// <summary>Пришёл кадр-дельта раньше первого ключевого: клиент и сервер разошлись.</summary>
         public int Desyncs { get; private set; }
@@ -330,6 +374,7 @@ public static class SnapshotCodec
             _ships.Clear();
             _loot.Clear();
             _meteors.Clear();
+            _missiles.Clear();
         }
 
         public SnapshotMsg Decode(ReadOnlyMemory<byte> frame)
@@ -383,6 +428,12 @@ public static class SnapshotCodec
                     picks.Add(new PickDto(r.ReadInt32(), r.ReadInt32(), r.ReadString()!, r.ReadInt32()));
                 }
             }
+            if (length >= FrameLength)
+            {
+                n = r.ReadArrayHeader();
+                for (var i = 0; i < n; i++) ReadMissile(ref r);
+                foreach (var id in ReadIds(ref r)) _missiles.Remove(id);
+            }
 
             return new SnapshotMsg(
                 tick,
@@ -391,7 +442,27 @@ public static class SnapshotCodec
                 kills,
                 _loot.Count > 0 ? [.. _loot.Values] : null,
                 picks,
-                _meteors.Count > 0 ? [.. _meteors.Values] : null);
+                _meteors.Count > 0 ? [.. _meteors.Values] : null,
+                _missiles.Count > 0 ? [.. _missiles.Values] : null);
+        }
+
+        private void ReadMissile(ref MessagePackReader r)
+        {
+            r.ReadArrayHeader();
+            var id = r.ReadInt32();
+            var mask = r.ReadInt32();
+            if (!_missiles.TryGetValue(id, out var m))
+            {
+                if (mask != (1 << MissileFields) - 1) Desyncs++;
+                m = new MissileDto(id, 0, 0, 0, 0, 0, "");
+            }
+            if (Has(mask, MissileX)) m = m with { X = r.ReadDouble() };
+            if (Has(mask, MissileY)) m = m with { Y = r.ReadDouble() };
+            if (Has(mask, MissileR)) m = m with { R = r.ReadDouble() };
+            if (Has(mask, MissileO)) m = m with { O = r.ReadInt32() };
+            if (Has(mask, MissileT)) m = m with { T = r.ReadInt32() };
+            if (Has(mask, MissileW)) m = m with { W = r.ReadString()! };
+            _missiles[id] = m;
         }
 
         private static List<int> ReadIds(ref MessagePackReader r)

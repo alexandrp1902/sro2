@@ -144,9 +144,10 @@ async function main() {
   check(`account created: ${a.account?.name}, device key ${a.account?.key?.length ?? 0} chars`, a.account?.name === NAME && !!a.account?.key);
   check(`shop.json in welcome: start ${shop?.startCredits} credits`, !!shop);
   check(`start credits: ${a.cargo.credits}`, a.cargo.credits === shop.startCredits);
+  const guns = (hangar) => hangar.fit.weapons.filter(Boolean);
   check(
-    `starter ship: ${a.hangar.hull} + ${a.hangar.weapon}, hangar ${a.hangar.hulls.join(',')} / ${a.hangar.weapons.join(',')}`,
-    a.hangar.hulls.length === 1 && a.hangar.weapons.length === 1,
+    `starter ship: ${a.hangar.hull} + ${guns(a.hangar).join(',')}, engine ${a.hangar.fit.engine}, energy ${a.hangar.power}/${a.hangar.powerMax}, hangar ${a.hangar.hulls.join(',')}`,
+    a.hangar.hulls.length === 1 && guns(a.hangar).length === 1 && Object.keys(a.hangar.storage).length === 0,
   );
   // Новый пилот начинает в доке: первый шаг обучения — вылететь (M8). Обучение здесь не проверяем — его пропускаем.
   check(`new pilot starts in the dock: ${a.hangar.docked}`, a.hangar.docked);
@@ -193,17 +194,17 @@ async function main() {
   await observer.until(() => observer.snapshot && !observer.snapshot.ships.some((s) => s.id === a.id), 3000, 'ship leaves space');
   check('docked ship is gone from space for others', true);
 
-  // Покупка: самая дешёвая пушка, которой нет, — по карману; самый дорогой корпус — нет.
+  // Покупка (M9): самая дешёвая пушка по карману встаёт во второй, свободный слот; самый дорогой корпус — не по карману.
   const credits = a.cargo.credits;
-  const weapons = Object.entries(shop.weapons ?? {}).filter(([id]) => !a.hangar.weapons.includes(id)).sort((x, y) => x[1] - y[1]);
+  const weapons = Object.entries(shop.items ?? {}).filter(([id]) => a.welcome.weapons[id]).sort((x, y) => x[1] - y[1]);
   const hulls = Object.entries(shop.hulls ?? {}).filter(([id]) => !a.hangar.hulls.includes(id)).sort((x, y) => y[1] - x[1]);
   let bought = null;
   if (weapons.length > 0 && weapons[0][1] <= credits) {
     const [id, price] = weapons[0];
-    a.send({ t: 'buy', kind: 'weapon', id });
-    await a.until(() => a.hangar.weapon === id, 3000, `buying ${id}`);
+    a.send({ t: 'buy', kind: 'item', id });
+    await a.until(() => guns(a.hangar).length === 2, 3000, `buying ${id} into the free slot`);
     await a.until(() => a.cargo.credits === credits - price, 3000, 'credits after the purchase');
-    check(`bought ${id} for ${price}: ${credits} → ${a.cargo.credits} credits, it is on the ship`, a.hangar.weapons.includes(id));
+    check(`bought ${id} for ${price}: ${credits} → ${a.cargo.credits} credits, guns ${guns(a.hangar).join(',')}, energy ${a.hangar.power}/${a.hangar.powerMax}`, a.hangar.fit.weapons[1] === id);
     bought = id;
   } else check('no affordable weapon in shop.json — skipping the purchase', true);
   if (hulls.length > 0 && hulls[0][1] > a.cargo.credits) {
@@ -216,7 +217,7 @@ async function main() {
   a.send({ t: 'dock', on: false });
   a.seq = 0; // сервер начал буфер входов заново — как настоящий клиент, нумеруем с 1
   await a.until(() => a.me, 3000, 'back in space after undocking');
-  check(`undocked with ${a.me.w}, protected until tick ${a.me.pu ?? 0}`, (!bought || a.me.w === bought) && (a.me.pu ?? 0) > 0);
+  check(`undocked with ${guns(a.hangar).join(',')}, protected until tick ${a.me.pu ?? 0}`, (!bought || guns(a.hangar).length === 2) && (a.me.pu ?? 0) > 0);
 
   // Обрыв и возврат по ключу устройства — без пароля.
   const key = a.account.key;
@@ -226,7 +227,7 @@ async function main() {
   await back.open();
   await back.until(() => back.welcome && back.hangar, 5000, 'welcome after the reconnect by key');
   check(`came back by device key: same ship ${back.id === shipId}, resumed ${back.welcome.resumed}`, back.id === shipId && back.welcome.resumed);
-  check(`the purchase is still there: ${back.hangar.weapon}`, !bought || back.hangar.weapon === bought);
+  check(`the purchase is still there: ${guns(back.hangar).join(',')}`, !bought || back.hangar.fit.weapons[1] === bought);
 
   // Второе устройство входит по паролю и забирает корабль; первое закрыто и само не рвётся назад.
   const phone = new Client({ name: NAME.toUpperCase(), password: PASSWORD });

@@ -61,8 +61,26 @@ export function itemSprite(item: string): SpriteName {
   return name in meta ? (name as SpriteName) : 'resources-metal';
 }
 
+/** Пушки, чья картинка названа иначе или общая с родственной. */
+const WEAPON_SPRITES: Record<string, string> = { missiles: 'rockets', heavyLaser: 'laser', cannon: 'pulse' };
+
 /** Иконка пушки на витрине; неизвестная — null. */
 export function weaponSprite(weapon: string): SpriteName | null {
-  const name = `weapons-${weapon}`;
+  const name = `weapons-${WEAPON_SPRITES[weapon] ?? weapon}`;
   return name in meta ? (name as SpriteName) : null;
+}
+
+/** Картинки модулей по слоту: бак — грузовой модуль, радар — сканер, генератор — энергоблок. */
+const MODULE_SPRITES: Record<string, string> = {
+  engine: 'modules-engine',
+  shield: 'modules-shield',
+  radar: 'modules-scanner',
+  tank: 'modules-cargo',
+  generator: 'resources-energy',
+};
+
+/** Иконка модуля на витрине по его слоту; неизвестный — null. */
+export function moduleSprite(slot: string): SpriteName | null {
+  const name = MODULE_SPRITES[slot];
+  return name && name in meta ? (name as SpriteName) : null;
 }

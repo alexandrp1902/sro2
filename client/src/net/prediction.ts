@@ -1,5 +1,4 @@
-import type { Hulls } from '../sim/hulls';
-import { DT, copyState, step, wrapAngle, type MoveInput, type ShipState } from '../sim/movement';
+import { DT, copyState, step, wrapAngle, type HullParams, type MoveInput, type ShipState } from '../sim/movement';
 import type { ShipDto } from './protocol';
 
 /** §52: при большом расхождении состояние сервера применяется сразу. */
@@ -7,6 +6,11 @@ const SNAP_DISTANCE = 100;
 /** Малая коррекция гаснет плавно с этой постоянной времени, с. */
 const CORRECTION_TAU = 0.1;
 const MAX_PENDING = 100;
+
+/** Откуда брать корпус своего корабля: с модулями (sim/fitting.ts), как его считает сервер. */
+export interface HullSource {
+  get(id: string): HullParams;
+}
 
 /**
  * Предсказание своего корабля. Каждый шаг клиента — один вход серверу; сервер делает ровно один шаг
@@ -29,7 +33,7 @@ export class Prediction {
   private readonly offset = { x: 0, y: 0, rot: 0 };
 
   constructor(
-    private readonly hulls: Hulls,
+    private readonly hulls: HullSource,
     hullId: string,
     spawn: { x: number; y: number },
   ) {

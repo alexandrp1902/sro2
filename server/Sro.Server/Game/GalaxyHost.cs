@@ -71,7 +71,12 @@ public sealed class GalaxyHost : BackgroundService
 
     public void Dock(IClientConnection connection, bool on) => With(connection, r => r.Dock(connection, on));
 
-    public void Buy(IClientConnection connection, string? kind, string? id) => With(connection, r => r.Buy(connection, kind, id));
+    public void Buy(IClientConnection connection, string? kind, string? id, string? slot) =>
+        With(connection, r => r.Buy(connection, kind, id, slot));
+
+    public void Fit(IClientConnection connection, string? slot, string? id) => With(connection, r => r.Fit(connection, slot, id));
+
+    public void SellItem(IClientConnection connection, string? id) => With(connection, r => r.SellItem(connection, id));
 
     public void Repair(IClientConnection connection) => With(connection, r => r.Repair(connection));
 

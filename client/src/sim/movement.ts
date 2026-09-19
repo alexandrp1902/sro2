@@ -41,6 +41,10 @@ export interface HullParams {
   fuel?: number;
   /** Радиус радара (GDD §10): дальше сервер корабли не присылает. */
   radar?: number;
+  /** Старший класс оборудования (GDD §20): S, M или L. У старых серверов поля нет. */
+  class?: string;
+  /** Оружейные слоты и их классы (GDD §12); нет — один слот класса корпуса. */
+  weaponSlots?: string[] | null;
 }
 
 export type HullConfig = Record<string, HullParams>;

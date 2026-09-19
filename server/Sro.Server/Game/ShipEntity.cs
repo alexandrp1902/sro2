@@ -6,20 +6,27 @@ namespace Sro.Server.Game;
 /// Корабль в системе — игрок или NPC: движение и боевое состояние. Меняется только в потоке тика.
 /// Состояние — поля, а не свойства: Movement.Step и Combat.ApplyDamage меняют их по ссылке.
 /// </summary>
-public abstract class ShipEntity(int id, string name, string hullId, string weaponId)
+/// <param name="weaponIds">Пушки по оружейным слотам (GDD §12); null в слоте — пусто.</param>
+public abstract class ShipEntity(int id, string name, string hullId, IReadOnlyList<string?> weaponIds)
 {
     /// <summary>Id корабля в снапшотах. Не меняется при переподключении, в отличие от id соединения.</summary>
     public int Id { get; } = id;
     public string Name { get; set; } = name;
     public string HullId { get; set; } = hullId;
-    public string WeaponId { get; set; } = weaponId;
+
+    /// <summary>Пушки по оружейным слотам; каждая стреляет по цели сама, со своей перезарядкой.</summary>
+    public virtual IReadOnlyList<string?> WeaponIds { get; set; } = weaponIds;
+
+    /// <summary>Первая стоящая пушка — по ней клиент рисует чужой корабль; "" — пушек нет.</summary>
+    public string MainWeaponId => WeaponIds.FirstOrDefault(w => w is not null) ?? "";
 
     public ShipState Ship;
     public double Hp;
     public double Shield;
     /// <summary>Тик последнего попадания: щит восстанавливается после паузы без урона.</summary>
     public long LastDamageTick = long.MinValue / 2;
-    public long NextFireTick;
+    /// <summary>Перезарядка каждого оружейного слота: раньше этого тика слот не стреляет.</summary>
+    public readonly long[] NextFireTicks = new long[Fitting.MaxWeaponSlots];
 
     /// <summary>Цель выбирает клиент; сервер обнуляет её, только если корабль-цель исчез из системы.</summary>
     public int TargetId;
@@ -46,11 +53,24 @@ public abstract class ShipEntity(int id, string name, string hullId, string weap
 
     public virtual double MaxShield(HullParams hull) => hull.Shield;
 
-    /// <summary>Пушка, из которой корабль стреляет; null — такой пушки больше нет.</summary>
-    public virtual WeaponParams? Weapon(Balance balance) => balance.Weapons.GetValueOrDefault(WeaponId);
+    /// <summary>Пушка в оружейном слоте; null — слот пуст или такой пушки больше нет.</summary>
+    public virtual WeaponParams? WeaponAt(Balance balance, int slot) =>
+        slot < WeaponIds.Count && WeaponIds[slot] is { } id ? balance.Weapons.GetValueOrDefault(id) : null;
+
+    /// <summary>Все стоящие пушки.</summary>
+    public IEnumerable<WeaponParams> Weapons(Balance balance)
+    {
+        for (var i = 0; i < WeaponIds.Count; i++) if (WeaponAt(balance, i) is { } weapon) yield return weapon;
+    }
+
+    /// <summary>
+    /// Корпус, по которому корабль летает, держит щит и видит радаром. У пилота — с учётом модулей
+    /// (<see cref="Fitting.Effective"/>), у NPC — как в hulls.json.
+    /// </summary>
+    public virtual HullParams Effective(Balance balance) => Hull(balance.Hulls);
 
     /// <summary>Уклонение, % (§39–40): по корпусу и текущей скорости.</summary>
-    public virtual double Evasion(Balance balance, double speed) => Combat.Evasion(Hull(balance.Hulls), speed);
+    public virtual double Evasion(Balance balance, double speed) => Combat.Evasion(Effective(balance), speed);
 
     /// <summary>Через столько тиков уничтоженный корабль появляется снова.</summary>
     public virtual int RespawnTicks(Balance balance) => balance.Rules.RespawnTicks;
@@ -65,10 +85,16 @@ public abstract class ShipEntity(int id, string name, string hullId, string weap
     /// <summary>Смена корпуса или его параметров: доли корпуса и щита сохраняются, иначе смена лечила бы.</summary>
     public void ChangeHull(HullParams from, string hullId, HullParams to)
     {
+        HullId = hullId;
+        Rescale(from, to);
+    }
+
+    /// <summary>Максимумы корпуса и щита сменились (корпус, модули, баланс): доли сохраняются.</summary>
+    public void Rescale(HullParams from, HullParams to)
+    {
         var hpShare = Hp / MaxHp(from);
         var fromShield = MaxShield(from);
         var shieldShare = fromShield > 0 ? Shield / fromShield : 1;
-        HullId = hullId;
         Hp = hpShare * MaxHp(to);
         Shield = shieldShare * MaxShield(to);
     }

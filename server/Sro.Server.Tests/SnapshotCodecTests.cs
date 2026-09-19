@@ -29,8 +29,9 @@ public class SnapshotCodecTests
         IReadOnlyList<MeteorDto>? meteors = null,
         IReadOnlyList<ShotDto>? shots = null,
         IReadOnlyList<KillDto>? kills = null,
-        IReadOnlyList<PickDto>? picks = null) =>
-        new(tick, ships, loot, meteors, shots ?? NoShots, kills ?? NoKills, picks ?? NoPicks);
+        IReadOnlyList<PickDto>? picks = null,
+        IReadOnlyList<MissileDto>? missiles = null) =>
+        new(tick, ships, loot, meteors, shots ?? NoShots, kills ?? NoKills, picks ?? NoPicks, missiles);
 
     private static bool Everywhere(double x, double y) => true;
 
@@ -220,9 +221,10 @@ public class SnapshotCodecTests
         var box = new LootDto(100, 1200, -900, "metal", 4, 0, C: true);
         var drop = new LootDto(101, 650.5, -1250.25, "energy", 1, 2400);
         var rock = new MeteorDto(200, -1500, 300, 120.5, -40.25, "medium", 140);
+        var missile = new MissileDto(300, 600.5, -1200.25, 3.5, 2, 1, "missiles");
         var frames = new List<byte[]>
         {
-            encoder.Encode(World(100, [self, pirate], [box, drop], [rock]), Self, Radar),
+            encoder.Encode(World(100, [self, pirate], [box, drop], [rock], missiles: [missile]), Self, Radar),
         };
 
         self = self with { X = 20.5, Vx = 55.125, Ack = 8 };
@@ -231,7 +233,8 @@ public class SnapshotCodecTests
         rock = rock with { X = -1494, Y = 298, Hp = 70 };
         frames.Add(encoder.Encode(
             World(101, [self, pirate, newcomer], [box, drop], [rock],
-                shots: [new ShotDto(2, 1, "plasma", true, 70, 60, 64.5)]),
+                shots: [new ShotDto(2, 1, "plasma", true, 70, 60, 64.5)],
+                missiles: [missile with { X = 590, Y = -1180.5, R = 3.25 }]),
             Self, Radar));
 
         pirate = pirate with { Rt = 400, Hp = 0, Ai = "patrol", Tg = 0 };
@@ -258,6 +261,7 @@ public class SnapshotCodecTests
         }),
         loot = (s.Loot ?? []).OrderBy(x => x.Id).Select(x => new { id = x.Id, x = x.X, y = x.Y, i = x.I, n = x.N, e = x.E, c = x.C }),
         meteors = (s.Meteors ?? []).OrderBy(x => x.Id).Select(x => new { id = x.Id, x = x.X, y = x.Y, vx = x.Vx, vy = x.Vy, s = x.S, hp = x.Hp }),
+        missiles = (s.Missiles ?? []).OrderBy(x => x.Id).Select(x => new { id = x.Id, x = x.X, y = x.Y, r = x.R, o = x.O, t = x.T, w = x.W }),
         shots = s.Shots,
         kills = s.Kills,
         picks = s.Picks,

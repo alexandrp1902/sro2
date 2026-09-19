@@ -44,7 +44,7 @@ internal static class TestHulls
         return new BalanceSources(
             Read(Balance.HullsFile), Read(Balance.WeaponsFile), Read(Balance.RulesFile),
             Read(Balance.NpcsFile), Read(Balance.LootFile), Read(Balance.MeteorsFile), Read(Balance.ShopFile), Read(Balance.GalaxyFile),
-            Read(Balance.MissionsFile));
+            Read(Balance.MissionsFile), Read(Balance.ModulesFile));
     }
 }
 

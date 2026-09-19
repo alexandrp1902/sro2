@@ -14,29 +14,41 @@ public class ShopRulesTests
         var shop = balance!.Shop;
         Assert.Equal(1000, shop.StartCredits); // GDD §54
         Assert.Equal(0, shop.HullPrice(SimConfig.DefaultHull)); // стартовый корабль бесплатно (§30)
-        Assert.Equal(0, shop.WeaponPrice(SimConfig.DefaultWeapon));
+        // Всё оснащение продаётся: иначе второй слот нечем занять.
+        foreach (var id in balance.Weapons.Keys.Concat(balance.Modules!.Keys)) Assert.NotNull(shop.ItemPrice(id));
     }
 
     [Fact]
     public void Defaults_WhenFieldsAreMissing()
     {
-        Assert.True(ShopRules.TryParse("{}", Hulls, Weapons, out var shop, out var error), error);
+        Assert.True(ShopRules.TryParse("{}", Hulls, Weapons, null, out var shop, out var error), error);
 
         Assert.Equal(1000, shop.StartCredits);
         Assert.Null(shop.HullPrice("light")); // в прайсе нет — не продаётся
         Assert.Equal(0, shop.RepairCost(100)); // ремонт по умолчанию бесплатный
+        Assert.Equal(0.5, shop.SellShare);
+    }
+
+    [Fact]
+    public void SellPrice_IsAShareOfThePrice_RoundedDown()
+    {
+        var shop = new ShopRules(Items: new Dictionary<string, int> { ["pulse"] = 301 }, SellShare: 0.5);
+
+        Assert.Equal(150, shop.SellPrice("pulse"));
+        Assert.Equal(0, shop.SellPrice("ghost")); // не продаётся — и не выкупается
     }
 
     [Theory]
     [InlineData("""{"startCredits": -1}""")]
     [InlineData("""{"repairPrice": -0.5}""")]
     [InlineData("""{"hulls": {"ghost": 100}}""")]
-    [InlineData("""{"weapons": {"ghost": 100}}""")]
+    [InlineData("""{"items": {"ghost": 100}}""")]
+    [InlineData("""{"sellShare": 1.5}""")]
     [InlineData("""{"hulls": {"light": -5}}""")]
     [InlineData("""not json""")]
     public void BadFile_IsRejected(string json)
     {
-        Assert.False(ShopRules.TryParse(json, Hulls, Weapons, out _, out var error));
+        Assert.False(ShopRules.TryParse(json, Hulls, Weapons, null, out _, out var error));
         Assert.NotNull(error);
     }
 

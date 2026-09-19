@@ -24,6 +24,11 @@ internal static class PirateBrain
 
     /// <summary>Пушка с таким сектором бьёт вбок: пират не разворачивается к цели, а кружит вокруг неё.</summary>
     private const double OrbitArc = 90;
+    /// <summary>
+    /// Запас к сектору самой узкой пушки на круге: с ракетницей (±90°) пират летит не строго по касательной,
+    /// а чуть к цели — иначе она всё время на самой границе сектора.
+    /// </summary>
+    private const double OrbitArcMargin = 20;
     /// <summary>Тяга на круге: пират в движении — по нему труднее попасть (боевой документ §40).</summary>
     private const double OrbitThrottle = 0.6;
     private const double MinOrbitThrottle = 0.3;
@@ -82,7 +87,7 @@ internal static class PirateBrain
 
         if (pirate.State == PirateState.Attack)
         {
-            var target = ships.GetValueOrDefault(pirate.TargetId) as Player;
+            var target = ships.GetValueOrDefault(pirate.TargetId);
             if (target is null || !IsFair(target, tick) || Distance(pirate, target) > npc.DropRange)
             {
                 pirate.State = PirateState.Patrol;
@@ -99,7 +104,7 @@ internal static class PirateBrain
             }
             else
             {
-                Attack(pirate, target, hull, pirate.Weapon(balance), pirates);
+                Attack(pirate, target, hull, balance, pirates);
                 return;
             }
         }
@@ -117,7 +122,7 @@ internal static class PirateBrain
             pirate.State = PirateState.Attack;
             pirate.TargetId = found.Id;
             log.LogInformation("{Pirate} attacks {Target}", pirate, found.Name);
-            Attack(pirate, found, hull, pirate.Weapon(balance), pirates);
+            Attack(pirate, found, hull, balance, pirates);
             return;
         }
         // Налётчик отпатрулировал своё и никого не нашёл — пора домой, во врата.
@@ -167,9 +172,16 @@ internal static class PirateBrain
         log.LogInformation("{Pirate} landed at the base", pirate);
     }
 
-    /// <summary>Честная цель: игрок на связи, цел и без защиты после появления. Дронов и корабли без связи пираты не трогают.</summary>
-    private static bool IsFair(Player player, long tick) =>
-        player.Connection is not null && !player.IsDead && !player.IsProtected(tick);
+    /// <summary>
+    /// Честная цель: игрок на связи, цел и без защиты после появления, или торговец (GDD §31). Дронов и корабли
+    /// без связи пираты не трогают.
+    /// </summary>
+    private static bool IsFair(ShipEntity ship, long tick) => ship switch
+    {
+        Player player => player.Connection is not null && !player.IsDead && !player.IsProtected(tick),
+        Trader trader => !trader.IsDead,
+        _ => false,
+    };
 
     /// <summary>Укрытие у станции в этот тик.</summary>
     private readonly record struct Shelter(double X, double Y, double Radius)
@@ -178,7 +190,7 @@ internal static class PirateBrain
     }
 
     private static bool IsCandidate(ShipEntity? ship, long tick, Shelter shelter) =>
-        ship is Player player && IsFair(player, tick) && !shelter.Contains(player);
+        ship is not null && IsFair(ship, tick) && !shelter.Contains(ship);
 
     /// <summary>Кого атаковать: того, кто напал; иначе ближайшего игрока в радиусе агро; иначе цель собрата по бою рядом.</summary>
     private static ShipEntity? Acquire(
@@ -238,8 +250,16 @@ internal static class PirateBrain
     /// потом держать дистанцию»: разворот носом к цели на месте, а тягой — своя дистанция: пропорционально отставанию
     /// плюс скорость, с которой цель удаляется.
     /// </summary>
-    private static void Attack(Pirate pirate, ShipEntity target, HullParams hull, WeaponParams? weapon, IReadOnlyList<Pirate> pirates)
+    private static void Attack(Pirate pirate, ShipEntity target, HullParams hull, Balance balance, IReadOnlyList<Pirate> pirates)
     {
+        // Кружить — если хоть одна пушка бьёт вбок; угол к цели — по самой узкой из них.
+        var widest = 0.0;
+        var narrowest = 180.0;
+        foreach (var weapon in pirate.Weapons(balance))
+        {
+            widest = Math.Max(widest, weapon.Arc);
+            narrowest = Math.Min(narrowest, weapon.Arc);
+        }
         var s = pirate.Ship;
         var dx = target.Ship.X - s.X;
         var dy = target.Ship.Y - s.Y;
@@ -255,11 +275,12 @@ internal static class PirateBrain
         var away = target.Ship.Vx * ux + target.Ship.Vy * uy;
         double dirX, dirY, throttle;
 
-        if (weapon is { Arc: >= OrbitArc })
+        if (widest >= OrbitArc)
         {
             // По касательной в свою сторону, с поправкой к дистанции: далеко — внутрь, близко — наружу.
             var error = (distance - pirate.HoldRange) / ThrottleRamp;
-            var (tx, ty) = Rotate(ux, uy, pirate.Side * Math.PI / 2);
+            var tangent = Math.Clamp(narrowest - OrbitArcMargin, TurnFirstAngle / DegToRad, 90) * DegToRad;
+            var (tx, ty) = Rotate(ux, uy, pirate.Side * tangent);
             var pull = Math.Clamp(error, -1, 1) * OrbitPull;
             dirX = tx + ux * pull;
             dirY = ty + uy * pull;

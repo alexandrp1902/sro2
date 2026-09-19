@@ -15,7 +15,9 @@
     "moveEvasion": 8,
     "cargo": 20,
     "fuel": 100,
-    "radar": 2000
+    "radar": 2000,
+    "class": "S",
+    "weaponSlots": ["S", "S"]
   },
   "medium": {
     "name": "Средний",
@@ -33,7 +35,9 @@
     "moveEvasion": 5,
     "cargo": 50,
     "fuel": 180,
-    "radar": 2200
+    "radar": 2200,
+    "class": "M",
+    "weaponSlots": ["M", "S", "S"]
   },
   "heavy": {
     "name": "Тяжёлый",
@@ -51,6 +55,8 @@
     "moveEvasion": 2,
     "cargo": 120,
     "fuel": 300,
-    "radar": 2400
+    "radar": 2400,
+    "class": "L",
+    "weaponSlots": ["L", "M", "M", "S"]
   }
 }

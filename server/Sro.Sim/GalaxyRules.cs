@@ -41,7 +41,8 @@ public sealed record SystemDef(
     SunDef? Sun = null,
     OrbitDef? StationOrbit = null,
     IReadOnlyList<PlanetDef>? Planets = null,
-    RaidRules? Pirates = null)
+    RaidRules? Pirates = null,
+    TraderRules? Traders = null)
 {
     [JsonIgnore] public OrbitDef StationPath => StationOrbit ?? OrbitDef.Center;
     [JsonIgnore] public IReadOnlyList<PlanetDef> PlanetList => Planets ?? [];
@@ -241,5 +242,29 @@ public sealed record GalaxyRules(
         if (error is not null) return false;
         rules = parsed;
         return true;
+    }
+}
+
+/// <summary>
+/// Торговцы системы (GDD §31): летают между станцией и вратами, пираты на них охотятся, пилоты могут грабить.
+/// Долетел — ушёл в док или в прыжок; уничтожен — оставил груз. Вместо ушедшего через срок появляется новый.
+/// </summary>
+/// <param name="Count">Столько торговцев в системе одновременно.</param>
+/// <param name="RespawnSeconds">Через столько после ухода или гибели появляется новый.</param>
+/// <param name="Type">Тип из npcs.json: корпус, прочность и таблица лута.</param>
+/// <param name="Throttle">Тяга в пути, 0…1: гружёный торговец не гонит.</param>
+public sealed record TraderRules(int Count = 1, double RespawnSeconds = 40, string Type = "trader", double Throttle = 0.7)
+{
+    public const int MaxCount = 10;
+
+    [JsonIgnore] public int RespawnTicks => Math.Max(1, Combat.SecondsToTicks(RespawnSeconds));
+
+    public string? Validate(IReadOnlyDictionary<string, NpcType> types)
+    {
+        if (Count is < 0 or > MaxCount) return $"count must be within 0..{MaxCount}";
+        if (!(RespawnSeconds >= 0)) return "respawnSeconds must not be negative";
+        if (Type is null || !types.ContainsKey(Type)) return $"unknown type '{Type}'";
+        if (!(Throttle > 0 && Throttle <= 1)) return "throttle must be within 0..1";
+        return null;
     }
 }

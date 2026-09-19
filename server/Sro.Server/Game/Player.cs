@@ -8,9 +8,15 @@ namespace Sro.Server.Game;
 /// null — вернуться нельзя, корабль удаляется сразу.
 /// </param>
 /// <param name="accountId">Аккаунт (GDD §61–62); null — гость, у него ничего не сохраняется и весь ангар открыт.</param>
+/// <param name="weaponId">Пушка в первом слоте; остальное оснащение — стартовое (<see cref="Fitting.Starter"/>).</param>
 public sealed class Player(int id, string? token, string name, string hullId, string weaponId, string? accountId = null)
-    : ShipEntity(id, name, hullId, weaponId)
+    : ShipEntity(id, name, hullId, [weaponId])
 {
+    private HullParams? _stats;
+    private Balance? _statsBalance;
+    private HullParams? _statsHull;
+    private ShipFit? _statsFit;
+
     public string? Token { get; } = token;
 
     public string? AccountId { get; } = accountId;
@@ -39,8 +45,51 @@ public sealed class Player(int id, string? token, string name, string hullId, st
     /// <summary>Купленные корпуса — ангар (GDD §51). Стартовый есть всегда.</summary>
     public HashSet<string> Hulls { get; } = new(StringComparer.Ordinal) { SimConfig.DefaultHull };
 
-    /// <summary>Купленные пушки. Стартовая есть всегда.</summary>
-    public HashSet<string> Weapons { get; } = new(StringComparer.Ordinal) { SimConfig.DefaultWeapon };
+    /// <summary>Что стоит на корабле (GDD §62): пушки по слотам и модули. Переходит с корпуса на корпус.</summary>
+    public ShipFit Fit { get; set; } = Fitting.Starter.With("w0", weaponId);
+
+    /// <summary>Склад на станции: купленные или снятые пушки и модули, которые сейчас не стоят. id — сколько штук.</summary>
+    public Dictionary<string, int> Storage { get; } = new(StringComparer.Ordinal);
+
+    public override IReadOnlyList<string?> WeaponIds
+    {
+        get => Fit.Weapons;
+        set => Fit = Fit with { Weapons = value };
+    }
+
+    /// <summary>Пушка в первом слоте — для тестов и гостя с пушкой из hello.</summary>
+    public string? WeaponId
+    {
+        get => Fit.Get("w0");
+        set => Fit = Fit.With("w0", value);
+    }
+
+    /// <summary>Корпус с модулями; пересчитывается, только когда сменились баланс, корпус или оснащение.</summary>
+    public override HullParams Effective(Balance balance)
+    {
+        var hull = Hull(balance.Hulls);
+        if (_stats is null || !ReferenceEquals(_statsBalance, balance) || !ReferenceEquals(_statsHull, hull) || !ReferenceEquals(_statsFit, Fit))
+        {
+            _stats = Fitting.Effective(hull, Fit, balance.Modules);
+            _statsBalance = balance;
+            _statsHull = hull;
+            _statsFit = Fit;
+        }
+        return _stats;
+    }
+
+    /// <summary>Положить на склад.</summary>
+    public void Store(string id, int count = 1) => Storage[id] = Storage.GetValueOrDefault(id) + count;
+
+    /// <summary>Взять со склада одну штуку.</summary>
+    /// <returns>false — такого на складе нет.</returns>
+    public bool Unstore(string id)
+    {
+        if (!Storage.TryGetValue(id, out var count) || count <= 0) return false;
+        if (count == 1) Storage.Remove(id);
+        else Storage[id] = count - 1;
+        return true;
+    }
 
     /// <summary>
     /// Корабль в доке станции: его нет в космосе — ни в снапшоте, ни среди целей, ни на пути метеоритов.
@@ -79,7 +128,6 @@ public sealed class Player(int id, string? token, string name, string hullId, st
 
     public bool OwnsHull(string id) => IsGuest || Hulls.Contains(id);
 
-    public bool OwnsWeapon(string id) => IsGuest || Weapons.Contains(id);
 
     public void Attach(IClientConnection connection)
     {

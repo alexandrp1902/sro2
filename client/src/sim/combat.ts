@@ -27,6 +27,20 @@ export interface WeaponParams {
   kind: string;
   /** Цвет трассера, #rrggbb. */
   color: string;
+  /** Класс (GDD §20): встаёт в оружейный слот того же класса или старше. */
+  class?: string;
+  /** Сколько энергии генератора забирает (GDD §18). */
+  power?: number;
+  /** Ракетница (боевой документ §37): вместо броска на попадание — самонаводящаяся ракета. */
+  missile?: MissileParams | null;
+}
+
+/** Самонаводящаяся ракета: скорость, доворот (°/с), время жизни (с), радиус попадания. */
+export interface MissileParams {
+  speed: number;
+  turnRate: number;
+  lifetime: number;
+  hitRadius: number;
 }
 
 export type WeaponConfig = Record<string, WeaponParams>;
@@ -147,6 +161,32 @@ export function assess(
   else if (!inRange(weapon, distance)) state = 'range';
   else if (!inArc(shooter.rot, dx, dy, weapon.arc)) state = 'arc';
   return { state, distance, chance };
+}
+
+/**
+ * Оценка по всем пушкам корабля: первая готовая стрелять (сервер бьёт из каждой, что готова), иначе — самая
+ * дальнобойная: её дальность и сектор игроку и нужно видеть. null — пушек нет.
+ */
+export function assessBest(
+  shooter: { x: number; y: number; rot: number },
+  weapons: readonly WeaponParams[],
+  target: AimTarget,
+  targetEvasion: number,
+): { aim: Aim; weapon: WeaponParams } | null {
+  let best: { aim: Aim; weapon: WeaponParams } | null = null;
+  for (const weapon of weapons) {
+    const aim = assess(shooter, weapon, target, targetEvasion);
+    if (aim.state === 'ready') return { aim, weapon };
+    if (!best || weapon.maxRange > best.weapon.maxRange) best = { aim, weapon };
+  }
+  return best;
+}
+
+/** Самая дальнобойная пушка — по ней огонь без цели ищет ближайшую; null — пушек нет. */
+export function longestRange(weapons: readonly WeaponParams[]): WeaponParams | null {
+  let best: WeaponParams | null = null;
+  for (const weapon of weapons) if (!best || weapon.maxRange > best.maxRange) best = weapon;
+  return best;
 }
 
 function clamp(value: number, min: number, max: number): number {

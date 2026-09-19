@@ -7,14 +7,22 @@ export interface ShopRules {
   repairPrice: number;
   /** Корпус — цена; чего здесь нет, то не продаётся. Сервер может прислать null. */
   hulls?: Record<string, number> | null;
-  /** Пушка — цена. */
-  weapons?: Record<string, number> | null;
+  /** Пушка или модуль — цена. */
+  items?: Record<string, number> | null;
   /** Кредитов за единицу топлива при заправке (GDD §6); 0 или нет поля — бесплатно. */
   fuelPrice?: number;
+  /** Доля цены, за которую станция выкупает пушку или модуль со склада. */
+  sellShare?: number;
 }
 
 /** Магазина нет: до welcome и на серверах без shop.json. */
-export const NO_SHOP: ShopRules = { startCredits: 0, repairPrice: 0, hulls: null, weapons: null };
+export const NO_SHOP: ShopRules = { startCredits: 0, repairPrice: 0, hulls: null, items: null };
+
+/** Сколько станция даёт за пушку или модуль со склада — как на сервере: округлено вниз; не продаётся — даром. */
+export function sellPrice(shop: ShopRules, id: string): number {
+  const cost = price(shop.items, id);
+  return cost === null ? 0 : Math.floor(cost * (shop.sellShare ?? 0.5) + 1e-9);
+}
 
 /** Цена корпуса или пушки; null — не продаётся. */
 export function price(prices: Record<string, number> | null | undefined, id: string): number | null {

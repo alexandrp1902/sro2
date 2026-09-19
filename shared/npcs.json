@@ -12,7 +12,7 @@
     "pirate": {
       "name": "Пират",
       "hull": "light",
-      "weapon": "pulse",
+      "weapons": ["pulse"],
       "hp": 300,
       "shield": 100,
       "damage": 0.45,
@@ -22,12 +22,18 @@
     "heavyPirate": {
       "name": "Тяжёлый пират",
       "hull": "heavy",
-      "weapon": "plasma",
+      "weapons": ["plasma", "missiles"],
       "hp": 900,
       "shield": 300,
       "damage": 0.5,
       "holdRange": 420,
       "retreatHp": 0
+    },
+    "trader": {
+      "name": "Торговец",
+      "hull": "medium",
+      "hp": 600,
+      "shield": 200
     }
   }
 }

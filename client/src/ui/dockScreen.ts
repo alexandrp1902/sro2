@@ -1,10 +1,24 @@
 import type { BuyKind, HangarMsg, MissionOffer, MissionsMsg } from '../net/protocol';
 import type { WeaponParams } from '../sim/combat';
-import { itemSprite, shipSprite, spriteUrl, weaponSprite } from '../render/sprites';
+import {
+  MODULE_SLOTS,
+  REQUIRED_SLOTS,
+  SLOT_NAMES,
+  canInstall,
+  describeFitProblem,
+  fitGet,
+  hullSlots,
+  moduleLabel,
+  weaponIndex,
+  weaponSlot,
+  type FitProblem,
+  type Modules,
+} from '../sim/fitting';
+import { itemSprite, moduleSprite, shipSprite, spriteUrl, weaponSprite } from '../render/sprites';
 import type { Hulls } from '../sim/hulls';
 import { activeHint, activeLine, offerNote, offerTitle, type MissionNames } from '../sim/missions';
 import { lootItem, rarityColor, type LootRules } from '../sim/loot';
-import { NO_SHOP, formatCredits, fuelCost, price, repairCost, type ShopRules } from '../sim/shop';
+import { NO_SHOP, formatCredits, fuelCost, price, repairCost, sellPrice, type ShopRules } from '../sim/shop';
 import type { Weapons } from '../sim/weapons';
 import { color, round, type CargoState } from './cargoHud';
 
@@ -28,21 +42,54 @@ export function offerState(owned: boolean, active: boolean, cost: number | null,
   return cost <= credits ? 'buy' : 'poor';
 }
 
-export type Tab = 'missions' | 'cargo' | 'hulls' | 'weapons';
+export type Tab = 'missions' | 'cargo' | 'hulls' | 'fitting';
 
 const TABS: { id: Tab; label: string }[] = [
   { id: 'missions', label: 'Задания' },
   { id: 'cargo', label: 'Груз' },
   { id: 'hulls', label: 'Корабли' },
-  { id: 'weapons', label: 'Оружие' },
+  { id: 'fitting', label: 'Оснащение' },
 ];
+
+/** Что можно сделать с пушкой или модулем для выбранного слота. */
+export type SlotOffer =
+  /** Уже стоит в этом слоте. */
+  | { action: 'installed' }
+  /** Лежит на складе (у гостя — всё): поставить. */
+  | { action: 'install'; problem: FitProblem | null }
+  /** Купить и сразу поставить. */
+  | { action: 'buy'; cost: number; problem: FitProblem | null; poor: boolean }
+  /** Не продаётся и на складе нет. */
+  | { action: 'none' };
+
+/**
+ * Предложение для слота: стоит ли уже, есть ли на складе, можно ли купить, встанет ли по классу и энергии.
+ * @param stored сколько такого на складе; гостю — всё бесконечно
+ */
+export function slotOffer(
+  installed: boolean,
+  stored: number,
+  cost: number | null,
+  credits: number,
+  problem: FitProblem | null,
+): SlotOffer {
+  if (installed) return { action: 'installed' };
+  if (stored > 0) return { action: 'install', problem };
+  if (cost === null) return { action: 'none' };
+  return { action: 'buy', cost, problem, poor: cost > credits };
+}
 
 export interface DockHandlers {
   /** Продать груз: item — что именно, без него — весь трюм. */
   onSell(item?: string): void;
-  onBuy(kind: BuyKind, id: string): void;
-  /** Поставить своё из ангара. */
-  onEquip(kind: BuyKind, id: string): void;
+  /** Купить корпус, пушку или модуль; slot — пушку или модуль сразу в этот слот. */
+  onBuy(kind: BuyKind, id: string, slot?: string): void;
+  /** Поставить свой корпус из ангара. */
+  onEquip(id: string): void;
+  /** Поставить в слот со склада; id = null — снять на склад. */
+  onFit(slot: string, id: string | null): void;
+  /** Продать со склада пушку или модуль. */
+  onSellItem(id: string): void;
   onRepair(): void;
   onRefuel(): void;
   onUndock(): void;
@@ -79,11 +126,14 @@ export class DockScreen {
   private station = 'Станция';
   private here: string | null = null;
   private missions: MissionsMsg | null = null;
+  /** Слот, для которого открыт список пушек или модулей; null — ни один. */
+  private slot: string | null = null;
 
   constructor(
     private readonly root: HTMLElement,
     private readonly hulls: Hulls,
     private readonly weapons: Weapons,
+    private readonly modules: Modules,
     private readonly handlers: DockHandlers,
     private readonly names: MissionNames,
   ) {}
@@ -163,7 +213,7 @@ export class DockScreen {
     if (this.tab === 'missions') this.renderMissions(body, hangar);
     else if (this.tab === 'cargo') this.renderCargo(body);
     else if (this.tab === 'hulls') this.renderHulls(body, hangar, credits);
-    else this.renderWeapons(body, hangar, credits);
+    else this.renderFitting(body, hangar, credits);
     card.append(body);
 
     // Экран перерисовывается целиком после каждой продажи и покупки — прокрутку списка сохраняем.
@@ -177,8 +227,8 @@ export class DockScreen {
   private shipLine(hangar: HangarMsg, credits: number): HTMLElement {
     const line = el('div', 'dock-ship');
     const hull = this.hulls.get(hangar.hull);
-    const weapon = this.weapons.get(hangar.weapon);
-    line.append(el('div', 'dock-ship-name', `${hull.name} · ${weapon.name}`));
+    const guns = hangar.fit.weapons.filter((id): id is string => !!id).map((id) => this.weapons.get(id).name);
+    line.append(el('div', 'dock-ship-name', [hull.name, ...guns].join(' · ')));
     line.append(el('div', 'dock-ship-hp', `Корпус ${hangar.hp} / ${hangar.maxHp}`));
     const missing = hangar.maxHp - hangar.hp;
     if (missing > 0) {
@@ -289,41 +339,158 @@ export class DockScreen {
   }
 
   private renderHulls(body: HTMLElement, hangar: HangarMsg, credits: number): void {
+    if (this.modules.enabled) body.append(el('div', 'dock-note', 'Щит, радар, бак и двигатель — модули: они переходят на новый корпус'));
     for (const id of this.hulls.ids()) {
       const hull = this.hulls.get(id);
-      const extra = [hull.fuel ? `бак ${hull.fuel}` : '', hull.radar ? `радар ${hull.radar}` : ''].filter(Boolean);
-      const stats = [`корпус ${hull.hp} · щит ${hull.shield} · скорость ${hull.maxSpeed} · трюм ${hull.cargo}`, ...extra].join(' · ');
+      const slots = hullSlots(hull).join(' ');
+      const own = this.modules.enabled
+        ? [`класс ${hull.class ?? 'L'}`, `пушки ${slots}`]
+        : [`щит ${hull.shield}`, hull.fuel ? `бак ${hull.fuel}` : '', hull.radar ? `радар ${hull.radar}` : ''];
+      const stats = [`корпус ${hull.hp} · скорость ${hull.maxSpeed} · трюм ${hull.cargo}`, ...own.filter(Boolean)].join(' · ');
       const state = offerState(hangar.hulls.includes(id), id === hangar.hull, price(this.shop.hulls, id), credits);
-      body.append(this.offer('hull', id, hull.name, stats, state));
+      body.append(this.offer(id, hull.name, stats, state));
     }
   }
 
-  private renderWeapons(body: HTMLElement, hangar: HangarMsg, credits: number): void {
-    for (const id of this.weapons.ids()) {
-      const weapon = this.weapons.get(id);
-      const state = offerState(hangar.weapons.includes(id), id === hangar.weapon, price(this.shop.weapons, id), credits);
-      body.append(this.offer('weapon', id, weapon.name, weaponLabel(weapon), state));
+  /**
+   * Оснащение (GDD §13, §18–20): оружейные слоты корпуса и модули, энергия генератора, склад. Тап по слоту
+   * открывает под ним всё, что туда встаёт: со склада — поставить, из магазина — купить и сразу поставить.
+   */
+  private renderFitting(body: HTMLElement, hangar: HangarMsg, credits: number): void {
+    const hull = this.hulls.get(hangar.hull);
+    const powerMax = hangar.powerMax ?? 0;
+    if (powerMax > 0) {
+      const power = hangar.power ?? 0;
+      const bar = el('div', 'dock-power');
+      const fill = el('div', 'dock-power-fill');
+      fill.style.width = `${Math.min(100, (100 * power) / powerMax)}%`;
+      bar.append(fill, el('div', 'dock-power-text', `Энергия ${power} / ${powerMax}`));
+      body.append(bar);
+    }
+
+    body.append(el('div', 'dock-note', `Оружие · слотов ${hullSlots(hull).length}`));
+    hullSlots(hull).forEach((slotClass, i) => this.slotRow(body, hangar, credits, weaponSlot(i), `Слот ${i + 1} · ${slotClass}`));
+    if (this.modules.enabled) {
+      body.append(el('div', 'dock-note', `Модули · класс корпуса ${hull.class ?? 'L'}`));
+      for (const slot of MODULE_SLOTS) this.slotRow(body, hangar, credits, slot, SLOT_NAMES[slot]);
+    }
+
+    const stored = Object.entries(hangar.storage ?? {}).filter(([, count]) => count > 0);
+    if (hangar.guest) return;
+    body.append(el('div', 'dock-note', 'Склад станции'));
+    if (stored.length === 0) {
+      body.append(el('div', 'dock-empty', 'Пусто. Снятое с корабля и купленное про запас лежит здесь.'));
+      return;
+    }
+    for (const [id, count] of stored) {
+      const row = el('div', 'dock-row');
+      const picture = this.picture(id);
+      if (picture) row.append(icon(picture));
+      row.append(el('div', 'dock-name', `${this.itemName(id)} ×${count}`), el('div', 'dock-stats', this.itemLabel(id)));
+      const cost = sellPrice(this.shop, id);
+      row.append(button(cost > 0 ? `Продать · ${formatCredits(cost)}` : 'Выбросить', 'dock-buy', () => this.handlers.onSellItem(id)));
+      body.append(row);
     }
   }
 
-  private offer(kind: BuyKind, id: string, name: string, stats: string, state: OfferState): HTMLElement {
+  /** Строка слота: что стоит; открытый слот — ещё и список того, что туда встаёт. */
+  private slotRow(body: HTMLElement, hangar: HangarMsg, credits: number, slot: string, label: string): void {
+    const hull = this.hulls.get(hangar.hull);
+    const current = fitGet(hangar.fit, slot);
+    const open = this.slot === slot;
+    const row = el('div', 'dock-row dock-slot');
+    row.dataset.state = open ? 'active' : current ? 'owned' : 'none';
+    const picture = current ? this.picture(current) : null;
+    if (picture) row.append(icon(picture));
+    row.append(
+      el('div', 'dock-name', `${label}: ${current ? this.itemName(current) : 'пусто'}`),
+      el('div', 'dock-stats', current ? this.itemLabel(current) : 'Свободный слот'),
+    );
+    row.append(
+      button(open ? 'Закрыть' : current ? 'Сменить' : 'Выбрать', 'dock-buy', () => {
+        this.slot = open ? null : slot;
+        this.render();
+      }),
+    );
+    body.append(row);
+    if (!open) return;
+
+    const list = el('div', 'dock-slot-list');
+    if (current && !(REQUIRED_SLOTS as string[]).includes(slot)) {
+      list.append(button('Снять на склад', 'dock-link', () => this.handlers.onFit(slot, null)));
+    }
+    const weaponsCatalog = this.weapons.config;
+    const modules = this.modules.catalog;
+    const ids = weaponIndex(slot) !== null ? this.weapons.ids() : this.modules.ids().filter((id) => this.modules.get(id)?.slot === slot);
+    for (const id of ids) {
+      const stored = hangar.guest ? Infinity : (hangar.storage?.[id] ?? 0);
+      const problem = id === current ? null : canInstall(hull, hangar.fit, slot, id, weaponsCatalog, modules);
+      // Чего не поставить по классу — и не показываем: список не должен тонуть в недоступном.
+      if (problem === 'class' || problem === 'slot') continue;
+      const offer = slotOffer(id === current, stored, price(this.shop.items, id), credits, problem);
+      if (offer.action === 'none') continue;
+      const item = el('div', 'dock-row');
+      item.dataset.state = offer.action === 'installed' ? 'active' : offer.action === 'install' ? 'owned' : offer.poor || offer.problem ? 'poor' : 'buy';
+      const picture = this.picture(id);
+      if (picture) item.append(icon(picture));
+      const name = offer.action === 'install' && Number.isFinite(stored) ? `${this.itemName(id)} · на складе ${stored}` : this.itemName(id);
+      item.append(el('div', 'dock-name', name), el('div', 'dock-stats', this.itemLabel(id)));
+      switch (offer.action) {
+        case 'installed':
+          item.append(el('div', 'dock-tag', 'Стоит'));
+          break;
+        case 'install': {
+          const put = button(offer.problem ? describeFitProblem(offer.problem) : 'Поставить', 'dock-buy', () => this.handlers.onFit(slot, id));
+          put.disabled = offer.problem !== null;
+          item.append(put);
+          break;
+        }
+        case 'buy': {
+          const text = offer.problem ? describeFitProblem(offer.problem) : `Купить · ${formatCredits(offer.cost)}`;
+          const buy = button(text, 'dock-buy', () => this.handlers.onBuy('item', id, slot));
+          buy.disabled = offer.poor || offer.problem !== null;
+          item.append(buy);
+          break;
+        }
+      }
+      list.append(item);
+    }
+    body.append(list);
+  }
+
+  private itemName(id: string): string {
+    if (this.weapons.has(id)) return this.weapons.get(id).name;
+    return this.modules.get(id)?.name ?? id;
+  }
+
+  private itemLabel(id: string): string {
+    if (this.weapons.has(id)) return weaponLabel(this.weapons.get(id));
+    const m = this.modules.get(id);
+    return m ? `${m.class} · ${moduleLabel(m)}` : '';
+  }
+
+  private picture(id: string): string | null {
+    if (this.weapons.has(id)) return weaponSprite(id);
+    const m = this.modules.get(id);
+    return m ? moduleSprite(m.slot) : null;
+  }
+
+  private offer(id: string, name: string, stats: string, state: OfferState): HTMLElement {
     const row = el('div', 'dock-row');
     row.dataset.state = state;
-    const picture = kind === 'hull' ? shipSprite(id, false) : weaponSprite(id);
-    if (picture) row.append(icon(picture));
+    row.append(icon(shipSprite(id, false)));
     row.append(el('div', 'dock-name', name), el('div', 'dock-stats', stats));
-    const prices = kind === 'hull' ? this.shop.hulls : this.shop.weapons;
-    const cost = price(prices, id) ?? 0;
+    const cost = price(this.shop.hulls, id) ?? 0;
     switch (state) {
       case 'active':
         row.append(el('div', 'dock-tag', 'На корабле'));
         break;
       case 'owned':
-        row.append(button('Поставить', 'dock-buy', () => this.handlers.onEquip(kind, id)));
+        row.append(button('Поставить', 'dock-buy', () => this.handlers.onEquip(id)));
         break;
       case 'buy':
       case 'poor': {
-        const buy = button(`Купить · ${formatCredits(cost)}`, 'dock-buy', () => this.handlers.onBuy(kind, id));
+        const buy = button(`Купить · ${formatCredits(cost)}`, 'dock-buy', () => this.handlers.onBuy('hull', id));
         buy.disabled = state === 'poor';
         row.append(buy);
         break;
@@ -336,9 +503,13 @@ export class DockScreen {
   }
 }
 
-/** Строка характеристик пушки на витрине: урон, темп, точность, дальность. */
+/** Строка характеристик пушки на витрине: класс, урон, темп, точность (у ракетницы — самонаведение), дальность, энергия. */
 export function weaponLabel(weapon: WeaponParams): string {
-  return `урон ${weapon.damage} · раз в ${weapon.cooldown} с · точность ${weapon.accuracy}% · дальность ${weapon.maxRange}`;
+  const aim = weapon.missile ? 'самонаведение' : `точность ${weapon.accuracy}%`;
+  const parts = [`урон ${weapon.damage}`, `раз в ${weapon.cooldown} с`, aim, `дальность ${weapon.maxRange}`];
+  if (weapon.class) parts.unshift(weapon.class);
+  if (weapon.power) parts.push(`энергия ${weapon.power}`);
+  return parts.join(' · ');
 }
 
 function el(tag: string, className: string, text?: string): HTMLElement {

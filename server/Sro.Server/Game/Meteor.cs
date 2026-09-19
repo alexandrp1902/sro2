@@ -10,7 +10,7 @@ namespace Sro.Server.Game;
 public sealed class Meteor : ShipEntity
 {
     public Meteor(int id, string sizeId, MeteorSize size, long expiresAtTick)
-        : base(id, size.Name, SimConfig.DefaultHull, "")
+        : base(id, size.Name, SimConfig.DefaultHull, [])
     {
         SizeId = sizeId;
         Size = size;
@@ -39,5 +39,5 @@ public sealed class Meteor : ShipEntity
     /// <summary>Камень не уклоняется: шанс попадания зависит только от пушки и дистанции.</summary>
     public override double Evasion(Balance balance, double speed) => 0;
 
-    public override WeaponParams? Weapon(Balance balance) => null;
+    public override WeaponParams? WeaponAt(Balance balance, int slot) => null;
 }

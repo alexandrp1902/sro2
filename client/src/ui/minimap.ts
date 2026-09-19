@@ -17,6 +17,8 @@ const COLORS = {
   player: '#ffb45a',
   pirate: '#ff6b5a',
   drone: '#9ccf9a',
+  trader: '#e8c95a',
+  missile: '#ff4a3a',
   target: '#ffffff',
   objective: '#ffd166',
 };
@@ -26,7 +28,7 @@ export interface MinimapShip {
   id: number;
   x: number;
   y: number;
-  kind: 'player' | 'pirate' | 'drone';
+  kind: 'player' | 'pirate' | 'drone' | 'trader';
   dead: boolean;
 }
 
@@ -45,6 +47,8 @@ export interface MinimapFrame {
   targetId: number;
   /** Цель задания или обучения — золотое кольцо; null — нет. */
   objective?: { x: number; y: number } | null;
+  /** Ракеты в полёте. */
+  missiles?: readonly { x: number; y: number }[];
 }
 
 /**
@@ -148,6 +152,13 @@ export class Minimap {
         ctx.arc(px(ship.x), px(ship.y), 4.5 * dpr, 0, 2 * Math.PI);
         ctx.stroke();
       }
+    }
+
+    // Ракеты — крошечные красные точки: видно, что к тебе что-то летит.
+    for (const missile of frame.missiles ?? []) {
+      const s = 1.2 * dpr;
+      ctx.fillStyle = COLORS.missile;
+      ctx.fillRect(px(missile.x) - s, px(missile.y) - s, s * 2, s * 2);
     }
 
     if (frame.objective) {

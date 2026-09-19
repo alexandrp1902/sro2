@@ -1,8 +1,8 @@
 import { decode } from '@msgpack/msgpack';
-import type { AiState, KillDto, LootDto, MeteorDto, PickDto, ShipDto, ShotDto, SnapshotMsg } from './protocol';
+import type { AiState, KillDto, LootDto, MeteorDto, MissileDto, PickDto, ShipDto, ShotDto, SnapshotMsg } from './protocol';
 
 // Зеркало server/Sro.Server/Net/SnapshotCodec.cs; общий эталон — shared/test-vectors/snapshot.json.
-// Кадр: [1, tick, key, ships, goneShips, loot, goneLoot, meteors, goneMeteors, shots, kills, picks].
+// Кадр: [1, tick, key, ships, goneShips, loot, goneLoot, meteors, goneMeteors, shots, kills, picks, missiles, goneMissiles].
 // Сущность — [id, mask, …поля, чьи биты стоят в mask, по порядку битов]; новая сущность и ключевой кадр — все поля.
 
 const FRAME_TYPE = 1;
@@ -10,6 +10,7 @@ const FRAME_TYPE = 1;
 const SHIP_FIELDS = 16;
 const LOOT_FIELDS = 6;
 const METEOR_FIELDS = 6;
+const MISSILE_FIELDS = 6;
 
 type Row = unknown[];
 
@@ -22,6 +23,7 @@ export class SnapshotDecoder {
   private readonly ships = new Map<number, ShipDto>();
   private readonly loot = new Map<number, LootDto>();
   private readonly meteors = new Map<number, MeteorDto>();
+  private readonly missiles = new Map<number, MissileDto>();
   /** Дельта пришла к сущности, которой мы не знаем: клиент и сервер разошлись. Ключевой кадр это починит. */
   desyncs = 0;
 
@@ -29,12 +31,13 @@ export class SnapshotDecoder {
     this.ships.clear();
     this.loot.clear();
     this.meteors.clear();
+    this.missiles.clear();
   }
 
   decode(bytes: ArrayBuffer | Uint8Array): SnapshotMsg {
     const frame = decode(bytes) as Row;
     if (!Array.isArray(frame) || frame.length < 12 || frame[0] !== FRAME_TYPE) throw new Error('not a snapshot frame');
-    const [, tick, key, ships, goneShips, loot, goneLoot, meteors, goneMeteors, shots, kills, picks] = frame as [
+    const [, tick, key, ships, goneShips, loot, goneLoot, meteors, goneMeteors, shots, kills, picks, missiles, goneMissiles] = frame as [
       number,
       number,
       boolean,
@@ -47,6 +50,8 @@ export class SnapshotDecoder {
       Row[] | null,
       Row[] | null,
       Row[] | null,
+      Row[] | undefined,
+      number[] | undefined,
     ];
     if (key) this.reset();
 
@@ -56,10 +61,13 @@ export class SnapshotDecoder {
     for (const id of goneLoot) this.loot.delete(id);
     for (const row of meteors) this.readMeteor(row);
     for (const id of goneMeteors) this.meteors.delete(id);
+    for (const row of missiles ?? []) this.readMissile(row);
+    for (const id of goneMissiles ?? []) this.missiles.delete(id);
 
     const message: SnapshotMsg = { t: 'snapshot', tick, ships: [...this.ships.values()].map((s) => ({ ...s })) };
     if (this.loot.size > 0) message.loot = [...this.loot.values()].map((l) => ({ ...l }));
     if (this.meteors.size > 0) message.meteors = [...this.meteors.values()].map((m) => ({ ...m }));
+    if (this.missiles.size > 0) message.missiles = [...this.missiles.values()].map((m) => ({ ...m }));
     if (shots) message.shots = shots.map(readShot);
     if (kills) message.kills = kills.map(([id, by]) => ({ id, by }) as KillDto);
     if (picks) message.picks = picks.map(([by, id, i, n]) => ({ by, id, i, n }) as PickDto);
@@ -131,6 +139,25 @@ export class SnapshotDecoder {
     if (mask & (1 << 3)) m.vy = next() as number;
     if (mask & (1 << 4)) m.s = next() as string;
     if (mask & (1 << 5)) m.hp = next() as number;
+  }
+
+  private readMissile(row: Row): void {
+    const id = row[0] as number;
+    const mask = row[1] as number;
+    let m = this.missiles.get(id);
+    if (!m) {
+      if (mask !== (1 << MISSILE_FIELDS) - 1) this.desyncs++;
+      m = { id, x: 0, y: 0, r: 0, o: 0, t: 0, w: '' };
+      this.missiles.set(id, m);
+    }
+    let i = 2;
+    const next = () => row[i++];
+    if (mask & (1 << 0)) m.x = next() as number;
+    if (mask & (1 << 1)) m.y = next() as number;
+    if (mask & (1 << 2)) m.r = next() as number;
+    if (mask & (1 << 3)) m.o = next() as number;
+    if (mask & (1 << 4)) m.t = next() as number;
+    if (mask & (1 << 5)) m.w = next() as string;
   }
 }
 

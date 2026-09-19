@@ -1,0 +1,352 @@
+{
+  "hulls": {
+    "light": {
+      "name": "Лёгкий",
+      "maxSpeed": 330,
+      "acceleration": 180,
+      "brakeAcceleration": 220,
+      "turnRate": 150,
+      "lateralDampTime": 0.65,
+      "lateralToForward": 0,
+      "size": 16,
+      "hp": 1500,
+      "shield": 500,
+      "shieldRegen": 20,
+      "evasion": 25,
+      "moveEvasion": 8,
+      "cargo": 20,
+      "fuel": 100,
+      "radar": 2000,
+      "class": "S",
+      "weaponSlots": [
+        "S",
+        "S"
+      ]
+    },
+    "heavy": {
+      "name": "Тяжёлый",
+      "maxSpeed": 170,
+      "acceleration": 70,
+      "brakeAcceleration": 80,
+      "turnRate": 55,
+      "lateralDampTime": 1.5,
+      "lateralToForward": 0,
+      "size": 30,
+      "hp": 7000,
+      "shield": 1800,
+      "shieldRegen": 50,
+      "evasion": 5,
+      "moveEvasion": 2,
+      "cargo": 20,
+      "fuel": 100,
+      "radar": 2000,
+      "class": "L",
+      "weaponSlots": [
+        "L",
+        "M"
+      ]
+    }
+  },
+  "weapons": {
+    "pulse": {
+      "name": "Импульсная пушка Mk1",
+      "damage": 100,
+      "accuracy": 75,
+      "cooldown": 1,
+      "optimalRange": 500,
+      "maxRange": 700,
+      "rangePenalty": 10,
+      "arc": 60,
+      "kind": "bolt",
+      "color": "#ffd166",
+      "closeRange": 0,
+      "closePenalty": 0,
+      "class": "S",
+      "power": 15,
+      "missile": null
+    },
+    "plasma": {
+      "name": "Плазма Mk1",
+      "damage": 280,
+      "accuracy": 60,
+      "cooldown": 2,
+      "optimalRange": 450,
+      "maxRange": 650,
+      "rangePenalty": 15,
+      "arc": 60,
+      "kind": "orb",
+      "color": "#ffd166",
+      "closeRange": 250,
+      "closePenalty": 35,
+      "class": "M",
+      "power": 30,
+      "missile": null
+    },
+    "big": {
+      "name": "Импульсная пушка Mk1",
+      "damage": 100,
+      "accuracy": 75,
+      "cooldown": 1,
+      "optimalRange": 500,
+      "maxRange": 700,
+      "rangePenalty": 10,
+      "arc": 60,
+      "kind": "bolt",
+      "color": "#ffd166",
+      "closeRange": 0,
+      "closePenalty": 0,
+      "class": "L",
+      "power": 50,
+      "missile": null
+    }
+  },
+  "modules": {
+    "engineS": {
+      "name": "Двигатель S",
+      "slot": "engine",
+      "class": "S",
+      "power": 5,
+      "speed": 1,
+      "accel": 1,
+      "shield": 0,
+      "shieldRegen": 0,
+      "radar": 0,
+      "fuel": 0,
+      "output": 0
+    },
+    "engineL": {
+      "name": "Двигатель L",
+      "slot": "engine",
+      "class": "L",
+      "power": 15,
+      "speed": 1.2,
+      "accel": 1.5,
+      "shield": 0,
+      "shieldRegen": 0,
+      "radar": 0,
+      "fuel": 0,
+      "output": 0
+    },
+    "shieldS": {
+      "name": "Щит S",
+      "slot": "shield",
+      "class": "S",
+      "power": 10,
+      "speed": 1,
+      "accel": 1,
+      "shield": 150,
+      "shieldRegen": 20,
+      "radar": 0,
+      "fuel": 0,
+      "output": 0
+    },
+    "radarS": {
+      "name": "Радар S",
+      "slot": "radar",
+      "class": "S",
+      "power": 5,
+      "speed": 1,
+      "accel": 1,
+      "shield": 0,
+      "shieldRegen": 0,
+      "radar": 2000,
+      "fuel": 0,
+      "output": 0
+    },
+    "tankS": {
+      "name": "Бак S",
+      "slot": "tank",
+      "class": "S",
+      "power": 0,
+      "speed": 1,
+      "accel": 1,
+      "shield": 0,
+      "shieldRegen": 0,
+      "radar": 0,
+      "fuel": 100,
+      "output": 0
+    },
+    "generatorS": {
+      "name": "Генератор S",
+      "slot": "generator",
+      "class": "S",
+      "power": 0,
+      "speed": 1,
+      "accel": 1,
+      "shield": 0,
+      "shieldRegen": 0,
+      "radar": 0,
+      "fuel": 0,
+      "output": 60
+    },
+    "generatorL": {
+      "name": "Генератор L",
+      "slot": "generator",
+      "class": "L",
+      "power": 0,
+      "speed": 1,
+      "accel": 1,
+      "shield": 0,
+      "shieldRegen": 0,
+      "radar": 0,
+      "fuel": 0,
+      "output": 200
+    }
+  },
+  "cases": [
+    {
+      "hull": "light",
+      "fit": {
+        "weapons": [
+          "pulse"
+        ],
+        "engine": "engineS",
+        "shield": "shieldS",
+        "radar": "radarS",
+        "tank": "tankS",
+        "generator": "generatorS"
+      },
+      "effective": {
+        "name": "Лёгкий",
+        "maxSpeed": 330,
+        "acceleration": 180,
+        "brakeAcceleration": 220,
+        "turnRate": 150,
+        "lateralDampTime": 0.65,
+        "lateralToForward": 0,
+        "size": 16,
+        "hp": 1500,
+        "shield": 150,
+        "shieldRegen": 20,
+        "evasion": 25,
+        "moveEvasion": 8,
+        "cargo": 20,
+        "fuel": 100,
+        "radar": 2000,
+        "class": "S",
+        "weaponSlots": [
+          "S",
+          "S"
+        ]
+      },
+      "power": 35,
+      "output": 60
+    },
+    {
+      "hull": "light",
+      "fit": {
+        "weapons": [
+          "pulse",
+          "pulse"
+        ],
+        "engine": "engineS",
+        "shield": null,
+        "radar": "radarS",
+        "tank": "tankS",
+        "generator": "generatorS"
+      },
+      "effective": {
+        "name": "Лёгкий",
+        "maxSpeed": 330,
+        "acceleration": 180,
+        "brakeAcceleration": 220,
+        "turnRate": 150,
+        "lateralDampTime": 0.65,
+        "lateralToForward": 0,
+        "size": 16,
+        "hp": 1500,
+        "shield": 0,
+        "shieldRegen": 0,
+        "evasion": 25,
+        "moveEvasion": 8,
+        "cargo": 20,
+        "fuel": 100,
+        "radar": 2000,
+        "class": "S",
+        "weaponSlots": [
+          "S",
+          "S"
+        ]
+      },
+      "power": 40,
+      "output": 60
+    },
+    {
+      "hull": "heavy",
+      "fit": {
+        "weapons": [
+          "big",
+          "plasma"
+        ],
+        "engine": "engineL",
+        "shield": "shieldS",
+        "radar": "radarS",
+        "tank": "tankS",
+        "generator": "generatorL"
+      },
+      "effective": {
+        "name": "Тяжёлый",
+        "maxSpeed": 204,
+        "acceleration": 105,
+        "brakeAcceleration": 120,
+        "turnRate": 55,
+        "lateralDampTime": 1.5,
+        "lateralToForward": 0,
+        "size": 30,
+        "hp": 7000,
+        "shield": 150,
+        "shieldRegen": 20,
+        "evasion": 5,
+        "moveEvasion": 2,
+        "cargo": 20,
+        "fuel": 100,
+        "radar": 2000,
+        "class": "L",
+        "weaponSlots": [
+          "L",
+          "M"
+        ]
+      },
+      "power": 110,
+      "output": 200
+    },
+    {
+      "hull": "heavy",
+      "fit": {
+        "weapons": [
+          null
+        ],
+        "engine": "engineS",
+        "shield": null,
+        "radar": "radarS",
+        "tank": null,
+        "generator": "generatorS"
+      },
+      "effective": {
+        "name": "Тяжёлый",
+        "maxSpeed": 170,
+        "acceleration": 70,
+        "brakeAcceleration": 80,
+        "turnRate": 55,
+        "lateralDampTime": 1.5,
+        "lateralToForward": 0,
+        "size": 30,
+        "hp": 7000,
+        "shield": 0,
+        "shieldRegen": 0,
+        "evasion": 5,
+        "moveEvasion": 2,
+        "cargo": 20,
+        "fuel": 0,
+        "radar": 2000,
+        "class": "L",
+        "weaponSlots": [
+          "L",
+          "M"
+        ]
+      },
+      "power": 10,
+      "output": 60
+    }
+  ]
+}

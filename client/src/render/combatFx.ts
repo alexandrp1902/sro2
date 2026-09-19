@@ -46,6 +46,8 @@ const EXPLOSION_MS = 950;
 const EXPLOSION_FRAMES = Array.from({ length: 9 }, (_, i) => `explosions-f${i}` as SpriteName);
 /** Сторона кадра в размерах корабля: огонь занимает около двух третей кадра. */
 const EXPLOSION_SIZE = 6.5;
+/** Взрыв ракеты — такая доля взрыва корабля. */
+const MISSILE_BLAST = 0.4;
 /** Тракторный луч (GDD §21): предмет втягивается в корабль за это время. */
 const TRACTOR_MS = 350;
 
@@ -70,8 +72,17 @@ export class CombatFx {
       if (to) this.impact(shot, null, to, now);
       return;
     }
+    // Ракета долетела сама (render/missiles.ts): трассера нет — только попадание и малый взрыв на цели.
+    const weapon = this.weapons.get(shot.w);
+    if (weapon.missile) {
+      if (to) {
+        this.impact(shot, 'bolt', to, now);
+        this.add(new Explosion(this.view, to.x, to.y, to.size * MISSILE_BLAST, now));
+      }
+      return;
+    }
     if (!from || !to) return;
-    const kind = shotKind(this.weapons.get(shot.w).kind);
+    const kind = shotKind(weapon.kind);
     this.add(new SpriteFlash(this.view, `weapon-shots-${kind}-flash`, shot.from, from, to, MUZZLE_SIZE, MUZZLE_MS, now, 0.12));
     this.add(new Tracer(this.view, shot, kind, now, from, to, (at, time) => this.impact(shot, kind, at, time)));
   }
