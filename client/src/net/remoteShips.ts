@@ -62,6 +62,8 @@ export class RemoteShips {
   private readonly buffer = new SnapshotBuffer();
   private readonly ships = new Map<number, Remote>();
   private extrapolating = false;
+  /** Своя группа: их корабли — в цвет группы. */
+  party: ReadonlySet<number> = new Set();
 
   constructor(
     private readonly hulls: Hulls,
@@ -125,6 +127,7 @@ export class RemoteShips {
       const online = player?.online ?? true;
       const alpha = Math.min(1, (now - remote.bornAt) / FADE_IN_MS) * (online ? 1 : LOST_ALPHA);
       remote.visible = remote.ship.view.visible = !dead;
+      remote.ship.setAlly(this.party.has(id));
       if (!dead) {
         remote.ship.update(s.x, s.y, s.rot, s.hull, hull, engineGlow(s, s.th, hull), null);
         remote.ship.view.alpha = alpha;

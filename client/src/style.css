@@ -1443,3 +1443,270 @@ body {
 .dock-slot-list > .dock-link {
   display: block;
 }
+
+/* Табло вторжения пиратов (GDD §38): справа под трекером цели; красное, пока вторжение объявлено или идёт. */
+.event {
+  position: absolute;
+  top: calc(env(safe-area-inset-top) + 172px);
+  right: calc(env(safe-area-inset-right) + 10px);
+  width: 200px;
+  box-sizing: border-box;
+  padding: 6px 8px;
+  border-left: 3px solid #8fb4e8;
+  border-radius: 8px;
+  background: rgba(10, 16, 28, 0.72);
+  font-size: 13px;
+  line-height: 17px;
+  pointer-events: auto;
+  cursor: pointer;
+}
+
+.event[data-alert='true'] {
+  border-left-color: #ff5a4a;
+  background: rgba(60, 14, 12, 0.78);
+}
+
+.event[hidden],
+.event-results[hidden] {
+  display: none;
+}
+
+.event-title {
+  color: #ff8a7a;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+}
+
+.event[data-alert='false'] .event-title {
+  color: #cfe3ff;
+}
+
+.event-hint {
+  margin-top: 2px;
+  color: #e6d6d4;
+  font-size: 12px;
+  line-height: 15px;
+  font-variant-numeric: tabular-nums;
+}
+
+.event-results {
+  margin-top: 4px;
+  font-size: 11px;
+  line-height: 15px;
+  font-variant-numeric: tabular-nums;
+}
+
+.event-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 6px;
+  color: #b8c6da;
+}
+
+.event-row span:first-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.event-self {
+  color: #ffd166;
+  font-weight: 600;
+}
+
+#objective:not([hidden]) ~ #event {
+  top: calc(env(safe-area-inset-top) + 236px);
+}
+
+/* Табло справа заняло место — dev-панель ещё ниже. */
+#minimap:not([hidden]) ~ #event:not([hidden]) ~ .dev {
+  top: calc(env(safe-area-inset-top) + 330px);
+}
+
+/* Панель группы (GDD §37): ПК — слева внизу, там пусто; телефон — слева над стиком. */
+.party {
+  position: absolute;
+  left: calc(env(safe-area-inset-left) + 10px);
+  bottom: calc(env(safe-area-inset-bottom) + 14px);
+  width: 170px;
+  box-sizing: border-box;
+  padding: 5px 7px 6px;
+  border-left: 3px solid #b6ff6a;
+  border-radius: 8px;
+  background: rgba(10, 16, 28, 0.66);
+  font-size: 12px;
+  pointer-events: auto;
+}
+
+.party[hidden] {
+  display: none;
+}
+
+.party-title {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  color: #b6ff6a;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+}
+
+.party-leave {
+  padding: 1px 7px;
+  border: 1px solid rgba(182, 255, 106, 0.4);
+  border-radius: 6px;
+  background: transparent;
+  color: #d8ffb8;
+  font: inherit;
+  font-weight: 400;
+  letter-spacing: 0;
+  cursor: pointer;
+}
+
+.party-row {
+  margin-top: 4px;
+}
+
+.party-row[data-status='off'] {
+  opacity: 0.55;
+}
+
+.party-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 6px;
+  line-height: 15px;
+}
+
+.party-name {
+  color: #d8ffb8;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.party-row[data-self='true'] .party-name {
+  color: #7fd4ff;
+}
+
+.party-where {
+  color: #9aa4b4;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.party .bar {
+  height: 5px;
+  margin: 1px 0;
+}
+
+.party .bar span {
+  display: none;
+}
+
+/* Кнопка «В группу» на карточке цели. */
+.target-invite {
+  padding: 0 7px;
+  border: 1px solid rgba(182, 255, 106, 0.55);
+  border-radius: 6px;
+  background: rgba(40, 70, 20, 0.5);
+  color: #d8ffb8;
+  font: inherit;
+  font-size: 11px;
+  line-height: 16px;
+  white-space: nowrap;
+  cursor: pointer;
+  pointer-events: auto;
+}
+
+.target-invite[hidden] {
+  display: none;
+}
+
+.target[data-member='true'] {
+  border-color: rgba(182, 255, 106, 0.7);
+}
+
+/* Приглашение в группу: по центру, над игрой; отвечать не обязательно — само пропадёт. */
+.invite {
+  position: absolute;
+  top: 30%;
+  left: 50%;
+  transform: translateX(-50%);
+  min-width: 220px;
+  box-sizing: border-box;
+  padding: 10px 14px;
+  border: 1px solid rgba(182, 255, 106, 0.6);
+  border-radius: 12px;
+  background: rgba(10, 16, 28, 0.88);
+  text-align: center;
+  pointer-events: auto;
+}
+
+.invite[hidden] {
+  display: none;
+}
+
+.invite-text {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.invite-timer {
+  margin-top: 2px;
+  color: #9aa4b4;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.invite-buttons {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+.invite-buttons button {
+  min-width: 90px;
+  padding: 7px 10px;
+  border: 0;
+  border-radius: 8px;
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.invite-accept {
+  background: #3f7a22;
+  color: #eaffda;
+}
+
+.invite-decline {
+  background: #2a3346;
+  color: #cfe3ff;
+}
+
+@media (max-width: 520px) {
+  .event {
+    top: calc(env(safe-area-inset-top) + 140px);
+    width: min(170px, 44vw);
+    font-size: 12px;
+    line-height: 15px;
+  }
+
+  #objective:not([hidden]) ~ #event {
+    top: calc(env(safe-area-inset-top) + 196px);
+  }
+
+  #event:not([hidden]) ~ .feed {
+    max-width: calc(100vw - min(170px, 44vw) - 30px);
+  }
+
+  /* Над стиком: он занимает низ слева на 2r + 64 px. */
+  .party {
+    bottom: calc(env(safe-area-inset-bottom) + 2 * 64px + 72px);
+    width: min(150px, 40vw);
+  }
+}

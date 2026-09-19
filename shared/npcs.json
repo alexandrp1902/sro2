@@ -7,7 +7,7 @@
   "stationSafeRadius": 900,
   "patrolRadius": 250,
   "patrolThrottle": 0.35,
-  "levelScaling": { "hp": 0.2, "shield": 0.2, "damage": 0.1, "accuracy": 2 },
+  "levelScaling": { "hp": 0.2, "shield": 0.2, "damage": 0.1, "accuracy": 2, "bounty": 0.5 },
   "types": {
     "pirate": {
       "name": "Пират",
@@ -17,7 +17,8 @@
       "shield": 100,
       "damage": 0.45,
       "holdRange": 320,
-      "retreatHp": 0.25
+      "retreatHp": 0.25,
+      "bounty": 60
     },
     "heavyPirate": {
       "name": "Тяжёлый пират",
@@ -27,7 +28,8 @@
       "shield": 300,
       "damage": 0.5,
       "holdRange": 420,
-      "retreatHp": 0
+      "retreatHp": 0,
+      "bounty": 200
     },
     "trader": {
       "name": "Торговец",

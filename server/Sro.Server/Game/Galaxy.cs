@@ -19,6 +19,18 @@ public interface IRoomHost
     /// комнаты: посреди шага состав её кораблей меняться не должен.
     /// </summary>
     void Depart(Room from, Player player, string to, bool jump);
+
+    /// <summary>a и b в одной группе (GDD §37): друг по другу не стреляют.</summary>
+    bool SameParty(int a, int b);
+
+    /// <summary>Участники группы пилота id, включая его самого; null — он не в группе.</summary>
+    IReadOnlyList<int>? PartyMembers(int id);
+
+    /// <summary>Пилот ушёл из игры насовсем: из группы — тоже.</summary>
+    void Gone(Player player);
+
+    /// <summary>Пилот нанёс урон пиратам вторжения id (GDD §38).</summary>
+    void Contributed(Player player, int invasionId, double damage);
 }
 
 /// <summary>
@@ -35,6 +47,8 @@ public sealed class Galaxy : IRoomHost
     private readonly Dictionary<int, Room> _byConnection = [];
     private readonly List<(Room From, Player Player, string To, bool Jump)> _departures = [];
     private readonly double[] _stepMs;
+    private readonly PartyBook _parties = new();
+    private readonly InvasionDirector _invasion;
     private int _nextId;
     private int _lastTotal;
 
@@ -60,7 +74,14 @@ public sealed class Galaxy : IRoomHost
             _rooms[id] = new Room(balance.ForSystem(id), log, roll, Next(), Next(), Next(), Next(), accounts, this, () => ++_nextId, epoch);
         }
         _stepMs = new double[_rooms.Count];
+        _invasion = new InvasionDirector(log, random?.Invoke(seed++));
     }
+
+    /// <summary>Группы галактики.</summary>
+    public PartyBook Parties => _parties;
+
+    /// <summary>Вторжения пиратов.</summary>
+    public InvasionDirector Invasion => _invasion;
 
     public Balance Balance { get; private set; }
 
@@ -86,6 +107,7 @@ public sealed class Galaxy : IRoomHost
         var room = _rooms.Values.FirstOrDefault(r => r.HasGuest(token)) ?? Start;
         room.Join(connection, token, name, hull, weapon);
         _byConnection[connection.Id] = room;
+        Joined(room, connection);
     }
 
     /// <summary>
@@ -98,6 +120,15 @@ public sealed class Galaxy : IRoomHost
         var room = _rooms.Values.FirstOrDefault(r => r.HasToken(accountId)) ?? Home(_accounts?.Profile(accountId)?.System);
         room.JoinAccount(connection, accountId, name);
         _byConnection[connection.Id] = room;
+        Joined(room, connection);
+    }
+
+    /// <summary>Вошедшему (или вернувшемуся) — идущее вторжение и своя группа сразу, не дожидаясь рассылки.</summary>
+    private void Joined(Room room, IClientConnection connection)
+    {
+        if (room.PlayerOf(connection) is not { } player) return;
+        _invasion.SendTo(player, this);
+        if (_parties.PartyOf(player.Id) is { } party) SendParty(party);
     }
 
     public void Disconnect(IClientConnection connection)
@@ -122,6 +153,8 @@ public sealed class Galaxy : IRoomHost
             _stepMs[i++] = Stopwatch.GetElapsedTime(started).TotalMilliseconds;
             if (_departures.Count > 0) Transfer();
         }
+        _invasion.Step(this, Tick);
+        StepParties();
 
         // «Онлайн» в статусе — по всей галактике: вошли в одной системе — узнают и в остальных.
         var total = OnlineTotal;
@@ -145,6 +178,134 @@ public sealed class Galaxy : IRoomHost
         Balance = balance;
         foreach (var (id, room) in _rooms) room.ApplyBalance(balance.ForSystem(id));
     }
+
+    /// <summary>Пилот по id, где бы он ни был.</summary>
+    public (Room Room, Player Player)? FindPilot(int id)
+    {
+        foreach (var room in _rooms.Values)
+        {
+            if (room.Pilot(id) is { } player) return (room, player);
+        }
+        return null;
+    }
+
+    public bool SameParty(int a, int b) => _parties.SameParty(a, b);
+
+    public IReadOnlyList<int>? PartyMembers(int id) => _parties.PartyOf(id)?.Members;
+
+    public void Gone(Player player) => LeaveParty(player.Id, player.Name);
+
+    public void Contributed(Player player, int invasionId, double damage) => _invasion.Contributed(player, invasionId, damage);
+
+    /// <summary>
+    /// Команда группы (GDD §37): позвать, принять или отклонить приглашение, выйти. Позвать можно пилота где угодно,
+    /// но клиент зовёт того, кто у него в цели.
+    /// </summary>
+    public void Party(IClientConnection connection, string? action, int id)
+    {
+        if (RoomOf(connection)?.PlayerOf(connection) is not { } player) return;
+        var rules = Balance.Party;
+        switch (action)
+        {
+            case PartyCodes.InviteAction:
+            {
+                if (FindPilot(id) is not { Player: { Connection: { } to } target })
+                {
+                    Event(player, PartyCodes.Gone);
+                    return;
+                }
+                if (_parties.Invite(player.Id, target.Id, Tick, rules.MaxSize, rules.InviteTicks) is { } problem)
+                {
+                    Event(player, problem, target.Name);
+                    return;
+                }
+                to.Send(new PartyInviteMsg(player.Id, player.Name, rules.InviteSeconds));
+                Event(player, PartyCodes.Invited, target.Name);
+                _log.LogInformation("Player {From} invited {To} to a party", player.Id, target.Id);
+                return;
+            }
+            case PartyCodes.AcceptAction:
+            {
+                if (FindPilot(id) is not { Player: var inviter })
+                {
+                    _parties.Decline(player.Id, id);
+                    Event(player, PartyCodes.Gone);
+                    return;
+                }
+                if (_parties.Accept(player.Id, id, Tick, rules.MaxSize) is { } problem)
+                {
+                    Event(player, problem, inviter.Name);
+                    return;
+                }
+                var party = _parties.PartyOf(player.Id)!;
+                foreach (var member in party.Members)
+                {
+                    if (FindPilot(member)?.Player is { } other) Event(other, PartyCodes.Joined, other == player ? null : player.Name);
+                }
+                SendParty(party);
+                _log.LogInformation("Player {Id} joined the party of {Leader}, {Count} members", player.Id, party.LeaderId, party.Members.Count);
+                return;
+            }
+            case PartyCodes.DeclineAction:
+                if (_parties.Decline(player.Id, id) && FindPilot(id)?.Player is { } host) Event(host, PartyCodes.Declined, player.Name);
+                return;
+            case PartyCodes.LeaveAction:
+                LeaveParty(player.Id, player.Name);
+                return;
+        }
+    }
+
+    /// <summary>Выход из группы: ему — пустая группа, остальным — кто ушёл (или что группы больше нет).</summary>
+    private void LeaveParty(int id, string name)
+    {
+        if (_parties.Leave(id) is not { } party) return;
+        if (FindPilot(id)?.Player.Connection is { } connection) connection.Send(new PartyStateMsg(0, []));
+        var alive = _parties.Alive(party);
+        foreach (var member in party.Members)
+        {
+            if (FindPilot(member)?.Player is not { } other) continue;
+            if (alive) Event(other, PartyCodes.Left, name);
+            else
+            {
+                Event(other, PartyCodes.Disbanded, name);
+                other.Connection?.Send(new PartyStateMsg(0, []));
+            }
+        }
+        if (alive) SendParty(party);
+        _log.LogInformation("Player {Id} left a party", id);
+    }
+
+    /// <summary>Истёкшие приглашения и раз в statusSeconds — состояние каждой группы её участникам.</summary>
+    private void StepParties()
+    {
+        foreach (var invite in _parties.Expire(Tick))
+        {
+            if (FindPilot(invite.From)?.Player is { } host) Event(host, PartyCodes.Expired, FindPilot(invite.To)?.Player.Name);
+        }
+        if (Tick % Balance.Party.StatusTicks != 0) return;
+        foreach (var party in _parties.Parties.ToList()) SendParty(party);
+    }
+
+    /// <summary>Состав группы, где кто, корпус и щит — всем её участникам на связи.</summary>
+    private void SendParty(Party party)
+    {
+        var members = new List<PartyMemberDto>(party.Members.Count);
+        foreach (var id in party.Members)
+        {
+            if (FindPilot(id) is not { } found) continue;
+            var (room, player) = found;
+            var hull = player.Effective(room.Balance);
+            members.Add(new PartyMemberDto(
+                player.Id, player.Name, room.SystemId, room.Balance.SystemDef.Name, player.Ship.X, player.Ship.Y,
+                (int)Math.Ceiling(player.Hp), (int)Math.Ceiling(player.MaxHp(hull)),
+                (int)Math.Ceiling(player.Shield), (int)Math.Ceiling(player.MaxShield(hull)),
+                player.Connection is not null, player.IsDead, player.Docked));
+        }
+        var bytes = Protocol.Encode(new PartyStateMsg(party.LeaderId, members));
+        foreach (var id in party.Members) FindPilot(id)?.Player.Connection?.SendRaw(bytes);
+    }
+
+    private static void Event(Player player, string code, string? name = null) => player.Connection?.Send(new PartyEventMsg(code, name));
 
     public bool IsNameTaken(string name, Player? self) => _rooms.Values.Any(r => r.NameTaken(name, self));
 

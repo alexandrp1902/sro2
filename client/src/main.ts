@@ -47,9 +47,11 @@ import { DockScreen } from './ui/dockScreen';
 import { Feed, describeBurn, describeKill, describeNotice } from './ui/feed';
 import { FlightHud } from './ui/flightHud';
 import { GalaxyMap } from './ui/galaxyMap';
+import { InvasionBoard, InvasionHud } from './ui/invasion';
 import { Minimap } from './ui/minimap';
 import { SosBoard } from './ui/sos';
 import { ObjectiveHud } from './ui/objectiveHud';
+import { InviteCard, PartyBoard, PartyPanel, describeBounty, describePartyEvent } from './ui/party';
 import { PilotForm, describeDenied } from './ui/pilotForm';
 import { StatusHud } from './ui/statusHud';
 import { account } from './util/account';
@@ -183,7 +185,19 @@ async function main(): Promise<void> {
     }
     if (id === 0) fire.release(); // без цели огонь выключается: кнопка не горит впустую
   };
-  const combatHud = new CombatHud(el('ship'), el('target'), el('death'), () => setTarget(0));
+  // Группа (GDD §37): свои — другим цветом, не цели для огня; позвать — с карточки цели.
+  const party = new PartyBoard();
+  remote.party = party.ids;
+  const isAlly = (id: number) => party.isMember(id, ownId());
+  const combatHud = new CombatHud(
+    el('ship'),
+    el('target'),
+    el('death'),
+    () => setTarget(0),
+    () => {
+      if (targetId > 0 && isOnline()) connection!.send({ t: 'party', action: 'invite', id: targetId });
+    },
+  );
 
   // Система (GDD §4): карта, станция или звезда, врата. Приходит в welcome, после прыжка — новая.
   let system: SystemDto | null = null;
@@ -278,15 +292,30 @@ async function main(): Promise<void> {
   // Карта галактики (GDD §55): M на ПК, тап по миникарте — везде.
   const galaxyMap = new GalaxyMap(el('galaxy'));
   const sos = new SosBoard();
+  // Вторжение пиратов (GDD §38): табло справа, точка на миникарте, система на карте галактики.
+  const invasion = new InvasionBoard();
   const minimap = new Minimap(el('minimap') as HTMLCanvasElement, () => galaxyMap.toggle());
   const refreshGalaxyMap = () =>
     galaxyMap.set(
       galaxy && system
-        ? { galaxy, current: system.id, fuel: fuel.fuel, maxFuel: fuel.max, home, objective: objectiveSystem(missions, system.id, galaxy) }
+        ? {
+            galaxy,
+            current: system.id,
+            fuel: fuel.fuel,
+            maxFuel: fuel.max,
+            home,
+            objective: objectiveSystem(missions, system.id, galaxy),
+            invasion: invasion.system(performance.now()),
+          }
         : null,
     );
   // Трекер цели: тап — карта галактики, на ней звёздочкой отмечена система задания.
   const objectiveHud = new ObjectiveHud(el('objective'), () => galaxyMap.show());
+  const invasionHud = new InvasionHud(el('event'), () => galaxyMap.show());
+  const partyPanel = new PartyPanel(el('party'), () => send({ t: 'party', action: 'leave' }));
+  const inviteCard = new InviteCard(el('invite'), (accept, from) =>
+    send({ t: 'party', action: accept ? 'accept' : 'decline', id: from }),
+  );
   window.addEventListener('keydown', (e) => {
     if (e.code !== 'KeyM' || e.repeat || e.ctrlKey || e.metaKey || e.altKey) return;
     if (e.target instanceof HTMLInputElement) return;
@@ -303,13 +332,18 @@ async function main(): Promise<void> {
     if (docked) return false;
     const current = remote.get(targetId) ?? meteors.get(targetId);
     if (current && !current.dead) {
+      if (isAlly(current.id)) {
+        feed.add(`${current.name} — в вашей группе`);
+        return false;
+      }
       if (pvpOff() && 'kind' in current && current.kind === 'player') {
         feed.add(`В системе ${system!.name} PvP нет`);
         return false;
       }
       return true;
     }
-    const candidates = pvpOff() ? targets().filter((t) => !('kind' in t) || t.kind !== 'player') : targets();
+    const foes = targets().filter((t) => !isAlly(t.id));
+    const candidates = pvpOff() ? foes.filter((t) => !('kind' in t) || t.kind !== 'player') : foes;
     const reach = longestRange(ownWeapons());
     const id = reach ? nearest(prediction.curr, candidates, reach) : null;
     if (id !== null) {
@@ -328,7 +362,8 @@ async function main(): Promise<void> {
    * у станции и врат свои, отрицательные. Прицел один: шаг на что-то одно снимает остальное.
    */
   const stepSelection = (step: -1 | 1) => {
-    const candidates = [...targets(), ...loot.visible(), ...marks()];
+    // Свои по группе в перебор не попадают: Q/E — для боя и дел, а союзника выбирают тапом.
+    const candidates = [...targets().filter((t) => !isAlly(t.id)), ...loot.visible(), ...marks()];
     const from = markId !== 0 ? markId : selectedLootId !== 0 ? selectedLootId : targetId;
     // Кольцо спирали — сектор: сначала обходим всё вокруг себя, потом уходим на виток дальше.
     const id = cycle(prediction.curr, candidates, from, step, sectorUnit);
@@ -646,6 +681,17 @@ async function main(): Promise<void> {
       const text = sos.apply(message, performance.now());
       if (text) feed.add(text, message.state === 'on');
     };
+    connection.onParty = (message) => {
+      if (message.t === 'partyInvite') inviteCard.show(message, performance.now());
+      else if (message.t === 'partyState') party.apply(message);
+      else feed.add(describePartyEvent(message));
+    };
+    connection.onBounty = (message) => feed.add(describeBounty(message));
+    connection.onInvasion = (message) => {
+      const line = invasion.apply(message, performance.now(), system?.id ?? '');
+      if (line) feed.add(line.text, line.alert);
+      refreshGalaxyMap();
+    };
     connection.onNotice = (message) => {
       const text = describeNotice(message.code);
       if (text) feed.add(text);
@@ -724,6 +770,10 @@ async function main(): Promise<void> {
       missions = null;
       dockScreen.setMissions(null);
       sos.clear();
+      party.clear();
+      inviteCard.hide();
+      invasion.clear();
+      refreshGalaxyMap();
     }
     wasOnline = online;
     if (latestSnapshot && online) {
@@ -799,6 +849,9 @@ async function main(): Promise<void> {
     // Цель задания или обучения: на неё указывает золотой маркер, на миникарте — кольцо.
     const goal = online ? locateObjective(objective(missions, system?.id ?? null, galaxy, docked || dead), state) : null;
     objectiveHud.update(online && !docked ? trackerLines(missions, system?.id ?? null, docked, names) : null);
+    invasionHud.update(online ? invasion.lines(now, roster.get(me)?.name ?? '') : null);
+    partyPanel.update(online && party.size > 0 ? party.rows({ id: me, system: system?.id ?? '', x: state.x, y: state.y }, sectorUnit) : null);
+    inviteCard.tick(now);
 
     camera.follow(state.x, state.y, zoom.value).apply(world, app.screen.width, app.screen.height);
     starfield.update(camera.x, camera.y, camera.zoom, app.screen.width, app.screen.height);
@@ -818,6 +871,7 @@ async function main(): Promise<void> {
       station: selectedMark(),
       sectorUnit,
       objective: goal,
+      party: party.ids,
     });
     fx.update(now, camera.zoom, locate);
     const gate = selectedGate();
@@ -840,6 +894,8 @@ async function main(): Promise<void> {
             aim,
             sectorUnit,
             fire: fire.active,
+            invite: targetShip?.kind === 'player' && !isAlly(targetShip.id),
+            member: !!targetShip && isAlly(targetShip.id),
           }
         : null,
       dead && ownDto?.rt ? { by: killedBy, seconds: Math.max(0, (ownDto.rt - tick) * DT) } : null,
@@ -882,7 +938,7 @@ async function main(): Promise<void> {
         gates: system?.gates ?? [],
         own: dead || docked ? null : { x: state.x, y: state.y, rot: state.rot },
         radar: hull.radar ?? DEFAULT_RADAR,
-        ships: [...remote.visible()].map((s) => ({ id: s.id, x: s.x, y: s.y, kind: s.kind, dead: s.dead })),
+        ships: [...remote.visible()].map((s) => ({ id: s.id, x: s.x, y: s.y, kind: isAlly(s.id) ? 'party' : s.kind, dead: s.dead })),
         targetId,
         objective: goal,
         missiles: missiles.visible(),
@@ -890,6 +946,7 @@ async function main(): Promise<void> {
           const ship = remote.get(id);
           return ship && !ship.dead ? ship : null;
         }),
+        invasion: invasion.point(system?.id ?? ''),
       },
       now,
     );

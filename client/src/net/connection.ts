@@ -2,12 +2,17 @@ import { FakeLag } from './fakeLag';
 import {
   PROTOCOL_VERSION,
   type AccountMsg,
+  type BountyMsg,
   type CargoMsg,
   type ClientMessage,
   type DeniedCode,
   type HangarMsg,
+  type InvasionMsg,
   type MissionsMsg,
   type NoticeMsg,
+  type PartyEventMsg,
+  type PartyInviteMsg,
+  type PartyStateMsg,
   type SosMsg,
   type ServerMessage,
   type SnapshotMsg,
@@ -72,6 +77,9 @@ export class Connection {
   onHangar: ((message: HangarMsg) => void) | null = null;
   onMissions: ((message: MissionsMsg) => void) | null = null;
   onSos: ((message: SosMsg) => void) | null = null;
+  onParty: ((message: PartyInviteMsg | PartyStateMsg | PartyEventMsg) => void) | null = null;
+  onBounty: ((message: BountyMsg) => void) | null = null;
+  onInvasion: ((message: InvasionMsg) => void) | null = null;
 
   private ws: WebSocket | null = null;
   private credentials: Credentials | null = null;
@@ -250,6 +258,17 @@ export class Connection {
         break;
       case 'sos':
         this.onSos?.(message);
+        break;
+      case 'partyInvite':
+      case 'partyState':
+      case 'partyEvent':
+        this.onParty?.(message);
+        break;
+      case 'bounty':
+        this.onBounty?.(message);
+        break;
+      case 'invasion':
+        this.onInvasion?.(message);
         break;
     }
   }

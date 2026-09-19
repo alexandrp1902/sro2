@@ -11,7 +11,7 @@ namespace Sro.Server.Game;
 /// (<see cref="GalaxyHost"/>), своих потоков и таймеров не имеет — поэтому тестируется напрямую.
 /// Соседние системы и переходы между ними — забота <see cref="Galaxy"/>; без неё комната живёт одна, как до M7.
 /// </summary>
-public sealed class Room
+public sealed partial class Room
 {
     public const int MaxNameLength = 16;
     public const string DefaultName = "Рейнджер";
@@ -163,6 +163,12 @@ public sealed class Room
 
     /// <summary>Игрок по id — в том числе в доке, когда его корабля в космосе нет.</summary>
     public Player? Pilot(int id) => _players.GetValueOrDefault(id);
+
+    /// <summary>Игрок этого соединения.</summary>
+    public Player? PlayerOf(IClientConnection connection) => _byConnection.GetValueOrDefault(connection.Id);
+
+    /// <summary>Все игроки системы, в том числе в доке и без связи.</summary>
+    public IEnumerable<Player> Pilots => _players.Values;
 
     /// <summary>Метеориты в полёте.</summary>
     public IReadOnlyList<Meteor> Meteors => _meteors.Alive;
@@ -689,7 +695,8 @@ public sealed class Room
         // Список логов тот же — значит, все их типы есть и в новом файле; налётчики — тоже, если налёты те же.
         foreach (var pirate in _pirates.ToList())
         {
-            if (pirate.IsRaider ? raidsSame : lairsSame)
+            // Вторжение идёт своим чередом: его пираты остаются, пока их тип есть в балансе.
+            if (pirate.IsInvader ? balance.Npc.TypeMap.ContainsKey(pirate.Spawn.Type) : pirate.IsRaider ? raidsSame : lairsSame)
             {
                 if (balance.Npc.TypeMap.TryGetValue(pirate.Spawn.Type, out var type)) pirate.Rebind(type, balance.Npc, old.Hulls, balance.Hulls);
                 continue;
@@ -799,8 +806,9 @@ public sealed class Room
         // Задания — до уборки налётчиков: погибший должен ещё найтись среди кораблей.
         foreach (var kill in _kills)
         {
-            if (_players.GetValueOrDefault(kill.By) is { } killer) CountKill(killer, _ships.GetValueOrDefault(kill.Id));
+            if (_players.GetValueOrDefault(kill.By) is { } killer) Credit(killer, _ships.GetValueOrDefault(kill.Id));
         }
+        NoteInvasionDamage();
         foreach (var meteor in _meteors.Shatter(_loot, Balance.Loot, Tick)) RemoveShip(meteor);
         StepSos();
         RemoveGonePirates();
@@ -1007,8 +1015,9 @@ public sealed class Room
     /// <summary>Новый налёт, когда групп меньше нормы и подошёл срок.</summary>
     private void StepRaids()
     {
-        if (Balance.Raids is not { } raids || Tick < _nextRaidTick) return;
-        var active = _pirates.Where(p => p.IsRaider).Select(p => p.RaidId).Distinct().Count();
+        // Пока идёт вторжение, обычные налёты сюда не летят: у станции и так жарко.
+        if (Balance.Raids is not { } raids || Tick < _nextRaidTick || InvasionId != 0) return;
+        var active = _pirates.Where(p => p.IsRaider && !p.IsInvader).Select(p => p.RaidId).Distinct().Count();
         if (active >= raids.MaxGroups) return;
         SpawnRaid(raids, onSite: false);
         _nextRaidTick = Tick + NextRaidWait(raids);
@@ -1333,6 +1342,7 @@ public sealed class Room
     private bool CanAttack(ShipEntity shooter, ShipEntity target)
     {
         if (shooter is not Player || target is not Player) return true;
+        if (_host?.SameParty(shooter.Id, target.Id) == true) return false; // по своим не стреляют (GDD §37)
         return Balance.SystemDef.Pvp switch
         {
             GalaxyRules.PvpFree => true,
@@ -1487,6 +1497,7 @@ public sealed class Room
         _players.Remove(player.Id);
         if (player.Token is not null) _byToken.Remove(player.Token);
         RemoveShip(player);
+        _host?.Gone(player);
     }
 
     /// <summary>
@@ -1725,6 +1736,15 @@ public sealed class Room
             (int)Math.Round(Fitting.Power(player.Fit, Balance.Weapons, Balance.Modules)),
             Balance.Modules is null ? 0 : (int)Math.Round(Fitting.Output(player.Fit, Balance.Modules)),
             player.IsGuest));
+    }
+
+    /// <summary>Кредиты пилоту за вторжение: сразу в аккаунт и клиенту.</summary>
+    public void Pay(Player player, int credits)
+    {
+        if (credits <= 0) return;
+        player.Credits += credits;
+        SendCargo(player);
+        Save(player);
     }
 
     /// <summary>

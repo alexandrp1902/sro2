@@ -13,6 +13,8 @@ const COLORS: Record<ShipKind, number> = {
   ranger: 0x7fe8d0,
 };
 const OUTLINE = 0x05060a;
+/** Своя группа (GDD §37) — салатовый: не путается ни с пилотами (персик), ни с рейнджерами (бирюза). */
+export const PARTY_COLOR = 0xb6ff6a;
 /** Выбранная цель: оранжевый контур вокруг её стрелки у края экрана и оранжевая подпись. */
 const TARGET_COLOR = 0xffa53a;
 /** Выбранный предмет: голубой — не путается ни с целью (оранжевая), ни со своим кораблём. */
@@ -137,6 +139,8 @@ export interface OverlayFrame {
   sectorUnit: number;
   /** Цель задания или обучения: куда лететь; id — если это корабль (у него своя стрелка у края). null — нет. */
   objective?: (LootMark & { id?: number }) | null;
+  /** Своя группа: их подписи и стрелки — цветом группы. */
+  party?: ReadonlySet<number>;
 }
 
 /**
@@ -197,7 +201,7 @@ export class PlayerOverlay {
     this.targetArrow.visible = false;
 
     for (const ship of ships) {
-      const marker = this.marker(ship.id, COLORS[ship.kind]);
+      const marker = this.marker(ship.id, frame.party?.has(ship.id) ? PARTY_COLOR : COLORS[ship.kind]);
       marker.seen = true;
       // Целятся в меня: пират, рейнджер (я обидел торговца) или сам торговец, которому я не дал уйти.
       const threat = ship.kind !== 'player' && ship.kind !== 'drone' && ship.targetId === ownId;
@@ -266,10 +270,7 @@ export class PlayerOverlay {
 
     for (const [id, marker] of this.markers) {
       if (marker.seen) continue;
-      marker.label.destroy();
-      marker.arrow.destroy();
-      marker.bars.destroy();
-      marker.bubble.destroy();
+      this.drop(marker);
       this.markers.delete(id);
     }
 
@@ -286,6 +287,13 @@ export class PlayerOverlay {
       }
       this.ownBubble.position.set(cx + (own.x - camera.x) * camera.zoom, cy + (own.y - camera.y) * camera.zoom);
     }
+  }
+
+  private drop(marker: Marker): void {
+    marker.label.destroy();
+    marker.arrow.destroy();
+    marker.bars.destroy();
+    marker.bubble.destroy();
   }
 
   /** Стрелки у края экрана из последнего update — по ним и по их подписям можно выбрать цель. */
@@ -483,6 +491,12 @@ export class PlayerOverlay {
 
   private marker(id: number, color: number): Marker {
     let marker = this.markers.get(id);
+    // Цвет сменился (вступил в группу или вышел) — стрелка залита старым: строим заново.
+    if (marker && marker.color !== color) {
+      this.drop(marker);
+      this.markers.delete(id);
+      marker = undefined;
+    }
     if (!marker) {
       const label = new Text({
         text: '',

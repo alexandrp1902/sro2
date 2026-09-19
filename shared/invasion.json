@@ -1,0 +1,16 @@
+{
+  "intervalMinutes": 20,
+  "firstMinutes": 5,
+  "announceSeconds": 120,
+  "durationSeconds": 300,
+  "waveGapSeconds": 20,
+  "fund": 3000,
+  "failShare": 0.3,
+  "minShare": 100,
+  "pointOffset": 1400,
+  "waves": [
+    [{ "type": "pirate", "level": 1, "count": 3 }],
+    [{ "type": "pirate", "level": 2, "count": 3 }, { "type": "heavyPirate", "level": 1, "count": 1 }],
+    [{ "type": "pirate", "level": 2, "count": 2 }, { "type": "heavyPirate", "level": 2, "count": 2 }]
+  ]
+}

@@ -99,9 +99,11 @@ public sealed record CombatRules(
 /// <param name="Galaxy">galaxy.json; null — одна система, раскладка из npcs.json, loot.json и combat.json.</param>
 /// <param name="Missions">missions.json; null — заданий и обучения нет.</param>
 /// <param name="Modules">modules.json; null — модулей нет: щит, радар и бак пилоту даёт корпус, как до M9.</param>
+/// <param name="Party">party.json; null — группы по умолчанию.</param>
+/// <param name="Invasion">invasion.json; null — вторжений нет.</param>
 public sealed record BalanceSources(
     string Hulls, string Weapons, string Rules, string Npcs, string Loot, string Meteors, string Shop,
-    string? Galaxy = null, string? Missions = null, string? Modules = null);
+    string? Galaxy = null, string? Missions = null, string? Modules = null, string? Party = null, string? Invasion = null);
 
 /// <summary>
 /// Весь баланс: корпуса, пушки, правила боя, NPC, лут, метеориты, магазин станции, галактика, задания.
@@ -120,6 +122,8 @@ public sealed record BalanceSources(
 /// </param>
 /// <param name="MissionSet">Задания и обучение; null — их нет.</param>
 /// <param name="Modules">Модули кораблей (GDD §13); null — их нет: щит, радар и бак пилоту даёт корпус, энергию не считают.</param>
+/// <param name="PartySet">Группы игроков (GDD §37); null — по умолчанию.</param>
+/// <param name="InvasionSet">Вторжения пиратов (GDD §38); null — их нет.</param>
 public sealed record Balance(
     IReadOnlyDictionary<string, HullParams> Hulls,
     IReadOnlyDictionary<string, WeaponParams> Weapons,
@@ -132,7 +136,9 @@ public sealed record Balance(
     string? SystemId = null,
     double? CoreRadius = null,
     MissionRules? MissionSet = null,
-    IReadOnlyDictionary<string, ModuleParams>? Modules = null)
+    IReadOnlyDictionary<string, ModuleParams>? Modules = null,
+    PartyRules? PartySet = null,
+    InvasionRules? InvasionSet = null)
 {
     public const string HullsFile = "hulls.json";
     public const string WeaponsFile = "weapons.json";
@@ -144,10 +150,12 @@ public sealed record Balance(
     public const string GalaxyFile = GalaxyRules.File;
     public const string MissionsFile = MissionRules.File;
     public const string ModulesFile = ModuleCatalog.File;
+    public const string PartyFile = PartyRules.File;
+    public const string InvasionFile = InvasionRules.File;
 
     /// <summary>Все файлы баланса в порядке разбора.</summary>
     public static readonly string[] Files =
-        [HullsFile, WeaponsFile, RulesFile, NpcsFile, LootFile, MeteorsFile, ShopFile, GalaxyFile, MissionsFile, ModulesFile];
+        [HullsFile, WeaponsFile, RulesFile, NpcsFile, LootFile, MeteorsFile, ShopFile, GalaxyFile, MissionsFile, ModulesFile, PartyFile, InvasionFile];
 
     public NpcRules Npc => Npcs ?? NpcRules.None;
 
@@ -160,6 +168,10 @@ public sealed record Balance(
     public GalaxyRules Galaxy => GalaxySet ?? GalaxyRules.Single;
 
     public MissionRules Missions => MissionSet ?? MissionRules.None;
+
+    public PartyRules Party => PartySet ?? PartyRules.Default;
+
+    public InvasionRules Invasion => InvasionSet ?? InvasionRules.None;
 
     /// <summary>Система этого вида баланса.</summary>
     public string System => SystemId ?? Galaxy.StartSystem;
@@ -323,6 +335,24 @@ public sealed record Balance(
                 return false;
             }
             parsed = parsed with { MissionSet = missions };
+        }
+        if (sources.Party is not null)
+        {
+            if (!PartyRules.TryParse(sources.Party, out var party, out error))
+            {
+                error = $"{PartyFile}: {error}";
+                return false;
+            }
+            parsed = parsed with { PartySet = party };
+        }
+        if (sources.Invasion is not null)
+        {
+            if (!InvasionRules.TryParse(sources.Invasion, npcs.TypeMap, out var invasion, out error))
+            {
+                error = $"{InvasionFile}: {error}";
+                return false;
+            }
+            parsed = parsed with { InvasionSet = invasion };
         }
         balance = parsed;
         return true;

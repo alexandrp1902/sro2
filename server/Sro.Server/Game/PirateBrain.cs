@@ -73,7 +73,7 @@ internal static class PirateBrain
         if (pirate.State is PirateState.Leave or PirateState.Return &&
             ships.GetValueOrDefault(attacker) is { } foe && IsCandidate(pirate, foe, tick, shelter) && Distance(pirate, foe) <= npc.DropRange)
         {
-            if (pirate.IsRaider && pirate.LeaveAtTick == 0 && pirate.Hp > pirate.MaxHp(hull) * pirate.Type.RetreatHp)
+            if (pirate.IsRaider && pirate.LeaveAtTick == 0 && pirate.Hp > pirate.MaxHp(hull) * pirate.RetreatHp)
             {
                 pirate.State = PirateState.Attack;
                 pirate.TargetId = foe.Id;
@@ -98,7 +98,8 @@ internal static class PirateBrain
                 return;
             }
             pirate.Avenge = 0;
-            pirate.Repair(hull);
+            // Пират вторжения на точке сбора не чинится: иначе его можно было бы увести на поводке и вылечить.
+            if (!pirate.IsInvader) pirate.Repair(hull);
             pirate.State = PirateState.Patrol;
             pirate.HasWaypoint = false;
             // Налётчик долетел до места: отсюда и идёт время его патруля.
@@ -149,7 +150,7 @@ internal static class PirateBrain
         // Патруль: сначала — не пора ли в бой.
         if (Acquire(pirate, attacker, ships, pirates, npc, shelter, tick, offenders) is { } found)
         {
-            if (pirate.Hp <= pirate.MaxHp(hull) * pirate.Type.RetreatHp)
+            if (pirate.Hp <= pirate.MaxHp(hull) * pirate.RetreatHp)
             {
                 if (pirate.IsRaider) StartLeave(pirate, "retreat", log);
                 else StartReturn(pirate, "retreat", log);
@@ -303,7 +304,7 @@ internal static class PirateBrain
     /// <param name="onTheWay">Налётчик в пути: поводка от точки патруля нет, бой держит только DropRange.</param>
     private static string? ReturnReason(Pirate pirate, ShipEntity target, HullParams hull, NpcRules npc, Shelter shelter, bool onTheWay)
     {
-        if (pirate.Hp <= pirate.MaxHp(hull) * pirate.Type.RetreatHp) return "retreat";
+        if (pirate.Hp <= pirate.MaxHp(hull) * pirate.RetreatHp) return "retreat";
         if (shelter.Contains(target)) return "target in the shelter";
         if (shelter.Contains(pirate, SafeMargin))
             return "too close to the shelter";

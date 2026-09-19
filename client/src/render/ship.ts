@@ -10,6 +10,8 @@ const DRONE_TINT = 0xa8dca0;
 const TRADER_TINT = 0xf3dc9c;
 /** Рейнджеры — страж торговых путей: корабль по корпусу, бирюзовый. */
 const RANGER_TINT = 0x9ff0e0;
+/** Пилот своей группы — чуть салатовый, в цвет группы. */
+const ALLY_TINT = 0xd8ffb8;
 
 /** Чей корабль: от этого картинка (у пиратов своя) и оттенок. */
 export type ShipLook = 'own' | 'player' | 'drone' | 'pirate' | 'trader' | 'ranger';
@@ -30,6 +32,7 @@ export class ShipView {
   private readonly pointer = new Graphics();
   private size = 0;
   private sprite: SpriteName | null = null;
+  private ally = false;
 
   constructor(private readonly look: ShipLook) {
     this.hull.addChild(this.flame, this.body);
@@ -40,6 +43,13 @@ export class ShipView {
     this.pointer
       .poly([-7, 5, 0, -3, 7, 5], false)
       .stroke({ width: 2.5, color: 0xcfe3ff, alpha: 0.9, cap: 'round', join: 'round' });
+  }
+
+  /** Пилот вступил в свою группу или вышел из неё: оттенок корабля — в цвет группы. */
+  setAlly(ally: boolean): void {
+    if (ally === this.ally || this.look !== 'player') return;
+    this.ally = ally;
+    this.body.tint = ally ? ALLY_TINT : 0xffffff;
   }
 
   /**

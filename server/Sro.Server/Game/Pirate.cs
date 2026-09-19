@@ -67,6 +67,14 @@ public sealed class Pirate : ShipEntity
 
     public bool IsRaider => RaidId != 0;
 
+    /// <summary>Номер вторжения (GDD §38); 0 — не из вторжения. Пират вторжения — налётчик, который не уходит сам.</summary>
+    public int InvasionId;
+
+    public bool IsInvader => InvasionId != 0;
+
+    /// <summary>При такой доле корпуса уходит; пираты вторжения бьются до конца.</summary>
+    public double RetreatHp => IsInvader ? 0 : Type.RetreatHp;
+
     public PirateState State = PirateState.Patrol;
     public MoveInput LastInput = new(0, -1, 0);
     /// <summary>Сторона захода на цель издалека: +1 — справа, −1 — слева.</summary>

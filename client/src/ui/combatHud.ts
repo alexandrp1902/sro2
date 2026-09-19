@@ -1,4 +1,5 @@
 import { formatSectors, type Aim, type AimState } from '../sim/combat';
+import { clock } from '../util/clock';
 
 const RENDER_INTERVAL_MS = 100;
 
@@ -32,6 +33,10 @@ export interface TargetStatus extends Vitals {
   sectorUnit: number;
   /** Огонь включён — под карточкой «ОГОНЬ ПО ГОТОВНОСТИ» (ПК: там нет кнопки, которая бы это показала). */
   fire: boolean;
+  /** Цель — пилот не из группы: на карточке кнопка «В группу» (GDD §37). */
+  invite: boolean;
+  /** Цель — участник своей группы: по нему не стреляют. */
+  member: boolean;
 }
 
 export interface DeathStatus {
@@ -42,7 +47,7 @@ export interface DeathStatus {
 }
 
 /** Полоска «Корпус» или «Щит» с числом. */
-class Bar {
+export class Bar {
   private readonly fill: HTMLElement;
   private readonly label: HTMLElement;
   private shown = '';
@@ -84,6 +89,7 @@ export class CombatHud {
   private readonly targetHull: Bar;
   private readonly targetShield: Bar;
   private readonly targetInfo: HTMLElement;
+  private readonly invite: HTMLButtonElement;
   private readonly deathBy: HTMLElement;
   private readonly deathTimer: HTMLElement;
   private lastRender = 0;
@@ -93,6 +99,7 @@ export class CombatHud {
     private readonly targetEl: HTMLElement,
     private readonly deathEl: HTMLElement,
     onClearTarget: () => void,
+    onInvite: () => void,
   ) {
     this.ownHull = new Bar(shipEl, 'hull', 'Корпус');
     this.ownShield = new Bar(shipEl, 'shield', 'Щит');
@@ -102,6 +109,17 @@ export class CombatHud {
     const head = div(targetEl, 'target-head');
     this.targetName = div(head, 'target-name');
     this.targetClass = div(head, 'target-class');
+    // Позвать пилота в группу — прямо с карточки: так удобно и на телефоне.
+    this.invite = document.createElement('button');
+    this.invite.type = 'button';
+    this.invite.className = 'target-invite';
+    this.invite.textContent = 'В группу';
+    this.invite.hidden = true;
+    this.invite.addEventListener('click', () => {
+      this.invite.blur();
+      onInvite();
+    });
+    head.append(this.invite);
     const close = document.createElement('button');
     close.type = 'button';
     close.className = 'target-close';
@@ -129,7 +147,8 @@ export class CombatHud {
       this.shipEl.hidden !== !own ||
       this.targetEl.hidden !== !target ||
       this.deathEl.hidden !== !death ||
-      (target !== null && this.targetEl.dataset.fire !== String(target.fire));
+      (target !== null && this.targetEl.dataset.fire !== String(target.fire)) ||
+      (target !== null && this.invite.hidden === target.invite);
     if (!visibilityChanged && now - this.lastRender < RENDER_INTERVAL_MS) return;
     this.lastRender = now;
 
@@ -144,7 +163,9 @@ export class CombatHud {
     this.targetEl.hidden = !target;
     if (target) {
       setText(this.targetName, target.name);
-      setText(this.targetClass, target.hullName);
+      setText(this.targetClass, target.member ? `${target.hullName} · в группе` : target.hullName);
+      this.invite.hidden = !target.invite;
+      this.targetEl.dataset.member = String(target.member);
       this.targetHull.set(target.hp, target.maxHp);
       this.targetShield.set(target.sh, target.maxSh);
       const { state, distance, chance } = target.aim;
@@ -175,10 +196,4 @@ function div(parent: HTMLElement, className: string): HTMLElement {
 
 function setText(el: HTMLElement, text: string): void {
   if (el.textContent !== text) el.textContent = text;
-}
-
-/** 00:08 */
-function clock(seconds: number): string {
-  const total = Math.max(0, Math.ceil(seconds));
-  return `${String(Math.floor(total / 60)).padStart(2, '0')}:${String(total % 60).padStart(2, '0')}`;
 }

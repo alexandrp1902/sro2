@@ -1,0 +1,7 @@
+{
+  "maxSize": 5,
+  "inviteSeconds": 15,
+  "shareRange": 2000,
+  "shareBonus": 0.2,
+  "statusSeconds": 1
+}

@@ -19,6 +19,8 @@ const COLORS = {
   drone: '#9ccf9a',
   trader: '#e8c95a',
   ranger: '#6fe0c8',
+  party: '#b6ff6a',
+  invasion: '#ff3b2f',
   missile: '#ff4a3a',
   target: '#ffffff',
   objective: '#ffd166',
@@ -33,7 +35,7 @@ export interface MinimapShip {
   id: number;
   x: number;
   y: number;
-  kind: 'player' | 'pirate' | 'drone' | 'trader' | 'ranger';
+  kind: 'player' | 'pirate' | 'drone' | 'trader' | 'ranger' | 'party';
   dead: boolean;
 }
 
@@ -56,6 +58,8 @@ export interface MinimapFrame {
   missiles?: readonly { x: number; y: number }[];
   /** Торговцы, которые зовут на помощь: мигающее красное кольцо — и за радаром. */
   sos?: readonly { x: number; y: number }[];
+  /** Точка сбора вторжения пиратов — мигающий красный крест в кольце; null — нет. */
+  invasion?: { x: number; y: number } | null;
 }
 
 /**
@@ -176,6 +180,21 @@ export class Minimap {
         ctx.lineWidth = 2 * dpr;
         ctx.stroke();
       }
+    }
+
+    if (frame.invasion && Math.floor(now / SOS_BLINK_MS) % 2 === 1) {
+      const x = px(frame.invasion.x);
+      const y = px(frame.invasion.y);
+      const s = 4 * dpr;
+      ctx.strokeStyle = COLORS.invasion;
+      ctx.lineWidth = 2 * dpr;
+      ctx.beginPath();
+      ctx.arc(x, y, 8 * dpr, 0, 2 * Math.PI);
+      ctx.moveTo(x - s, y - s);
+      ctx.lineTo(x + s, y + s);
+      ctx.moveTo(x + s, y - s);
+      ctx.lineTo(x - s, y + s);
+      ctx.stroke();
     }
 
     if (frame.objective) {

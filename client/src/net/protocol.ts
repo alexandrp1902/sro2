@@ -9,7 +9,7 @@ import type { NpcRules } from '../sim/npcs';
 import type { ShopRules } from '../sim/shop';
 
 /** Версия протокола; зеркало Protocol.Version на сервере. Сервер другой версии (или старый, без поля) — не играем. */
-export const PROTOCOL_VERSION = 13;
+export const PROTOCOL_VERSION = 14;
 
 /** Состояние ИИ пирата: патруль, бой, возврат в логово (налётчик — полёт от врат к точке), уход из системы. */
 export type AiState = 'patrol' | 'attack' | 'return' | 'leave';
@@ -65,7 +65,11 @@ export type ClientMessage =
    * Задания (GDD §36, §54): accept — взять с доски (в доке), abandon — бросить своё, complete — сдать «собрать»
    * (в доке), skip — пропустить обучение.
    */
-  | { t: 'mission'; action: MissionAction; id?: string };
+  | { t: 'mission'; action: MissionAction; id?: string }
+  /** Группа (GDD §37): invite — позвать пилота id, accept/decline — ответить на приглашение пилота id, leave — выйти. */
+  | { t: 'party'; action: PartyAction; id?: number };
+
+export type PartyAction = 'invite' | 'accept' | 'decline' | 'leave';
 
 export type MissionAction = 'accept' | 'abandon' | 'complete' | 'skip';
 
@@ -483,6 +487,92 @@ export interface SosMsg {
   reward: number;
 }
 
+/** Пилот from зовёт в группу; ответить — party accept/decline в течение seconds. */
+export interface PartyInviteMsg {
+  t: 'partyInvite';
+  from: number;
+  name: string;
+  seconds: number;
+}
+
+/** Участник группы: где он и цел ли. Расстояние считаем сами, если он в той же системе. */
+export interface PartyMemberDto {
+  id: number;
+  name: string;
+  system: string;
+  systemName: string;
+  x: number;
+  y: number;
+  hp: number;
+  maxHp: number;
+  sh: number;
+  maxSh: number;
+  online: boolean;
+  dead: boolean;
+  docked: boolean;
+}
+
+/** Своя группа: при изменении и раз в секунду. Пустой список — не в группе. */
+export interface PartyStateMsg {
+  t: 'partyState';
+  leader: number;
+  members: PartyMemberDto[];
+}
+
+export type PartyEventCode =
+  | 'invited'
+  | 'joined'
+  | 'left'
+  | 'declined'
+  | 'expired'
+  | 'full'
+  | 'busy'
+  | 'gone'
+  | 'disbanded';
+
+/** Событие группы для ленты; name — о ком (у joined без name — «вы в группе»). */
+export interface PartyEventMsg {
+  t: 'partyEvent';
+  code: PartyEventCode;
+  name?: string | null;
+}
+
+/** Награда за голову пирата: amount — своя доля, shared — на скольких поделили. */
+export interface BountyMsg {
+  t: 'bounty';
+  amount: number;
+  shared: number;
+  name: string;
+}
+
+export interface InvasionScoreDto {
+  name: string;
+  damage: number;
+  reward: number;
+}
+
+/**
+ * «Вторжение пиратов» (GDD §38) — всем в галактике, раз в секунду: announce — скоро (secondsLeft до начала),
+ * wave — идёт (secondsLeft до конца, nextIn — до следующей волны), won/lost — итог с результатами и своей долей.
+ */
+export interface InvasionMsg {
+  t: 'invasion';
+  state: 'announce' | 'wave' | 'won' | 'lost';
+  system: string;
+  systemName: string;
+  secondsLeft: number;
+  wave: number;
+  waves: number;
+  remaining: number;
+  nextIn: number;
+  /** Точка сбора пиратов; 0, 0 — ещё не известна. */
+  x: number;
+  y: number;
+  results?: InvasionScoreDto[];
+  reward: number;
+  damage: number;
+}
+
 export type ServerMessage =
   | WelcomeMsg
   | { t: 'pong'; c: number; tick: number }
@@ -495,4 +585,9 @@ export type ServerMessage =
   | DeniedMsg
   | HangarMsg
   | MissionsMsg
-  | SosMsg;
+  | SosMsg
+  | PartyInviteMsg
+  | PartyStateMsg
+  | PartyEventMsg
+  | BountyMsg
+  | InvasionMsg;

@@ -27,6 +27,7 @@ namespace Sro.Server.Net;
 [JsonDerivedType(typeof(JumpMsg), "jump")]
 [JsonDerivedType(typeof(RefuelMsg), "refuel")]
 [JsonDerivedType(typeof(MissionMsg), "mission")]
+[JsonDerivedType(typeof(PartyMsg), "party")]
 public abstract record ClientMessage;
 
 /// <summary>
@@ -113,6 +114,13 @@ public sealed record RefuelMsg : ClientMessage;
 /// </param>
 public sealed record MissionMsg(string? Action, string? Id = null) : ClientMessage;
 
+/// <summary>Группа (GDD §37).</summary>
+/// <param name="Action">
+/// <see cref="PartyCodes.InviteAction"/> — позвать пилота Id; <see cref="PartyCodes.AcceptAction"/> и
+/// <see cref="PartyCodes.DeclineAction"/> — ответить на приглашение пилота Id; <see cref="PartyCodes.LeaveAction"/> — выйти.
+/// </param>
+public sealed record PartyMsg(string? Action, int Id = 0) : ClientMessage;
+
 // Сервер → клиент
 [JsonPolymorphic(TypeDiscriminatorPropertyName = "t")]
 [JsonDerivedType(typeof(WelcomeMsg), "welcome")]
@@ -127,6 +135,11 @@ public sealed record MissionMsg(string? Action, string? Id = null) : ClientMessa
 [JsonDerivedType(typeof(HangarMsg), "hangar")]
 [JsonDerivedType(typeof(MissionsMsg), "missions")]
 [JsonDerivedType(typeof(SosMsg), "sos")]
+[JsonDerivedType(typeof(PartyInviteMsg), "partyInvite")]
+[JsonDerivedType(typeof(PartyStateMsg), "partyState")]
+[JsonDerivedType(typeof(PartyEventMsg), "partyEvent")]
+[JsonDerivedType(typeof(BountyMsg), "bounty")]
+[JsonDerivedType(typeof(InvasionMsg), "invasion")]
 public abstract record ServerMessage;
 
 /// <param name="Id">Id своего корабля в снапшотах.</param>
@@ -328,6 +341,53 @@ public sealed record NoticeMsg(string Code) : ServerMessage;
 /// <param name="Reward">Кредиты этому пилоту за помощь — только в «спасён» и только тем, кто помогал.</param>
 public sealed record SosMsg(int Id, string Name, double X, double Y, string State, int Reward = 0) : ServerMessage;
 
+/// <summary>Пилот From зовёт в группу; ответ — <see cref="PartyMsg"/> accept или decline в течение Seconds.</summary>
+public sealed record PartyInviteMsg(int From, string Name, double Seconds) : ServerMessage;
+
+/// <summary>Участник группы — где он и цел ли; расстояние клиент считает сам, если тот в той же системе.</summary>
+/// <param name="System">Id системы; SystemName — её имя для панели.</param>
+public sealed record PartyMemberDto(
+    int Id, string Name, string System, string SystemName, double X, double Y,
+    int Hp, int MaxHp, int Sh, int MaxSh, bool Online, bool Dead, bool Docked);
+
+/// <summary>Своя группа: при каждом изменении состава и раз в statusSeconds. Пустой список — не в группе.</summary>
+public sealed record PartyStateMsg(int Leader, IReadOnlyList<PartyMemberDto> Members) : ServerMessage;
+
+/// <summary>Событие группы для ленты (<see cref="PartyCodes"/>): текст подставляет клиент, Name — о ком.</summary>
+public sealed record PartyEventMsg(string Code, string? Name = null) : ServerMessage;
+
+/// <summary>Награда за голову пирата (GDD §31): Amount — своя доля, Shared — на скольких её поделили.</summary>
+public sealed record BountyMsg(int Amount, int Shared, string Name) : ServerMessage;
+
+/// <summary>Строка итогов вторжения: кто, сколько урона пиратам, сколько получил.</summary>
+public sealed record InvasionScoreDto(string Name, int Damage, int Reward);
+
+/// <summary>
+/// «Вторжение пиратов» (GDD §38) — всем пилотам галактики: раз в секунду, пока оно объявлено или идёт, и итог в конце.
+/// </summary>
+/// <param name="State">
+/// <see cref="Protocol.InvasionAnnounce"/> — скоро (SecondsLeft до начала); <see cref="Protocol.InvasionWave"/> — идёт
+/// (SecondsLeft до конца, NextIn — до следующей волны, если текущая зачищена); <see cref="Protocol.InvasionWon"/> и
+/// <see cref="Protocol.InvasionLost"/> — итог.
+/// </param>
+/// <param name="X">Точка сбора пиратов у станции (0, 0 — ещё не известна).</param>
+/// <param name="Results">Итог: участники по убыванию урона (не больше десяти).</param>
+/// <param name="Reward">Итог: своя доля, кредиты.</param>
+public sealed record InvasionMsg(
+    string State,
+    string System,
+    string SystemName,
+    int SecondsLeft,
+    int Wave = 0,
+    int Waves = 0,
+    int Remaining = 0,
+    int NextIn = 0,
+    double X = 0,
+    double Y = 0,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] IReadOnlyList<InvasionScoreDto>? Results = null,
+    int Reward = 0,
+    int Damage = 0) : ServerMessage;
+
 /// <param name="Shots">Выстрелы этого тика; нет — поле не пишется.</param>
 /// <param name="Kills">Уничтоженные в этом тике.</param>
 /// <param name="Loot">Предметы, лежащие в космосе.</param>
@@ -421,10 +481,11 @@ public static class Protocol
     /// Меняется, когда клиент и сервер разных версий уже не поймут друг друга
     /// (3 — бой, M3; 4 — пираты, M4; 5 — лут и трюм, M5a; 6 — ручной подбор и продажа груза; 7 — метеориты, M5b;
     /// 8 — аккаунты, док и магазин станции, M6; 9 — системы, врата, топливо, радар и бинарные дельта-снапшоты, M7;
-    /// 10 — звезда, орбиты и налёты; 11 — задания и обучение, M8; 12 — слоты, модули, ракеты, торговцы, M9; 13 — SOS торговцев).
+    /// 10 — звезда, орбиты и налёты; 11 — задания и обучение, M8; 12 — слоты, модули, ракеты, торговцы, M9; 13 — SOS торговцев;
+    /// 14 — группы, награда за голову и вторжения, M10).
     /// Зеркало PROTOCOL_VERSION в client/src/net/protocol.ts.
     /// </summary>
-    public const int Version = 13;
+    public const int Version = 14;
 
     public const string DroneKind = "drone";
     public const string PirateKind = "pirate";
@@ -457,6 +518,12 @@ public static class Protocol
     public const string SosOn = "on";
     public const string SosSaved = "saved";
     public const string SosLost = "lost";
+
+    /// <summary>Состояния вторжения (<see cref="InvasionMsg.State"/>).</summary>
+    public const string InvasionAnnounce = "announce";
+    public const string InvasionWave = "wave";
+    public const string InvasionWon = "won";
+    public const string InvasionLost = "lost";
 
     /// <summary>Действия с заданиями (<see cref="MissionMsg.Action"/>).</summary>
     public const string AcceptMission = "accept";
@@ -496,4 +563,32 @@ public static class Protocol
             return null;
         }
     }
+}
+
+/// <summary>Действия <see cref="PartyMsg"/> и коды <see cref="PartyEventMsg"/>.</summary>
+public static class PartyCodes
+{
+    public const string InviteAction = "invite";
+    public const string AcceptAction = "accept";
+    public const string DeclineAction = "decline";
+    public const string LeaveAction = "leave";
+
+    /// <summary>Приглашение отправлено пилоту Name.</summary>
+    public const string Invited = "invited";
+    /// <summary>Name вступил в группу; себе — «вы в группе».</summary>
+    public const string Joined = "joined";
+    /// <summary>Name вышел из группы (или из игры).</summary>
+    public const string Left = "left";
+    /// <summary>Name отклонил приглашение.</summary>
+    public const string Declined = "declined";
+    /// <summary>Name не ответил вовремя, или приглашения уже нет.</summary>
+    public const string Expired = "expired";
+    /// <summary>В группе нет мест.</summary>
+    public const string Full = "full";
+    /// <summary>Name уже в группе.</summary>
+    public const string Busy = "busy";
+    /// <summary>Такого пилота нет в игре.</summary>
+    public const string Gone = "gone";
+    /// <summary>Группа распалась: в ней остались вы один.</summary>
+    public const string Disbanded = "disbanded";
 }

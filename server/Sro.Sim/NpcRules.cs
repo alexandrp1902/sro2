@@ -18,6 +18,7 @@ namespace Sro.Sim;
 /// </param>
 /// <param name="DefendRange">Рейнджер: идёт на обидчика торговца ближе этого; 0 — только в радиусе агро.</param>
 /// <param name="LeashRange">Своя привязь к логову вместо общей; null — общая из npcs.json.</param>
+/// <param name="Bounty">Награда за голову на 1-м уровне (GDD §31): кредиты пилоту, который сбил; 0 — не платят.</param>
 public sealed record NpcType(
     string Name,
     string Hull,
@@ -31,7 +32,8 @@ public sealed record NpcType(
     string? Table = null,
     string Faction = NpcType.PirateFaction,
     double DefendRange = 0,
-    double? LeashRange = null)
+    double? LeashRange = null,
+    int Bounty = 0)
 {
     public const string PirateFaction = "pirate";
     public const string RangerFaction = "ranger";
@@ -58,6 +60,7 @@ public sealed record NpcType(
         if (Faction is not (PirateFaction or RangerFaction or TraderFaction)) return "faction must be pirate, ranger or trader";
         if (!(DefendRange >= 0)) return "defendRange must not be negative";
         if (LeashRange is { } leash && !(leash > 0)) return "leashRange must be positive";
+        if (Bounty < 0) return "bounty must not be negative";
         return null;
     }
 }
@@ -70,15 +73,17 @@ public sealed record NpcSpawn(string Type, int Level, double X, double Y, int Co
 }
 
 /// <summary>Прибавка за каждый уровень выше первого (GDD §32): доли для корпуса, щита и урона, пункты — для точности.</summary>
-public sealed record NpcLevelScaling(double Hp = 0.2, double Shield = 0.2, double Damage = 0.1, double Accuracy = 2)
+public sealed record NpcLevelScaling(double Hp = 0.2, double Shield = 0.2, double Damage = 0.1, double Accuracy = 2, double Bounty = 0.5)
 {
+    public double BountyFactor(int level) => 1 + Bounty * (level - 1);
+
     public double HpFactor(int level) => 1 + Hp * (level - 1);
     public double ShieldFactor(int level) => 1 + Shield * (level - 1);
     public double DamageFactor(int level) => 1 + Damage * (level - 1);
     public double AccuracyBonus(int level) => Accuracy * (level - 1);
 
     public string? Validate() =>
-        Hp >= 0 && Shield >= 0 && Damage >= 0 && Accuracy >= 0 ? null : "levelScaling values must not be negative";
+        Hp >= 0 && Shield >= 0 && Damage >= 0 && Accuracy >= 0 && Bounty >= 0 ? null : "levelScaling values must not be negative";
 }
 
 /// <summary>NPC системы из shared/npcs.json: пираты (GDD §31–32) — типы, уровни, логова и поведение ИИ.</summary>
@@ -121,6 +126,9 @@ public sealed record NpcRules(
     public static string Name(NpcType type, int level) => $"{type.Name} Ур.{level}";
 
     public double MaxHp(NpcType type, int level, HullParams hull) => (type.Hp ?? hull.Hp) * Scaling.HpFactor(level);
+
+    /// <summary>Награда за голову NPC этого уровня, кредиты.</summary>
+    public int Bounty(NpcType type, int level) => (int)Math.Round(type.Bounty * Scaling.BountyFactor(level));
 
     public double MaxShield(NpcType type, int level, HullParams hull) => (type.Shield ?? hull.Shield) * Scaling.ShieldFactor(level);
 
