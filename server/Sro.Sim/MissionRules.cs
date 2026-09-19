@@ -268,13 +268,15 @@ public sealed record MissionRules(
         return list.Distinct().Order(StringComparer.Ordinal).ToList();
     }
 
-    /// <summary>Какие типы пиратов бывают в системе: налёты и логова.</summary>
+    /// <summary>Какие типы пиратов бывают в системе: налёты и логова. Посты рейнджеров — не пираты.</summary>
     public static IEnumerable<string> PiratesIn(Balance balance, string system)
     {
         var def = balance.Galaxy.System(system);
-        if (def is null) return balance.Npc.SpawnList.Select(s => s.Type).Distinct();
+        var types = balance.Npc.TypeMap;
+        bool IsPirate(string type) => !types.TryGetValue(type, out var t) || t.IsPirate;
+        if (def is null) return balance.Npc.SpawnList.Select(s => s.Type).Where(IsPirate).Distinct();
         IEnumerable<string> raids = def.Pirates?.GroupList.Select(g => g.Type) ?? [];
-        return raids.Concat(def.SpawnList.Select(s => s.Type)).Distinct();
+        return raids.Concat(def.SpawnList.Select(s => s.Type)).Where(IsPirate).Distinct();
     }
 
     /// <summary>Прыжков по кратчайшему пути; null — пути нет.</summary>

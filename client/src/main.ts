@@ -786,7 +786,7 @@ async function main(): Promise<void> {
     const protectedSeconds = ownDto?.pu ? Math.max(0, (ownDto.pu - tick) * DT) : 0;
     const me = ownId();
     let attackers = 0;
-    for (const ship of remote.visible()) if (ship.kind === 'pirate' && ship.targetId === me) attackers++;
+    for (const ship of remote.visible()) if (ship.kind !== 'player' && ship.kind !== 'drone' && ship.targetId === me) attackers++;
 
     // Цель задания или обучения: на неё указывает золотой маркер, на миникарте — кольцо.
     const goal = online ? locateObjective(objective(missions, system?.id ?? null, galaxy, docked || dead), state) : null;

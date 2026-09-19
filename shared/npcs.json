@@ -31,9 +31,25 @@
     },
     "trader": {
       "name": "Торговец",
+      "faction": "trader",
       "hull": "medium",
+      "weapons": ["pulse"],
+      "hp": 400,
+      "shield": 100,
+      "damage": 0.3
+    },
+    "ranger": {
+      "name": "Рейнджер",
+      "faction": "ranger",
+      "hull": "medium",
+      "weapons": ["pulse", "laser"],
       "hp": 600,
-      "shield": 200
+      "shield": 200,
+      "damage": 0.45,
+      "holdRange": 360,
+      "retreatHp": 0.3,
+      "defendRange": 2500,
+      "leashRange": 3500
     }
   }
 }

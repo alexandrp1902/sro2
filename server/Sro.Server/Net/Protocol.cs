@@ -210,7 +210,7 @@ public sealed record PlayersMsg(IReadOnlyList<PlayerDto> Players, int Total = 0)
 /// <param name="Npc">Дрон или другой NPC: о нём не пишут в ленту и не считают в «онлайн».</param>
 /// <param name="MaxHp">Своя прочность NPC вместо корпусной; нет — как у корпуса.</param>
 /// <param name="MaxSh">Свой щит NPC вместо корпусного; нет — как у корпуса.</param>
-/// <param name="Kind">Вид NPC: <see cref="Protocol.DroneKind"/>, <see cref="Protocol.PirateKind"/> или <see cref="Protocol.TraderKind"/>; у игроков нет.</param>
+/// <param name="Kind">Вид NPC: <see cref="Protocol.DroneKind"/>, <see cref="Protocol.PirateKind"/>, <see cref="Protocol.RangerKind"/> или <see cref="Protocol.TraderKind"/>; у игроков нет.</param>
 public sealed record PlayerDto(
     int Id,
     string Name,
@@ -421,6 +421,7 @@ public static class Protocol
     public const string DroneKind = "drone";
     public const string PirateKind = "pirate";
     public const string TraderKind = "trader";
+    public const string RangerKind = "ranger";
 
     /// <summary>Что покупают в доке (<see cref="BuyMsg.Kind"/>).</summary>
     public const string HullItem = "hull";
@@ -437,6 +438,8 @@ public static class Protocol
     public const string NoPowerNotice = "noPower";
     public const string BadClassNotice = "badClass";
     public const string BadSlotNotice = "badSlot";
+    /// <summary>Рейнджеры пошли на пилота: он напал на торговца.</summary>
+    public const string RangersNotice = "rangers";
 
     /// <summary>Действия с заданиями (<see cref="MissionMsg.Action"/>).</summary>
     public const string AcceptMission = "accept";

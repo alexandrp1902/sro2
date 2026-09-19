@@ -24,6 +24,7 @@
         { "name": "Учебный дрон", "hull": "heavy", "x": -450, "y": 250, "hp": 600, "shield": 0, "table": "drone" },
         { "name": "Дрон-мишень", "hull": "light", "x": -750, "y": 750, "orbitRadius": 250, "throttle": 1, "table": "drone" }
       ],
+      "spawns": [{ "type": "ranger", "level": 1, "x": 3085, "y": -303, "count": 2 }],
       "traders": { "count": 2, "respawnSeconds": 40, "type": "trader", "throttle": 0.7 },
       "pirates": {
         "maxGroups": 2, "intervalSeconds": 60, "patrolMinSeconds": 120, "patrolMaxSeconds": 240,
@@ -63,6 +64,7 @@
         { "name": "Вега I", "kind": "ice", "size": 140, "orbit": { "radius": 1850, "periodMinutes": 70, "phase": 250 } },
         { "name": "Вега II", "kind": "gas", "size": 250, "orbit": { "radius": 3000, "periodMinutes": 200, "phase": 120 } }
       ],
+      "spawns": [{ "type": "ranger", "level": 1, "x": 1310, "y": 2810, "count": 2 }],
       "traders": { "count": 2, "respawnSeconds": 40, "type": "trader", "throttle": 0.7 },
       "pirates": {
         "maxGroups": 3, "intervalSeconds": 50, "patrolMinSeconds": 120, "patrolMaxSeconds": 240,
@@ -101,6 +103,7 @@
         { "name": "Тау-Прима", "kind": "desert", "size": 160, "orbit": { "radius": 1500, "periodMinutes": 50, "phase": 60 } },
         { "name": "Тау-Секунда", "kind": "ice", "size": 130, "orbit": { "radius": 3000, "periodMinutes": 180, "phase": 210 } }
       ],
+      "spawns": [{ "type": "ranger", "level": 1, "x": -1408, "y": -2649, "count": 1 }],
       "traders": { "count": 1, "respawnSeconds": 40, "type": "trader", "throttle": 0.7 },
       "pirates": {
         "maxGroups": 3, "intervalSeconds": 45, "patrolMinSeconds": 120, "patrolMaxSeconds": 240,
@@ -139,6 +142,7 @@
         { "name": "Нова-Прайм", "kind": "desert", "size": 150, "orbit": { "radius": 2000, "periodMinutes": 110, "phase": 330 } },
         { "name": "Нова-Гигант", "kind": "gas", "size": 230, "orbit": { "radius": 3300, "periodMinutes": 260, "phase": 80 } }
       ],
+      "spawns": [{ "type": "ranger", "level": 1, "x": -802, "y": 2994, "count": 2 }],
       "traders": { "count": 2, "respawnSeconds": 40, "type": "trader", "throttle": 0.7 },
       "pirates": {
         "maxGroups": 3, "intervalSeconds": 40, "patrolMinSeconds": 150, "patrolMaxSeconds": 300,

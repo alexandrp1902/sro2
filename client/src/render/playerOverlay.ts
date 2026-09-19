@@ -10,6 +10,7 @@ const COLORS: Record<ShipKind, number> = {
   drone: 0xc3d6c2,
   pirate: 0xff8a7a,
   trader: 0xf2d46b,
+  ranger: 0x7fe8d0,
 };
 const OUTLINE = 0x05060a;
 /** Выбранная цель: оранжевый контур вокруг её стрелки у края экрана и оранжевая подпись. */
@@ -198,7 +199,8 @@ export class PlayerOverlay {
     for (const ship of ships) {
       const marker = this.marker(ship.id, COLORS[ship.kind]);
       marker.seen = true;
-      const threat = ship.kind === 'pirate' && ship.targetId === ownId;
+      // Целятся в меня: пират, рейнджер (я обидел торговца) или сам торговец, которому я не дал уйти.
+      const threat = ship.kind !== 'player' && ship.kind !== 'drone' && ship.targetId === ownId;
       const alpha = ship.online ? ship.alpha : LOST_LABEL_ALPHA;
       marker.label.alpha = marker.arrow.alpha = marker.bars.alpha = alpha;
 

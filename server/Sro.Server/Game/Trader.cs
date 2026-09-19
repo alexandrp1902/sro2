@@ -3,12 +3,16 @@ using Sro.Sim;
 namespace Sro.Server.Game;
 
 /// <summary>
-/// Торговец (GDD §31): мирный NPC без пушек, везёт груз между станцией и вратами системы. Пираты на него охотятся,
-/// пилот может его ограбить — с уничтоженного выпадает груз по таблице лута. Долетел — ушёл в док или в прыжок,
-/// из системы он исчезает, а через срок появляется новый (<see cref="TraderRules"/>).
+/// Торговец (GDD §31): везёт груз между станцией и вратами системы. Пираты на него охотятся, пилот может его
+/// ограбить — с уничтоженного выпадает груз по таблице лута. Сам ни на кого не нападает, но обидчику отвечает
+/// огнём — слабее пирата (множитель урона типа). Долетел — ушёл в док или в прыжок, из системы он исчезает,
+/// а через срок появляется новый (<see cref="TraderRules"/>).
 /// </summary>
-public sealed class Trader(int id, string typeId, NpcType type) : ShipEntity(id, type.Name, type.Hull, [])
+public sealed class Trader(int id, string typeId, NpcType type, NpcRules rules) : ShipEntity(id, type.Name, type.Hull, type.WeaponList)
 {
+    private readonly WeaponParams?[] _weapons = new WeaponParams?[Fitting.MaxWeaponSlots];
+    private Balance? _weaponsFor;
+
     /// <summary>Id типа в npcs.json — по нему и таблица лута, если у типа нет своей.</summary>
     public string TypeId { get; } = typeId;
     public NpcType Type { get; } = type;
@@ -25,6 +29,8 @@ public sealed class Trader(int id, string typeId, NpcType type) : ShipEntity(id,
     public long LeaveAtTick;
     /// <summary>Под огнём: дальше до цели — на полной тяге.</summary>
     public bool Fleeing;
+    /// <summary>Кто напал последним — ему торговец отвечает огнём; 0 — никто.</summary>
+    public int Attacker;
     /// <summary>Ушёл из системы: комната уберёт его после шага.</summary>
     public bool Gone;
 
@@ -34,6 +40,22 @@ public sealed class Trader(int id, string typeId, NpcType type) : ShipEntity(id,
 
     /// <summary>Погибший торговец уходит из системы на следующий тик: вместо него появится новый (<see cref="TraderRules"/>).</summary>
     public override int RespawnTicks(Balance balance) => 1;
+
+    /// <summary>Пушки типа с его множителем урона (1-й уровень); пересчитываются только при смене баланса.</summary>
+    public override WeaponParams? WeaponAt(Balance balance, int slot)
+    {
+        if (!ReferenceEquals(_weaponsFor, balance))
+        {
+            _weaponsFor = balance;
+            for (var i = 0; i < _weapons.Length; i++)
+            {
+                _weapons[i] = i < WeaponIds.Count && WeaponIds[i] is { } id && balance.Weapons.TryGetValue(id, out var weapon)
+                    ? rules.ScaledWeapon(Type, 1, weapon)
+                    : null;
+            }
+        }
+        return slot < _weapons.Length ? _weapons[slot] : null;
+    }
 
     public override string ToString() => $"{Name} #{Id}";
 }
@@ -49,13 +71,26 @@ internal static class TraderBrain
     /// <param name="station">Где сейчас станция.</param>
     /// <param name="stationRange">Ближе этого к станции — пристыковался.</param>
     /// <param name="heat">Радиус жара звезды в центре; 0 — звезды нет.</param>
-    public static void Think(Trader trader, TraderRules rules, long tick, int jumpTicks, (double X, double Y) station, double stationRange, double heat)
+    /// <param name="ships">Корабли системы: обидчик, которому торговец отвечает огнём.</param>
+    /// <param name="fireRange">Дальше этого торговец по обидчику не стреляет и забывает его.</param>
+    public static void Think(
+        Trader trader,
+        TraderRules rules,
+        long tick,
+        int jumpTicks,
+        (double X, double Y) station,
+        double stationRange,
+        double heat,
+        IReadOnlyDictionary<int, ShipEntity> ships,
+        double fireRange)
     {
         if (trader.LastAttackerId != 0)
         {
             trader.Fleeing = true;
+            trader.Attacker = trader.LastAttackerId;
             trader.LastAttackerId = 0;
         }
+        ReturnFire(trader, ships, fireRange);
         if (trader.LeaveAtTick > 0)
         {
             Set(trader, trader.LastInput.Dx, trader.LastInput.Dy, 0);
@@ -98,6 +133,25 @@ internal static class TraderBrain
         }
         var throttle = trader.Fleeing ? 1 : rules.Throttle;
         Set(trader, ux, uy, throttle);
+    }
+
+    /// <summary>Огонь по обидчику, пока тот цел и рядом; ушёл или погиб — торговец его забывает. Курс это не меняет.</summary>
+    private static void ReturnFire(Trader trader, IReadOnlyDictionary<int, ShipEntity> ships, double range)
+    {
+        if (trader.Attacker != 0 && ships.TryGetValue(trader.Attacker, out var foe) && !foe.IsDead)
+        {
+            var dx = foe.Ship.X - trader.Ship.X;
+            var dy = foe.Ship.Y - trader.Ship.Y;
+            if (dx * dx + dy * dy <= range * range)
+            {
+                trader.TargetId = foe.Id;
+                trader.FireHeld = trader.WeaponIds.Count > 0;
+                return;
+            }
+        }
+        trader.Attacker = 0;
+        trader.TargetId = 0;
+        trader.FireHeld = false;
     }
 
     private static void Set(Trader trader, double dx, double dy, double throttle)

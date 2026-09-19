@@ -12,6 +12,12 @@ namespace Sro.Sim;
 /// <param name="RetreatHp">При такой доле корпуса NPC уходит в логово чиниться; 0 — бьётся до конца.</param>
 /// <param name="Weapons">Пушки по слотам (GDD §12); пустой — NPC не стреляет (торговец).</param>
 /// <param name="Table">Таблица лута из loot.json; null — таблица с id типа, как у пиратов.</param>
+/// <param name="Faction">
+/// Чей: <see cref="PirateFaction"/> — нападают на пилотов и торговцев; <see cref="RangerFaction"/> — защищают торговцев:
+/// идут на того, кто на торговца напал; <see cref="TraderFaction"/> — торговец, отвечает огнём только обидчику.
+/// </param>
+/// <param name="DefendRange">Рейнджер: идёт на обидчика торговца ближе этого; 0 — только в радиусе агро.</param>
+/// <param name="LeashRange">Своя привязь к логову вместо общей; null — общая из npcs.json.</param>
 public sealed record NpcType(
     string Name,
     string Hull,
@@ -22,9 +28,18 @@ public sealed record NpcType(
     double HoldRange = 320,
     double RetreatHp = 0,
     IReadOnlyList<string>? Weapons = null,
-    string? Table = null)
+    string? Table = null,
+    string Faction = NpcType.PirateFaction,
+    double DefendRange = 0,
+    double? LeashRange = null)
 {
+    public const string PirateFaction = "pirate";
+    public const string RangerFaction = "ranger";
+    public const string TraderFaction = "trader";
+
     [JsonIgnore] public IReadOnlyList<string> WeaponList => Weapons ?? (Weapon is null ? [] : [Weapon]);
+    [JsonIgnore] public bool IsPirate => Faction == PirateFaction;
+    [JsonIgnore] public bool IsRanger => Faction == RangerFaction;
 
     public string? Validate(IReadOnlyDictionary<string, HullParams> hulls, IReadOnlyDictionary<string, WeaponParams> weapons)
     {
@@ -40,6 +55,9 @@ public sealed record NpcType(
         if (!(Damage > 0)) return "damage must be positive";
         if (!(HoldRange > 0)) return "holdRange must be positive";
         if (!(RetreatHp >= 0 && RetreatHp < 1)) return "retreatHp must be within 0..1";
+        if (Faction is not (PirateFaction or RangerFaction or TraderFaction)) return "faction must be pirate, ranger or trader";
+        if (!(DefendRange >= 0)) return "defendRange must not be negative";
+        if (LeashRange is { } leash && !(leash > 0)) return "leashRange must be positive";
         return null;
     }
 }
@@ -140,6 +158,7 @@ public sealed record NpcRules(
             {
                 null => "is null",
                 _ when spawn.Type is null || !TypeMap.ContainsKey(spawn.Type) => $"unknown type '{spawn.Type}'",
+                _ when TypeMap[spawn.Type].Faction == NpcType.TraderFaction => "traders fly routes, they have no lair (galaxy.json traders)",
                 _ when spawn.Level is < 1 or > NpcSpawn.MaxLevel => $"level must be within 1..{NpcSpawn.MaxLevel}",
                 _ when spawn.Count is < 1 or > NpcSpawn.MaxCount => $"count must be within 1..{NpcSpawn.MaxCount}",
                 _ when !(Math.Abs(spawn.X) <= WorldLimit) || !(Math.Abs(spawn.Y) <= WorldLimit) => $"x and y must be within ±{WorldLimit}",

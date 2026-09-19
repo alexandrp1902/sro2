@@ -8,9 +8,11 @@ const POINTER_DISTANCE = 2.6;
 const DRONE_TINT = 0xa8dca0;
 /** Торговцы — гружёные «купцы»: корабль по корпусу, но в тёплом золотистом оттенке. */
 const TRADER_TINT = 0xf3dc9c;
+/** Рейнджеры — страж торговых путей: корабль по корпусу, бирюзовый. */
+const RANGER_TINT = 0x9ff0e0;
 
 /** Чей корабль: от этого картинка (у пиратов своя) и оттенок. */
-export type ShipLook = 'own' | 'player' | 'drone' | 'pirate' | 'trader';
+export type ShipLook = 'own' | 'player' | 'drone' | 'pirate' | 'trader' | 'ranger';
 
 /** Яркость пламени: разгон — полное, круиз — вполсилы, торможение и стоп — нет. */
 export function engineGlow(state: ShipState, throttle: number, hull: HullParams): number {
@@ -34,6 +36,7 @@ export class ShipView {
     this.view.addChild(this.pointer, this.hull);
     if (look === 'drone') this.body.tint = DRONE_TINT;
     if (look === 'trader') this.body.tint = TRADER_TINT;
+    if (look === 'ranger') this.body.tint = RANGER_TINT;
     this.pointer
       .poly([-7, 5, 0, -3, 7, 5], false)
       .stroke({ width: 2.5, color: 0xcfe3ff, alpha: 0.9, cap: 'round', join: 'round' });

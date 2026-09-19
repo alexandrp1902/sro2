@@ -329,7 +329,7 @@ export interface PlayerDto {
   kind?: NpcKind;
 }
 
-export type NpcKind = 'drone' | 'pirate' | 'trader';
+export type NpcKind = 'drone' | 'pirate' | 'trader' | 'ranger';
 
 /** Весь список кораблей с именами — игроки и NPC; приходит при любом изменении. */
 export interface PlayersMsg {

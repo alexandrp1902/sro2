@@ -69,6 +69,12 @@ public sealed class Room
     private long _nextTraderTick;
     /// <summary>Торговцы этого баланса вместе с их типом — тоже по тексту.</summary>
     private string _tradersJson = "";
+    /// <summary>Кто напал на торговца — id корабля и до какого тика рейнджеры идут на него (<see cref="OffenderTicks"/>).</summary>
+    private readonly Dictionary<int, long> _offenders = [];
+    private readonly List<int> _forgiven = [];
+
+    /// <summary>Столько рейнджеры помнят нападение на торговца: потом обидчик для них снова никто.</summary>
+    public const int OffenderTicks = 30 * SimConfig.TickRate;
 
     /// <param name="roll">Случайное число из [0, 1) для бросков попадания; тесты подставляют своё.</param>
     /// <param name="jitter">Разброс точки появления.</param>
@@ -706,10 +712,15 @@ public sealed class Room
             if (!drone.IsDead) Movement.Step(ref drone.Ship, input, drone.Hull(Hulls), SimConfig.Dt);
         }
         // Уничтоженный пират не думает: иначе снова взял бы огонь, который Battle снял при смерти.
+        ForgiveOffenders();
         foreach (var pirate in _pirates)
         {
             if (pirate.IsDead) continue;
-            PirateBrain.Think(pirate, _ships, _pirates, Balance, Tick, _ai, _log, StationPosition);
+            var before = pirate.TargetId;
+            PirateBrain.Think(pirate, _ships, _pirates, Balance, Tick, _ai, _log, StationPosition, _offenders);
+            if (pirate.Type.IsRanger && pirate.State == PirateState.Attack && pirate.TargetId != before &&
+                _ships.GetValueOrDefault(pirate.TargetId) is Player { Connection: { } connection } && _offenders.ContainsKey(pirate.TargetId))
+                connection.Send(new NoticeMsg(Protocol.RangersNotice));
             if (pirate.Gone) _gonePirates.Add(pirate);
             else Movement.Step(ref pirate.Ship, pirate.LastInput, pirate.Hull(Hulls), SimConfig.Dt);
         }
@@ -720,7 +731,10 @@ public sealed class Room
             foreach (var trader in _traders)
             {
                 if (trader.IsDead) continue;
-                TraderBrain.Think(trader, traders, Tick, Balance.Galaxy.JumpTicks, station, Balance.Loot.StationRange, heat);
+                // Напавший на торговца — обидчик: рейнджеры системы идут на него.
+                if (trader.LastAttackerId != 0) _offenders[trader.LastAttackerId] = Tick + OffenderTicks;
+                TraderBrain.Think(
+                    trader, traders, Tick, Balance.Galaxy.JumpTicks, station, Balance.Loot.StationRange, heat, _ships, Balance.Npc.DropRange);
                 if (trader.Gone) _goneTraders.Add(trader);
                 else Movement.Step(ref trader.Ship, trader.LastInput, trader.Hull(Hulls), SimConfig.Dt);
             }
@@ -1037,6 +1051,15 @@ public sealed class Room
         return (radius * Math.Cos(angle), radius * Math.Sin(angle));
     }
 
+    /// <summary>Обидчики, которых рейнджеры уже забыли, и корабли, которых больше нет в системе.</summary>
+    private void ForgiveOffenders()
+    {
+        if (_offenders.Count == 0) return;
+        _forgiven.Clear();
+        foreach (var (id, until) in _offenders) if (Tick >= until || !_ships.ContainsKey(id)) _forgiven.Add(id);
+        foreach (var id in _forgiven) _offenders.Remove(id);
+    }
+
     /// <summary>Торговцы этого баланса и их тип — текстом: правка любого другого файла их не пересоздаёт.</summary>
     private static string TradersJson(Balance balance) =>
         balance.Traders is not { } traders
@@ -1097,7 +1120,7 @@ public sealed class Room
             var heat = (Balance.Sun?.BurnRadius ?? 0) + GalaxyRules.HeatMargin;
             if (x * x + y * y < heat * heat) (x, y) = (from.X, from.Y);
         }
-        var trader = new Trader(_newId(), rules.Type, type)
+        var trader = new Trader(_newId(), rules.Type, type, Balance.Npc)
         {
             ToStation = to.Station,
             DestX = to.X,
@@ -1229,7 +1252,12 @@ public sealed class Room
             ship.MainWeaponId,
             ship.DeadUntilTick,
             ship.IsProtected(Tick) ? ship.ProtectedUntilTick : 0,
-            pirate is { IsDead: false, State: PirateState.Attack } ? pirate.TargetId : 0,
+            ship switch
+            {
+                Pirate { IsDead: false, State: PirateState.Attack } attacking => attacking.TargetId,
+                Trader { IsDead: false, FireHeld: true } firing => firing.TargetId,
+                _ => 0,
+            },
             pirate is null ? null : AiNames[(int)pirate.State],
             ship switch
             {
@@ -1667,7 +1695,8 @@ public sealed class Room
             Advance(player, MissionRules.DroneStep);
             return;
         }
-        if (victim is not Pirate pirate || player.Missions.Active is not { } active) return;
+        // Рейнджеры — не пираты: за них задание не засчитывается.
+        if (victim is not Pirate { Type.IsPirate: true } pirate || player.Missions.Active is not { } active) return;
         var offer = active.Offer;
         if (offer.Kind != MissionRules.KillKind || offer.System != SystemId) return;
         if (offer.Npc is not null && offer.Npc != pirate.Spawn.Type) return;
@@ -1788,7 +1817,8 @@ public sealed class Room
                 Drone d => new PlayerDto(d.Id, d.Name, Online: true, Npc: true, Ceiling(d.Spec.Hp), Ceiling(d.Spec.Shield), Protocol.DroneKind),
                 Pirate p => new PlayerDto(
                     p.Id, p.Name, Online: true, Npc: true,
-                    Ceiling(p.MaxHp(p.Hull(Hulls))), Ceiling(p.MaxShield(p.Hull(Hulls))), Protocol.PirateKind),
+                    Ceiling(p.MaxHp(p.Hull(Hulls))), Ceiling(p.MaxShield(p.Hull(Hulls))),
+                    p.Type.IsRanger ? Protocol.RangerKind : Protocol.PirateKind),
                 Trader t => new PlayerDto(
                     t.Id, t.Name, Online: true, Npc: true,
                     Ceiling(t.MaxHp(t.Hull(Hulls))), Ceiling(t.MaxShield(t.Hull(Hulls))), Protocol.TraderKind),

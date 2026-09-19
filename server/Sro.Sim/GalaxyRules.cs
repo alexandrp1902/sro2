@@ -263,7 +263,8 @@ public sealed record TraderRules(int Count = 1, double RespawnSeconds = 40, stri
     {
         if (Count is < 0 or > MaxCount) return $"count must be within 0..{MaxCount}";
         if (!(RespawnSeconds >= 0)) return "respawnSeconds must not be negative";
-        if (Type is null || !types.ContainsKey(Type)) return $"unknown type '{Type}'";
+        if (Type is null || !types.TryGetValue(Type, out var type)) return $"unknown type '{Type}'";
+        if (type.Faction != NpcType.TraderFaction) return $"type '{Type}' must have faction '{NpcType.TraderFaction}'";
         if (!(Throttle > 0 && Throttle <= 1)) return "throttle must be within 0..1";
         return null;
     }

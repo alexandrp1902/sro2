@@ -378,4 +378,151 @@ public sealed class FittingRoomTests : IDisposable
         Assert.Contains(Shots(observer), s => s.From == raider.Id && s.To == merchant.Id);
         Assert.True(merchant.Fleeing); // под огнём — на полной тяге
     }
+
+    // ── Торговцы отстреливаются, рейнджеры за них заступаются ───────────────────────────────────
+
+    private static readonly NpcType ArmedTrader = new(
+        "Торговец", "heavy", Hp: 5000, Shield: 0, Damage: 0.3, Weapons: ["pulse"], Faction: NpcType.TraderFaction);
+
+    private static readonly NpcType Ranger = new(
+        "Рейнджер", "light", Hp: 600, Shield: 0, Damage: 0.45, Weapons: ["pulse"], Faction: NpcType.RangerFaction,
+        DefendRange: 2500, LeashRange: 3500);
+
+    private static readonly NpcType PirateType = new("Пират", "light", "pulse", Hp: 300, Shield: 0, Damage: 0.45);
+
+    /// <summary>Система без станции: торговец летит от врат к вратам, рейнджеры — на посту в (2000, 2000).</summary>
+    private Trader PatrolledSystem(int rangers = 1, bool pirate = false)
+    {
+        var spawns = new List<NpcSpawn>();
+        if (rangers > 0) spawns.Add(new NpcSpawn("ranger", 1, 2000, 2000, rangers));
+        if (pirate) spawns.Add(new NpcSpawn("pirate", 1, 500, 500));
+        var system = new SystemDef(
+            "Test", Station: false,
+            Gates: [new GateDef("other", 3000, 0), new GateDef("far", -3000, 0)],
+            Spawns: spawns,
+            Traders: new TraderRules(Count: 1));
+        var galaxy = new GalaxyRules(
+            StartSystem: "test",
+            Systems: new Dictionary<string, SystemDef>
+            {
+                ["test"] = system,
+                ["other"] = new("Other", Gates: [new GateDef("test", 0, 3000)]),
+                ["far"] = new("Far", Gates: [new GateDef("test", 0, 3000)]),
+            },
+            Links: [new LinkDef("test", "other", 10), new LinkDef("test", "far", 10)]);
+        var npcs = new NpcRules(
+            StationSafeRadius: 0,
+            Types: new Dictionary<string, NpcType> { ["trader"] = ArmedTrader, ["ranger"] = Ranger, ["pirate"] = PirateType });
+        _room = NewRoom((NewBalance() with { Npcs = npcs, GalaxySet = galaxy }).ForSystem("test"));
+        return Assert.Single(_room.Traders);
+    }
+
+    private Pirate NpcOf(FakeConnection observer, string kind) =>
+        (Pirate)_room.Entity(observer.Last<PlayersMsg>().Players.First(p => p.Kind == kind).Id)!;
+
+    [Fact]
+    public void Trader_ReturnsFire_WeakerThanAPirate()
+    {
+        var merchant = PatrolledSystem(rangers: 0);
+        var a = Guest();
+        merchant.Ship = new ShipState { X = 0, Y = 1500 };
+        PlayerOf(a).Ship = new ShipState { X = 0, Y = 1200 };
+        Steps(5);
+        Assert.DoesNotContain(Shots(a), s => s.From == merchant.Id); // сам не нападает
+
+        _room.SetTarget(a, merchant.Id);
+        _room.SetFire(a, true);
+        Steps(30);
+
+        var back = Shots(a).Where(s => s.From == merchant.Id && s.To == IdOf(a)).ToList();
+        Assert.NotEmpty(back);
+        Assert.All(back.Where(s => s.Hit), s => Assert.Equal(30, s.Dmg)); // пульсар 100 × 0.3
+        Assert.Equal(IdOf(a), a.Last<SnapshotMsg>().Ships.Single(s => s.Id == merchant.Id).Tg); // видно, в кого он стреляет
+    }
+
+    [Fact]
+    public void Rangers_DefendATrader_FromTheRobber_AndIgnoreOthers()
+    {
+        var merchant = PatrolledSystem(rangers: 1);
+        var robber = Guest("Robber");
+        var bystander = Guest("Bystander");
+        var ranger = NpcOf(robber, Protocol.RangerKind);
+        merchant.Ship = new ShipState { X = 1000, Y = 1000 };
+        PlayerOf(robber).Ship = new ShipState { X = 1000, Y = 700 };
+        PlayerOf(bystander).Ship = new ShipState { X = 2000, Y = 1700 }; // рядом с постом, но ни на кого не нападал
+        Steps(20);
+        Assert.NotEqual(PirateState.Attack, ranger.State);
+
+        _room.SetTarget(robber, merchant.Id);
+        _room.SetFire(robber, true);
+        Steps(5);
+
+        Assert.Equal((PirateState.Attack, IdOf(robber)), (ranger.State, ranger.TargetId));
+        Assert.Equal(Protocol.RangersNotice, robber.Last<NoticeMsg>().Code);
+        Assert.DoesNotContain(bystander.Messages.OfType<NoticeMsg>(), n => n.Code == Protocol.RangersNotice);
+        Assert.Contains(bystander.Last<PlayersMsg>().Players, p => p.Id == ranger.Id && p.Kind == Protocol.RangerKind);
+    }
+
+    [Fact]
+    public void Rangers_ForgetTheRobber_AfterAWhile()
+    {
+        var merchant = PatrolledSystem(rangers: 1);
+        var robber = Guest("Robber");
+        var ranger = NpcOf(robber, Protocol.RangerKind);
+        merchant.Ship = new ShipState { X = 1000, Y = 1000 };
+        PlayerOf(robber).Ship = new ShipState { X = 1000, Y = 700 };
+        _room.SetTarget(robber, merchant.Id);
+        _room.SetFire(robber, true);
+        Steps(2);
+        _room.SetFire(robber, false);
+        _room.SetTarget(robber, 0);
+        // Пилот сразу улетел далеко от рейнджера — тот бросает погоню и потом забывает обиду.
+        PlayerOf(robber).Ship = new ShipState { X = -3500, Y = -3500 };
+        Steps(Room.OffenderTicks + 20);
+        PlayerOf(robber).Ship = new ShipState { X = 2000, Y = 1500 };
+        Steps(20);
+
+        Assert.NotEqual(IdOf(robber), ranger.TargetId);
+    }
+
+    [Fact]
+    public void Rangers_FightAPirateThatRobsATrader()
+    {
+        var merchant = PatrolledSystem(rangers: 1, pirate: true);
+        var observer = Guest();
+        var ranger = NpcOf(observer, Protocol.RangerKind);
+        var pirate = NpcOf(observer, Protocol.PirateKind);
+        PlayerOf(observer).Ship = new ShipState { X = 3500, Y = -3500 };
+        merchant.Ship = new ShipState { X = 500, Y = 800 };
+        pirate.Ship = new ShipState { X = 500, Y = 500 };
+
+        Steps(40);
+
+        Assert.Equal(merchant.Id, pirate.TargetId);
+        Assert.Equal((PirateState.Attack, pirate.Id), (ranger.State, ranger.TargetId));
+    }
+
+    /// <summary>Плейтест: рейнджер замечал обидчика с 2500, а бросал дальше 1000 — дёргался каждый тик и не долетал.</summary>
+    [Fact]
+    public void Ranger_ChasesAFarOffender_WithoutDroppingIt()
+    {
+        var merchant = PatrolledSystem(rangers: 1);
+        var robber = Guest("Robber");
+        var ranger = NpcOf(robber, Protocol.RangerKind);
+        merchant.Ship = new ShipState { X = 300, Y = 600 };
+        PlayerOf(robber).Ship = new ShipState { X = 300, Y = 300 }; // ~2400 от поста: заметит, но дальше dropRange
+        _room.SetTarget(robber, merchant.Id);
+        _room.SetFire(robber, true);
+        Steps(3);
+        _room.SetFire(robber, false);
+        double ToRobber() => Math.Sqrt(Math.Pow(ranger.Ship.X - 300, 2) + Math.Pow(ranger.Ship.Y - 300, 2));
+        var start = ToRobber();
+
+        for (var i = 0; i < 100; i++)
+        {
+            _room.Step();
+            Assert.Equal(IdOf(robber), ranger.TargetId);
+        }
+        Assert.True(ToRobber() < start - 300, $"ranger did not close in: {start:0} → {ToRobber():0}");
+    }
 }

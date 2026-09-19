@@ -3,7 +3,9 @@ using Sro.Sim;
 namespace Sro.Server.Game;
 
 /// <summary>
-/// ИИ пирата — конечный автомат: патруль → бой → возврат в логово (GDD §31). Раз в тик выставляет пирату вход, огонь
+/// ИИ пирата и рейнджера — конечный автомат: патруль → бой → возврат в логово (GDD §31). Пират ищет пилотов
+/// и торговцев; рейнджер — тех, кто недавно напал на торговца (offenders в <see cref="Think"/>).
+/// Пираты и рейнджеры враждуют: кто по кому выстрелил, того и бьют в ответ. Раз в тик выставляет пирату вход, огонь
 /// и цель — ровно то, что игрок присылает с клиента; сектор, дальность и шанс проверяет Battle, как для всех.
 /// </summary>
 internal static class PirateBrain
@@ -48,6 +50,7 @@ internal static class PirateBrain
     private const double ExitRadius = 120;
 
     /// <param name="station">Где сейчас станция: укрытие ходит вместе с ней по орбите.</param>
+    /// <param name="offenders">Кто напал на торговца — id и до какого тика рейнджеры это помнят; null — никто.</param>
     public static void Think(
         Pirate pirate,
         IReadOnlyDictionary<int, ShipEntity> ships,
@@ -56,7 +59,8 @@ internal static class PirateBrain
         long tick,
         Random rng,
         ILogger log,
-        (double X, double Y) station = default)
+        (double X, double Y) station = default,
+        IReadOnlyDictionary<int, long>? offenders = null)
     {
         var npc = balance.Npc;
         var shelter = new Shelter(station.X, station.Y, npc.StationSafeRadius);
@@ -88,7 +92,8 @@ internal static class PirateBrain
         if (pirate.State == PirateState.Attack)
         {
             var target = ships.GetValueOrDefault(pirate.TargetId);
-            if (target is null || !IsFair(target, tick) || Distance(pirate, target) > npc.DropRange)
+            // Рейнджер идёт на обидчика издалека (defendRange) — и бросать его должен не ближе, иначе дёргался бы каждый тик.
+            if (target is null || !CanFight(pirate, target, tick) || Distance(pirate, target) > Math.Max(npc.DropRange, pirate.Type.DefendRange))
             {
                 pirate.State = PirateState.Patrol;
                 pirate.TargetId = 0;
@@ -99,7 +104,7 @@ internal static class PirateBrain
                 // Подбитый налётчик не чинится дома, а бежит из системы.
                 if (pirate.IsRaider && reason == "retreat") StartLeave(pirate, reason, log);
                 else StartReturn(pirate, reason, log);
-                Think(pirate, ships, pirates, balance, tick, rng, log, station);
+                Think(pirate, ships, pirates, balance, tick, rng, log, station, offenders);
                 return;
             }
             else
@@ -110,13 +115,13 @@ internal static class PirateBrain
         }
 
         // Патруль: сначала — не пора ли в бой.
-        if (Acquire(pirate, attacker, ships, pirates, npc, shelter, tick) is { } found)
+        if (Acquire(pirate, attacker, ships, pirates, npc, shelter, tick, offenders) is { } found)
         {
             if (pirate.Hp <= pirate.MaxHp(hull) * pirate.Type.RetreatHp)
             {
                 if (pirate.IsRaider) StartLeave(pirate, "retreat", log);
                 else StartReturn(pirate, "retreat", log);
-                Think(pirate, ships, pirates, balance, tick, rng, log, station);
+                Think(pirate, ships, pirates, balance, tick, rng, log, station, offenders);
                 return;
             }
             pirate.State = PirateState.Attack;
@@ -173,15 +178,27 @@ internal static class PirateBrain
     }
 
     /// <summary>
-    /// Честная цель: игрок на связи, цел и без защиты после появления, или торговец (GDD §31). Дронов и корабли
-    /// без связи пираты не трогают.
+    /// С кем этот NPC вообще воюет. Пилот — если на связи, цел и без защиты после появления; дронов и корабли без связи
+    /// не трогает никто. Торговец — добыча только пиратов. Пираты и рейнджеры — враги друг другу.
     /// </summary>
-    private static bool IsFair(ShipEntity ship, long tick) => ship switch
+    private static bool CanFight(Pirate self, ShipEntity ship, long tick) => ship != self && !ship.IsDead && ship switch
     {
-        Player player => player.Connection is not null && !player.IsDead && !player.IsProtected(tick),
-        Trader trader => !trader.IsDead,
+        Player player => player.Connection is not null && !player.IsProtected(tick),
+        Trader => self.Type.IsPirate,
+        Pirate other => other.Type.IsRanger != self.Type.IsRanger,
         _ => false,
     };
+
+    /// <summary>
+    /// Кого NPC ищет сам, без нападения на него: пират — пилотов и торговцев (GDD §31); рейнджер — тех, кто недавно
+    /// напал на торговца, пилот это или пират.
+    /// </summary>
+    private static bool Wants(Pirate self, ShipEntity ship, long tick, IReadOnlyDictionary<int, long>? offenders)
+    {
+        if (!CanFight(self, ship, tick)) return false;
+        if (self.Type.IsRanger) return offenders is not null && offenders.GetValueOrDefault(ship.Id) > tick;
+        return ship is Player or Trader;
+    }
 
     /// <summary>Укрытие у станции в этот тик.</summary>
     private readonly record struct Shelter(double X, double Y, double Radius)
@@ -189,10 +206,13 @@ internal static class PirateBrain
         public bool Contains(ShipEntity ship, double margin = 0) => Distance(ship.Ship.X, ship.Ship.Y, X, Y) <= Radius + margin;
     }
 
-    private static bool IsCandidate(ShipEntity? ship, long tick, Shelter shelter) =>
-        ship is not null && IsFair(ship, tick) && !shelter.Contains(ship);
+    private static bool IsCandidate(Pirate self, ShipEntity? ship, long tick, Shelter shelter) =>
+        ship is not null && CanFight(self, ship, tick) && !shelter.Contains(ship);
 
-    /// <summary>Кого атаковать: того, кто напал; иначе ближайшего игрока в радиусе агро; иначе цель собрата по бою рядом.</summary>
+    /// <summary>
+    /// Кого атаковать: того, кто напал; иначе ближайшего, кого ищет (пират — в радиусе агро, рейнджер — в радиусе
+    /// защиты торговцев); иначе цель собрата по фракции, который рядом в бою.
+    /// </summary>
     private static ShipEntity? Acquire(
         Pirate pirate,
         int attackerId,
@@ -200,16 +220,17 @@ internal static class PirateBrain
         IReadOnlyList<Pirate> pirates,
         NpcRules npc,
         Shelter shelter,
-        long tick)
+        long tick,
+        IReadOnlyDictionary<int, long>? offenders)
     {
-        if (ships.GetValueOrDefault(attackerId) is { } attacker && IsCandidate(attacker, tick, shelter) && Distance(pirate, attacker) <= npc.DropRange)
+        if (ships.GetValueOrDefault(attackerId) is { } attacker && IsCandidate(pirate, attacker, tick, shelter) && Distance(pirate, attacker) <= npc.DropRange)
             return attacker;
 
         ShipEntity? nearest = null;
-        var nearestDistance = npc.AggroRange;
+        var nearestDistance = Math.Max(npc.AggroRange, pirate.Type.DefendRange);
         foreach (var ship in ships.Values)
         {
-            if (!IsCandidate(ship, tick, shelter)) continue;
+            if (!IsCandidate(pirate, ship, tick, shelter) || !Wants(pirate, ship, tick, offenders)) continue;
             var distance = Distance(pirate, ship);
             if (distance > nearestDistance) continue;
             nearest = ship;
@@ -220,7 +241,8 @@ internal static class PirateBrain
         foreach (var other in pirates)
         {
             if (other == pirate || other.IsDead || other.State != PirateState.Attack || Distance(pirate, other) > npc.AssistRange) continue;
-            if (ships.GetValueOrDefault(other.TargetId) is { } target && IsCandidate(target, tick, shelter) && Distance(pirate, target) <= npc.DropRange)
+            if (other.Type.IsRanger != pirate.Type.IsRanger) continue; // помогают только своим
+            if (ships.GetValueOrDefault(other.TargetId) is { } target && IsCandidate(pirate, target, tick, shelter) && Distance(pirate, target) <= npc.DropRange)
                 return target;
         }
         return null;
@@ -233,7 +255,7 @@ internal static class PirateBrain
         if (shelter.Contains(target)) return "target in the shelter";
         if (shelter.Contains(pirate, SafeMargin))
             return "too close to the shelter";
-        if (Distance(pirate.Ship.X, pirate.Ship.Y, pirate.HomeX, pirate.HomeY) > npc.LeashRange) return "too far from home";
+        if (Distance(pirate.Ship.X, pirate.Ship.Y, pirate.HomeX, pirate.HomeY) > (pirate.Type.LeashRange ?? npc.LeashRange)) return "too far from home";
         return null;
     }
 

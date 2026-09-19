@@ -154,13 +154,15 @@ async function main() {
     return ring[leg];
   }, 0);
   await a.until(() => a.pirates().length > 0, 150000, 'pirates on the radar');
+  // Пират может уже драться — с торговцем или рейнджером (M9), но не с нами: мы под защитой после появления.
   check(
     `pirates on the radar: ${a.pirates().length}, ${a.pirates().map((s) => s.ai).join(', ')}`,
-    a.pirates().every((s) => ['patrol', 'return', 'leave'].includes(s.ai)),
+    a.pirates().every((s) => s.tg !== a.id),
   );
 
-  // К ближайшему пирату: подлететь и зависнуть рядом, пока защита после появления кончается по дороге.
-  const prey = a.pirates().reduce((best, s) => (distance(s, a.me) < distance(best, a.me) ? s : best));
+  // К ближайшему свободному пирату: подлететь и зависнуть рядом, пока защита после появления кончается по дороге.
+  const free = a.pirates().filter((s) => s.ai !== 'attack');
+  const prey = (free.length > 0 ? free : a.pirates()).reduce((best, s) => (distance(s, a.me) < distance(best, a.me) ? s : best));
   const preyName = a.players.find((p) => p.id === prey.id).name;
   console.log(`     flying to ${preyName} #${prey.id} at ${Math.round(prey.x)}, ${Math.round(prey.y)}`);
   a.control = a.flyTo(() => a.ship(prey.id), APPROACH);
