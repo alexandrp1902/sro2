@@ -550,7 +550,7 @@ async function main(): Promise<void> {
   // За кадр сверяемся только с самым свежим снапшотом; чужим кораблям нужен весь поток.
   let latestSnapshot: SnapshotMsg | null = null;
   if (connection) {
-    connection.onWelcome = (message) => {
+    connection.onWelcome = (message, transfer) => {
       hulls.set(message.hulls);
       weapons.set(message.weapons);
       modules.set(message.modules);
@@ -568,7 +568,8 @@ async function main(): Promise<void> {
       meteors.clear();
       missiles.clear();
       selectedLootId = 0; // предметы в космосе за это время сменились — выбор не переносим
-      prediction.resetNet();
+      if (transfer) prediction.resync();
+      else prediction.resetNet();
       remote.clear();
       combat.clear();
       ownDto = null;

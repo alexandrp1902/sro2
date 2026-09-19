@@ -49,6 +49,8 @@ class Client {
     return new Promise((resolve, reject) => {
       const { ws, read } = openSocket(url);
       this.ws = ws;
+      // Новое соединение — входы с 1. После прыжка (welcome по тому же сокету) нумерация продолжается, как в клиенте.
+      this.seq = 0;
       ws.onopen = () => this.send({ t: 'hello', ...this.hello });
       ws.onerror = () => reject(new Error(`cannot connect to ${url}`));
       ws.onclose = () => clearInterval(this.timer);
@@ -57,7 +59,6 @@ class Client {
         if (message.t === 'welcome') {
           this.welcome = message;
           this.snapshots = [];
-          this.seq = 0;
           resolve(message);
         } else if (message.t === 'players') this.players = message;
         else if (message.t === 'hangar') {

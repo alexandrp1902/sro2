@@ -56,7 +56,11 @@ export class Connection {
   /** Сколько байт снапшотов пришло — для dev-панели. */
   snapshotBytes = 0;
 
-  onWelcome: ((message: WelcomeMsg) => void) | null = null;
+  /**
+   * transfer — welcome пришёл по тому же сокету, что и прошлый: корабль перелетел в другую систему (прыжок или
+   * возврат домой после гибели). Буфер входов на сервере продолжает счёт, поэтому и клиент нумерует входы дальше.
+   */
+  onWelcome: ((message: WelcomeMsg, transfer: boolean) => void) | null = null;
   onConfig: ((message: Extract<ServerMessage, { t: 'config' }>) => void) | null = null;
   onSnapshot: ((message: SnapshotMsg) => void) | null = null;
   onRosterEvents: ((events: RosterEvent[]) => void) | null = null;
@@ -204,9 +208,11 @@ export class Connection {
         }
         this.serverVersion = null;
         this.playerId = message.id;
+        // 'online' бывает только после welcome этого же сокета: новый сокет начинается с 'offline' (drop).
+        const transfer = this.state === 'online';
         this.state = 'online';
         this.roster.reset();
-        this.onWelcome?.(message);
+        this.onWelcome?.(message, transfer);
         break;
       case 'pong': {
         const rtt = performance.now() - message.c;

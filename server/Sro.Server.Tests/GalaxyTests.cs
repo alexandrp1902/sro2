@@ -157,6 +157,44 @@ public sealed class GalaxyTests : IDisposable
         Assert.Contains(a.Last<SnapshotMsg>().Ships, s => s.Id == id);
     }
 
+    /// <summary>
+    /// Плейтест M8: после прыжка корабль не слушался, пока клиент не досчитал до старого номера входа. Входы,
+    /// отправленные до прыжка, доходят уже в новую систему — поэтому клиент нумерует входы дальше, а не с 1,
+    /// и управление работает сразу.
+    /// </summary>
+    [Fact]
+    public void Jump_InputsKeepCounting_AndAStaleOneInFlightDoesNotBlockThem()
+    {
+        var a = Guest();
+        var seq = 0;
+        void Fly(double dx, double dy, int ticks)
+        {
+            for (var i = 0; i < ticks; i++)
+            {
+                var input = new MoveInput(dx, dy, 1);
+                var n = ++seq;
+                Do(a, r => r.Input(a, n, input));
+                _galaxy.Step();
+            }
+        }
+        var gate = RoomOf(a).Balance.SystemDef.GateTo("wild")!;
+        Place(a, gate.X, gate.Y);
+        Do(a, r => r.Jump(a, "wild"));
+        Fly(0, -1, JumpTicks); // жмёт вверх, пока идёт подготовка
+        Assert.Equal("wild", RoomOf(a).SystemId);
+        var arrived = PlayerOf(a).Ship;
+
+        // Вход, отправленный ещё до welcome новой системы, — тоже вверх.
+        var stale = ++seq;
+        Do(a, r => r.Input(a, stale, new MoveInput(0, -1, 1)));
+        // Дальше пилот жмёт вправо.
+        Fly(1, 0, 40);
+
+        var ship = PlayerOf(a).Ship;
+        Assert.True(ship.X - arrived.X > 100, $"ship did not follow the new inputs: {arrived.X} → {ship.X}");
+        Assert.True(Math.Abs(ship.Rot - Math.PI / 2) < 0.1, $"nose should point right, rot {ship.Rot}");
+    }
+
     [Fact]
     public void Jump_FarFromTheGate_SaysSo()
     {
