@@ -77,6 +77,12 @@ public sealed class Pirate : ShipEntity
     public long WaypointUntilTick;
     /// <summary>Кто стрелял по нему в пути: по нему пират огрызается на ходу; 0 — никто.</summary>
     public int Avenge;
+    /// <summary>Что пират подобрал в космосе: погибнет — высыплет вместе со своей добычей.</summary>
+    public readonly Cargo Hold = new();
+    /// <summary>Груз, к которому пират летит на патруле; 0 — ни к какому.</summary>
+    public int LootId;
+    public double LootX;
+    public double LootY;
 
     public double HoldRange => Type.HoldRange + SlotHoldStep * Slot;
 
@@ -119,6 +125,7 @@ public sealed class Pirate : ShipEntity
         FireHeld = false;
         HasWaypoint = false;
         Avenge = 0;
+        LootId = 0;
         LastInput = new MoveInput(0, -1, 0);
     }
 

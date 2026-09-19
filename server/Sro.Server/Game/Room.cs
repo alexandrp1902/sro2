@@ -57,6 +57,8 @@ public sealed class Room
     private readonly List<Player> _expired = [];
     private readonly MoveInput[] _steps = new MoveInput[InputBuffer.MaxBudget];
     private readonly List<Player> _jumping = [];
+    /// <summary>Погибшие в этот тик пилоты с грузом: их трюм высыпан.</summary>
+    private readonly List<Player> _spilled = [];
     /// <summary>По кому попали в этот тик: их подготовка прыжка сбита.</summary>
     private readonly HashSet<int> _hit = [];
     /// <summary>Налётчики, которые ушли из системы или погибли: убираются после шага.</summary>
@@ -744,6 +746,7 @@ public sealed class Room
         foreach (var pirate in _pirates)
         {
             if (pirate.IsDead) continue;
+            Scavenge(pirate);
             var before = pirate.TargetId;
             PirateBrain.Think(pirate, _ships, _pirates, Balance, Tick, _ai, _log, StationPosition, _offenders);
             if (pirate.Type.IsRanger && pirate.State == PirateState.Attack && pirate.TargetId != before &&
@@ -806,7 +809,10 @@ public sealed class Room
         StepTraders();
         // Дроп после боя: предмет должен пролежать хотя бы тик, иначе игрок вплотную к убитому
         // увидит «ничего не выпало», а трюм молча пополнится.
+        _spilled.Clear();
+        foreach (var kill in _kills) if (_players.GetValueOrDefault(kill.Id) is { Cargo.IsEmpty: false } spilled) _spilled.Add(spilled);
         _loot.DropFrom(_kills, _ships, Balance.Loot, Tick);
+        foreach (var player in _spilled) LostCargo(player);
         // Подбор и продажа — по команде игрока, а не сами собой: см. Grab и Sell.
         if (_loot.Step(Tick, Balance.Loot)) ClearMissingLootTargets();
         InterruptJumps();
@@ -1164,6 +1170,39 @@ public sealed class Room
         trader.Revive(trader.Effective(Balance), 0);
         _traders.Add(trader);
         _ships[trader.Id] = trader;
+    }
+
+    /// <summary>Сколько пират пролетит за грузом с патруля.</summary>
+    private const double ScavengeRange = 800;
+
+    /// <summary>
+    /// Пират на патруле подбирает груз (GDD §31): подлетел — забрал, иначе выбирает ближайший, что влезет в трюм.
+    /// В бою, в пути и налётчик, уже уходящий из системы, за грузом не летают.
+    /// </summary>
+    private void Scavenge(Pirate pirate)
+    {
+        var loot = Balance.Loot;
+        var capacity = pirate.Hull(Hulls).Cargo;
+        if (pirate.LootId != 0 && _loot.TryScavenge(pirate, pirate.LootId, loot, capacity))
+        {
+            _log.LogInformation("{Pirate} picked up loot, hold {Used}", pirate, pirate.Hold.Used(loot));
+            pirate.LootId = 0;
+            ClearMissingLootTargets(); // пилот мог пометить этот же груз
+        }
+        var drop = pirate.State == PirateState.Patrol && !pirate.Type.IsRanger
+            ? _loot.ScavengeTarget(pirate, ScavengeRange, Balance.Npc.PatrolRadius + ScavengeRange, capacity, loot)
+            : null;
+        pirate.LootId = drop?.Id ?? 0;
+        if (drop is not null) (pirate.LootX, pirate.LootY) = (drop.X, drop.Y);
+    }
+
+    /// <summary>Пилот погиб — трюм высыпан в космос (GDD §24): клиенту новый трюм и строка в ленту.</summary>
+    private void LostCargo(Player player)
+    {
+        SendCargo(player);
+        SendCollect(player);
+        Save(player);
+        player.Connection?.Send(new NoticeMsg(Protocol.CargoLostNotice));
     }
 
     /// <summary>По торговцу стреляют: SOS всей системе (если он ещё не зовёт), и тишина отсчитывается заново.</summary>

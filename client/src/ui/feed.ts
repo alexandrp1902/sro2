@@ -28,6 +28,7 @@ export function describeBurn(victim: string): string {
 /** Короткие уведомления сервера: он шлёт код, текст живёт здесь. */
 const NOTICES: Record<string, string> = {
   cargoFull: 'Недостаточно места в трюме',
+  cargoLost: 'Трюм потерян — груз остался в космосе на месте гибели',
   unloaded: 'Груз продан',
   tooFar: 'Слишком далеко',
   noCredits: 'Не хватает кредитов',

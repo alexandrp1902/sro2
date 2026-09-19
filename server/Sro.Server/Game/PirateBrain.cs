@@ -387,7 +387,9 @@ internal static class PirateBrain
             pirate.HasWaypoint = true;
         }
         pirate.TargetId = 0;
-        FlyTo(pirate, pirate.WaypointX, pirate.WaypointY, npc.PatrolThrottle);
+        // Рядом лежит груз — пират летит за ним (подбирает его комната, когда он подлетит).
+        if (pirate.LootId != 0) FlyTo(pirate, pirate.LootX, pirate.LootY, npc.PatrolThrottle);
+        else FlyTo(pirate, pirate.WaypointX, pirate.WaypointY, npc.PatrolThrottle);
     }
 
     /// <summary>Лететь к точке, сбавляя тягу на подлёте; огня нет.</summary>

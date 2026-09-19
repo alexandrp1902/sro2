@@ -437,6 +437,8 @@ public static class Protocol
 
     /// <summary>Коды уведомлений (<see cref="NoticeMsg"/>); текст подставляет клиент.</summary>
     public const string CargoFullNotice = "cargoFull";
+    /// <summary>Корабль уничтожен — трюм высыпался в космос.</summary>
+    public const string CargoLostNotice = "cargoLost";
     public const string UnloadedNotice = "unloaded";
     public const string TooFarNotice = "tooFar";
     public const string NoCreditsNotice = "noCredits";

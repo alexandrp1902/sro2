@@ -440,22 +440,74 @@ public class LootTests
     }
 
     [Fact]
-    public void Cargo_SurvivesDeathAndRespawn()
+    public void Cargo_SpillsIntoSpace_WhenTheShipIsDestroyed()
     {
         var (a, _) = KillPirate();
         var drop = Assert.Single(LootOf(a));
         PlaceNear(a, drop, 100);
         Grab(a, drop.Id);
         Assert.Equal(2, PlayerOf(a).Cargo.Items["metal"]);
+        Assert.Empty(LootOf(a));
 
-        // GDD §24: игрок не теряет груз при уничтожении корабля.
+        // GDD §24: при уничтожении весь трюм высыпается в космос на месте гибели.
+        Place(IdOf(a), 1500, 1500);
         PlayerOf(a).Hp = 0;
-        _room.Step();
-        Assert.True(PlayerOf(a).IsDead);
-        Steps(SimConfig.TickRate * 3);
+        Steps(2);
 
+        Assert.True(PlayerOf(a).Cargo.IsEmpty);
+        Assert.Empty(a.Last<CargoMsg>().Items);
+        Assert.Equal(Protocol.CargoLostNotice, a.Last<NoticeMsg>().Code);
+        var spilled = Assert.Single(LootOf(a));
+        Assert.Equal(("metal", 2), (spilled.I, spilled.N));
+        Assert.True(Math.Sqrt(Sq(spilled.X - 1500) + Sq(spilled.Y - 1500)) < 100);
+
+        // Возрождается с пустым трюмом.
+        Steps(SimConfig.TickRate * 3);
         Assert.False(PlayerOf(a).IsDead);
-        Assert.Equal(2, PlayerOf(a).Cargo.Items["metal"]);
+        Assert.True(PlayerOf(a).Cargo.IsEmpty);
+    }
+
+    [Fact]
+    public void BigHold_SpillsInPilesAnyShipCanTake()
+    {
+        var a = Connect();
+        PlayerOf(a).Cargo.Add("metal", 12);
+        Place(IdOf(a), 1500, 1500);
+        PlayerOf(a).Hp = 0;
+        Steps(2);
+
+        var piles = LootOf(a);
+        Assert.Equal([5, 5, 2], piles.Select(p => p.N).Order().Reverse());
+    }
+
+    [Fact]
+    public void Pirate_PicksUpCargo_AndDropsItWhenKilled()
+    {
+        var a = Connect(weapon: "doom");
+        var pirate = PirateOf(a);
+        // Пилот погиб рядом с логовом — груз лежит там, где патрулирует пират.
+        PlayerOf(a).Cargo.Add("tech", 1);
+        Place(IdOf(a), LairX + 300, LairY);
+        PlayerOf(a).Hp = 0;
+        Steps(2);
+        Assert.Single(LootOf(a));
+
+        for (var i = 0; i < 20 * SimConfig.TickRate && pirate.Hold.IsEmpty; i++) _room.Step();
+        Assert.Equal(1, pirate.Hold.Items.GetValueOrDefault("tech"));
+        Assert.Empty(LootOf(a));
+        Assert.Contains(a.Messages.OfType<SnapshotMsg>().SelectMany(s => s.Picks ?? []), p => p.By == pirate.Id && p.I == "tech");
+
+        // Сбитый пират роняет и собранное, и свою добычу.
+        Steps(SimConfig.TickRate * 3);
+        Place(pirate.Id, LairX, LairY);
+        Place(IdOf(a), LairX, LairY + 300);
+        _room.SetTarget(a, pirate.Id);
+        _room.SetFire(a, true);
+        _room.Step();
+        Assert.True(pirate.IsDead);
+        Assert.True(pirate.Hold.IsEmpty);
+        Assert.Contains(LootOf(a), l => l.I == "tech");
+        Assert.Contains(LootOf(a), l => l.I == "metal");
     }
 
     [Fact]
