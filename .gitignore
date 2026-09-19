@@ -14,3 +14,6 @@ Thumbs.db
 
 # Аккаунты пилотов (сервер, M6)
 data/
+
+# Python
+__pycache__/
