@@ -57,7 +57,8 @@
     <div id="galaxy" class="galaxy" hidden></div>
 
     <div id="connect" class="connect" hidden>
-      <form class="connect-card">
+      <!-- onsubmit: пока скрипт не загрузился (или упал), браузер не должен уводить ник и пароль в адрес страницы. -->
+      <form class="connect-card" onsubmit="return false">
         <div class="connect-title">Пилот</div>
         <div class="connect-hint">Новый ник с паролем заводит аккаунт. Тот же ник и пароль — на любом устройстве.</div>
         <label class="connect-label" for="pilot-name">Ник</label>

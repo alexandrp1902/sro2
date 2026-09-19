@@ -1,5 +1,5 @@
 import { Container, Graphics, Sprite, Text } from 'pixi.js';
-import { PARKING, STATION } from '../game/layout';
+import { STATION } from '../game/layout';
 import type { PlanetDto, SystemDto } from '../net/protocol';
 import { gateLabel } from '../sim/galaxy';
 import { WORLD_HALF_SIZE } from '../sim/movement';
@@ -86,19 +86,6 @@ export class SystemView {
     if (!system || system.station) {
       // Станция и всё, что у неё, — в её осях: +y — прочь от звезды. Контейнер поворачивается вместе с ней.
       this.station.addChild(centred(STATIONS[Math.min(5, Math.max(1, system?.danger ?? 1)) - 1], 0, 0, STATION.radius * STATION_SCALE));
-      if (!system || system.danger <= 1) {
-        this.station.addChild(
-          new Graphics()
-            .circle(PARKING.x, PARKING.y, PARKING.radius)
-            .fill({ color: 0x4ae07a, alpha: 0.08 })
-            .stroke({ width: 2, color: 0x4ae07a, alpha: 0.8 })
-            .moveTo(PARKING.x - 8, PARKING.y)
-            .lineTo(PARKING.x + 8, PARKING.y)
-            .moveTo(PARKING.x, PARKING.y - 8)
-            .lineTo(PARKING.x, PARKING.y + 8)
-            .stroke({ width: 1.5, color: 0x4ae07a, alpha: 0.8 }),
-        );
-      }
       this.stationLabel = label(system ? `Станция ${system.name}` : 'Станция', 0, 0, STATION_LABEL_COLOR);
       view.addChild(this.station, this.stationLabel);
     }

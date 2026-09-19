@@ -74,14 +74,7 @@ const STOPPED_SPEED = 1;
 async function main(): Promise<void> {
   preventBrowserGestures();
 
-  const app = new Application();
-  await app.init({
-    resizeTo: window,
-    background: '#05060a',
-    antialias: true,
-    resolution: Math.min(window.devicePixelRatio || 1, 2),
-    autoDensity: true,
-  });
+  const app = await createApp();
   document.getElementById('game')!.appendChild(app.canvas);
   // Картинки нужны видам с первого кадра: небо, станция и корабли строятся сразу ниже.
   await loadSprites();
@@ -986,4 +979,51 @@ function toCompass(angle: number): number {
   return ((angle * 180) / Math.PI + 360) % 360;
 }
 
-main();
+/**
+ * Холст игры. Chrome на части Android-телефонов отдаёт WebGL в проверке, но не создаёт контекст (GPU в чёрном
+ * списке, контекст потерян) — тогда Pixi бросает исключение, и игра не запускалась вовсе. Пробуем по очереди:
+ * WebGL со сглаживанием, без него, WebGPU, Canvas 2D.
+ */
+async function createApp(): Promise<Application> {
+  const base = {
+    resizeTo: window,
+    background: '#05060a',
+    resolution: Math.min(window.devicePixelRatio || 1, 2),
+    autoDensity: true,
+  };
+  const attempts = [
+    { preference: 'webgl', antialias: true },
+    { preference: 'webgl', antialias: false },
+    { preference: 'webgpu', antialias: false },
+    { preference: 'canvas', antialias: false },
+  ] as const;
+  let error: unknown;
+  for (const attempt of attempts) {
+    const app = new Application();
+    try {
+      await app.init({ ...base, ...attempt, preference: [attempt.preference] });
+      return app;
+    } catch (e) {
+      error = e;
+      console.warn(`renderer ${attempt.preference} failed`, e);
+    }
+  }
+  throw error;
+}
+
+/** Игра не запустилась: вместо мёртвой формы входа — понятная причина на экране. */
+function showFatal(error: unknown): void {
+  const box = document.createElement('div');
+  box.style.cssText =
+    'position:fixed;inset:0;z-index:1000;display:flex;align-items:center;justify-content:center;padding:24px;' +
+    'background:#05060a;color:#e8eefc;font:16px system-ui,sans-serif;text-align:center;line-height:1.5';
+  box.textContent =
+    `Игра не запустилась в этом браузере: ${error instanceof Error ? error.message : String(error)}. ` +
+    'Обновите Chrome или включите аппаратное ускорение (chrome://flags → WebGL).';
+  document.body.appendChild(box);
+}
+
+main().catch((e: unknown) => {
+  console.error(e);
+  showFatal(e);
+});
