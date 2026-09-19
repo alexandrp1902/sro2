@@ -1,7 +1,10 @@
 // Сквозная проверка боя без браузера: защита после появления, темп огня по кулдауну, щит раньше корпуса,
 // смена пушки, сектор стрельбы, снятие защиты собственным выстрелом, дроны в системе.
-// Нужен запущенный сервер и Node 24 (встроенный WebSocket). Идёт ~20 с: ждёт конца защиты после появления.
+// В стартовой системе PvP нет (M7), поэтому пилоты сначала летят к вратам и прыгают в соседнюю систему с PvP.
+// Нужен запущенный сервер и Node 24 (встроенный WebSocket). Идёт ~60 с: перелёт к вратам и конец защиты.
 //   node tools/smoke-combat.mjs [ws://localhost:5000/ws]
+
+import { aroundSun, openSocket } from './wire.mjs';
 
 const url = process.argv[2] ?? 'ws://localhost:5000/ws';
 const INPUT_INTERVAL_MS = 50;
@@ -20,6 +23,8 @@ class Client {
     this.timer = 0;
     /** Куда смотреть: () => [dx, dy]; тяга всегда 0 — корабли только разворачиваются. */
     this.aim = () => [0, -1];
+    /** Полёт к точке: () => [dx, dy, тяга]; null — стоим и только разворачиваемся. */
+    this.steer = null;
     this.listeners = new Set();
   }
 
@@ -33,13 +38,13 @@ class Client {
 
   connect() {
     return new Promise((resolve, reject) => {
-      const ws = new WebSocket(url);
+      const { ws, read } = openSocket(url);
       this.ws = ws;
       ws.onopen = () => this.send({ t: 'hello', name: this.name, hull: 'light', weapon: 'pulse', token: this.token });
       ws.onerror = () => reject(new Error(`cannot connect to ${url}`));
       ws.onclose = () => clearInterval(this.timer);
       ws.onmessage = (e) => {
-        const message = JSON.parse(e.data);
+        const message = read(e.data);
         if (message.t === 'welcome') {
           this.welcome = message;
           resolve(message);
@@ -57,9 +62,9 @@ class Client {
   /** Шлёт вход каждые 50 мс, как настоящий клиент. */
   start() {
     this.timer = setInterval(() => {
-      const [dx, dy] = this.aim();
+      const [dx, dy, th] = this.steer ? this.steer() : [...this.aim(), 0];
       const length = Math.hypot(dx, dy) || 1;
-      this.send({ t: 'input', seq: ++this.seq, dx: dx / length, dy: dy / length, th: 0 });
+      this.send({ t: 'input', seq: ++this.seq, dx: dx / length, dy: dy / length, th });
     }, INPUT_INTERVAL_MS);
   }
 
@@ -76,6 +81,37 @@ class Client {
       const k = away ? -1 : 1;
       return [(them.x - me.x) * k, (them.y - me.y) * k];
     };
+  }
+
+  /** Долететь до точки: на полной тяге, а в радиусе within — тормозить до остановки. */
+  async flyTo(x, y, within, timeoutMs) {
+    this.steer = () => {
+      const me = this.ship(this.id);
+      if (!me) return [0, -1, 0];
+      // Прямо через звезду нельзя — сгорим: сначала в обход.
+      const via = aroundSun(this.welcome.system, me, { x, y });
+      const dx = via.x - me.x;
+      const dy = via.y - me.y;
+      const final = via.x === x && via.y === y;
+      return [dx, dy, !final || Math.hypot(dx, dy) > within ? 1 : 0];
+    };
+    await this.until(
+      () => {
+        const me = this.ship(this.id);
+        return me && Math.hypot(x - me.x, y - me.y) <= within && Math.hypot(me.vx, me.vy) < 5;
+      },
+      timeoutMs,
+      `${this.name} reaches ${Math.round(x)}, ${Math.round(y)}`,
+    );
+    this.steer = null;
+  }
+
+  /** К вратам в систему to и прыжок: ждём welcome уже из той системы. */
+  async jumpTo(to) {
+    const gate = this.welcome.system.gates.find((g) => g.to === to);
+    await this.flyTo(gate.x, gate.y, 120, 60000);
+    this.send({ t: 'jump', to });
+    await this.until(() => this.welcome.system?.id === to, 10000, `${this.name} jumps to ${to}`);
   }
 
   /** Выстрелы корабля from начиная с тика sinceTick — по снапшотам этого клиента. */
@@ -135,21 +171,30 @@ async function main() {
   const drones = a.players.filter((p) => p.npc && (p.kind ?? 'drone') === 'drone');
   check(`drones in the system: ${drones.map((d) => d.name).join(', ') || 'none'}`, drones.length === (rules.drones?.length ?? 0));
 
+  // Бой — в системе, где PvP есть хотя бы вне станции: в стартовой его нет (GDD §34).
+  const c = new Client(`Smoke-C-${RUN}`);
+  await c.connect();
+  const start = a.welcome.system;
+  check(`start system ${start?.name}: PvP ${start?.pvp}`, start?.pvp === 'off');
+  const arena = start.gates.find((g) => g.to === 'vega') ?? start.gates[0];
+  for (const client of [a, b, c]) client.start();
+  await Promise.all([a, b, c].map((client) => client.jumpTo(arena.to)));
+  check(`all three jumped to ${a.welcome.system.name} (PvP ${a.welcome.system.pvp})`, a.welcome.system.pvp !== 'off');
+  // Все трое у одних врат: разводим A вперёд, чтобы B и C целились не в точку.
+  const arrival = a.ship(idA);
+  await a.flyTo(arrival.x * 0.93, arrival.y * 0.93, 30, 15000);
+
   a.aim = a.face(idB);
   b.aim = b.face(idA);
-  a.start();
-  b.start();
+  c.aim = c.face(idA);
   await a.until(() => a.ship(idA) && a.ship(idB), 2000, 'both ships in the snapshot');
 
-  if (rules.protectionSeconds >= 2) {
-    check('both ships are protected after spawning', a.ship(idA).pu > 0 && a.ship(idB).pu > 0);
-    a.send({ t: 'target', id: idB });
-    a.send({ t: 'fire', on: true });
-    await sleep(1000);
+  // Защита после прыжка у A и B могла ещё не кончиться: огонь включаем сразу, выстрелы начнутся без неё.
+  a.send({ t: 'target', id: idB });
+  a.send({ t: 'fire', on: true });
+  if (b.ship(idB)?.pu > b.snapshot.tick) {
+    await sleep(500);
     check('no shots at a protected ship', a.shots(idA).length === 0);
-  } else {
-    a.send({ t: 'target', id: idB });
-    a.send({ t: 'fire', on: true });
   }
 
   await a.until(() => !a.ship(idA)?.pu && !a.ship(idB)?.pu, (rules.protectionSeconds + 2) * 1000, 'protection ends');
@@ -196,13 +241,13 @@ async function main() {
   else check(`turned away: no shots outside the ±${arc}° arc`, a.shots(idA, awayStart).length === 0);
   a.send({ t: 'fire', on: false });
 
-  const c = new Client(`Smoke-C-${RUN}`);
-  await c.connect();
+  // Защита C после прыжка давно кончилась: прыжок туда и обратно даёт новую — её и проверяем.
+  await c.jumpTo(start.id);
+  await c.jumpTo(arena.to);
   c.aim = c.face(idA);
-  c.start();
-  await c.until(() => c.ship(c.id), 2000, 'C in the snapshot');
+  await c.until(() => c.ship(c.id) && c.ship(idA), 2000, 'C in the snapshot');
   if (rules.protectionSeconds >= 2) {
-    check('C is protected after spawning', c.ship(c.id).pu > 0);
+    check('C is protected after the jump', c.ship(c.id).pu > c.snapshot.tick);
     c.send({ t: 'target', id: idA });
     c.send({ t: 'fire', on: true });
     await c.until(() => c.shots(c.id).length > 0, 4000, 'C fires at A');

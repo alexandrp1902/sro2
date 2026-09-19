@@ -3,9 +3,5 @@
   "protectionSeconds": 10,
   "shieldRegenDelay": 5,
   "spawnJitter": 120,
-  "sectorUnit": 700,
-  "drones": [
-    { "name": "Учебный дрон", "hull": "heavy", "x": -450, "y": 250, "hp": 600, "shield": 0 },
-    { "name": "Дрон-мишень", "hull": "light", "x": -750, "y": 750, "orbitRadius": 250, "throttle": 1 }
-  ]
+  "sectorUnit": 700
 }

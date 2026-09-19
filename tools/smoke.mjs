@@ -2,13 +2,15 @@
 // потом стоп, и сверяет снапшоты с моделью. Нужен запущенный сервер и Node 24 (встроенный WebSocket).
 //   node tools/smoke.mjs [ws://localhost:5000/ws]
 
+import { openSocket } from './wire.mjs';
+
 const url = process.argv[2] ?? 'ws://localhost:5000/ws';
 const HULL = 'light';
 const THRUST_MS = 2500;
 const TOTAL_MS = 5500;
 const INPUT_INTERVAL_MS = 50;
 
-const ws = new WebSocket(url);
+const { ws, read } = openSocket(url);
 const own = [];
 let playerId = 0;
 let hull = null;
@@ -19,7 +21,7 @@ let timer = 0;
 ws.onopen = () => ws.send(JSON.stringify({ t: 'hello', name: 'smoke', hull: HULL }));
 ws.onerror = () => fail(`cannot connect to ${url}`);
 ws.onmessage = (e) => {
-  const message = JSON.parse(e.data);
+  const message = read(e.data);
   if (message.t === 'welcome') {
     playerId = message.id;
     hull = message.hulls[HULL];

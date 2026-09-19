@@ -8,8 +8,10 @@ public enum PirateState
     Patrol,
     /// <summary>Держит цель на дистанции и стреляет.</summary>
     Attack,
-    /// <summary>Летит в логово, ни на что не реагируя; там чинится.</summary>
+    /// <summary>Летит в логово, ни на что не реагируя; там чинится. Налётчик так летит от врат к точке патруля.</summary>
     Return,
+    /// <summary>Налётчик уходит: летит к вратам (или на базу), ни на что не реагируя, и исчезает из системы.</summary>
+    Leave,
 }
 
 /// <summary>
@@ -46,6 +48,24 @@ public sealed class Pirate : ShipEntity
     public int Level => Spawn.Level;
     public double HomeX => Spawn.X;
     public double HomeY => Spawn.Y;
+
+    /// <summary>Номер налёта (<see cref="RaidRules"/>); 0 — пират из логова, живёт в системе постоянно.</summary>
+    public int RaidId;
+    /// <summary>Откуда налётчик прилетел и куда уйдёт: врата или пиратская база.</summary>
+    public double ExitX;
+    public double ExitY;
+    /// <summary>Выход — врата: там пират готовит прыжок, как игрок; иначе — база, в неё он просто садится.</summary>
+    public bool ExitIsGate;
+    /// <summary>Сколько налётчик патрулирует, долетев до точки.</summary>
+    public long PatrolTicks;
+    /// <summary>Когда налётчику уходить; 0 — ещё не долетел до точки патруля.</summary>
+    public long PatrolUntilTick;
+    /// <summary>Готовит прыжок у врат и уйдёт в этот тик; 0 — нет.</summary>
+    public long LeaveAtTick;
+    /// <summary>Ушёл из системы: комната уберёт его после шага ИИ.</summary>
+    public bool Gone;
+
+    public bool IsRaider => RaidId != 0;
 
     public PirateState State = PirateState.Patrol;
     public MoveInput LastInput = new(0, -1, 0);

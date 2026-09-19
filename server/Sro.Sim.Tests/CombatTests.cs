@@ -163,8 +163,15 @@ public class CombatTests
         Assert.True(Balance.TryParse(TestHulls.SharedSources(), out var balance, out var error), error);
         Assert.Contains(SimConfig.DefaultWeapon, balance!.Weapons.Keys);
         Assert.All(balance.Hulls.Values, h => Assert.True(h.Hp > 0));
-        Assert.NotEmpty(balance.Rules.DroneList);
-        Assert.True(balance.Npc.Count > 0);
+        // Раскладка — в galaxy.json: дроны в стартовой системе; в каждой — звезда и налёты пиратов.
+        var start = balance.ForSystem(balance.Galaxy.StartSystem);
+        Assert.NotEmpty(start.Rules.DroneList);
+        Assert.All(balance.Galaxy.SystemMap.Keys, id =>
+        {
+            var system = balance.ForSystem(id);
+            Assert.True(system.Raids is { MaxGroups: > 0 }, id);
+            Assert.NotNull(system.Sun);
+        });
     }
 
     [Fact]

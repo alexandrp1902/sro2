@@ -1,0 +1,230 @@
+{
+  "ships-light": {
+    "w": 179,
+    "h": 256,
+    "body": 226
+  },
+  "ships-medium": {
+    "w": 174,
+    "h": 256,
+    "body": 229
+  },
+  "ships-heavy": {
+    "w": 203,
+    "h": 256,
+    "body": 213
+  },
+  "ships-pirate": {
+    "w": 254,
+    "h": 256,
+    "body": 222
+  },
+  "stations-ring": {
+    "w": 512,
+    "h": 501
+  },
+  "stations-mining": {
+    "w": 500,
+    "h": 512
+  },
+  "stations-fortress": {
+    "w": 512,
+    "h": 506
+  },
+  "stations-habitat": {
+    "w": 512,
+    "h": 510
+  },
+  "suns-yellow": {
+    "w": 534,
+    "h": 537
+  },
+  "suns-orange": {
+    "w": 531,
+    "h": 500
+  },
+  "suns-blue": {
+    "w": 528,
+    "h": 517
+  },
+  "suns-red": {
+    "w": 598,
+    "h": 580
+  },
+  "planets-terran": {
+    "w": 512,
+    "h": 503
+  },
+  "planets-desert": {
+    "w": 512,
+    "h": 501
+  },
+  "planets-ice": {
+    "w": 512,
+    "h": 503
+  },
+  "planets-gas": {
+    "w": 512,
+    "h": 372
+  },
+  "meteors-m0": {
+    "w": 192,
+    "h": 189
+  },
+  "meteors-m1": {
+    "w": 189,
+    "h": 192
+  },
+  "meteors-m2": {
+    "w": 192,
+    "h": 191
+  },
+  "meteors-m3": {
+    "w": 192,
+    "h": 182
+  },
+  "meteors-m4": {
+    "w": 192,
+    "h": 174
+  },
+  "meteors-m5": {
+    "w": 175,
+    "h": 192
+  },
+  "meteors-m6": {
+    "w": 186,
+    "h": 192
+  },
+  "meteors-m7": {
+    "w": 188,
+    "h": 192
+  },
+  "meteors-m8": {
+    "w": 192,
+    "h": 192
+  },
+  "resources-metal": {
+    "w": 128,
+    "h": 124
+  },
+  "resources-ore": {
+    "w": 126,
+    "h": 128
+  },
+  "resources-energy": {
+    "w": 127,
+    "h": 128
+  },
+  "resources-titanium": {
+    "w": 128,
+    "h": 112
+  },
+  "resources-crystals": {
+    "w": 111,
+    "h": 128
+  },
+  "resources-rareMetal": {
+    "w": 128,
+    "h": 122
+  },
+  "resources-plasma": {
+    "w": 128,
+    "h": 128
+  },
+  "resources-container": {
+    "w": 128,
+    "h": 121
+  },
+  "resources-electronics": {
+    "w": 127,
+    "h": 128
+  },
+  "weapons-pulse": {
+    "w": 128,
+    "h": 123
+  },
+  "weapons-laser": {
+    "w": 128,
+    "h": 118
+  },
+  "weapons-plasma": {
+    "w": 128,
+    "h": 120
+  },
+  "weapons-rockets": {
+    "w": 127,
+    "h": 128
+  },
+  "explosions-f0": {
+    "w": 256,
+    "h": 256
+  },
+  "explosions-f1": {
+    "w": 256,
+    "h": 256
+  },
+  "explosions-f2": {
+    "w": 256,
+    "h": 256
+  },
+  "explosions-f3": {
+    "w": 256,
+    "h": 256
+  },
+  "explosions-f4": {
+    "w": 256,
+    "h": 256
+  },
+  "explosions-f5": {
+    "w": 256,
+    "h": 256
+  },
+  "explosions-f6": {
+    "w": 256,
+    "h": 256
+  },
+  "explosions-f7": {
+    "w": 256,
+    "h": 256
+  },
+  "explosions-f8": {
+    "w": 256,
+    "h": 256
+  },
+  "weapon-shots-bolt": {
+    "w": 192,
+    "h": 49
+  },
+  "weapon-shots-bolt-flash": {
+    "w": 192,
+    "h": 123
+  },
+  "weapon-shots-bolt-hit": {
+    "w": 192,
+    "h": 189
+  },
+  "weapon-shots-beam": {
+    "w": 192,
+    "h": 35
+  },
+  "weapon-shots-beam-flash": {
+    "w": 192,
+    "h": 133
+  },
+  "weapon-shots-beam-hit": {
+    "w": 192,
+    "h": 177
+  },
+  "weapon-shots-orb": {
+    "w": 192,
+    "h": 108
+  },
+  "weapon-shots-orb-flash": {
+    "w": 192,
+    "h": 159
+  },
+  "weapon-shots-orb-hit": {
+    "w": 192,
+    "h": 179
+  }
+}

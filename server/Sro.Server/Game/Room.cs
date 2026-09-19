@@ -8,7 +8,8 @@ namespace Sro.Server.Game;
 
 /// <summary>
 /// Логика одной звёздной системы: игроки, сессии, NPC, шаг симуляции, бой, снапшоты. Вызывается только из потока тика
-/// (<see cref="SystemRoom"/>), своих потоков и таймеров не имеет — поэтому тестируется напрямую.
+/// (<see cref="GalaxyHost"/>), своих потоков и таймеров не имеет — поэтому тестируется напрямую.
+/// Соседние системы и переходы между ними — забота <see cref="Galaxy"/>; без неё комната живёт одна, как до M7.
 /// </summary>
 public sealed class Room
 {
@@ -21,6 +22,12 @@ public sealed class Room
     /// <summary>Код закрытия WebSocket: к кораблю подключилось новое соединение с той же сессией.</summary>
     public const int ReplacedCloseCode = 4001;
 
+    /// <summary>Запас радара: корабль на краю не мерцает, то появляясь, то пропадая с каждым тиком.</summary>
+    public const double RadarMargin = 150;
+
+    /// <summary>Подготовка прыжка сбивается, если корабль отошёл от врат дальше gateRange × столько.</summary>
+    public const double GateSlack = 1.2;
+
     private const int MinTokenLength = 16;
     private const int MaxTokenLength = 64;
 
@@ -31,6 +38,8 @@ public sealed class Room
     private readonly LootSystem _loot;
     private readonly MeteorSystem _meteors;
     private readonly AccountStore? _accounts;
+    private readonly IRoomHost? _host;
+    private readonly Func<int> _newId;
     private readonly Dictionary<int, Player> _players = [];
     private readonly Dictionary<int, Player> _byConnection = [];
     private readonly Dictionary<string, Player> _byToken = new(StringComparer.Ordinal);
@@ -43,7 +52,15 @@ public sealed class Room
     private readonly List<KillDto> _kills = [];
     private readonly List<Player> _expired = [];
     private readonly MoveInput[] _steps = new MoveInput[InputBuffer.MaxBudget];
+    private readonly List<Player> _jumping = [];
+    /// <summary>Налётчики, которые ушли из системы или погибли: убираются после шага.</summary>
+    private readonly List<Pirate> _gonePirates = [];
     private int _nextId;
+    private int _raidCount;
+    /// <summary>Раньше этого тика новый налёт не прилетит.</summary>
+    private long _nextRaidTick;
+    /// <summary>Налёты этого баланса — сравниваются по тексту: новый Balance при каждой правке любого файла.</summary>
+    private string _raidsJson = "";
 
     /// <param name="roll">Случайное число из [0, 1) для бросков попадания; тесты подставляют своё.</param>
     /// <param name="jitter">Разброс точки появления.</param>
@@ -51,6 +68,9 @@ public sealed class Room
     /// <param name="loot">Случайность дропа — тоже отдельно: иначе добыча сдвигала бы разброс спауна.</param>
     /// <param name="meteors">Случайность метеоритов: размер, трасса, скорость, интервал.</param>
     /// <param name="accounts">Аккаунты пилотов; null — сохранять некуда (тесты без аккаунтов).</param>
+    /// <param name="host">Галактика: соседние системы, общий ростер имён; null — комната одна.</param>
+    /// <param name="nextId">Общий счётчик id галактики: игрок не меняет id, перелетая из системы в систему.</param>
+    /// <param name="orbitEpoch">Орбитальное время в тик 0, секунды; null — сейчас по unix-часам (<see cref="Now"/>).</param>
     public Room(
         Balance balance,
         ILogger log,
@@ -59,27 +79,64 @@ public sealed class Room
         Random? ai = null,
         Random? loot = null,
         Random? meteors = null,
-        AccountStore? accounts = null)
+        AccountStore? accounts = null,
+        IRoomHost? host = null,
+        Func<int>? nextId = null,
+        double? orbitEpoch = null)
     {
         Balance = balance;
+        OrbitEpoch = orbitEpoch ?? Now();
         _log = log;
+        _host = host;
+        _newId = nextId ?? (() => ++_nextId);
         _jitter = jitter ?? Random.Shared;
         _ai = ai ?? Random.Shared;
         _battle = new Battle(roll ?? Random.Shared.NextDouble, log);
-        _loot = new LootSystem(() => ++_nextId, loot ?? Random.Shared, log);
+        _loot = new LootSystem(_newId, loot ?? Random.Shared, log);
         _loot.SetContainers(balance.Loot.ContainerList);
-        _meteors = new MeteorSystem(() => ++_nextId, meteors ?? Random.Shared);
+        _meteors = new MeteorSystem(_newId, meteors ?? Random.Shared);
         _accounts = accounts;
         SpawnDrones();
         SpawnPirates();
+        StartRaids();
     }
 
     public long Tick { get; private set; }
+
+    /// <summary>
+    /// Орбитальное время в тик 0: станция и планеты ходят по unix-часам, поэтому перезапуск сервера их не сдвигает.
+    /// Клиент получает его в системе и считает орбиты той же формулой от тика снапшота.
+    /// </summary>
+    public double OrbitEpoch { get; }
+
+    /// <summary>Орбитальное время сейчас, секунды.</summary>
+    public double OrbitSeconds => OrbitEpoch + Tick * SimConfig.Dt;
+
+    /// <summary>Unix-время в секундах — начало орбитального отсчёта новой комнаты.</summary>
+    public static double Now() => DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() / 1000.0;
+
+    /// <summary>Где сейчас станция (даже в системе без станции — там это просто центр).</summary>
+    public (double X, double Y) StationPosition => Balance.StationPath.At(OrbitSeconds);
+
+    /// <summary>Id системы этой комнаты.</summary>
+    public string SystemId => Balance.System;
     public Balance Balance { get; private set; }
     public IReadOnlyDictionary<string, HullParams> Hulls => Balance.Hulls;
 
     /// <summary>Число игроков; NPC не считаются.</summary>
     public int Count => _players.Count;
+
+    /// <summary>Игроков на связи.</summary>
+    public int OnlineCount => _byConnection.Count;
+
+    /// <summary>Кораблей в космосе, включая NPC и метеориты.</summary>
+    public int ShipCount => _ships.Count;
+
+    /// <summary>Здесь есть корабль с таким ключом возврата — ждёт после обрыва связи или летает с другого устройства.</summary>
+    public bool HasToken(string token) => _byToken.ContainsKey(token);
+
+    /// <summary>Здесь ждёт гость с такой сессией.</summary>
+    public bool HasGuest(string? token) => IsValidToken(token) && _byToken.TryGetValue(token!, out var p) && p.IsGuest;
 
     /// <summary>Корабль по id — игрок или NPC.</summary>
     public ShipEntity? Entity(int id) => _ships.GetValueOrDefault(id);
@@ -122,14 +179,16 @@ public sealed class Room
         }
 
         player = new Player(
-            ++_nextId,
+            _newId(),
             token,
             UniqueName(SanitizeName(name), null),
             hullId ?? SimConfig.DefaultHull,
             weaponId ?? SimConfig.DefaultWeapon)
         {
             Credits = Balance.Shop.StartCredits,
+            Home = SystemId,
         };
+        player.Fuel = Tank(player);
         Enter(player, connection);
     }
 
@@ -147,7 +206,7 @@ public sealed class Room
         }
 
         var profile = _accounts?.Profile(accountId);
-        player = new Player(++_nextId, accountId, UniqueName(SanitizeName(name), null), SimConfig.DefaultHull, SimConfig.DefaultWeapon, accountId);
+        player = new Player(_newId(), accountId, UniqueName(SanitizeName(name), null), SimConfig.DefaultHull, SimConfig.DefaultWeapon, accountId);
         if (profile is null)
         {
             player.Credits = Balance.Shop.StartCredits; // GDD §54: новый пилот получает стартовый капитал
@@ -162,6 +221,9 @@ public sealed class Room
             if (player.Weapons.Contains(profile.Weapon) && Balance.Weapons.ContainsKey(profile.Weapon)) player.WeaponId = profile.Weapon;
             foreach (var (item, count) in profile.Cargo) if (count > 0) player.Cargo.Add(item, count);
         }
+        // Профиль старше M7 — бак полный. Дом — система, где пилот появился: её выбрала галактика по профилю.
+        player.Fuel = Math.Clamp(profile?.Fuel ?? int.MaxValue, 0, Tank(player));
+        player.Home = SystemId;
         Enter(player, connection);
         if (profile is null) Save(player);
     }
@@ -169,7 +231,7 @@ public sealed class Room
     /// <summary>Новый корабль в системе: у станции, с защитой (GDD §25).</summary>
     private void Enter(Player player, IClientConnection connection)
     {
-        Spawn(player);
+        SpawnHere(player);
         player.Attach(connection);
         _players[player.Id] = player;
         _ships[player.Id] = player;
@@ -179,7 +241,7 @@ public sealed class Room
         BroadcastPlayers();
         SendCargo(player); // трюм пуст, но клиенту нужна ёмкость корпуса
         SendHangar(player);
-        _log.LogInformation("Player {Id} '{Name}' joined as {Hull}, online {Count}", player.Id, player.Name, player.HullId, OnlineCount());
+        _log.LogInformation("Player {Id} '{Name}' joined as {Hull}, online {Count}", player.Id, player.Name, player.HullId, OnlineCount);
     }
 
     /// <summary>Возврат к кораблю, который ждал после обрыва связи.</summary>
@@ -192,12 +254,13 @@ public sealed class Room
             old.Close(ReplacedCloseCode, "replaced");
         }
         player.Attach(connection);
+        player.View.Reset();
         _byConnection[connection.Id] = player;
         connection.Send(Welcome(player, resumed: true));
         BroadcastPlayers();
         SendCargo(player); // иначе вернувшийся видел бы пустой трюм до первого подбора
         SendHangar(player); // в том числе — что корабль всё ещё в доке
-        _log.LogInformation("Player {Id} '{Name}' resumed, online {Count}", player.Id, player.Name, OnlineCount());
+        _log.LogInformation("Player {Id} '{Name}' resumed, online {Count}", player.Id, player.Name, OnlineCount);
     }
 
     /// <summary>Соединение закрылось. Корабль остаётся ждать игрока, если у того есть сессия.</summary>
@@ -208,17 +271,172 @@ public sealed class Room
         if (player.Token is null)
         {
             Remove(player);
-            _log.LogInformation("Player {Id} left, online {Count}", player.Id, OnlineCount());
+            _log.LogInformation("Player {Id} left, online {Count}", player.Id, OnlineCount);
         }
         else
         {
             player.Detach(Tick);
-            _log.LogInformation("Player {Id} lost connection, online {Count}", player.Id, OnlineCount());
+            _log.LogInformation("Player {Id} lost connection, online {Count}", player.Id, OnlineCount);
         }
         BroadcastPlayers();
     }
 
+    /// <summary>
+    /// Корабль прилетел из другой системы (гиперпрыжок) или вернулся домой после гибели. Всё своё — трюм, кредиты,
+    /// ангар, связь — у него с собой; клиент получает новый welcome и строит систему заново.
+    /// </summary>
+    /// <param name="arrival">Точка у врат; null — появление у станции целым, как после гибели.</param>
+    public void Admit(Player player, (double X, double Y)? arrival)
+    {
+        player.Docked = false;
+        player.JumpTo = null;
+        player.TargetId = 0;
+        player.FireHeld = false;
+        player.SelectedLootId = 0;
+        if (arrival is { } at)
+        {
+            // Нос — к центру системы: врата у края, лететь от них — внутрь.
+            player.Ship = new ShipState { X = at.X, Y = at.Y, Rot = Math.Atan2(-at.X, at.Y) };
+            player.ProtectedUntilTick = Tick + Balance.Rules.ProtectionTicks; // у врат могут поджидать (GDD §25)
+        }
+        else
+        {
+            SpawnHere(player);
+        }
+        player.ResetInputs();
+        player.View.Reset();
+        _players[player.Id] = player;
+        _ships[player.Id] = player;
+        if (player.Token is not null) _byToken[player.Token] = player;
+        if (player.Connection is { } connection)
+        {
+            _byConnection[connection.Id] = player;
+            connection.Send(Welcome(player, resumed: true));
+            SendCargo(player);
+            SendHangar(player);
+        }
+        BroadcastPlayers();
+        _log.LogInformation("Player {Id} '{Name}' arrived in {System}", player.Id, player.Name, SystemId);
+    }
+
+    /// <summary>
+    /// Корабль уходит в другую систему: из комнаты он исчезает целиком, но не сохраняется и связь не теряет.
+    /// Ростер отсюда разошлёт галактика, когда корабль уже будет в новой системе: иначе в «онлайн» его бы не посчитали.
+    /// </summary>
+    public void Release(Player player)
+    {
+        if (!_players.Remove(player.Id)) return;
+        if (player.Connection is { } connection) _byConnection.Remove(connection.Id);
+        if (player.Token is not null) _byToken.Remove(player.Token);
+        player.JumpTo = null;
+        RemoveShip(player);
+    }
+
+    /// <summary>
+    /// Гиперпрыжок (GDD §5): у врат в систему to, с топливом на маршрут — через jumpSeconds корабль уйдёт.
+    /// to = null — отменить подготовку.
+    /// </summary>
+    public void Jump(IClientConnection connection, string? to)
+    {
+        if (!_byConnection.TryGetValue(connection.Id, out var player)) return;
+        if (to is null)
+        {
+            if (player.JumpTo is not null) CancelJump(player, notify: false);
+            return;
+        }
+        if (player.IsDead || player.Docked || player.JumpTo == to || _host is null) return;
+        var galaxy = Balance.Galaxy;
+        if (Balance.SystemDef.GateTo(to) is not { } gate || galaxy.JumpCost(SystemId, to) is not { } cost) return;
+        if (!NearGate(player, gate, galaxy.GateRange))
+        {
+            connection.Send(new NoticeMsg(Protocol.GateFarNotice));
+            return;
+        }
+        if (player.Fuel < cost)
+        {
+            connection.Send(new NoticeMsg(Protocol.NoFuelNotice));
+            return;
+        }
+        player.JumpTo = to;
+        player.JumpAtTick = Tick + galaxy.JumpTicks;
+        _log.LogInformation("Player {Id} charges a jump {From} → {To}", player.Id, SystemId, to);
+    }
+
+    /// <summary>Заправка в доке до полного бака (GDD §6, §26) по fuelPrice из shop.json.</summary>
+    public void Refuel(IClientConnection connection)
+    {
+        if (!_byConnection.TryGetValue(connection.Id, out var player) || !player.Docked) return;
+        var missing = Tank(player) - player.Fuel;
+        if (missing <= 0) return;
+        var cost = Balance.Shop.FuelCost(missing);
+        if (player.Credits < cost)
+        {
+            connection.Send(new NoticeMsg(Protocol.NoCreditsNotice));
+            return;
+        }
+        player.Credits -= cost;
+        player.Fuel += missing;
+        SendCargo(player);
+        SendHangar(player);
+        Save(player);
+        _log.LogInformation("Player {Id} refuelled {Fuel} for {Credits} credits", player.Id, missing, cost);
+    }
+
+    private static bool NearGate(Player player, GateDef gate, double range)
+    {
+        var dx = player.Ship.X - gate.X;
+        var dy = player.Ship.Y - gate.Y;
+        return dx * dx + dy * dy <= range * range;
+    }
+
+    private void CancelJump(Player player, bool notify)
+    {
+        player.JumpTo = null;
+        player.JumpAtTick = 0;
+        if (notify) player.Connection?.Send(new NoticeMsg(Protocol.JumpCancelledNotice));
+    }
+
+    /// <summary>
+    /// Подготовка прыжка: сбивается, если корабль погиб, ушёл в док, потерял связь или отошёл от врат;
+    /// по готовности топливо списывается, и галактика переводит корабль в соседнюю систему.
+    /// </summary>
+    private void StepJumps()
+    {
+        _jumping.Clear();
+        foreach (var player in _players.Values) if (player.JumpTo is not null) _jumping.Add(player);
+        var galaxy = Balance.Galaxy;
+        foreach (var player in _jumping)
+        {
+            var to = player.JumpTo!;
+            var gate = Balance.SystemDef.GateTo(to);
+            var cost = galaxy.JumpCost(SystemId, to);
+            if (player.IsDead || player.Docked || player.Connection is null || gate is null || cost is null ||
+                !NearGate(player, gate, galaxy.GateRange * GateSlack))
+            {
+                CancelJump(player, notify: true);
+                continue;
+            }
+            if (Tick < player.JumpAtTick) continue;
+            if (player.Fuel < cost)
+            {
+                CancelJump(player, notify: false);
+                player.Connection.Send(new NoticeMsg(Protocol.NoFuelNotice));
+                continue;
+            }
+            player.Fuel -= cost.Value;
+            player.JumpTo = null;
+            player.JumpAtTick = 0;
+            Save(player);
+            _log.LogInformation("Player {Id} jumps {From} → {To}, fuel left {Fuel}", player.Id, SystemId, to, player.Fuel);
+            _host!.Depart(this, player, to, jump: true);
+        }
+    }
+
+    /// <summary>Бак корпуса (hulls.json fuel).</summary>
+    private int Tank(Player player) => (int)Math.Floor(player.Hull(Hulls).Fuel);
+
     public void Input(IClientConnection connection, int seq, MoveInput input)
+
     {
         if (_byConnection.TryGetValue(connection.Id, out var player)) player.Inputs.Enqueue(seq, input);
     }
@@ -291,25 +509,33 @@ public sealed class Room
             var hullId = balance.Hulls.ContainsKey(ship.HullId) ? ship.HullId : SimConfig.DefaultHull;
             ship.ChangeHull(from, hullId, balance.Hulls[hullId]);
             if (!balance.Weapons.ContainsKey(ship.WeaponId)) ship.WeaponId = SimConfig.DefaultWeapon;
+            if (ship is Player player) player.Fuel = Math.Min(player.Fuel, (int)Math.Floor(balance.Hulls[hullId].Fuel));
         }
         Balance = balance;
 
-        if (old.Npc.SpawnList.SequenceEqual(balance.Npc.SpawnList))
+        var raidsJson = System.Text.Json.JsonSerializer.Serialize(balance.Raids);
+        var lairsSame = old.Npc.SpawnList.SequenceEqual(balance.Npc.SpawnList);
+        var raidsSame = raidsJson == _raidsJson;
+        // Список логов тот же — значит, все их типы есть и в новом файле; налётчики — тоже, если налёты те же.
+        foreach (var pirate in _pirates.ToList())
         {
-            // Список логов тот же — значит, все их типы есть и в новом файле.
-            foreach (var pirate in _pirates) pirate.Rebind(balance.Npc.TypeMap[pirate.Spawn.Type], balance.Npc, old.Hulls, balance.Hulls);
+            if (pirate.IsRaider ? raidsSame : lairsSame)
+            {
+                if (balance.Npc.TypeMap.TryGetValue(pirate.Spawn.Type, out var type)) pirate.Rebind(type, balance.Npc, old.Hulls, balance.Hulls);
+                continue;
+            }
+            RemoveShip(pirate);
+            _pirates.Remove(pirate);
         }
-        else
-        {
-            foreach (var pirate in _pirates) RemoveShip(pirate);
-            _pirates.Clear();
-            SpawnPirates();
-        }
+        if (!lairsSame) SpawnPirates();
+        if (!raidsSame) StartRaids();
 
         if (!old.Loot.ContainerList.SequenceEqual(balance.Loot.ContainerList)) _loot.SetContainers(balance.Loot.ContainerList);
         if (_loot.DropUnknown(balance.Loot)) ClearMissingLootTargets();
 
-        var message = Protocol.Encode(new ConfigMsg(balance.Hulls, balance.Weapons, balance.Rules, balance.Npc, balance.Loot, balance.Meteors, balance.Shop));
+        var message = Protocol.Encode(new ConfigMsg(
+            balance.Hulls, balance.Weapons, balance.Rules, balance.Npc, balance.Loot, balance.Meteors, balance.Shop,
+            SystemInfo(), GalaxyInfo(balance.Galaxy)));
         foreach (var player in _players.Values)
         {
             player.Connection?.SendRaw(message);
@@ -331,6 +557,8 @@ public sealed class Room
     public void Step()
     {
         foreach (var player in _players.Values) Move(player);
+        // Дроны пришвартованы к станции: сначала их сносит вместе с ней, потом они летят сами.
+        foreach (var drone in _drones) drone.Carry(DroneAnchor(drone.Spec, OrbitSeconds + SimConfig.Dt));
         foreach (var drone in _drones)
         {
             var input = drone.NextInput();
@@ -340,8 +568,9 @@ public sealed class Room
         foreach (var pirate in _pirates)
         {
             if (pirate.IsDead) continue;
-            PirateBrain.Think(pirate, _ships, _pirates, Balance, Tick, _ai, _log);
-            Movement.Step(ref pirate.Ship, pirate.LastInput, pirate.Hull(Hulls), SimConfig.Dt);
+            PirateBrain.Think(pirate, _ships, _pirates, Balance, Tick, _ai, _log, StationPosition);
+            if (pirate.Gone) _gonePirates.Add(pirate);
+            else Movement.Step(ref pirate.Ship, pirate.LastInput, pirate.Hull(Hulls), SimConfig.Dt);
         }
         _meteors.Move(Balance.Meteors);
         Tick++;
@@ -358,16 +587,20 @@ public sealed class Room
         }
 
         StepMeteors();
+        Burn();
         // Таран — до боя: урон камня и урон пушек попадают в один свод смертей, и корабль, добитый
         // одновременно пиратом и метеоритом, погибает один раз.
         _meteors.Collide(_ships, Balance, Tick, _shots);
-        _battle.Run(Tick, _ships, Balance, _shots, _kills, Spawn);
+        _battle.Run(Tick, _ships, Balance, _shots, _kills, Spawn, CanAttack);
         foreach (var meteor in _meteors.Shatter(_loot, Balance.Loot, Tick)) RemoveShip(meteor);
+        RemoveGonePirates();
+        StepRaids();
         // Дроп после боя: предмет должен пролежать хотя бы тик, иначе игрок вплотную к убитому
         // увидит «ничего не выпало», а трюм молча пополнится.
         _loot.DropFrom(_kills, _ships, Balance.Loot, Tick);
         // Подбор и продажа — по команде игрока, а не сами собой: см. Grab и Sell.
         if (_loot.Step(Tick, Balance.Loot)) ClearMissingLootTargets();
+        StepJumps();
 
         // Дроны есть всегда: без игроков онлайн снапшот не нужен никому.
         if (_byConnection.Count > 0) SendSnapshot();
@@ -376,13 +609,35 @@ public sealed class Room
         _loot.ClearPicks();
     }
 
+    /// <summary>
+    /// Жар звезды: всё, что ближе burnRadius, теряет щит, потом корпус — у самого диска быстрее всего. Жжёт всех,
+    /// даже защищённых после появления: это не нападение. Смерть уходит в общий свод боя с убийцей 0 — «звезда».
+    /// </summary>
+    private void Burn()
+    {
+        if (Balance.Sun is not { BurnDps: > 0 } sun) return;
+        foreach (var ship in _ships.Values)
+        {
+            if (ship is Meteor || ship.IsDead) continue;
+            var dps = sun.BurnAt(Math.Sqrt(ship.Ship.X * ship.Ship.X + ship.Ship.Y * ship.Ship.Y));
+            if (dps <= 0) continue;
+            Combat.ApplyDamage(ref ship.Hp, ref ship.Shield, dps * SimConfig.Dt);
+            ship.LastDamageTick = Tick;
+        }
+    }
+
     /// <summary>Улетевшие метеориты исчезают, новые появляются по таймеру — только пока в системе кто-то есть.</summary>
     private void StepMeteors()
     {
         var rules = Balance.Meteors;
         foreach (var meteor in _meteors.Expired(rules, Tick)) RemoveShip(meteor);
         if (!_meteors.Due(rules, _byConnection.Count > 0)) return;
-        if (_meteors.Launch(rules, Balance.Npc.StationSafeRadius, Tick) is { } launched) _ships[launched.Id] = launched;
+        // Укрытие станции камни обходят по всей дуге — станция тем временем идёт по орбите.
+        var path = Balance.StationPath;
+        var start = OrbitSeconds;
+        Func<double, (double X, double Y)>? station = Balance.HasStation ? t => path.At(start + t) : null;
+        var shelter = Balance.HasStation ? Balance.Npc.StationSafeRadius : 0;
+        if (_meteors.Launch(rules, Balance.MeteorCore, Tick, station, shelter) is { } launched) _ships[launched.Id] = launched;
     }
 
     /// <summary>Без управляющих и невидимых символов, пробелы схлопнуты, не длиннее MaxNameLength.</summary>
@@ -434,10 +689,30 @@ public sealed class Room
     }
 
     /// <summary>
-    /// Появление при входе и после уничтожения: у станции, с защитой (GDD §25). Дрон — у своего дома, пират — в логове;
-    /// NPC без защиты.
+    /// Появление после уничтожения. Игрок возвращается к станции своего дома (GDD §24): если дом в другой системе,
+    /// корабль туда переводит галактика, и появляется он уже там.
     /// </summary>
     private void Spawn(ShipEntity ship)
+    {
+        // Налётчик не возрождается: вместо него когда-нибудь прилетит новый налёт.
+        if (ship is Pirate { IsRaider: true } raider)
+        {
+            _gonePirates.Add(raider);
+            return;
+        }
+        if (ship is Player { Home: { } home } player && home != SystemId && _host is not null)
+        {
+            _host.Depart(this, player, home, jump: false);
+            return;
+        }
+        SpawnHere(ship);
+    }
+
+    /// <summary>
+    /// Появление в этой системе: игрок — у станции, с защитой (GDD §25). Дрон — у своего дома, пират — в логове;
+    /// NPC без защиты.
+    /// </summary>
+    private void SpawnHere(ShipEntity ship)
     {
         if (ship is Meteor) return; // разбитый камень не возвращается — его убирает MeteorSystem.Shatter
         var (x, y) = ship switch
@@ -451,19 +726,27 @@ public sealed class Room
         if (ship is Pirate p) p.ResetAi();
     }
 
-    /// <summary>Случайная точка в круге SpawnJitter вокруг спауна — корабли не появляются друг в друге.</summary>
+    /// <summary>
+    /// Случайная точка в круге SpawnJitter вокруг спауна — корабли не появляются друг в друге. Спаун — у станции
+    /// с внешней стороны орбиты, прочь от звезды.
+    /// </summary>
     private (double X, double Y) SpawnPoint()
     {
         var radius = Balance.Rules.SpawnJitter * Math.Sqrt(_jitter.NextDouble());
         var angle = _jitter.NextDouble() * 2 * Math.PI;
-        return (SimConfig.SpawnX + radius * Math.Cos(angle), SimConfig.SpawnY + radius * Math.Sin(angle));
+        var (x, y) = Balance.StationPath.ToWorld(OrbitSeconds, SimConfig.SpawnX, SimConfig.SpawnY);
+        return (x + radius * Math.Cos(angle), y + radius * Math.Sin(angle));
     }
+
+    /// <summary>Точка дрона в мире в момент seconds: в файле она задана в осях станции.</summary>
+    private (double X, double Y) DroneAnchor(DroneSpec spec, double seconds) => Balance.StationPath.ToWorld(seconds, spec.X, spec.Y);
 
     private void SpawnDrones()
     {
         foreach (var spec in Balance.Rules.DroneList)
         {
-            var drone = new Drone(++_nextId, spec);
+            var drone = new Drone(_newId(), spec);
+            drone.Carry(DroneAnchor(spec, OrbitSeconds));
             Spawn(drone);
             _drones.Add(drone);
             _ships[drone.Id] = drone;
@@ -482,7 +765,7 @@ public sealed class Room
             {
                 var slot = slots.GetValueOrDefault((spawn.X, spawn.Y));
                 slots[(spawn.X, spawn.Y)] = slot + 1;
-                var pirate = new Pirate(++_nextId, spawn, slot, type, npc);
+                var pirate = new Pirate(_newId(), spawn, slot, type, npc);
                 Spawn(pirate);
                 _pirates.Add(pirate);
                 _ships[pirate.Id] = pirate;
@@ -490,11 +773,155 @@ public sealed class Room
         }
     }
 
+    /// <summary>Первые налёты — сразу на местах: игрок не должен застать систему пустой.</summary>
+    private void StartRaids()
+    {
+        _raidsJson = System.Text.Json.JsonSerializer.Serialize(Balance.Raids);
+        if (Balance.Raids is not { } raids) return;
+        for (var i = 0; i < raids.MaxGroups; i++) SpawnRaid(raids, onSite: true);
+        _nextRaidTick = Tick + NextRaidWait(raids);
+    }
+
+    /// <summary>Новый налёт, когда групп меньше нормы и подошёл срок.</summary>
+    private void StepRaids()
+    {
+        if (Balance.Raids is not { } raids || Tick < _nextRaidTick) return;
+        var active = _pirates.Where(p => p.IsRaider).Select(p => p.RaidId).Distinct().Count();
+        if (active >= raids.MaxGroups) return;
+        SpawnRaid(raids, onSite: false);
+        _nextRaidTick = Tick + NextRaidWait(raids);
+        BroadcastPlayers();
+    }
+
+    /// <summary>Интервал из файла — среднее: налёты идут неровно, от половины до полутора.</summary>
+    private long NextRaidWait(RaidRules raids) => (long)(raids.IntervalTicks * (0.5 + _ai.NextDouble()));
+
+    /// <summary>
+    /// Группа налётчиков: состав по весам, точка патруля — случайная. Прилетают из случайных врат (в пиратской системе —
+    /// с базы) и летят к точке; onSite — сразу на точке и уже патрулируют, с частью срока позади.
+    /// </summary>
+    private void SpawnRaid(RaidRules raids, bool onSite)
+    {
+        var npc = Balance.Npc;
+        if (raids.Pick(_ai.NextDouble()) is not { } group || !npc.TypeMap.TryGetValue(group.Type, out var type)) return;
+        var gates = Balance.SystemDef.GateList;
+        (double X, double Y, bool Gate)? exit = null;
+        if (raids.Base is { } home) exit = (home.X, home.Y, false);
+        else if (gates.Count > 0)
+        {
+            var gate = gates[_ai.Next(gates.Count)];
+            exit = (gate.X, gate.Y, true);
+        }
+        if (exit is null) onSite = true; // уходить некуда — живут на точке, как в логове, пока не погибнут
+
+        var (px, py) = RaidPoint();
+        var spot = new NpcSpawn(group.Type, group.Level, px, py, group.Count);
+        var patrolSeconds = raids.PatrolMinSeconds + (raids.PatrolMaxSeconds - raids.PatrolMinSeconds) * _ai.NextDouble();
+        var patrolTicks = Combat.SecondsToTicks(patrolSeconds);
+        var raidId = ++_raidCount;
+        for (var slot = 0; slot < group.Count; slot++)
+        {
+            var pirate = new Pirate(_newId(), spot, slot, type, npc)
+            {
+                RaidId = raidId,
+                ExitX = exit?.X ?? px,
+                ExitY = exit?.Y ?? py,
+                ExitIsGate = exit?.Gate ?? false,
+                PatrolTicks = exit is null ? long.MaxValue / 4 : patrolTicks,
+            };
+            SpawnHere(pirate);
+            if (onSite)
+            {
+                // Уже какое-то время здесь: группы, появившиеся вместе при старте, уйдут в разное время.
+                pirate.PatrolUntilTick = Tick + (long)(pirate.PatrolTicks * _ai.NextDouble());
+            }
+            else
+            {
+                // Из врат или с базы — носом к точке патруля; к ней пират и летит (как «домой»).
+                var (sx, sy) = pirate.SpawnPoint;
+                var x = pirate.ExitX + sx - px;
+                var y = pirate.ExitY + sy - py;
+                pirate.Ship = new ShipState { X = x, Y = y, Rot = Math.Atan2(px - x, -(py - y)) };
+                pirate.State = PirateState.Return;
+            }
+            _pirates.Add(pirate);
+            _ships[pirate.Id] = pirate;
+        }
+        _log.LogInformation(
+            "Raid {Raid}: {Count} × {Type} Ур.{Level} {From} → ({X:0}, {Y:0})",
+            raidId, group.Count, group.Type, group.Level, onSite ? "on site" : exit!.Value.Gate ? "from a gate" : "from the base", px, py);
+    }
+
+    /// <summary>
+    /// Случайная точка патруля налётчиков: вне жара звезды и так, чтобы укрытие станции, где бы она ни была на орбите,
+    /// не накрыло круг патруля.
+    /// </summary>
+    private (double X, double Y) RaidPoint()
+    {
+        var npc = Balance.Npc;
+        var min = (Balance.Sun?.BurnRadius ?? 0) + GalaxyRules.HeatMargin + npc.PatrolRadius;
+        if (Balance.HasStation) min = Math.Max(min, Balance.StationPath.Radius + npc.StationSafeRadius + npc.PatrolRadius + RaidShelterMargin);
+        var max = NpcRules.WorldLimit - npc.PatrolRadius;
+        if (min > max) min = max * 0.8;
+        // Равномерно по площади кольца.
+        var radius = Math.Sqrt(min * min + (max * max - min * min) * _ai.NextDouble());
+        var angle = _ai.NextDouble() * 2 * Math.PI;
+        return (radius * Math.Cos(angle), radius * Math.Sin(angle));
+    }
+
+    /// <summary>Налётчик не выбирает точку ближе этого к краю укрытия (с учётом круга патруля).</summary>
+    private const double RaidShelterMargin = 200;
+
+    /// <summary>Ушедшие и погибшие налётчики покидают систему; через срок прилетят новые.</summary>
+    private void RemoveGonePirates()
+    {
+        if (_gonePirates.Count == 0) return;
+        foreach (var pirate in _gonePirates)
+        {
+            if (!_pirates.Remove(pirate)) continue;
+            RemoveShip(pirate);
+        }
+        _gonePirates.Clear();
+        if (Balance.Raids is { } raids) _nextRaidTick = Math.Max(_nextRaidTick, Tick + NextRaidWait(raids));
+        BroadcastPlayers();
+    }
+
     private void ChangeHull(ShipEntity ship, string hullId)
     {
         if (ship.HullId != hullId) ship.ChangeHull(ship.Hull(Hulls), hullId, Hulls[hullId]);
+        if (ship is Player player) player.Fuel = Math.Min(player.Fuel, Tank(player)); // в меньший бак больше не влезет
     }
 
+    /// <summary>
+    /// PvP по правилам системы (GDD §34): off — игроки друг друга не бьют; border — не бьют у станции (§26):
+    /// ни по кораблю в укрытии, ни из укрытия; free — бьют везде. NPC, дроны и метеориты — всегда честная добыча.
+    /// </summary>
+    private bool CanAttack(ShipEntity shooter, ShipEntity target)
+    {
+        if (shooter is not Player || target is not Player) return true;
+        return Balance.SystemDef.Pvp switch
+        {
+            GalaxyRules.PvpFree => true,
+            GalaxyRules.PvpBorder => !InCore(shooter) && !InCore(target),
+            _ => false,
+        };
+    }
+
+    /// <summary>В укрытии станции; в системе без станции укрытия нет.</summary>
+    private bool InCore(ShipEntity ship)
+    {
+        if (!Balance.HasStation) return false;
+        var (sx, sy) = StationPosition;
+        var dx = ship.Ship.X - sx;
+        var dy = ship.Ship.Y - sy;
+        var radius = Balance.Npc.StationSafeRadius;
+        return dx * dx + dy * dy <= radius * radius;
+    }
+
+    /// <summary>
+    /// Каждому игроку — своё: только то, что видит радар его корпуса (GDD §10), и только изменения
+    /// с прошлого кадра (<see cref="SnapshotCodec"/>). Свой корабль — всегда: в нём ack для сверки предсказания.
+    /// </summary>
     private void SendSnapshot()
     {
         _shipDtos.Clear();
@@ -502,16 +929,17 @@ public sealed class Room
         {
             if (ship is not Meteor) _shipDtos.Add(ToDto(ship));
         }
-        // Все получают одни и те же байты: ack каждого игрока лежит в записи его корабля.
-        var snapshot = Protocol.Encode(new SnapshotMsg(
-            Tick,
-            _shipDtos,
-            _shots.Count > 0 ? _shots : null,
-            _kills.Count > 0 ? _kills : null,
-            _loot.ToDtos(),
-            _loot.Picks.Count > 0 ? _loot.Picks : null,
-            _meteors.ToDtos()));
-        foreach (var player in _players.Values) player.Connection?.SendRaw(snapshot);
+        var world = new SnapshotCodec.World(Tick, _shipDtos, _loot.ToDtos(), _meteors.ToDtos(), _shots, _kills, _loot.Picks);
+        foreach (var player in _players.Values)
+        {
+            if (player.Connection is not { } connection) continue;
+            var range = player.Hull(Hulls).Radar + RadarMargin;
+            var range2 = range * range;
+            var cx = player.Ship.X;
+            var cy = player.Ship.Y;
+            var frame = player.View.Encode(world, player.Id, (x, y) => (x - cx) * (x - cx) + (y - cy) * (y - cy) <= range2);
+            if (!connection.SendFrame(frame)) player.View.Reset(); // кадр выброшен — следующий должен быть ключевым
+        }
     }
 
     private ShipDto ToDto(ShipEntity ship)
@@ -533,14 +961,50 @@ public sealed class Room
             ship.DeadUntilTick,
             ship.IsProtected(Tick) ? ship.ProtectedUntilTick : 0,
             pirate is { IsDead: false, State: PirateState.Attack } ? pirate.TargetId : 0,
-            pirate is null ? null : AiNames[(int)pirate.State]);
+            pirate is null ? null : AiNames[(int)pirate.State],
+            ship switch
+            {
+                Player { JumpTo: not null } jumper => jumper.JumpAtTick,
+                Pirate { LeaveAtTick: > 0 } leaving => leaving.LeaveAtTick,
+                _ => 0,
+            });
     }
 
     /// <summary>Состояния ИИ в снапшоте — по индексу <see cref="PirateState"/>.</summary>
-    private static readonly string[] AiNames = ["patrol", "attack", "return"];
+    private static readonly string[] AiNames = ["patrol", "attack", "return", "leave"];
 
     private WelcomeMsg Welcome(Player player, bool resumed) =>
-        new(player.Id, SimConfig.TickRate, Protocol.Version, Hulls, Balance.Weapons, Balance.Rules, resumed, Balance.Npc, Balance.Loot, Balance.Meteors, Balance.Shop);
+        new(player.Id, SimConfig.TickRate, Protocol.Version, Hulls, Balance.Weapons, Balance.Rules, resumed,
+            Balance.Npc, Balance.Loot, Balance.Meteors, Balance.Shop, SystemInfo(), GalaxyInfo(Balance.Galaxy));
+
+    /// <summary>Эта система для клиента: небо, станция, укрытие, врата с именами соседей и ценой прыжка.</summary>
+    private SystemDto SystemInfo()
+    {
+        var galaxy = Balance.Galaxy;
+        var system = Balance.SystemDef;
+        return new SystemDto(
+            SystemId,
+            system.Name,
+            system.Danger,
+            system.Pvp,
+            system.Station,
+            system.Seed,
+            system.Station ? Balance.Npc.StationSafeRadius : 0,
+            galaxy.GateRange,
+            galaxy.JumpSeconds,
+            [.. system.GateList.Select(g => new GateDto(g.To, galaxy.System(g.To)?.Name ?? g.To, g.X, g.Y, galaxy.JumpCost(SystemId, g.To) ?? 0))],
+            Balance.Sun,
+            Balance.StationPath,
+            Balance.GalaxySet is null ? [] : system.PlanetList,
+            OrbitEpoch,
+            Balance.Raids?.Base);
+    }
+
+    /// <summary>Карта галактики (GDD §55): все системы и маршруты с ценой прыжка.</summary>
+    public static GalaxyDto GalaxyInfo(GalaxyRules galaxy) => new(
+        [.. galaxy.SystemMap.Select(kv => new GalaxySystemDto(
+            kv.Key, kv.Value.Name, kv.Value.Danger, kv.Value.Pvp, kv.Value.Station, kv.Value.Map?.X ?? 0, kv.Value.Map?.Y ?? 0))],
+        [.. galaxy.LinkList.Select(l => new LinkDto(l.A, l.B, galaxy.Cost(l)))]);
 
     /// <summary>Занятое другим игроком имя получает номер: «Имя 2», «Имя 3»…</summary>
     private string UniqueName(string name, Player? self)
@@ -554,8 +1018,11 @@ public sealed class Room
         return candidate;
     }
 
-    /// <summary>Имя занято другим игроком или NPC: игрок не назовётся «Пират Ур.2».</summary>
-    private bool IsTaken(string name, Player? self)
+    /// <summary>Имя занято другим игроком или NPC — во всей галактике, если комната в ней.</summary>
+    private bool IsTaken(string name, Player? self) => _host?.IsNameTaken(name, self) ?? NameTaken(name, self);
+
+    /// <summary>Имя занято другим игроком или NPC этой системы: игрок не назовётся «Пират Ур.2».</summary>
+    public bool NameTaken(string name, Player? self)
     {
         foreach (var ship in _ships.Values.Concat(DockedPlayers()))
         {
@@ -665,16 +1132,23 @@ public sealed class Room
                 return;
             }
             player.Docked = true;
+            player.DockOffset = Balance.StationPath.ToLocal(OrbitSeconds, player.Ship.X, player.Ship.Y);
             player.Ship.Vx = player.Ship.Vy = 0;
             player.FireHeld = false;
             player.TargetId = 0;
             player.SelectedLootId = 0;
+            player.JumpTo = null;
+            // Последняя станция — дом: здесь пилот появится после гибели и после входа в игру.
+            player.Home = SystemId;
             RemoveShip(player);
-            _log.LogInformation("Player {Id} docked", player.Id);
+            Save(player);
+            _log.LogInformation("Player {Id} docked in {System}", player.Id, SystemId);
         }
         else
         {
             player.Docked = false;
+            // Станция ушла по орбите, пока пилот был в доке, — вылет с той же её стороны.
+            (player.Ship.X, player.Ship.Y) = Balance.StationPath.ToWorld(OrbitSeconds, player.DockOffset.X, player.DockOffset.Y);
             player.ResetInputs();
             player.ProtectedUntilTick = Tick + Balance.Rules.ProtectionTicks;
             _ships[player.Id] = player;
@@ -742,8 +1216,10 @@ public sealed class Room
 
     private bool AtStation(Player player)
     {
-        var dx = player.Ship.X - SimConfig.StationX;
-        var dy = player.Ship.Y - SimConfig.StationY;
+        if (!Balance.HasStation) return false;
+        var (sx, sy) = StationPosition;
+        var dx = player.Ship.X - sx;
+        var dy = player.Ship.Y - sy;
         var range = Balance.Loot.StationRange;
         return dx * dx + dy * dy <= range * range;
     }
@@ -762,7 +1238,10 @@ public sealed class Room
             player.IsGuest ? [.. Balance.Weapons.Keys] : [.. player.Weapons.Where(Balance.Weapons.ContainsKey).Order(StringComparer.Ordinal)],
             player.Docked,
             (int)Math.Ceiling(player.Hp),
-            (int)Math.Ceiling(player.MaxHp(hull))));
+            (int)Math.Ceiling(player.MaxHp(hull)),
+            player.Fuel,
+            Tank(player),
+            player.Home ?? SystemId));
     }
 
     /// <summary>
@@ -778,7 +1257,9 @@ public sealed class Room
             player.WeaponId,
             [.. player.Hulls.Order(StringComparer.Ordinal)],
             [.. player.Weapons.Order(StringComparer.Ordinal)],
-            new Dictionary<string, int>(player.Cargo.Items)));
+            new Dictionary<string, int>(player.Cargo.Items),
+            player.Fuel,
+            player.Home));
     }
 
     /// <summary>Трюм — личное дело игрока: снапшот один на всех, места для него там нет.</summary>
@@ -820,12 +1301,14 @@ public sealed class Room
         }
     }
 
-    private int OnlineCount() => _byConnection.Count;
 
     private static int? Ceiling(double? value) => value is { } v ? (int)Math.Ceiling(v) : null;
 
-    /// <summary>Игроки и NPC: имена нужны для подписей, флаг npc — чтобы клиент не писал о NPC в ленту, kind — для цвета.</summary>
-    private void BroadcastPlayers()
+    /// <summary>
+    /// Игроки и NPC системы: имена нужны для подписей, флаг npc — чтобы клиент не писал о NPC в ленту, kind — для цвета.
+    /// Плюс сколько пилотов на связи во всей галактике — галактика зовёт это и тогда, когда кто-то вошёл в другой системе.
+    /// </summary>
+    public void BroadcastPlayers()
     {
         // Метеориты — не в ростере: их десятки за минуту, а ростер рассылается целиком при каждом изменении.
         // Пилоты в доке остаются в списке: они в системе, просто не в космосе.
@@ -843,7 +1326,8 @@ public sealed class Room
                 _ => new PlayerDto(s.Id, s.Name, Online: true, Npc: true),
             })
             .ToList();
-        var message = Protocol.Encode(new PlayersMsg(list));
+        var message = Protocol.Encode(new PlayersMsg(list, _host?.OnlineTotal ?? OnlineCount));
+
         foreach (var player in _players.Values) player.Connection?.SendRaw(message);
     }
 }

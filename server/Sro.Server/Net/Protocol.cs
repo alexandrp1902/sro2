@@ -22,6 +22,8 @@ namespace Sro.Server.Net;
 [JsonDerivedType(typeof(DockMsg), "dock")]
 [JsonDerivedType(typeof(BuyMsg), "buy")]
 [JsonDerivedType(typeof(RepairMsg), "repair")]
+[JsonDerivedType(typeof(JumpMsg), "jump")]
+[JsonDerivedType(typeof(RefuelMsg), "refuel")]
 public abstract record ClientMessage;
 
 /// <summary>
@@ -81,6 +83,12 @@ public sealed record BuyMsg(string? Kind, string? Id) : ClientMessage;
 /// <summary>Починить корпус в доке и зарядить щит — по цене repairPrice из shop.json.</summary>
 public sealed record RepairMsg : ClientMessage;
 
+/// <summary>Начать гиперпрыжок через врата в систему To (GDD §5); To = null — отменить подготовку.</summary>
+public sealed record JumpMsg(string? To) : ClientMessage;
+
+/// <summary>Заправить бак в доке до полного — по fuelPrice из shop.json (GDD §6, §26).</summary>
+public sealed record RefuelMsg : ClientMessage;
+
 // Сервер → клиент
 [JsonPolymorphic(TypeDiscriminatorPropertyName = "t")]
 [JsonDerivedType(typeof(WelcomeMsg), "welcome")]
@@ -105,6 +113,8 @@ public abstract record ServerMessage;
 /// <param name="Loot">Лут: радиус захвата, вид и редкость предметов — для подписей и кольца захвата.</param>
 /// <param name="Meteors">Метеориты: радиусы, прочность и пороги предупреждения о таране.</param>
 /// <param name="Shop">Магазин станции: цены корпусов, пушек и ремонта.</param>
+/// <param name="System">Система, где сейчас корабль: небо, станция, врата. После прыжка приходит новый welcome.</param>
+/// <param name="Galaxy">Карта галактики: системы и маршруты с ценой прыжка.</param>
 public sealed record WelcomeMsg(
     int Id,
     int TickRate,
@@ -116,12 +126,58 @@ public sealed record WelcomeMsg(
     NpcRules? Npcs = null,
     LootRules? Loot = null,
     MeteorRules? Meteors = null,
-    ShopRules? Shop = null) : ServerMessage;
+    ShopRules? Shop = null,
+    SystemDto? System = null,
+    GalaxyDto? Galaxy = null) : ServerMessage;
+
+/// <summary>Врата в системе: куда ведут, как называется та система и сколько топлива стоит прыжок.</summary>
+public sealed record GateDto(string To, string Name, double X, double Y, int Cost);
+
+/// <param name="Pvp">off — PvP нет; border — нет у станции; free — везде (GDD §34).</param>
+/// <param name="Station">В системе есть станция; иначе дока и укрытия нет.</param>
+/// <param name="Seed">Небо системы.</param>
+/// <param name="Core">Радиус укрытия у станции (PvP в border-системе и пираты сюда не заходят); 0 — укрытия нет.</param>
+/// <param name="GateRange">Ближе этого к вратам можно начать прыжок.</param>
+/// <param name="JumpSeconds">Подготовка прыжка.</param>
+/// <param name="Sun">Звезда в центре; null — её нет.</param>
+/// <param name="StationOrbit">Орбита станции (радиус 0 — станция в центре).</param>
+/// <param name="Planets">Планеты на орбитах.</param>
+/// <param name="PirateBase">Пиратская база: отсюда вылетают налётчики пиратской системы; null — её нет.</param>
+/// <param name="OrbitEpoch">
+/// Орбитальное время в тик 0 этой системы, секунды: клиент считает орбиты от тика снапшота той же формулой,
+/// что и сервер (<see cref="OrbitDef"/>).
+/// </param>
+public sealed record SystemDto(
+    string Id,
+    string Name,
+    int Danger,
+    string Pvp,
+    bool Station,
+    int Seed,
+    double Core,
+    double GateRange,
+    double JumpSeconds,
+    IReadOnlyList<GateDto> Gates,
+    SunDef? Sun,
+    OrbitDef StationOrbit,
+    IReadOnlyList<PlanetDef> Planets,
+    double OrbitEpoch,
+    PirateBase? PirateBase = null);
+
+/// <summary>Система на карте галактики (GDD §55).</summary>
+public sealed record GalaxySystemDto(string Id, string Name, int Danger, string Pvp, bool Station, double X, double Y);
+
+/// <param name="Cost">Топлива на прыжок в любую сторону.</param>
+public sealed record LinkDto(string A, string B, int Cost);
+
+public sealed record GalaxyDto(IReadOnlyList<GalaxySystemDto> Systems, IReadOnlyList<LinkDto> Links);
 
 public sealed record PongMsg(double C, long Tick) : ServerMessage;
 
 /// <summary>Весь список кораблей с именами — игроки и NPC; присылается при любом изменении (вход, выход, обрыв, смена ника).</summary>
-public sealed record PlayersMsg(IReadOnlyList<PlayerDto> Players) : ServerMessage;
+/// <param name="Players">Корабли этой системы.</param>
+/// <param name="Total">Пилотов на связи во всей галактике.</param>
+public sealed record PlayersMsg(IReadOnlyList<PlayerDto> Players, int Total = 0) : ServerMessage;
 
 /// <param name="Online">false — связи нет, корабль висит в космосе и ждёт игрока.</param>
 /// <param name="Npc">Дрон или другой NPC: о нём не пишут в ленту и не считают в «онлайн».</param>
@@ -145,7 +201,9 @@ public sealed record ConfigMsg(
     NpcRules? Npcs = null,
     LootRules? Loot = null,
     MeteorRules? Meteors = null,
-    ShopRules? Shop = null) : ServerMessage;
+    ShopRules? Shop = null,
+    SystemDto? System = null,
+    GalaxyDto? Galaxy = null) : ServerMessage;
 
 /// <summary>Вход принят. Приходит раньше <see cref="WelcomeMsg"/>.</summary>
 /// <param name="Name">Ник аккаунта так, как он записан на сервере.</param>
@@ -168,6 +226,9 @@ public sealed record DeniedMsg(string Code) : ServerMessage;
 /// <param name="Docked">Корабль в доке: в космосе его нет, экран станции открыт.</param>
 /// <param name="Hp">Прочность корпуса, округлена вверх: в доке снапшот о своём корабле молчит.</param>
 /// <param name="MaxHp">Полная прочность активного корпуса.</param>
+/// <param name="Fuel">Топливо в баке (GDD §6). Меняется только прыжком и заправкой — тогда hangar приходит снова.</param>
+/// <param name="MaxFuel">Бак активного корпуса.</param>
+/// <param name="Home">Система последней стыковки: здесь корабль появится после гибели и после входа.</param>
 public sealed record HangarMsg(
     string Hull,
     string Weapon,
@@ -175,7 +236,10 @@ public sealed record HangarMsg(
     IReadOnlyList<string> Weapons,
     bool Docked,
     int Hp,
-    int MaxHp) : ServerMessage;
+    int MaxHp,
+    int Fuel = 0,
+    int MaxFuel = 0,
+    string? Home = null) : ServerMessage;
 
 /// <summary>
 /// Трюм игрока (GDD §21) — только своему соединению: снапшот один на всех, личному месту в нём нет.
@@ -217,6 +281,7 @@ public sealed record SnapshotMsg(
 /// <param name="Pu">Под защитой до этого тика; 0 — без защиты.</param>
 /// <param name="Tg">Цель пирата в бою; 0 — нет (и у игроков).</param>
 /// <param name="Ai">Состояние ИИ пирата: patrol, attack, return; у игроков нет.</param>
+/// <param name="J">Готовится гиперпрыжок: корабль уйдёт из системы в этот тик; 0 — нет.</param>
 public sealed record ShipDto(
     int Id,
     double X,
@@ -233,7 +298,8 @@ public sealed record ShipDto(
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)] long Rt = 0,
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)] long Pu = 0,
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)] int Tg = 0,
-    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? Ai = null);
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? Ai = null,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)] long J = 0);
 
 /// <param name="Dmg">Урон всего (0 при промахе).</param>
 /// <param name="Sh">Из него пришлось на щит.</param>
@@ -273,10 +339,10 @@ public static class Protocol
     /// <summary>
     /// Меняется, когда клиент и сервер разных версий уже не поймут друг друга
     /// (3 — бой, M3; 4 — пираты, M4; 5 — лут и трюм, M5a; 6 — ручной подбор и продажа груза; 7 — метеориты, M5b;
-    /// 8 — аккаунты, док и магазин станции, M6).
+    /// 8 — аккаунты, док и магазин станции, M6; 9 — системы, врата, топливо, радар и бинарные дельта-снапшоты, M7).
     /// Зеркало PROTOCOL_VERSION в client/src/net/protocol.ts.
     /// </summary>
-    public const int Version = 8;
+    public const int Version = 10;
 
     public const string DroneKind = "drone";
     public const string PirateKind = "pirate";
@@ -290,6 +356,9 @@ public static class Protocol
     public const string UnloadedNotice = "unloaded";
     public const string TooFarNotice = "tooFar";
     public const string NoCreditsNotice = "noCredits";
+    public const string NoFuelNotice = "noFuel";
+    public const string GateFarNotice = "gateFar";
+    public const string JumpCancelledNotice = "jumpCancelled";
 
     /// <summary>Причины отказа во входе (<see cref="DeniedMsg"/>).</summary>
     public const string BadNameDenied = "badName";

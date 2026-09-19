@@ -12,6 +12,13 @@ internal static class TestHulls
     public static readonly HullParams Heavy = new("Тяжёлый", 170, 70, 80, 55, 1.5, 0, 30,
         Hp: 7000, Shield: 1800, ShieldRegen: 50, Evasion: 5, MoveEvasion: 2);
 
+    public static readonly IReadOnlyDictionary<string, HullParams> Catalog = new Dictionary<string, HullParams>
+    {
+        ["light"] = Light,
+        ["medium"] = Medium,
+        ["heavy"] = Heavy,
+    };
+
     public static HullParams Get(TestHullId id) => id switch
     {
         TestHullId.Light => Light,
@@ -36,7 +43,7 @@ internal static class TestHulls
         string Read(string file) => File.ReadAllText(Path.Combine(dir, file));
         return new BalanceSources(
             Read(Balance.HullsFile), Read(Balance.WeaponsFile), Read(Balance.RulesFile),
-            Read(Balance.NpcsFile), Read(Balance.LootFile), Read(Balance.MeteorsFile), Read(Balance.ShopFile));
+            Read(Balance.NpcsFile), Read(Balance.LootFile), Read(Balance.MeteorsFile), Read(Balance.ShopFile), Read(Balance.GalaxyFile));
     }
 }
 

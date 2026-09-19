@@ -5,14 +5,9 @@ import { RenderClock, SnapshotBuffer } from './interpolation';
 import type { AiState, NpcKind, PlayerDto, SnapshotMsg } from './protocol';
 import type { Roster } from './roster';
 
-/** Игрок или вид NPC — от этого цвет корабля, подписи и стрелки. */
+/** Игрок или вид NPC — от этого картинка корабля, цвет подписи и стрелки. */
 export type ShipKind = 'player' | NpcKind;
 
-const COLORS: Record<ShipKind, number> = {
-  player: 0xffb45a,
-  drone: 0x9ccf9a,
-  pirate: 0xff6b5a,
-};
 const FADE_IN_MS = 300;
 /** Корабль без связи висит в космосе полупрозрачным. */
 const LOST_ALPHA = 0.4;
@@ -44,6 +39,8 @@ export interface RemoteShipInfo {
   dead: boolean;
   /** Под защитой после появления. */
   protected: boolean;
+  /** Готовит гиперпрыжок: уйдёт из системы в этот тик; 0 — нет. */
+  jumpAt: number;
 }
 
 interface Remote {
@@ -129,7 +126,7 @@ export class RemoteShips {
       const alpha = Math.min(1, (now - remote.bornAt) / FADE_IN_MS) * (online ? 1 : LOST_ALPHA);
       remote.visible = remote.ship.view.visible = !dead;
       if (!dead) {
-        remote.ship.update(s.x, s.y, s.rot, hull, engineGlow(s, s.th, hull), null);
+        remote.ship.update(s.x, s.y, s.rot, s.hull, hull, engineGlow(s, s.th, hull), null);
         remote.ship.view.alpha = alpha;
       }
 
@@ -152,6 +149,7 @@ export class RemoteShips {
       info.maxSh = player?.maxSh ?? hull.shield;
       info.dead = dead;
       info.protected = s.pu > renderTick;
+      info.jumpAt = s.j;
     }
 
     for (const [id, remote] of this.ships) {
@@ -165,7 +163,7 @@ export class RemoteShips {
   }
 
   private create(id: number, kind: ShipKind, now: number): Remote {
-    const ship = new ShipView(COLORS[kind]);
+    const ship = new ShipView(kind);
     this.view.addChild(ship.view);
     return {
       ship,
@@ -185,6 +183,7 @@ export class RemoteShips {
         npc: kind !== 'player',
         kind,
         targetId: 0,
+        jumpAt: 0,
         ai: null,
         hull: '',
         hp: 0,

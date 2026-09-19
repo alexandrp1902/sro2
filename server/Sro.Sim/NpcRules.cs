@@ -102,7 +102,8 @@ public sealed record NpcRules(
         Accuracy = Math.Min(100, weapon.Accuracy + Scaling.AccuracyBonus(level)),
     };
 
-    public string? Validate(IReadOnlyDictionary<string, HullParams> hulls, IReadOnlyDictionary<string, WeaponParams> weapons)
+    /// <param name="stationOrbit">Радиус орбиты станции: укрытие ходит по этому кругу вокруг звезды; 0 — станция в центре.</param>
+    public string? Validate(IReadOnlyDictionary<string, HullParams> hulls, IReadOnlyDictionary<string, WeaponParams> weapons, double stationOrbit = 0)
     {
         if (!(RespawnSeconds >= 0)) return "respawnSeconds must not be negative";
         if (!(AggroRange > 0) || !(DropRange >= AggroRange)) return "ranges must satisfy 0 < aggroRange <= dropRange";
@@ -118,6 +119,7 @@ public sealed record NpcRules(
         }
 
         // Логово нельзя достать из укрытия: иначе игрок бьёт пирата дома, тот агрится, видит цель в укрытии и уходит — по кругу.
+        // Станция ходит по орбите — считаем от ближайшей точки её круга, то есть от любого положения станции.
         var reach = weapons.Values.Select(w => w.MaxRange).DefaultIfEmpty(0).Max();
         var minHomeDistance = StationSafeRadius + PatrolRadius + reach;
         for (var i = 0; i < SpawnList.Count; i++)
@@ -130,8 +132,8 @@ public sealed record NpcRules(
                 _ when spawn.Level is < 1 or > NpcSpawn.MaxLevel => $"level must be within 1..{NpcSpawn.MaxLevel}",
                 _ when spawn.Count is < 1 or > NpcSpawn.MaxCount => $"count must be within 1..{NpcSpawn.MaxCount}",
                 _ when !(Math.Abs(spawn.X) <= WorldLimit) || !(Math.Abs(spawn.Y) <= WorldLimit) => $"x and y must be within ±{WorldLimit}",
-                _ when Math.Sqrt(Sq(spawn.X - SimConfig.StationX) + Sq(spawn.Y - SimConfig.StationY)) < minHomeDistance =>
-                    $"too close to the station: must be at least {minHomeDistance} away (safe radius + patrol radius + weapon range)",
+                _ when Math.Abs(Math.Sqrt(Sq(spawn.X) + Sq(spawn.Y)) - stationOrbit) < minHomeDistance =>
+                    $"too close to the station orbit: must be at least {minHomeDistance} away (safe radius + patrol radius + weapon range)",
                 _ => null,
             };
             if (problem is not null) return $"spawns[{i}]: {problem}";

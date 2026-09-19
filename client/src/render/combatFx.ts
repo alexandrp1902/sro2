@@ -1,6 +1,7 @@
-import { Container, Graphics, Text } from 'pixi.js';
+import { Container, Graphics, Sprite, Text } from 'pixi.js';
 import type { ShotDto } from '../net/protocol';
 import type { Weapons } from '../sim/weapons';
+import { spriteSize, texture, type SpriteName } from './sprites';
 
 /** Где сейчас нарисован корабль. */
 export interface FxAnchor {
@@ -16,9 +17,18 @@ export type Locate = (id: number) => FxAnchor | null;
 export const RAM_WEAPON = 'ram';
 /** Время полёта снаряда до цели, мс; луч — мгновенный. */
 const FLIGHT_MS: Record<string, number> = { bolt: 150, orb: 320, beam: 0 };
-const BEAM_MS = 120;
-const BOLT_LENGTH = 26;
-const ORB_RADIUS = 6;
+const BEAM_MS = 140;
+/** Длина снаряда в мире; у плазмы — сгусток с хвостом. */
+const PROJECTILE_LENGTH: Record<string, number> = { bolt: 42, orb: 34 };
+/** Где на картинке снаряда его голова (доля ширины): она и летит в цель. */
+const PROJECTILE_HEAD: Record<string, number> = { bolt: 0.9, orb: 0.78 };
+/** Толщина луча лазера. */
+const BEAM_WIDTH = 12;
+/** Вспышка у ствола и вспышка попадания — в размерах корабля. */
+const MUZZLE_SIZE = 1.9;
+const HIT_SIZE = 1.7;
+const MUZZLE_MS = 130;
+const HIT_MS = 260;
 /** Промах уходит мимо цели: на столько её размеров вбок и настолько дальше неё. */
 const MISS_SIDE = 2.4;
 const MISS_OVERSHOOT = 1.35;
@@ -31,7 +41,11 @@ const HULL_COLOR = 0xffb45a;
 const MISS_COLOR = 0x9aa4b4;
 const FLASH_MS = 260;
 const SPARK_MS = 220;
-const EXPLOSION_MS = 800;
+const EXPLOSION_MS = 950;
+/** Кадры взрыва с листа explosions.png. */
+const EXPLOSION_FRAMES = Array.from({ length: 9 }, (_, i) => `explosions-f${i}` as SpriteName);
+/** Сторона кадра в размерах корабля: огонь занимает около двух третей кадра. */
+const EXPLOSION_SIZE = 6.5;
 /** Тракторный луч (GDD §21): предмет втягивается в корабль за это время. */
 const TRACTOR_MS = 350;
 
@@ -53,14 +67,13 @@ export class CombatFx {
     const to = locate(shot.to);
     // Таран метеорита: снаряда нет, камень уже разбился — сразу цифры, вспышка щита и искры на корабле.
     if (shot.w === RAM_WEAPON) {
-      if (to) this.impact(shot, to, now);
+      if (to) this.impact(shot, null, to, now);
       return;
     }
     if (!from || !to) return;
-    const weapon = this.weapons.get(shot.w);
-    this.add(
-      new Tracer(this.view, shot, weapon.kind, parseColor(weapon.color), now, from, to, (at) => this.impact(shot, at, now)),
-    );
+    const kind = shotKind(this.weapons.get(shot.w).kind);
+    this.add(new SpriteFlash(this.view, `weapon-shots-${kind}-flash`, shot.from, from, to, MUZZLE_SIZE, MUZZLE_MS, now, 0.12));
+    this.add(new Tracer(this.view, shot, kind, now, from, to, (at, time) => this.impact(shot, kind, at, time)));
   }
 
   explosion(x: number, y: number, size: number, now: number): void {
@@ -88,12 +101,14 @@ export class CombatFx {
     }
   }
 
-  private impact(shot: ShotDto, at: FxAnchor, now: number): void {
+  /** @param kind вид выстрела для вспышки попадания; null — таран, вспышки нет */
+  private impact(shot: ShotDto, kind: ShotKind | null, at: FxAnchor, now: number): void {
     const hullDamage = shot.dmg - shot.sh;
     if (!shot.hit) {
       this.add(new FloatingText(this.view, 'промах', MISS_COLOR, at, now));
       return;
     }
+    if (kind) this.add(new SpriteFlash(this.view, `weapon-shots-${kind}-hit`, shot.to, at, null, HIT_SIZE, HIT_MS, now, 0.5));
     this.add(new FloatingText(this.view, `−${shot.dmg}`, hullDamage > 0 ? HULL_COLOR : SHIELD_COLOR, at, now));
     if (shot.sh > 0) this.add(new ShieldFlash(this.view, shot.to, at, now));
     if (hullDamage > 0) this.add(new Sparks(this.view, shot.to, at, now));
@@ -106,37 +121,53 @@ export class CombatFx {
 
 /** Снаряд или луч от стрелка к цели; промах — мимо цели и дальше. Концы следят за нарисованными кораблями. */
 class Tracer implements Effect {
-  private readonly g = new Graphics();
+  private readonly sprite: Sprite;
+  private readonly width: number;
   private readonly side = Math.random() < 0.5 ? -1 : 1;
   private impacted = false;
 
   constructor(
     parent: Container,
     private readonly shot: ShotDto,
-    private readonly kind: string,
-    private readonly color: number,
+    private readonly kind: ShotKind,
     private readonly start: number,
     private from: FxAnchor,
     private to: FxAnchor,
-    private readonly onImpact: (at: FxAnchor) => void,
+    /** Снаряд долетел: где цель и в какой момент — от него живут вспышка попадания и число урона. */
+    private readonly onImpact: (at: FxAnchor, time: number) => void,
   ) {
-    parent.addChild(this.g);
+    const name: SpriteName = `weapon-shots-${kind}`;
+    const { w, h } = spriteSize(name);
+    this.width = w;
+    this.sprite = new Sprite(texture(name));
+    if (kind === 'beam') {
+      // Луч — картинка, растянутая от ствола до точки попадания.
+      this.sprite.anchor.set(0, 0.5);
+      this.sprite.scale.set(1, BEAM_WIDTH / h);
+    } else {
+      this.sprite.anchor.set(PROJECTILE_HEAD[kind], 0.5);
+      this.sprite.scale.set(PROJECTILE_LENGTH[kind] / w);
+    }
+    this.sprite.visible = false;
+    parent.addChild(this.sprite);
   }
 
   update(now: number, _zoom: number, locate: Locate): boolean {
     this.from = copy(locate(this.shot.from)) ?? this.from;
     this.to = copy(locate(this.shot.to)) ?? this.to;
-    const { from, to } = this;
+    const { from, to, sprite } = this;
     const end = this.shot.hit ? to : missPoint(from, to, this.side);
     const elapsed = now - this.start;
-    const g = this.g.clear();
+    sprite.visible = true;
+    sprite.rotation = Math.atan2(end.y - from.y, end.x - from.x);
 
     if (this.kind === 'beam') {
-      if (!this.impacted) this.hit();
+      if (!this.impacted) this.hit(this.start);
       const fade = 1 - elapsed / BEAM_MS;
       if (fade <= 0) return false;
-      g.moveTo(from.x, from.y).lineTo(end.x, end.y).stroke({ width: 3, color: this.color, alpha: 0.35 * fade });
-      g.moveTo(from.x, from.y).lineTo(end.x, end.y).stroke({ width: 1.2, color: 0xffffff, alpha: 0.9 * fade });
+      sprite.position.set(from.x, from.y);
+      sprite.scale.x = (Math.hypot(end.x - from.x, end.y - from.y) || 1) / this.width;
+      sprite.alpha = fade;
       return true;
     }
 
@@ -144,29 +175,64 @@ class Tracer implements Effect {
     // Промах пролетает мимо цели на пути к точке дальше неё — «промах» всплывает, когда снаряд поравнялся с целью.
     const total = this.shot.hit ? flight : flight * MISS_OVERSHOOT;
     const p = Math.min(1, elapsed / total);
-    if (!this.impacted && elapsed >= flight) this.hit();
-    const hx = from.x + (end.x - from.x) * p;
-    const hy = from.y + (end.y - from.y) * p;
-    if (this.kind === 'orb') {
-      g.circle(hx, hy, ORB_RADIUS * 1.8).fill({ color: this.color, alpha: 0.25 });
-      g.circle(hx, hy, ORB_RADIUS).fill({ color: this.color, alpha: 0.95 });
-    } else {
-      const length = Math.hypot(end.x - from.x, end.y - from.y) || 1;
-      const tail = Math.max(0, p - BOLT_LENGTH / length);
-      g.moveTo(from.x + (end.x - from.x) * tail, from.y + (end.y - from.y) * tail)
-        .lineTo(hx, hy)
-        .stroke({ width: 3, color: this.color, alpha: 0.95, cap: 'round' });
-    }
+    if (!this.impacted && elapsed >= flight) this.hit(this.start + flight);
+    sprite.position.set(from.x + (end.x - from.x) * p, from.y + (end.y - from.y) * p);
     return p < 1;
   }
 
   destroy(): void {
-    this.g.destroy();
+    this.sprite.destroy();
   }
 
-  private hit(): void {
+  private hit(time: number): void {
     this.impacted = true;
-    this.onImpact({ ...this.to });
+    this.onImpact({ ...this.to }, time);
+  }
+}
+
+/**
+ * Вспышка-картинка у корабля: у ствола (развёрнута к цели) или в месте попадания. Следит за кораблём,
+ * растёт и гаснет.
+ * @param toward куда развернуть вспышку; null — попадание: из центра, под случайным углом
+ * @param grow насколько вспышка вырастает к концу
+ */
+class SpriteFlash implements Effect {
+  private readonly sprite: Sprite;
+  private readonly scale: number;
+
+  constructor(
+    parent: Container,
+    name: SpriteName,
+    private readonly id: number,
+    private at: FxAnchor,
+    toward: FxAnchor | null,
+    size: number,
+    private readonly duration: number,
+    private readonly start: number,
+    private readonly grow: number,
+  ) {
+    const { w, h } = spriteSize(name);
+    this.sprite = new Sprite(texture(name));
+    this.scale = (at.size * size) / Math.max(w, h);
+    this.sprite.anchor.set(toward ? 0.2 : 0.5, 0.5);
+    this.sprite.rotation = toward ? Math.atan2(toward.y - at.y, toward.x - at.x) : Math.random() * Math.PI * 2;
+    this.sprite.visible = false;
+    parent.addChild(this.sprite);
+  }
+
+  update(now: number, _zoom: number, locate: Locate): boolean {
+    const t = (now - this.start) / this.duration;
+    if (t >= 1) return false;
+    this.at = copy(locate(this.id)) ?? this.at;
+    this.sprite.visible = true;
+    this.sprite.position.set(this.at.x, this.at.y);
+    this.sprite.scale.set(this.scale * (1 + this.grow * t));
+    this.sprite.alpha = t < 0.4 ? 1 : 1 - (t - 0.4) / 0.6;
+    return true;
+  }
+
+  destroy(): void {
+    this.sprite.destroy();
   }
 }
 
@@ -320,40 +386,34 @@ class Sparks implements Effect {
   }
 }
 
-/** Уничтожение: вспышка, расходящееся кольцо и обломки. */
+/** Уничтожение: девять кадров с листа — вспышка, огненный шар, дым и тлеющие обломки. */
 class Explosion implements Effect {
-  private readonly g = new Graphics();
-  private readonly debris = Array.from({ length: 12 }, () => ({
-    angle: Math.random() * Math.PI * 2,
-    speed: 0.6 + Math.random() * 1.4,
-  }));
+  private readonly sprite = new Sprite();
+  private readonly scale: number;
 
-  constructor(
-    parent: Container,
-    private readonly x: number,
-    private readonly y: number,
-    private readonly size: number,
-    private readonly start: number,
-  ) {
-    parent.addChild(this.g);
+  constructor(parent: Container, x: number, y: number, size: number, private readonly start: number) {
+    this.scale = (size * EXPLOSION_SIZE) / spriteSize(EXPLOSION_FRAMES[0]).w;
+    this.sprite.anchor.set(0.5);
+    this.sprite.position.set(x, y);
+    this.sprite.rotation = Math.random() * Math.PI * 2; // взрывы не одинаковые
+    this.sprite.visible = false;
+    parent.addChild(this.sprite);
   }
 
   update(now: number): boolean {
     const t = (now - this.start) / EXPLOSION_MS;
     if (t >= 1) return false;
-    const { x, y, size } = this;
-    const g = this.g.clear();
-    if (t < 0.3) g.circle(x, y, size * (1.2 + 2 * t)).fill({ color: 0xfff1c0, alpha: 0.8 * (1 - t / 0.3) });
-    g.circle(x, y, size * (1 + 4 * t)).stroke({ width: 3, color: HULL_COLOR, alpha: 0.9 * (1 - t) });
-    for (const d of this.debris) {
-      const r = size * (0.5 + 4 * d.speed * t);
-      g.circle(x + Math.cos(d.angle) * r, y + Math.sin(d.angle) * r, 2.2).fill({ color: 0xffd08a, alpha: 1 - t });
-    }
+    const frame = Math.min(EXPLOSION_FRAMES.length - 1, Math.floor(t * EXPLOSION_FRAMES.length));
+    this.sprite.texture = texture(EXPLOSION_FRAMES[frame]);
+    this.sprite.visible = true;
+    // Кадры одного масштаба; лёгкое расширение сглаживает скачки между ними.
+    this.sprite.scale.set(this.scale * (0.9 + 0.2 * t));
+    this.sprite.alpha = t < 0.75 ? 1 : 1 - (t - 0.75) / 0.25;
     return true;
   }
 
   destroy(): void {
-    this.g.destroy();
+    this.sprite.destroy();
   }
 }
 
@@ -370,7 +430,9 @@ function copy(anchor: FxAnchor | null): FxAnchor | null {
   return anchor ? { x: anchor.x, y: anchor.y, size: anchor.size } : null;
 }
 
-function parseColor(color: string): number {
-  const value = Number.parseInt(color.replace('#', ''), 16);
-  return Number.isNaN(value) ? 0xffd166 : value;
+type ShotKind = 'bolt' | 'beam' | 'orb';
+
+/** Вид выстрела по пушке — от него картинки снаряда и вспышек; неизвестный — импульсный снаряд. */
+function shotKind(kind: string): ShotKind {
+  return kind === 'beam' || kind === 'orb' ? kind : 'bolt';
 }

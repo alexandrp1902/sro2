@@ -244,6 +244,14 @@ body {
   vertical-align: 0;
 }
 
+.cargo-icon {
+  width: 18px;
+  height: 18px;
+  margin-right: 5px;
+  object-fit: contain;
+  vertical-align: -4px;
+}
+
 /* Выбранный предмет — отдельно от карточки цели: «куда лечу» и «во что стреляю» путать нельзя. */
 .loot-card {
   position: absolute;
@@ -605,7 +613,7 @@ body {
   display: none;
 }
 
-/* Стрелки выбора цели — шеврон с раскрытием 45°, без кружка; зона нажатия больше рисунка. */
+/* Стрелки выбора цели — голубой шеврон, стороны под 45° (прямой угол у вершины), без кружка; зона нажатия больше рисунка. */
 .target-step {
   display: flex;
   align-items: center;
@@ -619,11 +627,23 @@ body {
   pointer-events: auto;
 }
 
+/*
+ * Левая стрелка — на полширины левее: пальцу просторнее. Огонь — ровно посередине между стрелками:
+ * центры стрелок в 0 и 164 px от левого края ряда, центр огня — в 82 вместо 94.
+ */
+#target-prev {
+  transform: translateX(-24px);
+}
+
+#fire {
+  transform: translateX(-12px);
+}
+
 .target-step svg {
   width: 36px;
   height: 31px;
   fill: none;
-  stroke: #cfe3ff;
+  stroke: #7fd4ff;
   stroke-width: 4.5;
   stroke-linecap: round;
   stroke-linejoin: round;
@@ -911,6 +931,30 @@ body {
   border-bottom: 0;
 }
 
+/* Строка с картинкой: картинка слева на обе строки, текст посередине, кнопка справа. */
+.dock-row:has(> .dock-icon) {
+  grid-template-columns: auto 1fr auto;
+}
+
+.dock-icon {
+  grid-column: 1;
+  grid-row: 1 / span 2;
+  width: 44px;
+  height: 44px;
+  object-fit: contain;
+  pointer-events: none;
+}
+
+.dock-row:has(> .dock-icon) > .dock-name,
+.dock-row:has(> .dock-icon) > .dock-stats {
+  grid-column: 2;
+}
+
+.dock-row:has(> .dock-icon) > .dock-buy,
+.dock-row:has(> .dock-icon) > .dock-tag {
+  grid-column: 3;
+}
+
 .dock-name {
   font-size: 15px;
 }
@@ -981,4 +1025,180 @@ body {
   margin-right: auto;
   background: transparent;
   color: #ff9a90;
+}
+
+/* Миникарта (GDD §43): вся система под строкой полёта; тап — карта галактики. */
+.minimap {
+  position: absolute;
+  top: calc(env(safe-area-inset-top) + 36px);
+  right: calc(env(safe-area-inset-right) + 10px);
+  width: 128px;
+  height: 128px;
+  pointer-events: auto;
+  cursor: pointer;
+}
+
+.minimap[hidden] {
+  display: none;
+}
+
+/* Dev-панель — под миникартой, а не поверх неё. */
+#minimap:not([hidden]) ~ .dev {
+  top: calc(env(safe-area-inset-top) + 172px);
+}
+
+@media (max-width: 520px) {
+  /* На телефоне строка полёта уехала влево, во второй ряд: справа от неё и встаёт миникарта. Первый ряд — статусу. */
+  .minimap {
+    top: calc(env(safe-area-inset-top) + 36px);
+    width: 96px;
+    height: 96px;
+  }
+
+  #minimap:not([hidden]) ~ .dev {
+    top: calc(env(safe-area-inset-top) + 124px);
+  }
+}
+
+/* Карта галактики (GDD §55): поверх всего, как док; тап мимо карточки закрывает. */
+.galaxy {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: calc(env(safe-area-inset-top) + 12px) calc(env(safe-area-inset-right) + 12px)
+    calc(env(safe-area-inset-bottom) + 12px) calc(env(safe-area-inset-left) + 12px);
+  background: rgba(3, 5, 10, 0.72);
+  touch-action: manipulation;
+}
+
+.galaxy[hidden] {
+  display: none;
+}
+
+.galaxy-card {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-width: 560px;
+  max-height: 100%;
+  border: 1px solid #1f3350;
+  border-radius: 12px;
+  background: #0b1322;
+  overflow: auto;
+}
+
+.galaxy-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  border-bottom: 1px solid #1f3350;
+}
+
+.galaxy-title {
+  font-size: 17px;
+  font-weight: 600;
+}
+
+.galaxy-fuel {
+  margin-left: auto;
+  font-variant-numeric: tabular-nums;
+  color: #9fc0e8;
+}
+
+.galaxy-close {
+  padding: 4px 10px;
+  border: 0;
+  border-radius: 8px;
+  background: #1d3a60;
+  color: #e6f0ff;
+  font: inherit;
+  font-size: 16px;
+  cursor: pointer;
+}
+
+.galaxy-svg {
+  display: block;
+  width: 100%;
+  aspect-ratio: 1.35;
+  padding: 4px 8px 0;
+  box-sizing: border-box;
+}
+
+.galaxy-link {
+  stroke: #36507a;
+  stroke-width: 0.5;
+}
+
+.galaxy-link-open {
+  stroke: #b58cff;
+  stroke-width: 0.8;
+}
+
+.galaxy-link-poor {
+  stroke: #5a4a78;
+  stroke-width: 0.6;
+  stroke-dasharray: 1.4 1;
+}
+
+.galaxy-cost {
+  fill: #8fa7c8;
+  font-size: 3.2px;
+  text-anchor: middle;
+}
+
+.galaxy-node {
+  cursor: pointer;
+}
+
+.galaxy-here {
+  fill: none;
+  stroke: #7fd4ff;
+  stroke-width: 0.7;
+}
+
+.galaxy-selected {
+  fill: none;
+  stroke: #ffffff;
+  stroke-width: 0.5;
+  stroke-dasharray: 1 0.8;
+}
+
+.galaxy-station {
+  fill: #0b1322;
+}
+
+.galaxy-name {
+  fill: #dce9ff;
+  font-size: 3.6px;
+  text-anchor: middle;
+}
+
+.galaxy-hit {
+  fill: transparent;
+}
+
+.galaxy-info {
+  padding: 10px 14px 4px;
+  border-top: 1px solid #1f3350;
+}
+
+.galaxy-info-name {
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.galaxy-info-facts,
+.galaxy-info-jump {
+  margin-top: 4px;
+  font-size: 14px;
+  color: #b8cbe6;
+}
+
+.galaxy-legend {
+  padding: 6px 14px 12px;
+  font-size: 12px;
+  color: #7f93b0;
 }

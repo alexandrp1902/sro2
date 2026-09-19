@@ -4,10 +4,13 @@
 // Нужен запущенный сервер и Node 24 (встроенный WebSocket). Идёт до ~2 минут: ждём подходящий камень.
 //   node tools/smoke-meteor.mjs [ws://localhost:5000/ws]
 
+import { openSocket } from './wire.mjs';
+
 const url = process.argv[2] ?? 'ws://localhost:5000/ws';
 const INPUT_INTERVAL_MS = 50;
 const CLOSE_HIDDEN = 4000;
 const RUN = Math.floor(100 + Math.random() * 900);
+/** Центр системы — звезда: к ней тянет камни. */
 const STATION = { x: 0, y: 0 };
 const DT = 0.05;
 /** Шанс попадания по камню без штрафа за дистанцию — точность пушки; ниже этого уклонение всё-таки вмешалось. */
@@ -43,13 +46,13 @@ class Client {
 
   connect() {
     return new Promise((resolve, reject) => {
-      const ws = new WebSocket(url);
+      const { ws, read } = openSocket(url);
       this.ws = ws;
       ws.onopen = () => this.send({ t: 'hello', name: this.name, hull: 'light', weapon: 'pulse', token: this.token });
       ws.onerror = () => reject(new Error(`cannot connect to ${url}`));
       ws.onclose = () => clearInterval(this.timer);
       ws.onmessage = (e) => {
-        const message = JSON.parse(e.data);
+        const message = read(e.data);
         if (message.t === 'welcome') {
           this.welcome = message;
           resolve(message);
@@ -157,7 +160,8 @@ async function main() {
   check(`gravity bends the tracks: GM ${rules?.gravity}`, rules?.gravity > 0);
 
   a.start();
-  await a.until(() => a.meteors.length > 0, 40000, 'meteors in the sky');
+  // Радар (M7): камень виден, только когда проходит ближе радиуса радара, — ждём дольше интервала появления.
+  await a.until(() => a.meteors.length > 0, 120000, 'meteors in the sky');
   check(`meteors appear: ${a.meteors.length} in the snapshot`, a.meteors.length > 0);
 
   // Дуга: клиентская формула должна повторить путь сервера, а курс — заметно отвернуть от прямой.
@@ -255,7 +259,7 @@ async function main() {
   console.log(`     rams seen during the run: ${rams.length}${rams.length ? ` (last one −${rams[rams.length - 1].dmg})` : ''}`);
 
   check(
-    `no meteor arc crosses the station shelter: ${seen.size} tracks, closest pass ${Math.round(closestPass)} vs shelter ${shelter}`,
+    `no meteor arc crosses the core around the sun: ${seen.size} tracks, closest pass ${Math.round(closestPass)} vs core ${shelter}`,
     seen.size > 0 && closestPass >= shelter,
   );
 

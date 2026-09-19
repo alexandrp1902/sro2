@@ -59,8 +59,16 @@ internal sealed class MeteorSystem(Func<int> nextId, Random rng)
     /// а потом проигрываем всю дугу вперёд: тяготение уводит камень с прямой, поэтому только по настоящей трассе
     /// и видно, не заденет ли он укрытие. Укрытие остаётся чистым и от пиратов, и от камней.
     /// </summary>
+    /// <param name="core">Ближе этого к центру системы трасса не проходит.</param>
+    /// <param name="station">Где будет станция через t секунд после запуска; null — станции нет.</param>
+    /// <param name="shelter">Радиус укрытия станции: трасса обходит его на всём пути, пока станция идёт по орбите.</param>
     /// <returns>null — за SpawnAttempts попыток трасса мимо укрытия не нашлась, появление пропускается.</returns>
-    public Meteor? Launch(MeteorRules rules, double stationSafeRadius, long tick)
+    public Meteor? Launch(
+        MeteorRules rules,
+        double core,
+        long tick,
+        Func<double, (double X, double Y)>? station = null,
+        double shelter = 0)
     {
         if (rules.PickSize(rng.NextDouble()) is not { } sizeId) return null;
         var size = rules.SizeMap[sizeId];
@@ -82,16 +90,17 @@ internal sealed class MeteorSystem(Func<int> nextId, Random rng)
             };
             var aimRadius = rules.AimRadius * track.AimFactor * Math.Sqrt(rng.NextDouble());
             var aimAngle = rng.NextDouble() * 2 * Math.PI;
-            var dx = SimConfig.StationX + aimRadius * Math.Cos(aimAngle) - x;
-            var dy = SimConfig.StationY + aimRadius * Math.Sin(aimAngle) - y;
+            var dx = aimRadius * Math.Cos(aimAngle) - x;
+            var dy = aimRadius * Math.Sin(aimAngle) - y;
             var length = Math.Sqrt(dx * dx + dy * dy);
             if (length < 1) continue;
             dx /= length;
             dy /= length;
             var speed = (size.SpeedMin + (size.SpeedMax - size.SpeedMin) * rng.NextDouble()) * track.SpeedFactor;
             // Мимо укрытия, но всё-таки через обитаемую часть: тяготение могло и увести дугу по краю мира.
-            var closest = Trace(rules, x, y, dx * speed, dy * speed);
-            if (closest < stationSafeRadius + size.Radius || closest > rules.AimRadius) continue;
+            var (closest, toStation) = Trace(rules, x, y, dx * speed, dy * speed, station);
+            if (closest < core + size.Radius || closest > rules.AimRadius) continue;
+            if (toStation < shelter + size.Radius) continue;
             return Add(sizeId, size, x, y, dx * speed, dy * speed, tick + rules.LifetimeTicks);
         }
         return null;
@@ -112,7 +121,17 @@ internal sealed class MeteorSystem(Func<int> nextId, Random rng)
     /// Проигрывает дугу до конца жизни камня тем же шагом и той же схемой, что и сама симуляция.
     /// </summary>
     /// <returns>Ближайший подход к центру системы за всю жизнь камня.</returns>
-    public static double Trace(MeteorRules rules, double x, double y, double vx, double vy)
+    public static double Trace(MeteorRules rules, double x, double y, double vx, double vy) => Trace(rules, x, y, vx, vy, null).Centre;
+
+    /// <param name="station">Где будет станция через t секунд полёта; null — станции нет.</param>
+    /// <returns>Ближайший подход к центру системы и к станции (MaxValue без станции) за всю жизнь камня.</returns>
+    public static (double Centre, double Station) Trace(
+        MeteorRules rules,
+        double x,
+        double y,
+        double vx,
+        double vy,
+        Func<double, (double X, double Y)>? station)
     {
         // Шаг — ровно тик симуляции: тогда отбраковка идёт по той самой дуге, по которой камень и полетит.
         const double step = SimConfig.Dt;
@@ -121,13 +140,19 @@ internal sealed class MeteorSystem(Func<int> nextId, Random rng)
         const double maxSeconds = 240;
         var limit = Movement.WorldHalfSize + rules.DespawnMargin;
         var closest = double.MaxValue;
+        var toStation = double.MaxValue;
         for (var t = 0.0; t < maxSeconds; t += step)
         {
             rules.Step(ref x, ref y, ref vx, ref vy, step);
             closest = Math.Min(closest, Math.Sqrt(x * x + y * y));
+            if (station is not null)
+            {
+                var (sx, sy) = station(t + step);
+                toStation = Math.Min(toStation, Math.Sqrt((x - sx) * (x - sx) + (y - sy) * (y - sy)));
+            }
             if ((Math.Abs(x) > limit || Math.Abs(y) > limit) && x * vx + y * vy > 0) break;
         }
-        return closest;
+        return (closest, toStation);
     }
 
     /// <summary>

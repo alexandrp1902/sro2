@@ -1,3 +1,4 @@
+import { itemSprite, spriteUrl } from '../render/sprites';
 import { lootItem, rarityColor, type LootRules } from '../sim/loot';
 import { formatCredits } from '../sim/shop';
 
@@ -24,10 +25,42 @@ export interface StationCardState {
   inRange: boolean;
 }
 
-export type SelectionCardState = LootCardState | StationCardState;
+/** Выбранные врата: куда ведут, далеко ли, хватит ли топлива, идёт ли подготовка прыжка. */
+export interface GateCardState {
+  kind: 'gate';
+  /** Система за вратами. */
+  name: string;
+  distance: number;
+  inRange: boolean;
+  cost: number;
+  fuel: number;
+  /** Сколько секунд до прыжка; null — подготовки нет. */
+  charging: number | null;
+}
+
+/** Выбранная планета: как называется и далеко ли. Посадки пока нет. */
+export interface PlanetCardState {
+  kind: 'planet';
+  name: string;
+  distance: number;
+}
+
+export type SelectionCardState = LootCardState | StationCardState | GateCardState | PlanetCardState;
 
 /** Зелёный, как круг дока. */
 const STATION_COLOR = 0x6fe08a;
+/** Фиолетовый, как сами врата. */
+const GATE_COLOR = 0xb58cff;
+/** Как подпись планеты в мире. */
+const PLANET_COLOR = 0x9fc7a8;
+
+/** Подсказка под именем врат: что сейчас мешает прыжку или что он стоит. */
+export function gateHint(card: GateCardState): string {
+  if (card.charging !== null) return `прыжок через ${Math.ceil(card.charging)} с`;
+  if (!card.inRange) return 'подлетите ближе, чтобы прыгнуть';
+  if (card.fuel < card.cost) return `не хватает топлива: ${card.fuel} из ${card.cost}`;
+  return `прыжок · ${card.cost} топлива из ${card.fuel}`;
+}
 
 /**
  * Трюм и карточка выбранного предмета. Отдельно от боевого HUD: тот про бой и обновляется каждый кадр,
@@ -73,7 +106,14 @@ export class CargoHud {
       this.cardKey = '';
       return;
     }
-    const key = card.kind === 'loot' ? `loot|${card.item}|${card.count}` : `station|${card.inRange}`;
+    const key =
+      card.kind === 'loot'
+        ? `loot|${card.item}|${card.count}`
+        : card.kind === 'gate'
+          ? `gate|${card.name}|${gateHint(card)}`
+          : card.kind === 'planet'
+            ? `planet|${card.name}`
+            : `station|${card.inRange}`;
     if (key !== this.cardKey) {
       this.cardKey = key;
       this.distanceEl = row('loot-distance', '');
@@ -83,6 +123,12 @@ export class CargoHud {
         const count = card.count > 1 ? ` ×${card.count}` : '';
         this.lootRoot.append(row('loot-name', `${item?.name ?? card.item}${count}`, color(rarityColor(rules!, card.item))));
         this.lootRoot.append(this.distanceEl);
+      } else if (card.kind === 'planet') {
+        this.lootRoot.append(row('loot-name', `Планета ${card.name}`, color(PLANET_COLOR)), this.distanceEl);
+        this.lootRoot.append(row('loot-hint', 'посадки пока нет'));
+      } else if (card.kind === 'gate') {
+        this.lootRoot.append(row('loot-name', `Врата → ${card.name}`, color(GATE_COLOR)), this.distanceEl);
+        this.lootRoot.append(row('loot-hint', gateHint(card)));
       } else {
         this.lootRoot.append(row('loot-name', 'Станция', color(STATION_COLOR)), this.distanceEl);
         this.lootRoot.append(row('loot-hint', card.inRange ? 'можно в док' : 'подлетите ближе, чтобы пристыковаться'));
@@ -133,7 +179,11 @@ export class CargoHud {
       const dot = document.createElement('span');
       dot.className = 'cargo-dot';
       dot.style.background = color(rarityColor(rules, id));
-      line.append(dot, document.createTextNode(`${lootItem(rules, id)?.name ?? id} ×${count}`));
+      const icon = document.createElement('img');
+      icon.className = 'cargo-icon';
+      icon.src = spriteUrl(itemSprite(id));
+      icon.alt = '';
+      line.append(dot, icon, document.createTextNode(`${lootItem(rules, id)?.name ?? id} ×${count}`));
       list.append(line);
     }
     this.root.append(list);

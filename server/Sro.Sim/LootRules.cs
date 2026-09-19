@@ -102,10 +102,12 @@ public sealed record LootContainer(
     [JsonIgnore] public int RespawnTicks => RespawnSeconds > 0 ? Math.Max(1, Combat.SecondsToTicks(RespawnSeconds)) : 0;
 
     /// <param name="stationSafeRadius">Укрытие у станции: там контейнер был бы бесплатным лутом без риска.</param>
+    /// <param name="stationOrbit">Радиус орбиты станции: укрытие проходит по всему этому кругу; 0 — станция в центре.</param>
     public string? Validate(
         IReadOnlyDictionary<string, LootItem> items,
         IReadOnlyDictionary<string, LootTable> tables,
-        double stationSafeRadius)
+        double stationSafeRadius,
+        double stationOrbit = 0)
     {
         if (string.IsNullOrWhiteSpace(Name)) return "name is empty";
         if (Item is null == (Table is null)) return "exactly one of item and table must be set";
@@ -117,9 +119,9 @@ public sealed record LootContainer(
         if (!(Math.Abs(X) <= NpcRules.WorldLimit) || !(Math.Abs(Y) <= NpcRules.WorldLimit))
             return $"x and y must be within ±{NpcRules.WorldLimit}";
 
-        var toStation = Math.Sqrt(Sq(X - SimConfig.StationX) + Sq(Y - SimConfig.StationY));
+        var toStation = Math.Abs(Math.Sqrt(Sq(X) + Sq(Y)) - stationOrbit);
         if (toStation < stationSafeRadius)
-            return $"too close to the station: must be at least {stationSafeRadius} away (inside the shelter loot would be free)";
+            return $"too close to the station orbit: must be at least {stationSafeRadius} away (inside the shelter loot would be free)";
         return null;
     }
 
@@ -177,7 +179,8 @@ public sealed record LootRules(
     public int Price(string item) => ItemMap.TryGetValue(item, out var found) ? found.Price : 0;
 
     /// <param name="stationSafeRadius">Из npcs.json: ближе этого к станции контейнеры ставить нельзя.</param>
-    public string? Validate(double stationSafeRadius = 0)
+    /// <param name="stationOrbit">Радиус орбиты станции; 0 — станция в центре.</param>
+    public string? Validate(double stationSafeRadius = 0, double stationOrbit = 0)
     {
         if (!(PickupRange > 0)) return "pickupRange must be positive";
         if (!(LifetimeSeconds > 0)) return "lifetimeSeconds must be positive";
@@ -203,7 +206,7 @@ public sealed record LootRules(
         for (var i = 0; i < ContainerList.Count; i++)
         {
             var container = ContainerList[i];
-            var problem = container is null ? "is null" : container.Validate(ItemMap, TableMap, stationSafeRadius);
+            var problem = container is null ? "is null" : container.Validate(ItemMap, TableMap, stationSafeRadius, stationOrbit);
             if (problem is not null) return $"containers[{i}]: {problem}";
         }
         return null;

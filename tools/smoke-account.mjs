@@ -4,6 +4,8 @@
 // Нужен запущенный сервер и Node 24 (встроенный WebSocket). Идёт ~20 секунд.
 //   node tools/smoke-account.mjs [ws://localhost:5000/ws]
 
+import { openSocket, stationAt } from './wire.mjs';
+
 const url = process.argv[2] ?? 'ws://localhost:5000/ws';
 const INPUT_INTERVAL_MS = 50;
 const CLOSE_HIDDEN = 4000;
@@ -12,7 +14,6 @@ const CLOSE_DENIED = 4003;
 const RUN = Math.floor(100 + Math.random() * 900);
 const NAME = `smoke-${RUN}`;
 const PASSWORD = 'smoke-pass';
-const STATION = { x: 0, y: 0 };
 
 class Client {
   constructor(hello) {
@@ -46,7 +47,7 @@ class Client {
   /** Открывает сокет и шлёт hello; ждать ответа — через until. */
   open() {
     return new Promise((resolve, reject) => {
-      const ws = new WebSocket(url);
+      const { ws, read } = openSocket(url);
       this.ws = ws;
       ws.onopen = () => {
         this.send({ t: 'hello', ...this.hello });
@@ -59,7 +60,7 @@ class Client {
         this.notify();
       };
       ws.onmessage = (e) => {
-        const message = JSON.parse(e.data);
+        const message = read(e.data);
         if (message.t === 'welcome') this.welcome = message;
         else if (message.t === 'account') this.account = message;
         else if (message.t === 'denied') this.denied = message.code;
@@ -161,7 +162,8 @@ async function main() {
   // Вне круга станции док не открывается.
   a.start();
   await a.until(() => a.me, 3000, 'own ship in a snapshot');
-  const far = Math.hypot(a.me.x - STATION.x, a.me.y - STATION.y) > a.welcome.loot.stationRange;
+  const station = () => stationAt(a.welcome.system, a.snapshot?.tick ?? 0);
+  const far = Math.hypot(a.me.x - station().x, a.me.y - station().y) > a.welcome.loot.stationRange;
   if (far) {
     a.send({ t: 'dock', on: true });
     await a.until(() => a.notices.includes('tooFar'), 3000, 'docking far away is refused');
@@ -172,11 +174,12 @@ async function main() {
   a.control = () => {
     const me = a.me;
     if (!me) return [0, -1, 0];
-    const d = Math.hypot(STATION.x - me.x, STATION.y - me.y);
-    return [STATION.x - me.x, STATION.y - me.y, d > 120 ? 1 : 0];
+    const at = station();
+    const d = Math.hypot(at.x - me.x, at.y - me.y);
+    return [at.x - me.x, at.y - me.y, d > 120 ? 1 : 0];
   };
   await a.until(
-    () => a.me && Math.hypot(a.me.x - STATION.x, a.me.y - STATION.y) <= a.welcome.loot.stationRange - 30,
+    () => a.me && Math.hypot(a.me.x - station().x, a.me.y - station().y) <= a.welcome.loot.stationRange - 30,
     30000,
     'reaching the station',
   );

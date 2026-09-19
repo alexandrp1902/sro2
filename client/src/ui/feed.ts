@@ -20,12 +20,20 @@ export function describeKill(killer: string, victim: string): string {
   return `${killer} уничтожает ${victim}`;
 }
 
+/** Корабль сгорел в жаре звезды — убийцы нет. */
+export function describeBurn(victim: string): string {
+  return `${victim} сгорает у звезды`;
+}
+
 /** Короткие уведомления сервера: он шлёт код, текст живёт здесь. */
 const NOTICES: Record<string, string> = {
   cargoFull: 'Недостаточно места в трюме',
   unloaded: 'Груз продан',
   tooFar: 'Слишком далеко',
   noCredits: 'Не хватает кредитов',
+  noFuel: 'Не хватает топлива на прыжок',
+  gateFar: 'Подлетите ближе к вратам',
+  jumpCancelled: 'Прыжок сорван',
 };
 
 /** @returns текст уведомления или null, если код незнакомый (сервер новее клиента). */

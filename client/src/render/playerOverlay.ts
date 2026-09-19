@@ -26,6 +26,7 @@ const AI_TEXT: Record<AiState, string> = {
   patrol: 'патруль',
   attack: 'атака',
   return: 'домой',
+  leave: 'уходит',
 };
 /** Стрелка к кораблю за краем экрана держится на таком отступе от края, px. */
 const EDGE_MARGIN = 26;

@@ -1,6 +1,7 @@
 {
   "startCredits": 1000,
   "repairPrice": 0.25,
+  "fuelPrice": 1,
   "hulls": {
     "light": 0,
     "medium": 3000,

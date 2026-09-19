@@ -12,11 +12,13 @@ namespace Sro.Sim;
 /// <param name="RepairPrice">Кредитов за единицу прочности корпуса при ремонте в доке; 0 — бесплатно.</param>
 /// <param name="Hulls">Корпус — цена. Корпуса, которого здесь нет, на станции не продают.</param>
 /// <param name="Weapons">Пушка — цена. Пушки, которой здесь нет, на станции не продают.</param>
+/// <param name="FuelPrice">Кредитов за единицу топлива при заправке в доке (GDD §6, §26); 0 — бесплатно.</param>
 public sealed record ShopRules(
     int StartCredits = 1000,
     double RepairPrice = 0,
     IReadOnlyDictionary<string, int>? Hulls = null,
-    IReadOnlyDictionary<string, int>? Weapons = null)
+    IReadOnlyDictionary<string, int>? Weapons = null,
+    double FuelPrice = 0)
 {
     public const string File = "shop.json";
 
@@ -35,12 +37,16 @@ public sealed record ShopRules(
     /// <summary>Сколько стоит довести корпус до полной прочности; округляется вверх.</summary>
     public int RepairCost(double missingHp) => missingHp > 0 ? (int)Math.Ceiling(missingHp * RepairPrice) : 0;
 
+    /// <summary>Сколько стоит залить столько топлива; округляется вверх.</summary>
+    public int FuelCost(double missingFuel) => missingFuel > 0 ? (int)Math.Ceiling(missingFuel * FuelPrice - 1e-9) : 0;
+
     /// <param name="hulls">Каждый корпус в прайсе должен быть в hulls.json.</param>
     /// <param name="weapons">Каждая пушка в прайсе должна быть в weapons.json.</param>
     public string? Validate(IReadOnlyDictionary<string, HullParams> hulls, IReadOnlyDictionary<string, WeaponParams> weapons)
     {
         if (StartCredits < 0) return "startCredits must not be negative";
         if (!(RepairPrice >= 0)) return "repairPrice must not be negative";
+        if (!(FuelPrice >= 0)) return "fuelPrice must not be negative";
         foreach (var (id, price) in HullPrices)
         {
             if (!hulls.ContainsKey(id)) return $"hulls.{id}: unknown hull";

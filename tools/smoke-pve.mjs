@@ -3,6 +3,8 @@
 // Нужен запущенный сервер и Node 24 (встроенный WebSocket). Идёт ~40–60 с: полёт к логову и обратно.
 //   node tools/smoke-pve.mjs [ws://localhost:5000/ws]
 
+import { openSocket, stationAt } from './wire.mjs';
+
 const url = process.argv[2] ?? 'ws://localhost:5000/ws';
 const INPUT_INTERVAL_MS = 50;
 const CLOSE_HIDDEN = 4000;
@@ -34,13 +36,13 @@ class Client {
 
   connect() {
     return new Promise((resolve, reject) => {
-      const ws = new WebSocket(url);
+      const { ws, read } = openSocket(url);
       this.ws = ws;
       ws.onopen = () => this.send({ t: 'hello', name: this.name, hull: 'light', weapon: 'pulse', token: this.token });
       ws.onerror = () => reject(new Error(`cannot connect to ${url}`));
       ws.onclose = () => clearInterval(this.timer);
       ws.onmessage = (e) => {
-        const message = JSON.parse(e.data);
+        const message = read(e.data);
         if (message.t === 'welcome') {
           this.welcome = message;
           resolve(message);
@@ -131,19 +133,31 @@ async function main() {
   const a = new Client(`Smoke-PvE-${RUN}`);
   await a.connect();
   const npcs = a.welcome.npcs;
-  check('welcome carries npcs.json (lairs and the shelter)', Boolean(npcs?.spawns?.length) && npcs.stationSafeRadius > 0);
+  check('welcome carries the shelter radius and the sun', npcs?.stationSafeRadius > 0 && Boolean(a.welcome.system?.sun));
 
-  const expected = npcs.spawns.reduce((sum, s) => sum + (s.count ?? 1), 0);
+  // Пираты прилетают налётами: группы уже патрулируют в случайных точках, новые прилетают через врата.
   await a.until(() => a.players.length > 0, 2000, 'the roster after welcome');
   const pirates = a.players.filter((p) => p.kind === 'pirate');
   check(
-    `pirates in the roster: ${pirates.length} of ${expected} (${[...new Set(pirates.map((p) => p.name))].join(', ')})`,
-    pirates.length === expected && pirates.every((p) => p.npc && /Ур\.\d+$/.test(p.name) && p.maxHp > 0),
+    `raiders in the roster: ${pirates.length} (${[...new Set(pirates.map((p) => p.name))].join(', ')})`,
+    pirates.length > 0 && pirates.every((p) => p.npc && /Ур\.\d+$/.test(p.name) && p.maxHp > 0),
   );
 
   a.start();
-  await a.until(() => a.me && a.pirates().length === expected, 3000, 'own ship and pirates in the snapshot');
-  check('pirates patrol when nobody is around', a.pirates().every((s) => s.ai === 'patrol' && !s.tg));
+  await a.until(() => a.me, 3000, 'own ship in the snapshot');
+  // Радар (M7): далёких пиратов сервер не присылает. Точки патруля — на кольце вокруг орбиты станции:
+  // облетаем его по кругу, пока кто-нибудь не покажется.
+  const ring = Array.from({ length: 8 }, (_, i) => ({ x: 3000 * Math.cos((i * Math.PI) / 4), y: 3000 * Math.sin((i * Math.PI) / 4) }));
+  let leg = ring.reduce((best, p, i) => (distance(p, a.me) < distance(ring[best], a.me) ? i : best), 0);
+  a.control = a.flyTo(() => {
+    if (a.me && distance(ring[leg], a.me) < 300) leg = (leg + 1) % ring.length;
+    return ring[leg];
+  }, 0);
+  await a.until(() => a.pirates().length > 0, 150000, 'pirates on the radar');
+  check(
+    `pirates on the radar: ${a.pirates().length}, ${a.pirates().map((s) => s.ai).join(', ')}`,
+    a.pirates().every((s) => ['patrol', 'return', 'leave'].includes(s.ai)),
+  );
 
   // К ближайшему пирату: подлететь и зависнуть рядом, пока защита после появления кончается по дороге.
   const prey = a.pirates().reduce((best, s) => (distance(s, a.me) < distance(best, a.me) ? s : best));
@@ -163,13 +177,14 @@ async function main() {
   check(`pirate fires: ${shot.w}, chance ${shot.ch}%, ${shot.hit ? `hit for ${shot.dmg}` : 'miss'}`, shot.ch >= 5 && shot.ch <= 95);
 
   // Домой, в укрытие: пират гонится и стреляет, а у станции бросает цель.
-  const shelter = { x: 0, y: 0 };
+  // Станция на орбите — летим туда, где она сейчас.
+  const shelter = () => stationAt(a.welcome.system, a.snapshot?.tick ?? 0);
   a.control = a.flyTo(shelter, 0);
-  await a.until(() => a.me && distance(a.me, shelter) <= npcs.stationSafeRadius - 50, 45000, 'back in the shelter');
+  await a.until(() => a.me && distance(a.me, shelter()) <= npcs.stationSafeRadius - 50, 60000, 'back in the shelter');
   const chasedFor = shotsAtMe().length;
   await a.until(() => !a.pirates().some((s) => s.tg === a.id), 3000, 'pirates drop the target in the shelter');
   const chaser = a.ship(attacker.id);
-  check(`in the shelter nobody targets us; the attacker is now "${chaser?.ai}" (${chasedFor} pirate shots on the way)`, chaser?.ai === 'return' || chaser?.ai === 'patrol');
+  check(`in the shelter nobody targets us; the attacker is now "${chaser?.ai}" (${chasedFor} pirate shots on the way)`, !chaser || ['return', 'patrol', 'leave'].includes(chaser.ai));
   const me = a.me;
   check(`own ship alive: hull ${me.hp}, shield ${me.sh}`, !me.rt);
 

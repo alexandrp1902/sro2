@@ -8,10 +8,10 @@ import type { NpcRules } from '../sim/npcs';
 import type { ShopRules } from '../sim/shop';
 
 /** Версия протокола; зеркало Protocol.Version на сервере. Сервер другой версии (или старый, без поля) — не играем. */
-export const PROTOCOL_VERSION = 8;
+export const PROTOCOL_VERSION = 10;
 
-/** Состояние ИИ пирата: патруль, бой, возврат в логово. */
-export type AiState = 'patrol' | 'attack' | 'return';
+/** Состояние ИИ пирата: патруль, бой, возврат в логово (налётчик — полёт от врат к точке), уход из системы. */
+export type AiState = 'patrol' | 'attack' | 'return' | 'leave';
 
 export type ClientMessage =
   /**
@@ -48,7 +48,11 @@ export type ClientMessage =
   /** Купить в доке корпус или пушку; купленное сразу ставится на корабль. */
   | { t: 'buy'; kind: BuyKind; id: string }
   /** Починить корпус и зарядить щит в доке. */
-  | { t: 'repair' };
+  | { t: 'repair' }
+  /** Начать гиперпрыжок через врата в систему to (GDD §5); null — отменить подготовку. */
+  | { t: 'jump'; to: string | null }
+  /** Заправить бак в доке до полного. */
+  | { t: 'refuel' };
 
 /** Что покупают в доке. */
 export type BuyKind = 'hull' | 'weapon';
@@ -76,7 +80,9 @@ export interface ShipDto {
   /** Цель пирата в бою; нет поля — нет (и у игроков). */
   tg?: number;
   /** Состояние ИИ пирата; у игроков нет. */
-  ai?: AiState;
+  ai?: AiState | null;
+  /** Готовится гиперпрыжок: корабль уйдёт из системы в этот тик; нет поля или 0 — нет. */
+  j?: number;
 }
 
 export interface ShotDto {
@@ -171,6 +177,108 @@ export interface WelcomeMsg {
   meteors?: MeteorRules;
   /** Магазин станции: цены корпусов, пушек и ремонта. */
   shop?: ShopRules;
+  /** Система, где сейчас корабль. После гиперпрыжка приходит новый welcome с новой системой. */
+  system?: SystemDto;
+  /** Карта галактики. */
+  galaxy?: GalaxyDto;
+}
+
+/** PvP в системе (GDD §34): off — нет; border — нет у станции; free — везде. */
+export type PvpRule = 'off' | 'border' | 'free';
+
+/** Врата: куда ведут, как называется та система и сколько топлива стоит прыжок. */
+export interface GateDto {
+  to: string;
+  name: string;
+  x: number;
+  y: number;
+  cost: number;
+}
+
+/** Круговая орбита вокруг звезды; положение — функция времени (sim/orbits.ts). */
+export interface OrbitDto {
+  /** Расстояние до звезды; 0 — в центре. */
+  radius: number;
+  /** Оборот за столько минут; отрицательное — в обратную сторону. */
+  periodMinutes: number;
+  /** Угол в градусах в момент 0 орбитального времени. */
+  phase: number;
+}
+
+/** Звезда в центре системы: ближе burnRadius жжёт. */
+export interface SunDto {
+  /** Вид: yellow, orange, blue, red. */
+  kind: string;
+  radius: number;
+  burnRadius: number;
+  burnDps: number;
+}
+
+/** Планета на орбите: выбирается прицелом, сквозь неё можно пролететь. */
+export interface PlanetDto {
+  name: string;
+  /** Вид: terran, desert, ice, gas. */
+  kind: string;
+  /** Радиус в мире. */
+  size: number;
+  orbit: OrbitDto;
+}
+
+/** Пиратская база: отсюда вылетают налётчики пиратской системы. */
+export interface PirateBaseDto {
+  name: string;
+  x: number;
+  y: number;
+}
+
+export interface SystemDto {
+  id: string;
+  name: string;
+  /** Опасность 1–5 (GDD §33). */
+  danger: number;
+  pvp: PvpRule;
+  /** В системе есть станция; иначе дока и укрытия нет. */
+  station: boolean;
+  /** Небо системы. */
+  seed: number;
+  /** Радиус укрытия у станции; 0 — укрытия нет. */
+  core: number;
+  /** Ближе этого к вратам можно начать прыжок. */
+  gateRange: number;
+  /** Подготовка прыжка, секунды. */
+  jumpSeconds: number;
+  gates: GateDto[];
+  /** Звезда в центре; null — её нет (сервер без galaxy.json). */
+  sun: SunDto | null;
+  /** Орбита станции; радиус 0 — станция в центре. */
+  stationOrbit: OrbitDto;
+  planets: PlanetDto[];
+  /** Орбитальное время в тик 0 системы, секунды: орбиты считаются от тика снапшота. */
+  orbitEpoch: number;
+  pirateBase?: PirateBaseDto | null;
+}
+
+/** Система на карте галактики (GDD §55). */
+export interface GalaxySystemDto {
+  id: string;
+  name: string;
+  danger: number;
+  pvp: PvpRule;
+  station: boolean;
+  x: number;
+  y: number;
+}
+
+/** Маршрут; cost — топлива на прыжок в любую сторону. */
+export interface LinkDto {
+  a: string;
+  b: string;
+  cost: number;
+}
+
+export interface GalaxyDto {
+  systems: GalaxySystemDto[];
+  links: LinkDto[];
 }
 
 export interface PlayerDto {
@@ -192,7 +300,10 @@ export type NpcKind = 'drone' | 'pirate';
 /** Весь список кораблей с именами — игроки и NPC; приходит при любом изменении. */
 export interface PlayersMsg {
   t: 'players';
+  /** Корабли этой системы. */
   players: PlayerDto[];
+  /** Пилотов на связи во всей галактике. */
+  total?: number;
 }
 
 export interface ConfigMsg {
@@ -204,6 +315,8 @@ export interface ConfigMsg {
   loot?: LootRules;
   meteors?: MeteorRules;
   shop?: ShopRules;
+  system?: SystemDto;
+  galaxy?: GalaxyDto;
 }
 
 /** Вход принят; приходит раньше welcome. */
@@ -236,7 +349,13 @@ export interface HangarMsg {
   /** Прочность корпуса — в доке снапшот о своём корабле молчит. */
   hp: number;
   maxHp: number;
+  /** Топливо и бак активного корпуса (GDD §6): меняется прыжком и заправкой — тогда hangar приходит снова. */
+  fuel?: number;
+  maxFuel?: number;
+  /** Система последней стыковки: здесь корабль появится после гибели и после входа. */
+  home?: string;
 }
+
 
 /**
  * Трюм (GDD §21) — только своему соединению: снапшот один на всех, личному месту в нём нет.

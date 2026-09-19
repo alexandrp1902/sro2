@@ -9,6 +9,8 @@ export interface ShopRules {
   hulls?: Record<string, number> | null;
   /** Пушка — цена. */
   weapons?: Record<string, number> | null;
+  /** Кредитов за единицу топлива при заправке (GDD §6); 0 или нет поля — бесплатно. */
+  fuelPrice?: number;
 }
 
 /** Магазина нет: до welcome и на серверах без shop.json. */
@@ -22,6 +24,11 @@ export function price(prices: Record<string, number> | null | undefined, id: str
 /** Ремонт до полной прочности — как на сервере: округлено вверх. */
 export function repairCost(shop: ShopRules, missingHp: number): number {
   return missingHp > 0 ? Math.ceil(missingHp * shop.repairPrice) : 0;
+}
+
+/** Заправка до полного бака — как на сервере: округлено вверх. */
+export function fuelCost(shop: ShopRules, missingFuel: number): number {
+  return missingFuel > 0 ? Math.ceil(missingFuel * (shop.fuelPrice ?? 0) - 1e-9) : 0;
 }
 
 /** «1 800 кр»: тысячи через пробел, как принято в русском тексте. */

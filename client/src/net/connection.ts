@@ -12,6 +12,7 @@ import {
   type WelcomeMsg,
 } from './protocol';
 import { Roster, type RosterEvent } from './roster';
+import { SnapshotDecoder } from './snapshotCodec';
 
 export type ConnectionState = 'connecting' | 'online' | 'offline';
 
@@ -49,6 +50,10 @@ export class Connection {
   replaced = false;
   /** Ник аккаунта, под которым вошли. */
   accountName = '';
+  /** Пилотов на связи во всей галактике; ростер — только своей системы. */
+  totalOnline = 0;
+  /** Сколько байт снапшотов пришло — для dev-панели. */
+  snapshotBytes = 0;
 
   onWelcome: ((message: WelcomeMsg) => void) | null = null;
   onConfig: ((message: Extract<ServerMessage, { t: 'config' }>) => void) | null = null;
@@ -117,7 +122,10 @@ export class Connection {
     if (!credentials) return;
     this.state = 'connecting';
     const ws = new WebSocket(this.url);
+    ws.binaryType = 'arraybuffer';
     this.ws = ws;
+    // Снапшоты — бинарные дельты: собирать их надо в порядке прихода, до задержки FakeLag, иначе кадры перепутаются.
+    const snapshots = new SnapshotDecoder();
 
     ws.onopen = () => {
       this.retryMs = FIRST_RETRY_MS;
@@ -126,7 +134,13 @@ export class Connection {
       this.pingTimer = window.setInterval(() => this.ping(), PING_INTERVAL_MS);
     };
     ws.onmessage = (e) => {
-      const message = JSON.parse(e.data as string) as ServerMessage;
+      let message: ServerMessage;
+      if (typeof e.data === 'string') {
+        message = JSON.parse(e.data) as ServerMessage;
+      } else {
+        this.snapshotBytes += (e.data as ArrayBuffer).byteLength;
+        message = snapshots.decode(e.data as ArrayBuffer);
+      }
       this.lag.receive(() => {
         if (this.ws === ws) this.handle(message); // задержанное сообщение старой сессии не нужно
       });
@@ -198,7 +212,9 @@ export class Connection {
         break;
       }
       case 'players': {
+        this.totalOnline = message.total ?? this.roster.onlineCount;
         const events = this.roster.update(message.players, this.playerId);
+
         if (events.length > 0) this.onRosterEvents?.(events);
         break;
       }

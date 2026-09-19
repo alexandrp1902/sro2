@@ -65,7 +65,9 @@ public sealed record HullParams(
     double ShieldRegen = 20,
     double Evasion = 25,
     double MoveEvasion = 8,
-    double Cargo = 20)
+    double Cargo = 20,
+    double Fuel = 100,
+    double Radar = 2000)
 {
     /// <returns>Описание ошибки или null, если параметры годятся.</returns>
     public string? Validate()
@@ -81,6 +83,8 @@ public sealed record HullParams(
         if (!(Evasion >= 0 && Evasion <= 100) || !(MoveEvasion >= 0 && MoveEvasion <= 100))
             return "evasion and moveEvasion must be within 0..100";
         if (!(Cargo >= 0)) return "cargo must not be negative";
+        if (!(Fuel >= 0)) return "fuel must not be negative";
+        if (!(Radar > 0)) return "radar must be positive";
         return null;
     }
 }

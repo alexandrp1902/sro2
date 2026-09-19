@@ -3,7 +3,7 @@ using Sro.Sim;
 namespace Sro.Server.Game;
 
 /// <summary>
-/// Баланс из shared/ (<see cref="Balance.Files"/>: корпуса, пушки, правила боя, NPC, лут, метеориты) с горячей перезагрузкой: файлы правят во время плейтеста,
+/// Баланс из shared/ (<see cref="Balance.Files"/>: корпуса, пушки, правила боя, NPC, лут, метеориты, магазин, галактика) с горячей перезагрузкой: файлы правят во время плейтеста,
 /// сервер подхватывает их без перезапуска и рассылает клиентам. Файлы разбираются вместе (правила ссылаются
 /// на корпуса); если хоть один невалиден, остаётся прежний баланс целиком.
 /// </summary>
@@ -29,12 +29,11 @@ public sealed class BalanceStore : IDisposable
             throw new InvalidOperationException($"{_dir}: {error}");
         Balance = balance!;
         log.LogInformation(
-            "Balance loaded from {Dir}: hulls {Hulls}; weapons {Weapons}; drones {Drones}; pirates {Pirates}; loot {Items} items, {Tables} tables; meteors {Meteors}",
+            "Balance loaded from {Dir}: hulls {Hulls}; weapons {Weapons}; systems {Systems}; loot {Items} items, {Tables} tables; meteors {Meteors}",
             _dir,
             string.Join(", ", balance!.Hulls.Keys),
             string.Join(", ", balance.Weapons.Keys),
-            balance.Rules.DroneList.Count,
-            balance.Npc.Count,
+            string.Join(", ", balance.Galaxy.SystemMap.Keys),
             balance.Loot.ItemMap.Count,
             balance.Loot.TableMap.Count,
             balance.Meteors.Enabled ? $"up to {balance.Meteors.MaxAlive}" : "off");
@@ -83,7 +82,7 @@ public sealed class BalanceStore : IDisposable
     }
 
     private static bool Parse(string[] texts, out Balance? balance, out string? error) =>
-        Balance.TryParse(new BalanceSources(texts[0], texts[1], texts[2], texts[3], texts[4], texts[5], texts[6]), out balance, out error);
+        Balance.TryParse(new BalanceSources(texts[0], texts[1], texts[2], texts[3], texts[4], texts[5], texts[6], texts[7]), out balance, out error);
 
     private string? TryRead(string file)
     {

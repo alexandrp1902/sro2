@@ -5,11 +5,12 @@
 // Нужен запущенный сервер и Node 24 (встроенный WebSocket). Идёт ~40–60 с: полёт к контейнеру и к станции.
 //   node tools/smoke-loot.mjs [ws://localhost:5000/ws]
 
+import { openSocket, stationAt } from './wire.mjs';
+
 const url = process.argv[2] ?? 'ws://localhost:5000/ws';
 const INPUT_INTERVAL_MS = 50;
 const CLOSE_HIDDEN = 4000;
 const RUN = Math.floor(100 + Math.random() * 900);
-const STATION = { x: 0, y: 0 };
 
 class Client {
   constructor(name) {
@@ -45,13 +46,13 @@ class Client {
 
   connect() {
     return new Promise((resolve, reject) => {
-      const ws = new WebSocket(url);
+      const { ws, read } = openSocket(url);
       this.ws = ws;
       ws.onopen = () => this.send({ t: 'hello', name: this.name, hull: 'light', weapon: 'pulse', token: this.token });
       ws.onerror = () => reject(new Error(`cannot connect to ${url}`));
       ws.onclose = () => clearInterval(this.timer);
       ws.onmessage = (e) => {
-        const message = JSON.parse(e.data);
+        const message = read(e.data);
         if (message.t === 'welcome') {
           this.welcome = message;
           resolve(message);
@@ -204,9 +205,10 @@ async function main() {
   }
 
   console.log('     flying to the station to sell');
-  a.control = a.flyTo(STATION, 0);
+  const station = () => stationAt(a.welcome.system, a.snapshot?.tick ?? 0);
+  a.control = a.flyTo(station, 0);
   await a.until(
-    () => a.me && Math.hypot(a.me.x - STATION.x, a.me.y - STATION.y) <= loot.stationRange,
+    () => a.me && Math.hypot(a.me.x - station().x, a.me.y - station().y) <= loot.stationRange,
     60000,
     'reaching the station',
   );

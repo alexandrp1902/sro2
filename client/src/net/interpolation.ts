@@ -86,6 +86,8 @@ export interface ShipSample {
   /** Цель пирата (0 — нет) и состояние его ИИ (null — не пират): тоже из кадра, до которого дошли часы. */
   tg: number;
   ai: AiState | null;
+  /** Готовится гиперпрыжок: уйдёт в этот тик; 0 — нет. */
+  j: number;
   /** Рисуем дальше последнего снапшота — снапшот опоздал. */
   extrapolated: boolean;
 }
@@ -163,6 +165,7 @@ export class SnapshotBuffer {
       pu: from.pu ?? 0,
       tg: from.tg ?? 0,
       ai: from.ai ?? null,
+      j: from.j ?? 0,
       extrapolated: false,
     };
   }
@@ -184,6 +187,7 @@ function extrapolate(ship: ShipDto, seconds: number, extrapolated: boolean): Shi
     pu: ship.pu ?? 0,
     tg: ship.tg ?? 0,
     ai: ship.ai ?? null,
+    j: ship.j ?? 0,
     extrapolated,
   };
 }

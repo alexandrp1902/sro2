@@ -17,6 +17,7 @@
     <div id="hud">
       <div id="status" class="status" data-state="offline">…</div>
       <div id="flight" class="flight">…</div>
+      <canvas id="minimap" class="minimap" aria-label="Миникарта: тап — карта галактики" hidden></canvas>
       <div id="ship" class="ship-hud" hidden></div>
       <div id="cargo" class="cargo" data-open="false" hidden></div>
       <div id="target" class="target" hidden></div>
@@ -35,7 +36,7 @@
 
     <div id="combat-pad" class="combat-pad" hidden>
       <button id="target-prev" class="target-step" type="button" aria-label="Предыдущая цель">
-        <svg viewBox="0 0 40 34" aria-hidden="true"><polyline points="37,2.9 3,17 37,31.1" /></svg>
+        <svg viewBox="0 0 40 34" aria-hidden="true"><polyline points="27,3 13,17 27,31" /></svg>
       </button>
       <div id="fire" class="fire" role="button" aria-pressed="false" data-aim="none" data-active="false">
         <div class="fire-ring"></div>
@@ -43,11 +44,13 @@
         <span class="fire-state">выкл</span>
       </div>
       <button id="target-next" class="target-step" type="button" aria-label="Следующая цель">
-        <svg viewBox="0 0 40 34" aria-hidden="true"><polyline points="3,2.9 37,17 3,31.1" /></svg>
+        <svg viewBox="0 0 40 34" aria-hidden="true"><polyline points="13,3 27,17 13,31" /></svg>
       </button>
     </div>
 
     <div id="dock" class="dock" hidden></div>
+
+    <div id="galaxy" class="galaxy" hidden></div>
 
     <div id="connect" class="connect" hidden>
       <form class="connect-card">

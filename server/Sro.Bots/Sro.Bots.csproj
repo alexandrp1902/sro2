@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Ради протокола и декодера снапшотов: боты читают кадры тем же кодом, что проверяют тесты. -->
+    <ProjectReference Include="..\Sro.Server\Sro.Server.csproj" />
+  </ItemGroup>
+
+</Project>

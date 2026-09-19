@@ -29,12 +29,5 @@
       "holdRange": 420,
       "retreatHp": 0
     }
-  },
-  "spawns": [
-    { "type": "pirate", "level": 1, "x": 0, "y": -2100 },
-    { "type": "pirate", "level": 1, "x": 1900, "y": 1900 },
-    { "type": "pirate", "level": 2, "x": -2300, "y": -1300, "count": 2 },
-    { "type": "heavyPirate", "level": 3, "x": 2300, "y": -2500 },
-    { "type": "pirate", "level": 2, "x": 2300, "y": -2500 }
-  ]
+  }
 }

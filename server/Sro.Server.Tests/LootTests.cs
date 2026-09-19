@@ -500,7 +500,7 @@ public class LootTests
     {
         var a = WithCargo();
 
-        Place(IdOf(a), SimConfig.StationX, SimConfig.StationY);
+        Place(IdOf(a), 0, 0);
         _room.Dock(a, true);
         _room.Sell(a, null);
 
@@ -517,7 +517,7 @@ public class LootTests
         var a = WithCargo();
         PlayerOf(a).Cargo.Add("tech", 1); // «Компонент» по 200
 
-        Place(IdOf(a), SimConfig.StationX, SimConfig.StationY);
+        Place(IdOf(a), 0, 0);
         _room.Dock(a, true);
         _room.Sell(a, "metal");
 
@@ -532,7 +532,7 @@ public class LootTests
         var a = WithCargo();
 
         // Сдача ручная: даже в доке груз сам не продаётся.
-        Place(IdOf(a), SimConfig.StationX, SimConfig.StationY);
+        Place(IdOf(a), 0, 0);
         _room.Dock(a, true);
         Assert.True(PlayerOf(a).Docked);
         Steps(20);
@@ -547,7 +547,7 @@ public class LootTests
         var a = WithCargo();
 
         // Продают в доке (M6): просто стоять в круге станции мало.
-        Place(IdOf(a), SimConfig.StationX, SimConfig.StationY);
+        Place(IdOf(a), 0, 0);
         _room.Sell(a, null);
 
         Assert.Equal(2, PlayerOf(a).Cargo.Items["metal"]);
@@ -561,7 +561,7 @@ public class LootTests
         _room = NewRoom(Loot(stationUnload: false));
         var a = WithCargo();
 
-        Place(IdOf(a), SimConfig.StationX, SimConfig.StationY);
+        Place(IdOf(a), 0, 0);
         _room.Dock(a, true);
         _room.Sell(a, null);
 

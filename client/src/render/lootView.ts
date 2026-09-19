@@ -1,10 +1,15 @@
-import { Container, Graphics } from 'pixi.js';
+import { Container, Graphics, Sprite } from 'pixi.js';
 import type { LootDto, SnapshotMsg } from '../net/protocol';
 import { NO_LOOT, rarityColor, type LootRules } from '../sim/loot';
 import { TICK_RATE } from '../sim/movement';
+import { itemSprite, spriteSize, texture, type SpriteName } from './sprites';
 
 /** Радиус предмета в мировых единицах: заметно мельче лёгкого корпуса (16), но пальцем попадаешь. */
 const SIZE = 11;
+/** Иконка предмета — чуть больше круга попадания: у картинок прозрачные углы. */
+const ICON_SCALE = 1.5;
+/** Ореол цвета редкости под иконкой: редкость видна издалека, как и раньше (GDD §23). */
+const HALO_ALPHA = 0.28;
 const FADE_IN_MS = 250;
 /** Мигание перед исчезновением: альфа гуляет между этими значениями. */
 const BLINK_MIN = 0.3;
@@ -31,7 +36,9 @@ interface Sample {
 }
 
 interface Drop {
-  g: Graphics;
+  g: Container;
+  halo: Graphics;
+  icon: Sprite;
   prev: Sample;
   curr: Sample;
   expiresTick: number;
@@ -68,7 +75,7 @@ export class LootField {
   }
 
   clear(): void {
-    for (const drop of this.drops.values()) drop.g.destroy();
+    for (const drop of this.drops.values()) drop.g.destroy({ children: true });
     this.drops.clear();
     this.gone.clear();
   }
@@ -110,7 +117,7 @@ export class LootField {
     for (const [id, drop] of this.drops) {
       if (present.has(id)) continue;
       this.gone.set(id, { x: drop.info.x, y: drop.info.y, item: drop.info.item, at: now });
-      drop.g.destroy();
+      drop.g.destroy({ children: true });
       this.drops.delete(id);
     }
   }
@@ -148,7 +155,9 @@ export class LootField {
   private create(dto: LootDto, tick: number, now: number): Drop {
     const sample = { tick, x: dto.x, y: dto.y };
     const drop: Drop = {
-      g: new Graphics(),
+      g: new Container(),
+      halo: new Graphics(),
+      icon: new Sprite(),
       prev: sample,
       curr: sample,
       expiresTick: dto.e,
@@ -157,33 +166,28 @@ export class LootField {
       container: dto.c === true,
       seen: false,
     };
+    drop.g.addChild(drop.halo, drop.icon);
+    drop.icon.anchor.set(0.5);
     this.view.addChild(drop.g);
     this.paint(drop);
     return drop;
   }
 
-  /** Обломки — гранёный кристалл цвета редкости (GDD §23), контейнер — ящик: формы различимы на мелком зуме. */
+  /** Предмет — его иконка на ореоле цвета редкости (GDD §23); содержимое контейнера — ящиком. */
   private paint(drop: Drop): void {
     const color = rarityColor(this.rules, drop.info.item);
-    if (drop.container) {
-      const s = SIZE * 0.82;
-      drop.g
-        .clear()
-        .rect(-s, -s, s * 2, s * 2)
-        .fill({ color, alpha: 0.75 })
-        .stroke({ width: 1.5, color })
-        .moveTo(-s, 0)
-        .lineTo(s, 0)
-        .stroke({ width: 1.5, color: 0xffffff, alpha: 0.4 });
-      return;
-    }
-    drop.g
+    const sprite: SpriteName = drop.container ? 'resources-container' : itemSprite(drop.info.item);
+    const { w, h } = spriteSize(sprite);
+    drop.icon.texture = texture(sprite);
+    drop.icon.scale.set((SIZE * 2 * ICON_SCALE) / Math.max(w, h));
+    drop.halo
       .clear()
-      .poly([0, -SIZE, SIZE * 0.62, 0, 0, SIZE, -SIZE * 0.62, 0])
-      .fill({ color, alpha: 0.85 })
-      .stroke({ width: 1.5, color, alpha: 1 })
-      .poly([0, -SIZE * 0.45, SIZE * 0.28, 0, 0, SIZE * 0.45, -SIZE * 0.28, 0])
-      .fill({ color: 0xffffff, alpha: 0.35 });
+      .circle(0, 0, SIZE * 1.5)
+      .fill({ color, alpha: HALO_ALPHA * 0.5 })
+      .circle(0, 0, SIZE * 1.05)
+      .fill({ color, alpha: HALO_ALPHA })
+      .circle(0, 0, SIZE * 1.5)
+      .stroke({ width: 1, color, alpha: 0.6 });
   }
 }
 

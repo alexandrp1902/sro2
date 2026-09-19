@@ -48,6 +48,27 @@ public sealed class Player(int id, string? token, string name, string hullId, st
     /// </summary>
     public bool Docked;
 
+    /// <summary>
+    /// Где корабль стыковался — в осях станции (<see cref="OrbitDef.ToLocal"/>): станция за это время ушла по орбите,
+    /// а вылет — с той же её стороны.
+    /// </summary>
+    public (double X, double Y) DockOffset;
+
+    /// <summary>Топливо (GDD §6): тратится только на гиперпрыжки, заправляется в доке.</summary>
+    public int Fuel;
+
+    /// <summary>Система последней стыковки: здесь корабль появляется после гибели и после входа. null — стартовая.</summary>
+    public string? Home;
+
+    /// <summary>Готовится гиперпрыжок в эту систему (GDD §5); null — нет.</summary>
+    public string? JumpTo;
+
+    /// <summary>В этот тик прыжок состоится.</summary>
+    public long JumpAtTick;
+
+    /// <summary>Что этот клиент уже знает о системе — от этого считаются дельты снапшота.</summary>
+    public SnapshotCodec.Encoder View { get; } = new();
+
     public InputBuffer Inputs { get; private set; } = new(new MoveInput(0, -1, 0));
 
     /// <summary>Вход корабля без связи: курс прежний, тяга 0 — Movement сам гасит скорость.</summary>

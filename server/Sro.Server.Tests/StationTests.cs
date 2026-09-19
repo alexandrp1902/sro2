@@ -68,7 +68,7 @@ public sealed class StationTests : IDisposable
     private Player Docked(FakeConnection connection)
     {
         var player = PlayerOf(connection);
-        player.Ship = new ShipState { X = SimConfig.StationX, Y = SimConfig.StationY + 50, Vx = 30 };
+        player.Ship = new ShipState { X = 0, Y = 50, Vx = 30 };
         _room.Dock(connection, true);
         Assert.True(connection.Last<HangarMsg>().Docked);
         return player;
@@ -136,14 +136,14 @@ public sealed class StationTests : IDisposable
 
         Assert.Same(player, _room.Entity(IdOf(a)));
         Assert.False(a.Last<HangarMsg>().Docked);
-        Assert.Equal((SimConfig.StationX, SimConfig.StationY + 50), (player.Ship.X, player.Ship.Y));
+        Assert.Equal((0, 50), (player.Ship.X, player.Ship.Y));
         Assert.True(player.IsProtected(_room.Tick));
 
         // Входы после вылета нумеруются заново — сервер их принимает.
         _room.Input(a, 1, new MoveInput(0, -1, 1));
         _room.Input(a, 2, new MoveInput(0, -1, 1));
         Steps(3);
-        Assert.True(player.Ship.Y < SimConfig.StationY + 50);
+        Assert.True(player.Ship.Y < 50);
     }
 
     [Fact]

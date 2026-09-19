@@ -18,8 +18,11 @@ export class StatusHud {
     el.addEventListener('click', onTap);
   }
 
-  /** @param braking связи нет, и корабль тормозит — так же, как его копия на сервере */
-  update(connection: Connection | null, fps: number, braking: boolean): void {
+  /**
+   * @param braking связи нет, и корабль тормозит — так же, как его копия на сервере
+   * @param system где корабль: «Sol · PvP нет»
+   */
+  update(connection: Connection | null, fps: number, braking: boolean, system: string | null = null): void {
     const now = performance.now();
     if (now - this.lastRender < RENDER_INTERVAL_MS) return;
     this.lastRender = now;
@@ -36,11 +39,9 @@ export class StatusHud {
     } else if (!connection.hasCredentials && state === 'offline') {
       parts.push('вход не выполнен');
     } else if (state === 'online') {
-      parts.push(
-        connection.accountName,
-        `${LABELS.online} ${connection.roster.onlineCount}`,
-        `пинг ${Math.round(connection.rttMs)} мс`,
-      );
+      if (connection.accountName) parts.push(connection.accountName);
+      if (system) parts.push(system);
+      parts.push(`${LABELS.online} ${connection.totalOnline || connection.roster.onlineCount}`, `пинг ${Math.round(connection.rttMs)} мс`);
     } else parts.push(LABELS[state]);
     if (braking) parts.push('корабль тормозит');
     parts.push(`${Math.round(fps)} FPS`);

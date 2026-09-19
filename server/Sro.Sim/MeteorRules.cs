@@ -101,8 +101,9 @@ public sealed record MeteorRules(
     public (double Ax, double Ay) Pull(double x, double y)
     {
         if (Gravity <= 0) return (0, 0);
-        var dx = x - SimConfig.StationX;
-        var dy = y - SimConfig.StationY;
+        // Центр системы — звезда в (0, 0).
+        var dx = x;
+        var dy = y;
         var r = Math.Sqrt(dx * dx + dy * dy);
         if (r < 1e-9) return (0, 0);
         var soft = Math.Max(r, GravityMinRadius);

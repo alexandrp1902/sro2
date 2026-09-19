@@ -106,8 +106,9 @@ public class RoomTests
 
         _room.Step();
         var resumed = ShipOf(a2, id);
-        Assert.Equal(parked.X, resumed.X);
-        Assert.Equal(parked.Y, resumed.Y);
+        // Чужой корабль приходит во float32, свой — во float64.
+        Assert.Equal(parked.X, resumed.X, 3);
+        Assert.Equal(parked.Y, resumed.Y, 3);
 
         // Новая сессия нумерует входы заново — сервер их принимает.
         Fly(a2, 0, 20, Up);

@@ -15,17 +15,20 @@ internal sealed class Battle(Func<double> roll, ILogger log)
     private readonly List<Volley> _volleys = [];
 
     /// <param name="respawn">Возвращает уничтоженный корабль в систему, когда вышел его срок.</param>
+    /// <param name="canAttack">Можно ли стрелку бить эту цель — PvP по правилам системы; null — можно всех.</param>
     public void Run(
         long tick,
         Dictionary<int, ShipEntity> ships,
         Balance balance,
         List<ShotDto> shots,
         List<KillDto> kills,
-        Action<ShipEntity> respawn)
+        Action<ShipEntity> respawn,
+        Func<ShipEntity, ShipEntity, bool>? canAttack = null)
     {
         foreach (var shooter in ships.Values)
         {
-            if (TryAim(tick, shooter, ships, balance, out var volley)) _volleys.Add(volley);
+            if (TryAim(tick, shooter, ships, balance, out var volley) && (canAttack is null || canAttack(shooter, volley.Target)))
+                _volleys.Add(volley);
         }
         foreach (var volley in _volleys) Fire(tick, volley, shots);
         _volleys.Clear();

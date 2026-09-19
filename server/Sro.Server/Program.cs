@@ -10,8 +10,8 @@ builder.Services.AddSingleton<BalanceStore>();
 builder.Services.AddSingleton(sp => new AccountStore(
     Path.GetFullPath(Path.Combine(builder.Environment.ContentRootPath, builder.Configuration["DataDir"]!, "accounts")),
     sp.GetRequiredService<ILogger<AccountStore>>()));
-builder.Services.AddSingleton<SystemRoom>();
-builder.Services.AddHostedService(sp => sp.GetRequiredService<SystemRoom>());
+builder.Services.AddSingleton<GalaxyHost>();
+builder.Services.AddHostedService(sp => sp.GetRequiredService<GalaxyHost>());
 
 var app = builder.Build();
 
@@ -32,7 +32,7 @@ else
 
 app.MapGet("/health", () => Results.Ok(new { ok = true }));
 
-app.Map("/ws", async (HttpContext context, SystemRoom room, AccountStore accounts, ILogger<WebSocketConnection> log) =>
+app.Map("/ws", async (HttpContext context, GalaxyHost room, AccountStore accounts, ILogger<WebSocketConnection> log) =>
 {
     if (!context.WebSockets.IsWebSocketRequest)
     {

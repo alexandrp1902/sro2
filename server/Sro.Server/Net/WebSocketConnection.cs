@@ -13,8 +13,12 @@ public interface IClientConnection
     /// <summary>Неблокирующая отправка: сообщение ставится в очередь соединения.</summary>
     void Send(ServerMessage message);
 
-    /// <summary>Отправка уже закодированного сообщения — снапшот кодируется один раз на всех.</summary>
+    /// <summary>Отправка уже закодированного сообщения — ростер и баланс кодируются один раз на всех.</summary>
     void SendRaw(byte[] utf8Json);
+
+    /// <summary>Бинарный кадр снапшота (<see cref="SnapshotCodec"/>).</summary>
+    /// <returns>false — очередь соединения полна и кадр выброшен: следующий должен быть ключевым.</returns>
+    bool SendFrame(byte[] frame);
 
     /// <summary>Закрыть соединение с кодом (4000–4999 — коды игры) после уже поставленных в очередь сообщений.</summary>
     void Close(int code, string reason);
@@ -31,15 +35,31 @@ public sealed class WebSocketConnection(WebSocket socket, ILogger log) : IClient
     private volatile string? _closeReason;
     private int _closeCode;
 
+    private readonly record struct Outgoing(byte[] Bytes, bool Binary);
+
     // WebSocket не допускает параллельных SendAsync, поэтому исходящие идут через очередь с одним читателем.
-    private readonly Channel<byte[]> _outbox = Channel.CreateBounded<byte[]>(
-        new BoundedChannelOptions(256) { SingleReader = true, FullMode = BoundedChannelFullMode.DropOldest });
+    // Полная очередь (клиент не успевает принимать) выбрасывает новое, а не старое: дельта-снапшот, выброшенный
+    // из середины очереди, сломал бы клиенту всё после него, а о новом отправитель узнаёт и шлёт ключевой кадр.
+    private readonly Channel<Outgoing> _outbox = Channel.CreateBounded<Outgoing>(
+        new BoundedChannelOptions(256) { SingleReader = true, FullMode = BoundedChannelFullMode.Wait });
 
     public int Id { get; } = Interlocked.Increment(ref _nextId);
 
     public void Send(ServerMessage message) => SendRaw(Protocol.Encode(message));
 
-    public void SendRaw(byte[] utf8Json) => _outbox.Writer.TryWrite(utf8Json);
+    public void SendRaw(byte[] utf8Json) => _outbox.Writer.TryWrite(new Outgoing(utf8Json, Binary: false));
+
+    public bool SendFrame(byte[] frame)
+    {
+        if (!_outbox.Writer.TryWrite(new Outgoing(frame, Binary: true))) return false;
+        Interlocked.Add(ref _framesBytes, frame.Length);
+        return true;
+    }
+
+    private static long _framesBytes;
+
+    /// <summary>Байт снапшотов, поставленных в очередь всеми соединениями с запуска, — для лога трафика.</summary>
+    public static long FrameBytes => Interlocked.Read(ref _framesBytes);
 
     public void Close(int code, string reason)
     {
@@ -48,7 +68,7 @@ public sealed class WebSocketConnection(WebSocket socket, ILogger log) : IClient
         _outbox.Writer.TryComplete(); // send-loop отправит остаток очереди и close-фрейм
     }
 
-    public async Task RunAsync(SystemRoom room, AccountStore accounts, CancellationToken ct)
+    public async Task RunAsync(GalaxyHost room, AccountStore accounts, CancellationToken ct)
     {
         using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
         var sending = SendLoopAsync(cts);
@@ -69,7 +89,7 @@ public sealed class WebSocketConnection(WebSocket socket, ILogger log) : IClient
         }
     }
 
-    private async Task ReceiveLoopAsync(SystemRoom room, AccountStore accounts, CancellationToken ct)
+    private async Task ReceiveLoopAsync(GalaxyHost room, AccountStore accounts, CancellationToken ct)
     {
         var buffer = new byte[MaxMessageBytes];
         var joined = false;
@@ -125,6 +145,12 @@ public sealed class WebSocketConnection(WebSocket socket, ILogger log) : IClient
                 case RepairMsg when joined:
                     room.Repair(this);
                     break;
+                case JumpMsg jump when joined:
+                    room.Jump(this, jump.To);
+                    break;
+                case RefuelMsg when joined:
+                    room.Refuel(this);
+                    break;
                 case InputMsg input when joined:
                     room.Input(this, input);
                     break;
@@ -176,8 +202,11 @@ public sealed class WebSocketConnection(WebSocket socket, ILogger log) : IClient
         var ct = cts.Token;
         try
         {
-            await foreach (var bytes in _outbox.Reader.ReadAllAsync(ct))
-                await socket.SendAsync(new ReadOnlyMemory<byte>(bytes), WebSocketMessageType.Text, endOfMessage: true, ct);
+            await foreach (var message in _outbox.Reader.ReadAllAsync(ct))
+            {
+                var type = message.Binary ? WebSocketMessageType.Binary : WebSocketMessageType.Text;
+                await socket.SendAsync(new ReadOnlyMemory<byte>(message.Bytes), type, endOfMessage: true, ct);
+            }
 
             if (_closeReason is { } reason && socket.State == WebSocketState.Open)
             {

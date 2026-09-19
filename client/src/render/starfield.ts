@@ -19,8 +19,6 @@ const NEAR_STARS: StarLayer[] = [
   { parallax: 0.8, count: 22, radius: [1.1, 2.0], alpha: [0.7, 1.0] },
 ];
 
-/** Далёкие галактики — редкие и размытые, растянуты вдвое. */
-const GALAXIES = { tile: 768, scale: 2, parallax: 0.08, count: 1 };
 /** Яркие звёзды с ореолом и лучами. Размер плитки не кратен другим — узор слоёв не повторяется вместе. */
 const BRIGHT_STARS = { tile: 1280, parallax: 0.25, count: 4 };
 
@@ -34,22 +32,16 @@ const BRIGHT_TINTS: Rgb[] = [
   [255, 206, 150],
   [255, 170, 150],
 ];
-const GALAXY_TINTS: Rgb[] = [
-  [150, 170, 255],
-  [255, 200, 170],
-];
 
 /**
- * Звёздное небо системы: далёкие галактики и несколько слоёв звёзд с параллаксом. Сид задаёт вид неба.
+ * Звёздное небо системы: несколько слоёв звёзд с параллаксом. Сид задаёт вид неба.
  * Туманность — отдельный слой в мире (nebulaView.ts).
  */
 export class Starfield {
   readonly view = new Container();
   private readonly layers: { sprite: TilingSprite; parallax: number }[] = [];
-
   constructor(seed = 0) {
     const rand = random(seed);
-    this.addLayer(createGalaxyTexture(rand), GALAXIES.parallax, GALAXIES.scale);
     this.addLayer(createStarTexture(FAR_STARS, rand), FAR_STARS.parallax);
     this.addLayer(createBrightStarTexture(rand), BRIGHT_STARS.parallax);
     for (const layer of NEAR_STARS) this.addLayer(createStarTexture(layer, rand), layer.parallax);
@@ -64,9 +56,14 @@ export class Starfield {
     }
   }
 
-  private addLayer(texture: Texture, parallax: number, scale = 1): void {
+  /** Звёзды нарисованы для этого неба — их текстуры уходят вместе с ним. */
+  destroy(): void {
+    for (const { sprite } of this.layers) sprite.texture.destroy(true);
+    this.view.destroy({ children: true });
+  }
+
+  private addLayer(texture: Texture, parallax: number): void {
     const sprite = new TilingSprite({ texture, width: 1, height: 1 });
-    sprite.tileScale.set(scale);
     this.view.addChild(sprite);
     this.layers.push({ sprite, parallax });
   }
@@ -83,22 +80,6 @@ function createStarTexture(layer: StarLayer, rand: () => number): Texture {
       ctx.arc(x, y, radius, 0, Math.PI * 2);
       ctx.fill();
     });
-  }
-  return Texture.from(canvas);
-}
-
-function createGalaxyTexture(rand: () => number): Texture {
-  const { canvas, ctx } = createCanvas(GALAXIES.tile);
-  ctx.globalCompositeOperation = 'lighter';
-  for (let i = 0; i < GALAXIES.count; i++) {
-    const size = 14 + rand() * 8;
-    const angle = rand() * Math.PI;
-    const tilt = 0.3 + rand() * 0.5;
-    const tint = pick(GALAXY_TINTS, rand);
-    const seed = rand();
-    drawWrapped(GALAXIES.tile, rand() * GALAXIES.tile, rand() * GALAXIES.tile, size, (x, y) =>
-      drawGalaxy(ctx, x, y, size, angle, tilt, tint, random(seed * 0xffffffff)),
-    );
   }
   return Texture.from(canvas);
 }
@@ -143,45 +124,6 @@ function drawBrightStar(ctx: CanvasRenderingContext2D, x: number, y: number, rad
   ctx.beginPath();
   ctx.arc(x, y, radius * 0.8, 0, Math.PI * 2);
   ctx.fill();
-}
-
-/** Спиральная галактика: светлое ядро, диск и два рукава из точек, наклонённые к зрителю. */
-function drawGalaxy(
-  ctx: CanvasRenderingContext2D,
-  x: number,
-  y: number,
-  size: number,
-  angle: number,
-  tilt: number,
-  tint: Rgb,
-  rand: () => number,
-): void {
-  ctx.save();
-  ctx.translate(x, y);
-  ctx.rotate(angle);
-  ctx.scale(1, tilt);
-
-  const disk = ctx.createRadialGradient(0, 0, 0, 0, 0, size);
-  disk.addColorStop(0, 'rgba(255, 244, 225, 0.6)');
-  disk.addColorStop(0.12, rgba(tint, 0.28));
-  disk.addColorStop(0.5, rgba(tint, 0.08));
-  disk.addColorStop(1, rgba(tint, 0));
-  ctx.fillStyle = disk;
-  ctx.fillRect(-size, -size, size * 2, size * 2);
-
-  const dots = 90;
-  for (let arm = 0; arm < 2; arm++) {
-    for (let i = 0; i < dots; i++) {
-      const t = i / dots;
-      const a = arm * Math.PI + t * Math.PI * 2.2;
-      const r = size * (0.12 + 0.85 * t) + (rand() - 0.5) * size * 0.12;
-      ctx.fillStyle = rgba(tint, 0.3 * (1 - t));
-      ctx.beginPath();
-      ctx.arc(Math.cos(a) * r, Math.sin(a) * r, 0.4 + rand() * 0.6, 0, Math.PI * 2);
-      ctx.fill();
-    }
-  }
-  ctx.restore();
 }
 
 /** Рисует фигуру ещё и у противоположных краёв плитки, если она за край заходит, — на стыке плиток не будет обрезков. */

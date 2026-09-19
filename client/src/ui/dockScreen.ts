@@ -1,8 +1,9 @@
 import type { BuyKind, HangarMsg } from '../net/protocol';
 import type { WeaponParams } from '../sim/combat';
+import { itemSprite, shipSprite, spriteUrl, weaponSprite } from '../render/sprites';
 import type { Hulls } from '../sim/hulls';
 import { lootItem, rarityColor, type LootRules } from '../sim/loot';
-import { NO_SHOP, formatCredits, price, repairCost, type ShopRules } from '../sim/shop';
+import { NO_SHOP, formatCredits, fuelCost, price, repairCost, type ShopRules } from '../sim/shop';
 import type { Weapons } from '../sim/weapons';
 import { color, round, type CargoState } from './cargoHud';
 
@@ -41,6 +42,7 @@ export interface DockHandlers {
   /** Поставить своё из ангара. */
   onEquip(kind: BuyKind, id: string): void;
   onRepair(): void;
+  onRefuel(): void;
   onUndock(): void;
 }
 
@@ -54,6 +56,7 @@ export class DockScreen {
   private cargo: CargoState | null = null;
   private loot: LootRules | null = null;
   private shop: ShopRules = NO_SHOP;
+  private station = 'Станция';
 
   constructor(
     private readonly root: HTMLElement,
@@ -84,6 +87,12 @@ export class DockScreen {
     this.render();
   }
 
+  /** Имя станции в заголовке — по системе: «Станция Vega». */
+  setStation(name: string | null): void {
+    this.station = name ? `Станция ${name}` : 'Станция';
+    this.render();
+  }
+
   /** Корпуса или пушки поменялись в балансе на лету. */
   refresh(): void {
     this.render();
@@ -100,7 +109,7 @@ export class DockScreen {
 
     const card = el('div', 'dock-card');
     const head = el('div', 'dock-head');
-    head.append(el('div', 'dock-title', 'Станция'), el('div', 'dock-credits', formatCredits(credits)));
+    head.append(el('div', 'dock-title', this.station), el('div', 'dock-credits', formatCredits(credits)));
     head.append(button('Вылет', 'dock-undock', () => this.handlers.onUndock()));
     card.append(head);
     card.append(this.shipLine(hangar, credits));
@@ -146,6 +155,20 @@ export class DockScreen {
       repair.disabled = cost > credits;
       line.append(repair);
     }
+    // Топливо (GDD §6) — только на гиперпрыжки: заправка здесь же, до полного бака.
+    const maxFuel = hangar.maxFuel ?? 0;
+    if (maxFuel > 0) {
+      const fuel = hangar.fuel ?? 0;
+      line.append(el('div', 'dock-ship-hp', `Топливо ${fuel} / ${maxFuel}`));
+      if (fuel < maxFuel) {
+        const cost = fuelCost(this.shop, maxFuel - fuel);
+        const refuel = button(cost > 0 ? `Заправить · ${formatCredits(cost)}` : 'Заправить бесплатно', 'dock-buy', () =>
+          this.handlers.onRefuel(),
+        );
+        refuel.disabled = cost > credits;
+        line.append(refuel);
+      }
+    }
     return line;
   }
 
@@ -166,6 +189,7 @@ export class DockScreen {
       const sum = (item?.price ?? 0) * count;
       total += sum;
       const row = el('div', 'dock-row');
+      row.append(icon(itemSprite(id)));
       const name = el('div', 'dock-name', `${item?.name ?? id} ×${count}`);
       name.style.color = color(rarityColor(rules, id));
       row.append(name, el('div', 'dock-stats', `${formatCredits(item?.price ?? 0)} за шт.`));
@@ -180,7 +204,8 @@ export class DockScreen {
   private renderHulls(body: HTMLElement, hangar: HangarMsg, credits: number): void {
     for (const id of this.hulls.ids()) {
       const hull = this.hulls.get(id);
-      const stats = `корпус ${hull.hp} · щит ${hull.shield} · скорость ${hull.maxSpeed} · трюм ${hull.cargo}`;
+      const extra = [hull.fuel ? `бак ${hull.fuel}` : '', hull.radar ? `радар ${hull.radar}` : ''].filter(Boolean);
+      const stats = [`корпус ${hull.hp} · щит ${hull.shield} · скорость ${hull.maxSpeed} · трюм ${hull.cargo}`, ...extra].join(' · ');
       const state = offerState(hangar.hulls.includes(id), id === hangar.hull, price(this.shop.hulls, id), credits);
       body.append(this.offer('hull', id, hull.name, stats, state));
     }
@@ -197,6 +222,8 @@ export class DockScreen {
   private offer(kind: BuyKind, id: string, name: string, stats: string, state: OfferState): HTMLElement {
     const row = el('div', 'dock-row');
     row.dataset.state = state;
+    const picture = kind === 'hull' ? shipSprite(id, false) : weaponSprite(id);
+    if (picture) row.append(icon(picture));
     row.append(el('div', 'dock-name', name), el('div', 'dock-stats', stats));
     const prices = kind === 'hull' ? this.shop.hulls : this.shop.weapons;
     const cost = price(prices, id) ?? 0;
@@ -232,6 +259,16 @@ function el(tag: string, className: string, text?: string): HTMLElement {
   node.className = className;
   if (text !== undefined) node.textContent = text;
   return node;
+}
+
+/** Картинка предмета, корабля или пушки слева в строке витрины. */
+function icon(sprite: string): HTMLElement {
+  const img = document.createElement('img');
+  img.className = 'dock-icon';
+  img.src = spriteUrl(sprite);
+  img.alt = '';
+  img.draggable = false;
+  return img;
 }
 
 function button(text: string, className: string, onClick: () => void): HTMLButtonElement {

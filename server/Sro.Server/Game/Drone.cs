@@ -14,8 +14,25 @@ public sealed class Drone(int id, DroneSpec spec) : ShipEntity(id, spec.Name, sp
     public DroneSpec Spec { get; } = spec;
     public MoveInput LastInput { get; private set; } = new(0, -1, 0);
 
+    /// <summary>
+    /// Точка дрона в мире: x, y из файла — в осях станции, а станция ходит по орбите. Комната двигает её каждый тик
+    /// и сносит дрона вместе с ней (<see cref="Carry"/>).
+    /// </summary>
+    public (double X, double Y) Anchor { get; private set; } = (spec.X, spec.Y);
+
     /// <summary>Кружащий дрон появляется сразу на своей орбите.</summary>
-    public (double X, double Y) SpawnPoint => (Spec.X + Spec.OrbitRadius, Spec.Y);
+    public (double X, double Y) SpawnPoint => (Anchor.X + Spec.OrbitRadius, Anchor.Y);
+
+    /// <summary>Новая точка дрона: корабль сдвигается вместе с ней, как пришвартованный к станции.</summary>
+    public void Carry((double X, double Y) anchor)
+    {
+        if (!IsDead)
+        {
+            Ship.X += anchor.X - Anchor.X;
+            Ship.Y += anchor.Y - Anchor.Y;
+        }
+        Anchor = anchor;
+    }
 
     public override double MaxHp(HullParams hull) => Spec.Hp ?? hull.Hp;
 
@@ -26,8 +43,8 @@ public sealed class Drone(int id, DroneSpec spec) : ShipEntity(id, spec.Name, sp
     {
         if (Spec.OrbitRadius <= 0) return LastInput = new MoveInput(0, -1, 0);
 
-        var rx = Ship.X - Spec.X;
-        var ry = Ship.Y - Spec.Y;
+        var rx = Ship.X - Anchor.X;
+        var ry = Ship.Y - Anchor.Y;
         var distance = Math.Sqrt(rx * rx + ry * ry);
         if (distance < 1e-6) return LastInput = new MoveInput(1, 0, Spec.Throttle);
 

@@ -3,6 +3,8 @@
 // Нужен запущенный сервер и Node 24 (встроенный WebSocket).
 //   node tools/smoke-mp.mjs [ws://localhost:5000/ws]
 
+import { openSocket } from './wire.mjs';
+
 const url = process.argv[2] ?? 'ws://localhost:5000/ws';
 const INPUT_INTERVAL_MS = 50;
 const CLOSE_HIDDEN = 4000;
@@ -25,7 +27,7 @@ class Client {
 
   connect() {
     return new Promise((resolve, reject) => {
-      const ws = new WebSocket(url);
+      const { ws, read } = openSocket(url);
       this.ws = ws;
       ws.onopen = () => ws.send(JSON.stringify({ t: 'hello', name: this.name, hull: 'light', token: this.token }));
       ws.onerror = () => reject(new Error(`cannot connect to ${url}`));
@@ -35,7 +37,7 @@ class Client {
         this.notify();
       };
       ws.onmessage = (e) => {
-        const message = JSON.parse(e.data);
+        const message = read(e.data);
         if (message.t === 'welcome') {
           this.welcome = message;
           resolve(message);
@@ -140,7 +142,8 @@ async function main() {
   const resumed = a2.ship(idA);
   check(
     `position kept: ${resumed.x.toFixed(1)}, ${resumed.y.toFixed(1)}`,
-    Math.hypot(resumed.x - parked.x, resumed.y - parked.y) < 1e-6,
+    // Чужой корабль B видит во float32, свой A получает во float64 (M7): сравниваем с точностью float32.
+    Math.hypot(resumed.x - parked.x, resumed.y - parked.y) < 0.01,
   );
 
   const duplicate = new Client(NAME, tokenA);

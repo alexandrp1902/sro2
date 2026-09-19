@@ -169,9 +169,9 @@ public class LootRulesTests
     [Fact]
     public void SharedLootJson_KeepsContainersOutOfTheShelter()
     {
-        // Разбор всего набора проверяет контейнеры против настоящего радиуса укрытия из npcs.json.
+        // Разбор всего набора проверяет контейнеры каждой системы против настоящего радиуса укрытия из npcs.json.
         Assert.True(Balance.TryParse(TestHulls.SharedSources(), out var balance, out var error), error);
-        Assert.NotEmpty(balance!.Loot.ContainerList);
+        Assert.All(balance!.Galaxy.SystemMap.Keys, id => Assert.NotEmpty(balance.ForSystem(id).Loot.ContainerList));
     }
 
     [Fact]

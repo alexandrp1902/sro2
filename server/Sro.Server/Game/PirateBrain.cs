@@ -39,13 +39,31 @@ internal static class PirateBrain
     private const int WaypointTicks = 20 * SimConfig.TickRate;
     /// <summary>Возврат окончен — пират в логове.</summary>
     private const double HomeRadius = 60;
+    /// <summary>Налётчик ближе этого к вратам или базе — на месте: готовит прыжок или садится.</summary>
+    private const double ExitRadius = 120;
 
-    public static void Think(Pirate pirate, IReadOnlyDictionary<int, ShipEntity> ships, IReadOnlyList<Pirate> pirates, Balance balance, long tick, Random rng, ILogger log)
+    /// <param name="station">Где сейчас станция: укрытие ходит вместе с ней по орбите.</param>
+    public static void Think(
+        Pirate pirate,
+        IReadOnlyDictionary<int, ShipEntity> ships,
+        IReadOnlyList<Pirate> pirates,
+        Balance balance,
+        long tick,
+        Random rng,
+        ILogger log,
+        (double X, double Y) station = default)
     {
         var npc = balance.Npc;
+        var shelter = new Shelter(station.X, station.Y, npc.StationSafeRadius);
         var hull = pirate.Hull(balance.Hulls);
         var attacker = pirate.LastAttackerId;
         pirate.LastAttackerId = 0; // нападение учитывается один раз
+
+        if (pirate.State == PirateState.Leave)
+        {
+            Leave(pirate, balance, tick, log);
+            return;
+        }
 
         if (pirate.State == PirateState.Return)
         {
@@ -57,6 +75,8 @@ internal static class PirateBrain
             pirate.Repair(hull);
             pirate.State = PirateState.Patrol;
             pirate.HasWaypoint = false;
+            // Налётчик долетел до места: отсюда и идёт время его патруля.
+            if (pirate.IsRaider && pirate.PatrolUntilTick == 0) pirate.PatrolUntilTick = tick + pirate.PatrolTicks;
             log.LogInformation("{Pirate} is back home and repaired", pirate);
         }
 
@@ -69,10 +89,12 @@ internal static class PirateBrain
                 pirate.TargetId = 0;
                 log.LogInformation("{Pirate} lost its target", pirate);
             }
-            else if (ReturnReason(pirate, target, hull, npc) is { } reason)
+            else if (ReturnReason(pirate, target, hull, npc, shelter) is { } reason)
             {
-                StartReturn(pirate, reason, log);
-                FlyTo(pirate, pirate.HomeX, pirate.HomeY, 1);
+                // Подбитый налётчик не чинится дома, а бежит из системы.
+                if (pirate.IsRaider && reason == "retreat") StartLeave(pirate, reason, log);
+                else StartReturn(pirate, reason, log);
+                Think(pirate, ships, pirates, balance, tick, rng, log, station);
                 return;
             }
             else
@@ -83,12 +105,13 @@ internal static class PirateBrain
         }
 
         // Патруль: сначала — не пора ли в бой.
-        if (Acquire(pirate, attacker, ships, pirates, npc, tick) is { } found)
+        if (Acquire(pirate, attacker, ships, pirates, npc, shelter, tick) is { } found)
         {
             if (pirate.Hp <= pirate.MaxHp(hull) * pirate.Type.RetreatHp)
             {
-                StartReturn(pirate, "retreat", log);
-                FlyTo(pirate, pirate.HomeX, pirate.HomeY, 1);
+                if (pirate.IsRaider) StartLeave(pirate, "retreat", log);
+                else StartReturn(pirate, "retreat", log);
+                Think(pirate, ships, pirates, balance, tick, rng, log, station);
                 return;
             }
             pirate.State = PirateState.Attack;
@@ -97,30 +120,84 @@ internal static class PirateBrain
             Attack(pirate, found, hull, pirate.Weapon(balance), pirates);
             return;
         }
+        // Налётчик отпатрулировал своё и никого не нашёл — пора домой, во врата.
+        if (pirate.IsRaider && pirate.PatrolUntilTick > 0 && tick >= pirate.PatrolUntilTick)
+        {
+            StartLeave(pirate, "patrol is over", log);
+            Leave(pirate, balance, tick, log);
+            return;
+        }
         Patrol(pirate, npc, tick, rng);
+    }
+
+    private static void StartLeave(Pirate pirate, string reason, ILogger log)
+    {
+        pirate.State = PirateState.Leave;
+        pirate.TargetId = 0;
+        log.LogInformation("{Pirate} leaves the system: {Reason}", pirate, reason);
+    }
+
+    /// <summary>
+    /// Уход налётчика: к вратам на полной тяге, там — подготовка прыжка, как у игрока (её видно кольцом), и исчезновение.
+    /// На базе пиратской системы — сразу, будто сел в ангар.
+    /// </summary>
+    private static void Leave(Pirate pirate, Balance balance, long tick, ILogger log)
+    {
+        pirate.FireHeld = false;
+        if (pirate.LeaveAtTick > 0)
+        {
+            Set(pirate, pirate.LastInput.Dx, pirate.LastInput.Dy, 0);
+            if (tick < pirate.LeaveAtTick) return;
+            pirate.Gone = true;
+            log.LogInformation("{Pirate} jumped away", pirate);
+            return;
+        }
+        if (Distance(pirate.Ship.X, pirate.Ship.Y, pirate.ExitX, pirate.ExitY) > ExitRadius)
+        {
+            FlyTo(pirate, pirate.ExitX, pirate.ExitY, 1);
+            return;
+        }
+        Set(pirate, pirate.LastInput.Dx, pirate.LastInput.Dy, 0);
+        if (pirate.ExitIsGate)
+        {
+            pirate.LeaveAtTick = tick + balance.Galaxy.JumpTicks;
+            return;
+        }
+        pirate.Gone = true;
+        log.LogInformation("{Pirate} landed at the base", pirate);
     }
 
     /// <summary>Честная цель: игрок на связи, цел и без защиты после появления. Дронов и корабли без связи пираты не трогают.</summary>
     private static bool IsFair(Player player, long tick) =>
         player.Connection is not null && !player.IsDead && !player.IsProtected(tick);
 
-    private static bool InShelter(ShipEntity ship, NpcRules npc) =>
-        Distance(ship.Ship.X, ship.Ship.Y, SimConfig.StationX, SimConfig.StationY) <= npc.StationSafeRadius;
+    /// <summary>Укрытие у станции в этот тик.</summary>
+    private readonly record struct Shelter(double X, double Y, double Radius)
+    {
+        public bool Contains(ShipEntity ship, double margin = 0) => Distance(ship.Ship.X, ship.Ship.Y, X, Y) <= Radius + margin;
+    }
 
-    private static bool IsCandidate(ShipEntity? ship, long tick, NpcRules npc) =>
-        ship is Player player && IsFair(player, tick) && !InShelter(player, npc);
+    private static bool IsCandidate(ShipEntity? ship, long tick, Shelter shelter) =>
+        ship is Player player && IsFair(player, tick) && !shelter.Contains(player);
 
     /// <summary>Кого атаковать: того, кто напал; иначе ближайшего игрока в радиусе агро; иначе цель собрата по бою рядом.</summary>
-    private static ShipEntity? Acquire(Pirate pirate, int attackerId, IReadOnlyDictionary<int, ShipEntity> ships, IReadOnlyList<Pirate> pirates, NpcRules npc, long tick)
+    private static ShipEntity? Acquire(
+        Pirate pirate,
+        int attackerId,
+        IReadOnlyDictionary<int, ShipEntity> ships,
+        IReadOnlyList<Pirate> pirates,
+        NpcRules npc,
+        Shelter shelter,
+        long tick)
     {
-        if (ships.GetValueOrDefault(attackerId) is { } attacker && IsCandidate(attacker, tick, npc) && Distance(pirate, attacker) <= npc.DropRange)
+        if (ships.GetValueOrDefault(attackerId) is { } attacker && IsCandidate(attacker, tick, shelter) && Distance(pirate, attacker) <= npc.DropRange)
             return attacker;
 
         ShipEntity? nearest = null;
         var nearestDistance = npc.AggroRange;
         foreach (var ship in ships.Values)
         {
-            if (!IsCandidate(ship, tick, npc)) continue;
+            if (!IsCandidate(ship, tick, shelter)) continue;
             var distance = Distance(pirate, ship);
             if (distance > nearestDistance) continue;
             nearest = ship;
@@ -131,18 +208,18 @@ internal static class PirateBrain
         foreach (var other in pirates)
         {
             if (other == pirate || other.IsDead || other.State != PirateState.Attack || Distance(pirate, other) > npc.AssistRange) continue;
-            if (ships.GetValueOrDefault(other.TargetId) is { } target && IsCandidate(target, tick, npc) && Distance(pirate, target) <= npc.DropRange)
+            if (ships.GetValueOrDefault(other.TargetId) is { } target && IsCandidate(target, tick, shelter) && Distance(pirate, target) <= npc.DropRange)
                 return target;
         }
         return null;
     }
 
     /// <returns>Причина бросить бой и уйти в логово, или null — продолжать.</returns>
-    private static string? ReturnReason(Pirate pirate, ShipEntity target, HullParams hull, NpcRules npc)
+    private static string? ReturnReason(Pirate pirate, ShipEntity target, HullParams hull, NpcRules npc, Shelter shelter)
     {
         if (pirate.Hp <= pirate.MaxHp(hull) * pirate.Type.RetreatHp) return "retreat";
-        if (InShelter(target, npc)) return "target in the shelter";
-        if (Distance(pirate.Ship.X, pirate.Ship.Y, SimConfig.StationX, SimConfig.StationY) <= npc.StationSafeRadius + SafeMargin)
+        if (shelter.Contains(target)) return "target in the shelter";
+        if (shelter.Contains(pirate, SafeMargin))
             return "too close to the shelter";
         if (Distance(pirate.Ship.X, pirate.Ship.Y, pirate.HomeX, pirate.HomeY) > npc.LeashRange) return "too far from home";
         return null;
