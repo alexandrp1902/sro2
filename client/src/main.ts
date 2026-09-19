@@ -47,6 +47,8 @@ import { DockScreen } from './ui/dockScreen';
 import { Feed, describeBurn, describeKill, describeNotice } from './ui/feed';
 import { FlightHud } from './ui/flightHud';
 import { GalaxyMap } from './ui/galaxyMap';
+import { ControlsWindow } from './ui/controlsWindow';
+import { keymap } from './input/keymap';
 import { InvasionBoard, InvasionHud } from './ui/invasion';
 import { Minimap } from './ui/minimap';
 import { SosBoard } from './ui/sos';
@@ -280,6 +282,7 @@ async function main(): Promise<void> {
     onRepair: () => send({ t: 'repair' }),
     onRefuel: () => send({ t: 'refuel' }),
     onUndock: () => send({ t: 'dock', on: false }),
+    onControls: () => controlsWindow.toggle(),
     onAccept: (id) => send({ t: 'mission', action: 'accept', id }),
     onAbandon: () => send({ t: 'mission', action: 'abandon' }),
     onComplete: () => send({ t: 'mission', action: 'complete' }),
@@ -288,6 +291,13 @@ async function main(): Promise<void> {
 
   // Карта галактики (GDD §55): M на ПК, тап по миникарте — везде.
   const galaxyMap = new GalaxyMap(el('galaxy'));
+  // Окно «Управление» (M10.5): шестерёнка у миникарты и в доке, только на ПК — на телефоне кнопки на экране.
+  const controlsWindow = new ControlsWindow(el('controls'));
+  const controlsButton = el('controls-open') as HTMLButtonElement;
+  controlsButton.addEventListener('click', () => {
+    controlsButton.blur();
+    controlsWindow.toggle();
+  });
   const sos = new SosBoard();
   // Вторжение пиратов (GDD §38): табло справа, точка на миникарте, система на карте галактики.
   const invasion = new InvasionBoard();
@@ -314,9 +324,9 @@ async function main(): Promise<void> {
     send({ t: 'party', action: accept ? 'accept' : 'decline', id: from }),
   );
   window.addEventListener('keydown', (e) => {
-    if (e.code !== 'KeyM' || e.repeat || e.ctrlKey || e.metaKey || e.altKey) return;
+    if (keymap.capturing || e.repeat || e.ctrlKey || e.metaKey || e.altKey) return;
     if (e.target instanceof HTMLInputElement) return;
-    galaxyMap.toggle();
+    if (keymap.actionFor(e) === 'map') galaxyMap.toggle();
   });
 
   /** Всё, во что можно целиться: корабли и метеориты. Id у них из одного счётчика сервера. */
@@ -437,16 +447,24 @@ async function main(): Promise<void> {
   bindCombatKeys(fire, {
     step: stepSelection,
     clear: () => {
-      if (galaxyMap.open) galaxyMap.hide();
+      if (controlsWindow.open) controlsWindow.hide();
+      else if (galaxyMap.open) galaxyMap.hide();
       else if (selectedLootId !== 0) setLoot(0);
       else if (markId !== 0) setMark(0);
       else setTarget(0);
     },
     grab: grabSelected,
   });
+  // Esc закрывает окна, даже если «Снять цель» переназначена на другую клавишу.
+  window.addEventListener('keydown', (e) => {
+    if (e.code !== 'Escape' || keymap.capturing || keymap.actionFor(e) === 'targetClear') return;
+    if (controlsWindow.open) controlsWindow.hide();
+    else if (galaxyMap.open) galaxyMap.hide();
+  });
   // F — ближайший предмет: на ПК иначе до мелкого обломка не дотянуться мышью в бою.
   window.addEventListener('keydown', (e) => {
-    if (e.code !== 'KeyF' || e.repeat || e.ctrlKey || e.metaKey || e.altKey) return;
+    if (keymap.capturing || e.repeat || e.ctrlKey || e.metaKey || e.altKey) return;
+    if (e.target instanceof HTMLInputElement || keymap.actionFor(e) !== 'nearestLoot') return;
     const id = nearestLoot(prediction.curr, loot.visible(), LOOT_KEY_RANGE);
     if (id !== null) setLoot(id);
   });
@@ -957,6 +975,7 @@ async function main(): Promise<void> {
 
     minimap.hidden = !online || !system;
     pvpButton.hidden = minimap.hidden;
+    controlsButton.hidden = minimap.hidden;
     minimap.update(
       {
         sun: Boolean(system?.sun),

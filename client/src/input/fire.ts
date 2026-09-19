@@ -1,3 +1,5 @@
+import { keymap as defaultKeymap, type Keymap } from './keymap';
+
 export type FireAim = 'ready' | 'blocked' | 'none';
 
 /**
@@ -9,24 +11,12 @@ export type FireMode = 'fire' | 'grab' | 'dock' | 'jump' | 'cancel';
 const MODE_LABELS: Record<FireMode, string> = { fire: 'ОГОНЬ', grab: 'ВЗЯТЬ', dock: 'ДОК', jump: 'ПРЫЖОК', cancel: 'ОТМЕНА' };
 
 /**
- * Шаг выбора цели по клавише (ПК): Q, Shift+←, Shift+Tab — предыдущая; E, Shift+→, Tab — следующая.
- * @returns 0 — клавиша не выбирает цель (← и → без Shift поворачивают корпус)
+ * Шаг выбора цели по клавише (ПК), по раскладке: по умолчанию Q, Shift+Tab — предыдущая; E, Tab — следующая.
+ * @returns 0 — клавиша не выбирает цель
  */
-export function targetStep(e: { code: string; shiftKey: boolean }): -1 | 0 | 1 {
-  switch (e.code) {
-    case 'KeyQ':
-      return -1;
-    case 'KeyE':
-      return 1;
-    case 'Tab':
-      return e.shiftKey ? -1 : 1;
-    case 'ArrowLeft':
-      return e.shiftKey ? -1 : 0;
-    case 'ArrowRight':
-      return e.shiftKey ? 1 : 0;
-    default:
-      return 0;
-  }
+export function targetStep(e: { code: string; shiftKey: boolean }, keys: Keymap = defaultKeymap): -1 | 0 | 1 {
+  const action = keys.actionFor(e);
+  return action === 'targetPrev' ? -1 : action === 'targetNext' ? 1 : 0;
 }
 
 /**
@@ -129,28 +119,30 @@ export class FireControl {
 }
 
 /**
- * Клавиши боя на ПК (GDD §7): Space — взять выбранный предмет, пристыковаться к выбранной станции или вылететь
- * из дока, а иначе огонь вкл/выкл;
- * Q/E, Shift+←/→, Tab/Shift+Tab — предыдущая/следующая цель; Esc — снять предмет или станцию, потом цель.
+ * Клавиши боя на ПК (GDD §7), по раскладке. По умолчанию: Space — взять выбранный предмет, пристыковаться
+ * к выбранной станции или вылететь из дока, а иначе огонь вкл/выкл; Q/E, Tab/Shift+Tab — предыдущая/следующая
+ * цель; Esc — снять предмет или станцию, потом цель.
  */
 export function bindCombatKeys(
   fire: FireControl,
   actions: { step(direction: -1 | 1): void; clear(): void; grab(): boolean },
+  keys: Keymap = defaultKeymap,
 ): void {
   const isTyping = (e: Event) => e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement;
 
   window.addEventListener('keydown', (e) => {
-    if (isTyping(e) || e.ctrlKey || e.metaKey || e.altKey) return;
-    if (e.code === 'Space') {
+    if (keys.capturing || isTyping(e) || e.ctrlKey || e.metaKey || e.altKey) return;
+    const action = keys.actionFor(e);
+    if (action === 'fire') {
       e.preventDefault(); // иначе Space нажал бы кнопку в фокусе или прокрутил страницу
       if (!e.repeat && !actions.grab()) fire.toggle();
       return;
     }
-    const step = targetStep(e);
+    const step = targetStep(e, keys);
     if (step !== 0) {
       e.preventDefault();
       if (!e.repeat) actions.step(step);
-    } else if (e.code === 'Escape') {
+    } else if (action === 'targetClear') {
       actions.clear();
     }
   });

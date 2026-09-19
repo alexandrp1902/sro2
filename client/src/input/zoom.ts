@@ -1,4 +1,6 @@
-// Масштаб камеры (GDD §42): щипок на телефоне, Ctrl+колесо (и щипок тачпада) и +/− на ПК.
+import { keymap } from './keymap';
+
+// Масштаб камеры (GDD §42): щипок на телефоне, Ctrl+колесо (и щипок тачпада) и +/− на ПК (по раскладке).
 
 const MIN_ZOOM = 0.6;
 const MAX_ZOOM = 1.6;
@@ -45,9 +47,10 @@ export class Zoom {
       { passive: false },
     );
     window.addEventListener('keydown', (e) => {
-      if (e.target instanceof HTMLInputElement || e.ctrlKey || e.metaKey) return;
-      if (e.code === 'Equal' || e.code === 'NumpadAdd') this.set(this.value * KEY_FACTOR);
-      else if (e.code === 'Minus' || e.code === 'NumpadSubtract') this.set(this.value / KEY_FACTOR);
+      if (keymap.capturing || e.target instanceof HTMLInputElement || e.ctrlKey || e.metaKey) return;
+      const action = keymap.actionFor(e);
+      if (action === 'zoomIn') this.set(this.value * KEY_FACTOR);
+      else if (action === 'zoomOut') this.set(this.value / KEY_FACTOR);
     });
   }
 

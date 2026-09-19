@@ -1,3 +1,5 @@
+import { keyHint, keymap } from '../input/keymap';
+
 /**
  * Трекер цели (GDD §36, §54): шаг обучения или взятое задание — строка «что сделать» и подсказка «как».
  * Справа под миникартой. Тап открывает карту галактики: там отмечена система цели.
@@ -21,6 +23,8 @@ export class ObjectiveHud {
 
   /** null — прятать: заданий нет, в доке или нет связи. */
   update(lines: { title: string; hint: string } | null): void {
+    // В подсказках обучения — клавиши из раскладки игрока, а не стандартные.
+    if (lines) lines = { title: lines.title, hint: keyHint(lines.hint, keymap) };
     const key = lines ? `${lines.title}\n${lines.hint}` : '';
     if (key === this.key) return;
     this.key = key;

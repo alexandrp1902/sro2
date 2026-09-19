@@ -1,23 +1,11 @@
 import { localVelocity, type HullParams, type ShipState } from '../sim/movement';
 import type { Controls } from './controls';
-import { targetStep } from './fire';
+import { MOVE_ACTIONS, keymap as defaultKeymap, type KeyAction, type Keymap } from './keymap';
 
-// ПК-управление корпусом (GDD §7): W/↑ — газ, S/↓ — тормоз, A/D/←/→ — поворот; Shift+←/→ — выбор цели (fire.ts).
+// ПК-управление корпусом (GDD §7): по умолчанию W/↑ — газ, S/↓ — тормоз, A/D/←/→ — поворот; клавиши меняются
+// в окне «Управление» (keymap.ts). 1–4, X и колесо тяги зашиты.
 // Ни газ, ни тормоз не нажаты — корабль держит набранную скорость (круиз). Модель полёта та же, что у стика:
 // поворот — это желаемое направление на 90° от носа, поэтому корабль крутится с полным TurnRate.
-
-type Action = 'thrust' | 'brake' | 'left' | 'right';
-
-const ACTIONS: Record<string, Action> = {
-  KeyW: 'thrust',
-  ArrowUp: 'thrust',
-  KeyS: 'brake',
-  ArrowDown: 'brake',
-  KeyA: 'left',
-  ArrowLeft: 'left',
-  KeyD: 'right',
-  ArrowRight: 'right',
-};
 
 const THROTTLE_KEYS: Record<string, number> = {
   Digit1: 0.25,
@@ -45,14 +33,21 @@ export class KeyboardControls {
   private turning = false;
   private wheelAccum = 0;
 
-  constructor(private readonly controls: Controls) {}
+  constructor(
+    private readonly controls: Controls,
+    private readonly keys: Keymap = defaultKeymap,
+  ) {}
+
+  private isMoveKey(code: string): boolean {
+    return MOVE_ACTIONS.some((action) => this.keys.holds(action, code));
+  }
 
   isGameKey(code: string): boolean {
-    return code in ACTIONS || code in THROTTLE_KEYS || code === STOP_KEY;
+    return this.isMoveKey(code) || code in THROTTLE_KEYS || code === STOP_KEY;
   }
 
   keyDown(code: string): void {
-    if (code in ACTIONS) {
+    if (this.isMoveKey(code)) {
       this.held.add(code);
     } else if (code in THROTTLE_KEYS) {
       this.setThrottle(THROTTLE_KEYS[code]);
@@ -116,18 +111,20 @@ export class KeyboardControls {
     this.controls.source = 'keyboard';
   }
 
-  private isHeld(action: Action): boolean {
-    for (const code of this.held) if (ACTIONS[code] === action) return true;
+  private isHeld(action: KeyAction): boolean {
+    for (const code of this.held) if (this.keys.holds(action, code)) return true;
     return false;
   }
 }
 
-export function bindKeyboard(keyboard: KeyboardControls): void {
+export function bindKeyboard(keyboard: KeyboardControls, keys: Keymap = defaultKeymap): void {
   const isTyping = (e: Event) => e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement;
 
   window.addEventListener('keydown', (e) => {
-    if (isTyping(e) || e.ctrlKey || e.metaKey || e.altKey || !keyboard.isGameKey(e.code)) return;
-    if (targetStep(e) !== 0) return; // Shift+←/→ выбирают цель, а не поворачивают корпус
+    if (keys.capturing || isTyping(e) || e.ctrlKey || e.metaKey || e.altKey || !keyboard.isGameKey(e.code)) return;
+    const action = keys.actionFor(e);
+    // Клавиша назначена не движению (Shift+← — выбор цели, 1 — чему-то своему): её ловит другой обработчик.
+    if (action && !MOVE_ACTIONS.includes(action)) return;
     e.preventDefault(); // стрелки не скроллят страницу
     if (!e.repeat) keyboard.keyDown(e.code);
   });

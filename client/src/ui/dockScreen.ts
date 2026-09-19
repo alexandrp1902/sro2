@@ -14,6 +14,7 @@ import {
   type FitProblem,
   type Modules,
 } from '../sim/fitting';
+import { keyHint, keymap } from '../input/keymap';
 import { itemSprite, moduleSprite, shipSprite, spriteUrl, weaponSprite } from '../render/sprites';
 import type { Hulls } from '../sim/hulls';
 import { activeHint, activeLine, offerNote, offerTitle, type MissionNames } from '../sim/missions';
@@ -119,6 +120,8 @@ export interface DockHandlers {
   onRepair(): void;
   onRefuel(): void;
   onUndock(): void;
+  /** Окно «Управление» (ПК). */
+  onControls(): void;
   /** Взять задание с доски. */
   onAccept(id: string): void;
   /** Бросить своё задание. */
@@ -220,6 +223,10 @@ export class DockScreen {
     const card = el('div', 'dock-card');
     const head = el('div', 'dock-head');
     head.append(el('div', 'dock-title', this.station), el('div', 'dock-credits', formatCredits(credits)));
+    const gear = button('⚙', 'controls-open dock-controls', () => this.handlers.onControls());
+    gear.title = 'Управление';
+    gear.setAttribute('aria-label', 'Управление');
+    head.append(gear);
     head.append(button('Вылет', 'dock-undock', () => this.handlers.onUndock()));
     card.append(head);
     card.append(this.scene(hangar));
@@ -353,7 +360,7 @@ export class DockScreen {
       const box = el('div', 'dock-mission dock-tutorial');
       box.append(el('div', 'dock-mission-head', `Обучение · шаг ${tutorial.step + 1} из ${tutorial.total}`));
       box.append(el('div', 'dock-name', tutorial.title));
-      if (tutorial.hint) box.append(el('div', 'dock-stats', tutorial.hint));
+      if (tutorial.hint) box.append(el('div', 'dock-stats', keyHint(tutorial.hint, keymap)));
       const actions = el('div', 'dock-mission-actions');
       if (tutorial.id === 'undock') actions.append(button('Вылет', 'dock-buy', () => this.handlers.onUndock()));
       actions.append(button('Пропустить обучение', 'dock-link', () => this.handlers.onSkipTutorial()));
