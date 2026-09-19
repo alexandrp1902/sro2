@@ -19,6 +19,30 @@
     "h": 256,
     "body": 222
   },
+  "ships-scout": {
+    "w": 198,
+    "h": 512
+  },
+  "ships-interceptor": {
+    "w": 491,
+    "h": 512
+  },
+  "ships-freighter": {
+    "w": 412,
+    "h": 512
+  },
+  "ships-frigate": {
+    "w": 254,
+    "h": 512
+  },
+  "ships-cruiser": {
+    "w": 319,
+    "h": 512
+  },
+  "ships-industrial": {
+    "w": 330,
+    "h": 512
+  },
   "stations-ring": {
     "w": 512,
     "h": 501

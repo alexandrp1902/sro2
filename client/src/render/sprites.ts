@@ -44,9 +44,20 @@ export async function loadSprites(): Promise<void> {
   for (const name of names) textures.set(name, loaded[name] as Texture);
 }
 
-/** Спрайт корабля по корпусу и виду: у пиратов свой корабль, размер — по корпусу. */
-export function shipSprite(hull: string, pirate: boolean): SpriteName {
-  if (pirate) return 'ships-pirate';
+/** Чей корабль, если не пилота: у пиратов, торговцев, рейнджеров и дронов свои картинки. */
+export type ShipRole = 'pirate' | 'trader' | 'ranger' | 'drone';
+
+/** Картинки NPC: грузовик у торговца, фрегат у рейнджера, разведчик у дрона. Пламени у них нет. */
+const ROLE_SPRITES: Record<ShipRole, SpriteName> = {
+  pirate: 'ships-pirate',
+  trader: 'ships-freighter',
+  ranger: 'ships-frigate',
+  drone: 'ships-scout',
+};
+
+/** Спрайт корабля по корпусу и виду: у NPC свои корабли, у пилотов — по корпусу; размер — всегда по корпусу. */
+export function shipSprite(hull: string, role: ShipRole | null = null): SpriteName {
+  if (role) return ROLE_SPRITES[role];
   if (hull === 'medium') return 'ships-medium';
   if (hull === 'heavy') return 'ships-heavy';
   return 'ships-light';

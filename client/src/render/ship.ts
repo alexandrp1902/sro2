@@ -57,7 +57,7 @@ export class ShipView {
    * @param desired угол желаемого направления или null, если тяги нет
    */
   update(x: number, y: number, rot: number, hullId: string, hull: HullParams, glow: number, desired: number | null): void {
-    const sprite = shipSprite(hullId, this.look === 'pirate');
+    const sprite = shipSprite(hullId, this.look === 'own' || this.look === 'player' ? null : this.look);
     if (sprite !== this.sprite || hull.size !== this.size) this.redraw(sprite, hull.size);
     this.view.position.set(x, y);
     this.hull.rotation = rot;

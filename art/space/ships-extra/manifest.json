@@ -1,0 +1,44 @@
+{
+  "ships-scout": {
+    "file": "client/public/sprites/ships-scout.webp",
+    "w": 198,
+    "h": 512,
+    "alpha": true,
+    "bytes": 29294
+  },
+  "ships-interceptor": {
+    "file": "client/public/sprites/ships-interceptor.webp",
+    "w": 491,
+    "h": 512,
+    "alpha": true,
+    "bytes": 65998
+  },
+  "ships-freighter": {
+    "file": "client/public/sprites/ships-freighter.webp",
+    "w": 412,
+    "h": 512,
+    "alpha": true,
+    "bytes": 81038
+  },
+  "ships-frigate": {
+    "file": "client/public/sprites/ships-frigate.webp",
+    "w": 254,
+    "h": 512,
+    "alpha": true,
+    "bytes": 44844
+  },
+  "ships-cruiser": {
+    "file": "client/public/sprites/ships-cruiser.webp",
+    "w": 319,
+    "h": 512,
+    "alpha": true,
+    "bytes": 57750
+  },
+  "ships-industrial": {
+    "file": "client/public/sprites/ships-industrial.webp",
+    "w": 330,
+    "h": 512,
+    "alpha": true,
+    "bytes": 73460
+  }
+}

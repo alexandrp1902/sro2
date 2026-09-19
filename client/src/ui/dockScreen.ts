@@ -262,7 +262,7 @@ export class DockScreen {
     // Абсолютный адрес: относительный url() в CSS-переменной браузер отсчитывает от файла стилей (assets/), а не от страницы.
     view.style.setProperty('--scene-art', `url("${new URL(sceneUrl(this.place, this.tab), document.baseURI).href}")`);
     if (scene.ship) {
-      const ship = icon(shipSprite(hangar.hull, false));
+      const ship = icon(shipSprite(hangar.hull));
       ship.className = 'dock-scene-ship';
       view.append(ship);
     }
@@ -278,7 +278,7 @@ export class DockScreen {
   private previewHull(id: string | null): void {
     const ship = this.root.querySelector<HTMLImageElement>('.dock-scene-ship');
     const hull = id ?? this.hangar?.hull;
-    if (ship && hull) ship.src = spriteUrl(shipSprite(hull, false));
+    if (ship && hull) ship.src = spriteUrl(shipSprite(hull));
   }
 
   /** Свой корабль: корпус, пушка, прочность и ремонт. */
@@ -538,7 +538,7 @@ export class DockScreen {
     row.dataset.state = state;
     row.addEventListener('mouseenter', () => this.previewHull(id));
     row.addEventListener('mouseleave', () => this.previewHull(null));
-    row.append(icon(shipSprite(id, false)));
+    row.append(icon(shipSprite(id)));
     row.append(el('div', 'dock-name', name), el('div', 'dock-stats', stats));
     const cost = price(this.shop.hulls, id) ?? 0;
     switch (state) {
