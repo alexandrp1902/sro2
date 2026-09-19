@@ -9,7 +9,7 @@ import type { NpcRules } from '../sim/npcs';
 import type { ShopRules } from '../sim/shop';
 
 /** Версия протокола; зеркало Protocol.Version на сервере. Сервер другой версии (или старый, без поля) — не играем. */
-export const PROTOCOL_VERSION = 14;
+export const PROTOCOL_VERSION = 15;
 
 /** Состояние ИИ пирата: патруль, бой, возврат в логово (налётчик — полёт от врат к точке), уход из системы. */
 export type AiState = 'patrol' | 'attack' | 'return' | 'leave';
@@ -67,7 +67,9 @@ export type ClientMessage =
    */
   | { t: 'mission'; action: MissionAction; id?: string }
   /** Группа (GDD §37): invite — позвать пилота id, accept/decline — ответить на приглашение пилота id, leave — выйти. */
-  | { t: 'party'; action: PartyAction; id?: number };
+  | { t: 'party'; action: PartyAction; id?: number }
+  /** Переключатель PvP: выключен — пушки пилота не бьют игроков, торговцев и рейнджеров. */
+  | { t: 'pvp'; on: boolean };
 
 export type PartyAction = 'invite' | 'accept' | 'decline' | 'leave';
 

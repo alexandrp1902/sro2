@@ -55,6 +55,7 @@ import { InviteCard, PartyBoard, PartyPanel, describeBounty, describePartyEvent 
 import { PilotForm, describeDenied } from './ui/pilotForm';
 import { StatusHud } from './ui/statusHud';
 import { account } from './util/account';
+import { storage } from './util/storage';
 
 /** Id станции в прицеле: отрицательный, чтобы не совпасть с id кораблей и добычи от сервера. Врата — −2, −3… */
 const STATION_ID = -1;
@@ -70,6 +71,8 @@ const DEFAULT_RADAR = 2000;
 const LOOT_KEY_RANGE = 1200;
 /** Ниже этой скорости «корабль тормозит» в статусе не показываем. */
 const STOPPED_SPEED = 1;
+/** Переключатель PvP на этом устройстве: '1' — включён. */
+const PVP_KEY = 'sro.pvp';
 
 async function main(): Promise<void> {
   preventBrowserGestures();
@@ -176,7 +179,8 @@ async function main(): Promise<void> {
       setLoot(0);
       setMark(0);
     }
-    if (id === 0) fire.release(); // без цели огонь выключается: кнопка не горит впустую
+    // Новая цель — огонь заново только новым нажатием: автоогонь не переносится на то, что выбрали для другого.
+    fire.release();
   };
   // Группа (GDD §37): свои — другим цветом, не цели для огня; позвать — с карточки цели.
   const party = new PartyBoard();
@@ -319,6 +323,31 @@ async function main(): Promise<void> {
   const targets = () => [...remote.visible(), ...meteors.visible()];
   /** В системе без PvP (GDD §34) пилоты друг другу не цели: огонь их не выбирает. */
   const pvpOff = () => system?.pvp === 'off';
+  /**
+   * Свой переключатель PvP (рядом с миникартой): выключен — огонь не включается по игрокам, торговцам и рейнджерам,
+   * и сервер их не повредит. Запоминается на устройстве; по умолчанию выключен.
+   */
+  let pvpOn = storage.get(PVP_KEY) === '1';
+  const pvpButton = el('pvp') as HTMLButtonElement;
+  const peaceful = (t: object) => 'kind' in t && (t.kind === 'player' || t.kind === 'trader' || t.kind === 'ranger');
+  const sendPvp = () => {
+    if (isOnline()) connection!.send({ t: 'pvp', on: pvpOn });
+  };
+  const showPvp = () => {
+    pvpButton.dataset.on = String(pvpOn);
+    pvpButton.setAttribute('aria-pressed', String(pvpOn));
+    pvpButton.querySelector('small')!.textContent = pvpOn ? 'вкл' : 'выкл';
+  };
+  showPvp();
+  pvpButton.addEventListener('click', () => {
+    pvpOn = !pvpOn;
+    storage.set(PVP_KEY, pvpOn ? '1' : '0');
+    showPvp();
+    sendPvp();
+    feed.add(pvpOn ? 'PvP включён: огонь бьёт игроков и торговцев' : 'PvP выключен: игроков и торговцев не атакуете');
+    const current = remote.get(targetId);
+    if (!pvpOn && current && peaceful(current)) fire.release();
+  });
   // Огонь без цели берёт ближайший корабль или камень: сначала в секторе, потом просто в дальности.
   // Никого — огонь не включается.
   fire.onPress = () => {
@@ -329,13 +358,17 @@ async function main(): Promise<void> {
         feed.add(`${current.name} — в вашей группе`);
         return false;
       }
+      if (!pvpOn && peaceful(current)) {
+        feed.add(`${current.name}: PvP выключен — включите его у миникарты`);
+        return false;
+      }
       if (pvpOff() && 'kind' in current && current.kind === 'player') {
         feed.add(`В системе ${system!.name} PvP нет`);
         return false;
       }
       return true;
     }
-    const foes = targets().filter((t) => !isAlly(t.id));
+    const foes = targets().filter((t) => !isAlly(t.id) && (pvpOn || !peaceful(t)));
     const candidates = pvpOff() ? foes.filter((t) => !('kind' in t) || t.kind !== 'player') : foes;
     const reach = longestRange(ownWeapons());
     const id = reach ? nearest(prediction.curr, candidates, reach) : null;
@@ -582,6 +615,7 @@ async function main(): Promise<void> {
   let latestSnapshot: SnapshotMsg | null = null;
   if (connection) {
     connection.onWelcome = (message, transfer) => {
+      sendPvp(); // сервер ничего не помнит о переключателе: говорим после каждого входа и прыжка
       hulls.set(message.hulls);
       weapons.set(message.weapons);
       modules.set(message.modules);
@@ -922,6 +956,7 @@ async function main(): Promise<void> {
     );
 
     minimap.hidden = !online || !system;
+    pvpButton.hidden = minimap.hidden;
     minimap.update(
       {
         sun: Boolean(system?.sun),

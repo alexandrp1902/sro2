@@ -61,6 +61,8 @@ public sealed class GalaxyHost : BackgroundService
 
     public void SetFire(IClientConnection connection, bool on) => With(connection, r => r.SetFire(connection, on));
 
+    public void SetPvp(IClientConnection connection, bool on) => With(connection, r => r.SetPvp(connection, on));
+
     public void SetLootTarget(IClientConnection connection, int lootId) => With(connection, r => r.SetLootTarget(connection, lootId));
 
     public void Grab(IClientConnection connection) => With(connection, r => r.Grab(connection));

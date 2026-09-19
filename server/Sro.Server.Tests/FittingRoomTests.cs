@@ -336,10 +336,18 @@ public sealed class FittingRoomTests : IDisposable
         Steps(40);
         Assert.NotEqual(start, (merchant.Ship.X, merchant.Ship.Y)); // летит
 
-        // Грабёж: торговец без пушек, пилот бьёт его даже в системе без PvP.
+        // С выключенным PvP торговец не цель: пушка молчит.
         PlayerOf(a).Ship = new ShipState { X = merchant.Ship.X, Y = merchant.Ship.Y + 300 };
+        _room.SetPvp(a, false);
         _room.SetTarget(a, merchant.Id);
         _room.SetFire(a, true);
+        var hp = merchant.Hp;
+        Steps(2);
+        Assert.Equal(hp, merchant.Hp);
+
+        // Грабёж: торговец без пушек, пилот с включённым PvP бьёт его даже в системе без PvP.
+        PlayerOf(a).Ship = new ShipState { X = merchant.Ship.X, Y = merchant.Ship.Y + 300 };
+        _room.SetPvp(a, true);
         Steps(2);
 
         Assert.Contains(a.Messages.OfType<SnapshotMsg>(), s => (s.Kills ?? []).Any(k => k.Id == merchant.Id && k.By == IdOf(a)));

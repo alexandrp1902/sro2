@@ -431,7 +431,7 @@ public sealed class GalaxyTests : IDisposable
     }
 
     /// <summary>Два пилота с турелями: a держит огонь по b. Сколько выстрелов за секунду.</summary>
-    private int Duel(string pvp, double ax, double ay, double bx, double by)
+    private int Duel(string pvp, double ax, double ay, double bx, double by, bool pvpOn = true)
     {
         var rules = Rules with
         {
@@ -443,6 +443,7 @@ public sealed class GalaxyTests : IDisposable
         var b = Guest("B", weapon: "turret");
         Place(a, ax, ay);
         Place(b, bx, by);
+        Do(a, r => r.SetPvp(a, pvpOn));
         Do(a, r => r.SetTarget(a, IdOf(b)));
         Do(a, r => r.SetFire(a, true));
         var shots = 0;
@@ -465,6 +466,12 @@ public sealed class GalaxyTests : IDisposable
     {
         Assert.True(Duel(GalaxyRules.PvpFree, 0, -2000, 0, -1700) > 0);
         Assert.True(Duel(GalaxyRules.PvpFree, 0, 100, 0, 400) > 0);
+    }
+
+    [Fact]
+    public void PvpSwitchOff_PilotDoesNotShootPilots_EvenWherePvpIsFree()
+    {
+        Assert.Equal(0, Duel(GalaxyRules.PvpFree, 0, -2000, 0, -1700, pvpOn: false));
     }
 
     [Fact]

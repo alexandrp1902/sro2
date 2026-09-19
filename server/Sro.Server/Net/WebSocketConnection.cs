@@ -166,6 +166,9 @@ public sealed class WebSocketConnection(WebSocket socket, ILogger log) : IClient
                 case FireMsg fire when joined:
                     room.SetFire(this, fire.On);
                     break;
+                case PvpMsg pvp when joined:
+                    room.SetPvp(this, pvp.On);
+                    break;
                 case LootTargetMsg loot when joined:
                     room.SetLootTarget(this, loot.Id);
                     break;

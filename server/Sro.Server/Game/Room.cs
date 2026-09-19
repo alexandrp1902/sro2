@@ -641,6 +641,11 @@ public sealed partial class Room
         if (_byConnection.TryGetValue(connection.Id, out var player)) player.FireHeld = on;
     }
 
+    public void SetPvp(IClientConnection connection, bool on)
+    {
+        if (_byConnection.TryGetValue(connection.Id, out var player)) player.PvpOn = on;
+    }
+
     /// <summary>Выбранный предмет (боевой документ §45): тап только помечает его, автопилота в MVP нет.</summary>
     public void SetLootTarget(IClientConnection connection, int lootId)
     {
@@ -1338,9 +1343,11 @@ public sealed partial class Room
     /// <summary>
     /// PvP по правилам системы (GDD §34): off — игроки друг друга не бьют; border — не бьют у станции (§26):
     /// ни по кораблю в укрытии, ни из укрытия; free — бьют везде. NPC, дроны и метеориты — всегда честная добыча.
+    /// Пилот с выключенным PvP не бьёт никого мирного: ни игроков, ни торговцев, ни рейнджеров.
     /// </summary>
     private bool CanAttack(ShipEntity shooter, ShipEntity target)
     {
+        if (shooter is Player { PvpOn: false } && target is Player or Trader or Pirate { Type.IsRanger: true }) return false;
         if (shooter is not Player || target is not Player) return true;
         if (_host?.SameParty(shooter.Id, target.Id) == true) return false; // по своим не стреляют (GDD §37)
         return Balance.SystemDef.Pvp switch

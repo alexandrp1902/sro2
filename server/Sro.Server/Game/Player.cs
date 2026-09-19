@@ -33,6 +33,12 @@ public sealed class Player(int id, string? token, string name, string hullId, st
     /// </summary>
     public int SelectedLootId { get; set; }
 
+    /// <summary>
+    /// Переключатель PvP (<see cref="Net.PvpMsg"/>). Клиент шлёт его после каждого входа, а пока не прислал —
+    /// ограничений нет: так играют тесты и смоук-скрипты, которые переключателя не знают.
+    /// </summary>
+    public bool PvpOn { get; set; } = true;
+
     /// <summary>Трюм (GDD §21). Переживает уничтожение корабля (§24) и обрыв связи — он у игрока, а не у корабля.</summary>
     public Cargo Cargo { get; } = new();
 

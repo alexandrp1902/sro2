@@ -28,6 +28,7 @@ namespace Sro.Server.Net;
 [JsonDerivedType(typeof(RefuelMsg), "refuel")]
 [JsonDerivedType(typeof(MissionMsg), "mission")]
 [JsonDerivedType(typeof(PartyMsg), "party")]
+[JsonDerivedType(typeof(PvpMsg), "pvp")]
 public abstract record ClientMessage;
 
 /// <summary>
@@ -120,6 +121,12 @@ public sealed record MissionMsg(string? Action, string? Id = null) : ClientMessa
 /// <see cref="PartyCodes.DeclineAction"/> — ответить на приглашение пилота Id; <see cref="PartyCodes.LeaveAction"/> — выйти.
 /// </param>
 public sealed record PartyMsg(string? Action, int Id = 0) : ClientMessage;
+
+/// <summary>
+/// Переключатель PvP пилота: выключен — его пушки и ракеты не бьют игроков, торговцев и рейнджеров, где бы он ни был.
+/// Правила системы (GDD §34) он не расширяет: в системе без PvP по пилотам не стреляют и с включённым.
+/// </summary>
+public sealed record PvpMsg(bool On) : ClientMessage;
 
 // Сервер → клиент
 [JsonPolymorphic(TypeDiscriminatorPropertyName = "t")]
@@ -485,7 +492,7 @@ public static class Protocol
     /// 14 — группы, награда за голову и вторжения, M10).
     /// Зеркало PROTOCOL_VERSION в client/src/net/protocol.ts.
     /// </summary>
-    public const int Version = 14;
+    public const int Version = 15;
 
     public const string DroneKind = "drone";
     public const string PirateKind = "pirate";
