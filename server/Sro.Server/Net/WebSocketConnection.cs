@@ -151,6 +151,9 @@ public sealed class WebSocketConnection(WebSocket socket, ILogger log) : IClient
                 case RefuelMsg when joined:
                     room.Refuel(this);
                     break;
+                case MissionMsg mission when joined:
+                    room.Mission(this, mission.Action, mission.Id);
+                    break;
                 case InputMsg input when joined:
                     room.Input(this, input);
                     break;

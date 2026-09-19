@@ -24,6 +24,7 @@ namespace Sro.Server.Net;
 [JsonDerivedType(typeof(RepairMsg), "repair")]
 [JsonDerivedType(typeof(JumpMsg), "jump")]
 [JsonDerivedType(typeof(RefuelMsg), "refuel")]
+[JsonDerivedType(typeof(MissionMsg), "mission")]
 public abstract record ClientMessage;
 
 /// <summary>
@@ -89,6 +90,14 @@ public sealed record JumpMsg(string? To) : ClientMessage;
 /// <summary>Заправить бак в доке до полного — по fuelPrice из shop.json (GDD §6, §26).</summary>
 public sealed record RefuelMsg : ClientMessage;
 
+/// <summary>Задания (GDD §36, §54).</summary>
+/// <param name="Action">
+/// <see cref="Protocol.AcceptMission"/> — взять задание Id с доски (в доке); <see cref="Protocol.AbandonMission"/> —
+/// бросить своё (где угодно); <see cref="Protocol.CompleteMission"/> — сдать «собрать» (в доке);
+/// <see cref="Protocol.SkipTutorial"/> — пропустить обучение.
+/// </param>
+public sealed record MissionMsg(string? Action, string? Id = null) : ClientMessage;
+
 // Сервер → клиент
 [JsonPolymorphic(TypeDiscriminatorPropertyName = "t")]
 [JsonDerivedType(typeof(WelcomeMsg), "welcome")]
@@ -101,6 +110,7 @@ public sealed record RefuelMsg : ClientMessage;
 [JsonDerivedType(typeof(AccountMsg), "account")]
 [JsonDerivedType(typeof(DeniedMsg), "denied")]
 [JsonDerivedType(typeof(HangarMsg), "hangar")]
+[JsonDerivedType(typeof(MissionsMsg), "missions")]
 public abstract record ServerMessage;
 
 /// <param name="Id">Id своего корабля в снапшотах.</param>
@@ -249,11 +259,39 @@ public sealed record HangarMsg(
 /// <param name="Max">Ёмкость трюма текущего корпуса.</param>
 /// <param name="Items">Что лежит: идентификатор предмета — количество.</param>
 /// <param name="Credits">Кредиты пилота.</param>
+/// <param name="Reserved">Из занятого — груз доставки: его не продать и не выбросить.</param>
 public sealed record CargoMsg(
     double Used,
     double Max,
     IReadOnlyDictionary<string, int> Items,
-    int Credits = 0) : ServerMessage;
+    int Credits = 0,
+    int Reserved = 0) : ServerMessage;
+
+/// <summary>Текущий шаг обучения (GDD §54).</summary>
+/// <param name="Step">Номер шага с нуля.</param>
+/// <param name="Total">Шагов всего.</param>
+/// <param name="Id">Что засчитывает шаг: <see cref="MissionRules.TutorialIds"/>.</param>
+public sealed record TutorialDto(int Step, int Total, string Id, string Title, string Hint);
+
+/// <summary>Что только что сделано — для строки в ленте.</summary>
+/// <param name="Kind"><see cref="Protocol.TutorialDone"/> — шаг обучения; <see cref="Protocol.MissionDone"/> — задание.</param>
+/// <param name="Title">Шаг обучения — его текст.</param>
+/// <param name="Mission">Сданное задание.</param>
+/// <param name="Last">Это был последний шаг обучения.</param>
+public sealed record MissionDoneDto(string Kind, int Reward, string? Title = null, MissionOffer? Mission = null, bool Last = false);
+
+/// <summary>
+/// Обучение и задания пилота — только ему. Шлётся по событию: вход, прыжок, стыковка, прогресс, правка баланса.
+/// </summary>
+/// <param name="Tutorial">Текущий шаг обучения; null — обучения нет.</param>
+/// <param name="Active">Взятое задание; null — нет.</param>
+/// <param name="Offers">Доска станции этой системы; в системе без станции пусто.</param>
+/// <param name="Done">Что сделано этим событием; null — просто обновление.</param>
+public sealed record MissionsMsg(
+    TutorialDto? Tutorial,
+    ActiveMission? Active,
+    IReadOnlyList<MissionOffer> Offers,
+    MissionDoneDto? Done = null) : ServerMessage;
 
 /// <summary>Короткое уведомление игроку по коду; текст подставляет клиент (см. ui/feed.ts).</summary>
 public sealed record NoticeMsg(string Code) : ServerMessage;
@@ -339,10 +377,11 @@ public static class Protocol
     /// <summary>
     /// Меняется, когда клиент и сервер разных версий уже не поймут друг друга
     /// (3 — бой, M3; 4 — пираты, M4; 5 — лут и трюм, M5a; 6 — ручной подбор и продажа груза; 7 — метеориты, M5b;
-    /// 8 — аккаунты, док и магазин станции, M6; 9 — системы, врата, топливо, радар и бинарные дельта-снапшоты, M7).
+    /// 8 — аккаунты, док и магазин станции, M6; 9 — системы, врата, топливо, радар и бинарные дельта-снапшоты, M7;
+    /// 10 — звезда, орбиты и налёты; 11 — задания и обучение, M8).
     /// Зеркало PROTOCOL_VERSION в client/src/net/protocol.ts.
     /// </summary>
-    public const int Version = 10;
+    public const int Version = 11;
 
     public const string DroneKind = "drone";
     public const string PirateKind = "pirate";
@@ -359,6 +398,16 @@ public static class Protocol
     public const string NoFuelNotice = "noFuel";
     public const string GateFarNotice = "gateFar";
     public const string JumpCancelledNotice = "jumpCancelled";
+
+    /// <summary>Действия с заданиями (<see cref="MissionMsg.Action"/>).</summary>
+    public const string AcceptMission = "accept";
+    public const string AbandonMission = "abandon";
+    public const string CompleteMission = "complete";
+    public const string SkipTutorial = "skip";
+
+    /// <summary>Что сделано (<see cref="MissionDoneDto.Kind"/>).</summary>
+    public const string TutorialDone = "tutorial";
+    public const string MissionDone = "mission";
 
     /// <summary>Причины отказа во входе (<see cref="DeniedMsg"/>).</summary>
     public const string BadNameDenied = "badName";

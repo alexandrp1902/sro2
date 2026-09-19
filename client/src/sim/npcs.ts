@@ -3,6 +3,8 @@
 
 export interface NpcType {
   name: string;
+  /** Корпус из hulls.json: по нему клиент узнаёт тип пирата — в снапшоте типа нет. */
+  hull?: string;
 }
 
 export interface NpcSpawn {

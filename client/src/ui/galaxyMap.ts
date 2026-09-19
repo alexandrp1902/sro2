@@ -12,6 +12,8 @@ export interface GalaxyMapState {
   maxFuel: number;
   /** Система последней стыковки: туда корабль вернётся после гибели. */
   home: string | null;
+  /** Куда ведёт задание (GDD §36); null — никуда или цель здесь. */
+  objective?: string | null;
 }
 
 const OUTLOOK_TEXT: Record<JumpOutlook, string> = {
@@ -110,12 +112,13 @@ export class GalaxyMap {
       const group = svgEl('g', { class: 'galaxy-node', 'data-id': system.id });
       if (system.id === current) group.append(svgEl('circle', { cx: system.x, cy: system.y, r: 6.5, class: 'galaxy-here' }));
       if (system.id === this.selected) group.append(svgEl('circle', { cx: system.x, cy: system.y, r: 5.6, class: 'galaxy-selected' }));
+      if (system.id === state.objective) group.append(svgEl('circle', { cx: system.x, cy: system.y, r: 7.4, class: 'galaxy-objective' }));
       group.append(svgEl('circle', { cx: system.x, cy: system.y, r: 4, fill: color(dangerColor(system.danger)) }));
       if (system.station) {
         group.append(svgEl('rect', { x: system.x - 1.4, y: system.y - 1.4, width: 2.8, height: 2.8, class: 'galaxy-station' }));
       }
       const name = svgEl('text', { x: system.x, y: system.y + 8.2, class: 'galaxy-name' });
-      name.textContent = system.id === state.home ? `${system.name} ⌂` : system.name;
+      name.textContent = `${system.name}${system.id === state.home ? ' ⌂' : ''}${system.id === state.objective ? ' ★' : ''}`;
       group.append(name);
       // Зона тапа крупнее кружка: пальцем по кружку в 8 единиц на телефоне не попасть.
       group.append(svgEl('circle', { cx: system.x, cy: system.y, r: 9, class: 'galaxy-hit' }));
@@ -127,7 +130,7 @@ export class GalaxyMap {
     }
     card.append(svg);
     card.append(this.info(byId.get(this.selected ?? current), state));
-    card.append(el('div', 'galaxy-legend', 'Цвет — опасность, квадрат — станция, ⌂ — где вы появитесь после гибели. Числа — топливо на прыжок.'));
+    card.append(el('div', 'galaxy-legend', 'Цвет — опасность, квадрат — станция, ⌂ — где вы появитесь после гибели, ★ — цель задания. Числа — топливо на прыжок.'));
     this.root.replaceChildren(card);
   }
 

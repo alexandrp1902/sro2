@@ -146,8 +146,13 @@ async function main() {
   check(`start credits: ${a.cargo.credits}`, a.cargo.credits === shop.startCredits);
   check(
     `starter ship: ${a.hangar.hull} + ${a.hangar.weapon}, hangar ${a.hangar.hulls.join(',')} / ${a.hangar.weapons.join(',')}`,
-    a.hangar.hulls.length === 1 && a.hangar.weapons.length === 1 && !a.hangar.docked,
+    a.hangar.hulls.length === 1 && a.hangar.weapons.length === 1,
   );
+  // Новый пилот начинает в доке: первый шаг обучения — вылететь (M8). Обучение здесь не проверяем — его пропускаем.
+  check(`new pilot starts in the dock: ${a.hangar.docked}`, a.hangar.docked);
+  a.send({ t: 'mission', action: 'skip' });
+  a.send({ t: 'dock', on: false });
+  await a.until(() => !a.hangar.docked, 3000, 'undocking after skipping the tutorial');
 
   await expectDenied({ name: NAME, password: 'not-the-password' }, 'wrongPassword');
   await expectDenied({ name: `smoke-new-${RUN}`, password: 'abc' }, 'badPassword');

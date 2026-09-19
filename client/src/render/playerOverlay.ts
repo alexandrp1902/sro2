@@ -19,6 +19,10 @@ const LOOT_COLOR = 0x6fd3ff;
 const STATION_COLOR = 0x6fe08a;
 /** Метеорит: рыжий, как его прожилки. */
 const METEOR_COLOR = 0xd9a066;
+/** Цель задания или шага обучения — золотая, как трекер цели. */
+export const OBJECTIVE_COLOR = 0xffd166;
+/** Золотой уголок висит над целью на столько пикселей выше её края — над ником и полосками корабля. */
+const OBJECTIVE_LIFT = 40;
 /** Пират, который целится в меня: знак перед ником и крупная стрелка у края экрана. */
 const THREAT_PREFIX = '! ';
 /** Состояние ИИ под ником — при открытой dev-панели, для настройки пиратов на плейтесте. */
@@ -129,6 +133,8 @@ export interface OverlayFrame {
   station: LootMark | null;
   /** Сколько единиц мира в одном секторе: у стрелки за краем экрана пишем дистанцию в них. */
   sectorUnit: number;
+  /** Цель задания или обучения: куда лететь; id — если это корабль (у него своя стрелка у края). null — нет. */
+  objective?: (LootMark & { id?: number }) | null;
 }
 
 /**
@@ -151,6 +157,19 @@ export class PlayerOverlay {
   /** Рамка выбранной станции и стрелка к ней за краем экрана. */
   private readonly stationFrame = new Graphics();
   private readonly stationArrow = arrowTo(STATION_COLOR);
+  /** Цель задания: уголок над ней на экране и стрелка у края, когда она за экраном. */
+  private readonly objectiveMark = new Graphics()
+    .poly([-8, -5, 8, -5, 0, 5])
+    .fill(OBJECTIVE_COLOR)
+    .stroke({ width: 1.5, color: OUTLINE, join: 'round' });
+  private readonly objectiveArrow = new Graphics()
+    .poly([0, -12, 9, 8, -9, 8])
+    .fill(OBJECTIVE_COLOR)
+    .stroke({ width: 1.5, color: OUTLINE, join: 'round' });
+  /** Корабль-цель за краем: его собственная стрелка в золотом контуре — вторая стрелка легла бы на его подпись. */
+  private readonly objectiveOutline = new Graphics()
+    .poly([0, -17, 14, 12, -14, 12])
+    .stroke({ width: 2.5, color: OBJECTIVE_COLOR, join: 'round' });
 
   constructor() {
     this.view.addChild(
@@ -161,6 +180,9 @@ export class PlayerOverlay {
       this.lootArrow,
       this.stationFrame,
       this.stationArrow,
+      this.objectiveMark,
+      this.objectiveArrow,
+      this.objectiveOutline,
     );
   }
 
@@ -250,6 +272,7 @@ export class PlayerOverlay {
 
     this.drawMark(this.lootFrame, this.lootArrow, frame.loot, LOOT_COLOR, camera, cx, cy, width, height);
     this.drawMark(this.stationFrame, this.stationArrow, frame.station, STATION_COLOR, camera, cx, cy, width, height);
+    this.drawObjective(frame.objective ?? null, camera, cx, cy, width, height);
 
     this.ownBubble.visible = own?.protected ?? false;
     if (own?.protected) {
@@ -395,6 +418,45 @@ export class PlayerOverlay {
     arrow.position.set(x, y);
     arrow.rotation = Math.atan2(sx - cx, -(sy - cy));
     arrow.visible = true;
+  }
+
+  /**
+   * Цель задания: на экране — золотой уголок над ней (рамки выбора он не заслоняет),
+   * за краем — золотая стрелка, крупнее стрелок выбора.
+   */
+  private drawObjective(
+    mark: (LootMark & { id?: number }) | null,
+    camera: Camera,
+    cx: number,
+    cy: number,
+    width: number,
+    height: number,
+  ): void {
+    this.objectiveMark.visible = false;
+    this.objectiveArrow.visible = false;
+    this.objectiveOutline.visible = false;
+    if (!mark) return;
+    const sx = cx + (mark.x - camera.x) * camera.zoom;
+    const sy = cy + (mark.y - camera.y) * camera.zoom;
+    const r = mark.size * camera.zoom;
+    if (sx > -r && sx < width + r && sy > -r && sy < height + r) {
+      // Покачивается, чтобы глаз цеплялся за него среди рамок и подписей.
+      const bob = Math.sin(performance.now() / 250) * 3;
+      this.objectiveMark.position.set(sx, Math.max(8, sy - r - OBJECTIVE_LIFT + bob));
+      this.objectiveMark.visible = true;
+      return;
+    }
+    const ship = mark.id !== undefined ? this.markers.get(mark.id) : undefined;
+    if (ship?.seen && ship.arrow.visible) {
+      this.objectiveOutline.position.copyFrom(ship.arrow.position);
+      this.objectiveOutline.rotation = ship.arrow.rotation;
+      this.objectiveOutline.visible = true;
+      return;
+    }
+    const { x, y } = edgePoint(cx, cy, sx - cx, sy - cy);
+    this.objectiveArrow.position.set(x, y);
+    this.objectiveArrow.rotation = Math.atan2(sx - cx, -(sy - cy));
+    this.objectiveArrow.visible = true;
   }
 
   /** Уголки вокруг цели. */

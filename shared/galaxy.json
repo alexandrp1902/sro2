@@ -21,8 +21,8 @@
         { "name": "Юпитер", "kind": "gas", "size": 240, "orbit": { "radius": 3500, "periodMinutes": 240, "phase": 300 } }
       ],
       "drones": [
-        { "name": "Учебный дрон", "hull": "heavy", "x": -450, "y": 250, "hp": 600, "shield": 0 },
-        { "name": "Дрон-мишень", "hull": "light", "x": -750, "y": 750, "orbitRadius": 250, "throttle": 1 }
+        { "name": "Учебный дрон", "hull": "heavy", "x": -450, "y": 250, "hp": 600, "shield": 0, "table": "drone" },
+        { "name": "Дрон-мишень", "hull": "light", "x": -750, "y": 750, "orbitRadius": 250, "throttle": 1, "table": "drone" }
       ],
       "pirates": {
         "maxGroups": 2, "intervalSeconds": 60, "patrolMinSeconds": 120, "patrolMaxSeconds": 240,

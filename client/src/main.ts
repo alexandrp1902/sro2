@@ -13,7 +13,7 @@ import { Zoom } from './input/zoom';
 import { CombatEvents, type CombatEvent } from './net/combatEvents';
 import { Connection } from './net/connection';
 import { Prediction } from './net/prediction';
-import type { GalaxyDto, ShipDto, SnapshotMsg, SystemDto } from './net/protocol';
+import type { GalaxyDto, MissionsMsg, ShipDto, SnapshotMsg, SystemDto } from './net/protocol';
 import { RemoteShips } from './net/remoteShips';
 import { Roster } from './net/roster';
 import { resolveServerUrl } from './net/serverUrl';
@@ -35,6 +35,8 @@ import { DEFAULT_HULL, Hulls } from './sim/hulls';
 import { NO_LOOT, lootLabel, rarityColor, type LootRules } from './sim/loot';
 import { DT, directionAngle, localVelocity, type MoveInput } from './sim/movement';
 import { orbitSeconds } from './sim/orbits';
+import { objective, objectiveSystem, trackerLines, doneLines, type MissionNames, type Objective } from './sim/missions';
+import type { NpcRules } from './sim/npcs';
 import { DEFAULT_WEAPON, Weapons } from './sim/weapons';
 import { CargoHud, type CargoState } from './ui/cargoHud';
 import { CombatHud } from './ui/combatHud';
@@ -44,6 +46,7 @@ import { Feed, describeBurn, describeKill, describeNotice } from './ui/feed';
 import { FlightHud } from './ui/flightHud';
 import { GalaxyMap } from './ui/galaxyMap';
 import { Minimap } from './ui/minimap';
+import { ObjectiveHud } from './ui/objectiveHud';
 import { PilotForm, describeDenied } from './ui/pilotForm';
 import { StatusHud } from './ui/statusHud';
 import { account } from './util/account';
@@ -175,6 +178,15 @@ async function main(): Promise<void> {
   /** Топливо и бак (GDD §6) — из ангара: меняются только прыжком и заправкой. */
   let fuel = { fuel: 0, max: 0 };
   let home: string | null = null;
+  /** Обучение и задания (GDD §36, §54) — от сервера, по событию. */
+  let missions: MissionsMsg | null = null;
+  let npcRules: NpcRules | null = null;
+  /** Имена для текста заданий: сервер присылает id системы, типа пирата и предмета. */
+  const names: MissionNames = {
+    system: (id) => galaxy?.systems.find((s) => s.id === id)?.name ?? id,
+    npc: (type) => npcRules?.types?.[type]?.name ?? type,
+    item: (id) => lootRules.items?.[id]?.name ?? id,
+  };
 
   // Прицел один на всё: он на противнике, на грузе, на станции или на вратах. Наводка на предмет снимает цель и гасит огонь.
   // Тап по предмету только помечает его; подлетать игрок должен сам, автопилота в MVP нет (боевой документ §45).
@@ -242,13 +254,23 @@ async function main(): Promise<void> {
     onRepair: () => send({ t: 'repair' }),
     onRefuel: () => send({ t: 'refuel' }),
     onUndock: () => send({ t: 'dock', on: false }),
-  });
+    onAccept: (id) => send({ t: 'mission', action: 'accept', id }),
+    onAbandon: () => send({ t: 'mission', action: 'abandon' }),
+    onComplete: () => send({ t: 'mission', action: 'complete' }),
+    onSkipTutorial: () => send({ t: 'mission', action: 'skip' }),
+  }, names);
 
   // Карта галактики (GDD §55): M на ПК, тап по миникарте — везде.
   const galaxyMap = new GalaxyMap(el('galaxy'));
   const minimap = new Minimap(el('minimap') as HTMLCanvasElement, () => galaxyMap.toggle());
   const refreshGalaxyMap = () =>
-    galaxyMap.set(galaxy && system ? { galaxy, current: system.id, fuel: fuel.fuel, maxFuel: fuel.max, home } : null);
+    galaxyMap.set(
+      galaxy && system
+        ? { galaxy, current: system.id, fuel: fuel.fuel, maxFuel: fuel.max, home, objective: objectiveSystem(missions, system.id, galaxy) }
+        : null,
+    );
+  // Трекер цели: тап — карта галактики, на ней звёздочкой отмечена система задания.
+  const objectiveHud = new ObjectiveHud(el('objective'), () => galaxyMap.show());
   window.addEventListener('keydown', (e) => {
     if (e.code !== 'KeyM' || e.repeat || e.ctrlKey || e.metaKey || e.altKey) return;
     if (e.target instanceof HTMLInputElement) return;
@@ -456,7 +478,7 @@ async function main(): Promise<void> {
       world.removeChild(oldNebula.view);
       oldNebula.view.destroy({ children: true, texture: true, textureSource: true });
     }
-    dockScreen.setStation(system?.station ? system.name : null);
+    dockScreen.setStation(system?.station ? system.name : null, system?.id ?? null);
     if (was?.id !== system?.id) {
       setMark(0);
       setTarget(0);
@@ -470,6 +492,44 @@ async function main(): Promise<void> {
     refreshGalaxyMap();
   };
 
+  /**
+   * Где цель задания в этой системе: ближайший дрон, пират или груз, станция, врата. Кого нет на радаре —
+   * на того и не указываем: трекер всё равно говорит, что делать.
+   */
+  const locateObjective = (goal: Objective | null, from: { x: number; y: number }) => {
+    if (!goal) return null;
+    const closest = <T extends { x: number; y: number }>(list: Iterable<T>): T | null => {
+      let best: T | null = null;
+      let bestDistance = Infinity;
+      for (const item of list) {
+        const d = Math.hypot(item.x - from.x, item.y - from.y);
+        if (d < bestDistance) {
+          best = item;
+          bestDistance = d;
+        }
+      }
+      return best;
+    };
+    switch (goal.kind) {
+      case 'drone':
+        return closest([...remote.visible()].filter((s) => s.kind === 'drone' && !s.dead));
+      case 'pirate': {
+        // Тип пирата в снапшоте не приходит — узнаём по корпусу типа из npcs.json.
+        const hull = goal.npc ? npcRules?.types?.[goal.npc]?.hull : undefined;
+        return closest([...remote.visible()].filter((s) => s.kind === 'pirate' && !s.dead && (!hull || s.hull === hull)));
+      }
+      case 'loot':
+        return closest(loot.visible());
+      case 'station':
+        return system && !system.station ? null : { ...systemView.stationAt, size: STATION.radius };
+      case 'gate': {
+        const gates = system?.gates ?? [];
+        const gate = goal.to ? gates.find((g) => g.to === goal.to) : [...gates].sort((a, b) => a.cost - b.cost)[0];
+        return gate ? { x: gate.x, y: gate.y, size: GATE_SIZE } : null;
+      }
+    }
+  };
+
   // За кадр сверяемся только с самым свежим снапшотом; чужим кораблям нужен весь поток.
   let latestSnapshot: SnapshotMsg | null = null;
   if (connection) {
@@ -481,6 +541,7 @@ async function main(): Promise<void> {
       applySystem(message.system, message.galaxy, true);
       sectorUnit = message.combat.sectorUnit || DEFAULT_SECTOR_UNIT;
       lootRules = message.loot ?? NO_LOOT;
+      npcRules = message.npcs ?? null;
       loot.setRules(message.loot);
       cargoHud.setRules(message.loot);
       dockScreen.setRules(message.loot, message.shop);
@@ -503,13 +564,20 @@ async function main(): Promise<void> {
       if (message.system) applySystem(message.system, message.galaxy, false);
       sectorUnit = message.combat.sectorUnit || DEFAULT_SECTOR_UNIT;
       lootRules = message.loot ?? NO_LOOT;
+      npcRules = message.npcs ?? null;
       loot.setRules(message.loot);
       cargoHud.setRules(message.loot);
       dockScreen.setRules(message.loot, message.shop);
       meteors.setRules(message.meteors);
     };
     connection.onCargo = (message) => {
-      const cargo: CargoState = { used: message.used, max: message.max, items: message.items, credits: message.credits ?? 0 };
+      const cargo: CargoState = {
+        used: message.used,
+        max: message.max,
+        items: message.items,
+        credits: message.credits ?? 0,
+        reserved: message.reserved ?? 0,
+      };
       cargoHud.setCargo(cargo);
       dockScreen.setCargo(cargo);
     };
@@ -533,6 +601,12 @@ async function main(): Promise<void> {
       }
       // Вылет: сервер начал буфер входов заново — и мы нумеруем их с 1, первый снапшот принимаем как есть.
       if (!docked && was) prediction.resetNet();
+    };
+    connection.onMissions = (message) => {
+      missions = message;
+      dockScreen.setMissions(message);
+      if (message.done) for (const line of doneLines(message.done)) feed.add(line);
+      refreshGalaxyMap();
     };
     connection.onAccount = (message) => {
       if (message.key && serverUrl) account.setKey(serverUrl, message.key);
@@ -615,6 +689,8 @@ async function main(): Promise<void> {
       ownDto = null;
       docked = false; // с новым соединением сервер заново скажет, где корабль
       dockScreen.setHangar(null);
+      missions = null;
+      dockScreen.setMissions(null);
     }
     wasOnline = online;
     if (latestSnapshot && online) {
@@ -681,6 +757,10 @@ async function main(): Promise<void> {
     let attackers = 0;
     for (const ship of remote.visible()) if (ship.kind === 'pirate' && ship.targetId === me) attackers++;
 
+    // Цель задания или обучения: на неё указывает золотой маркер, на миникарте — кольцо.
+    const goal = online ? locateObjective(objective(missions, system?.id ?? null, galaxy, docked || dead), state) : null;
+    objectiveHud.update(online && !docked ? trackerLines(missions, system?.id ?? null, docked, names) : null);
+
     camera.follow(state.x, state.y, zoom.value).apply(world, app.screen.width, app.screen.height);
     starfield.update(camera.x, camera.y, camera.zoom, app.screen.width, app.screen.height);
     nebula.update(now);
@@ -698,6 +778,7 @@ async function main(): Promise<void> {
       loot: selectedLoot ? { x: selectedLoot.x, y: selectedLoot.y, size: selectedLoot.size } : null,
       station: selectedMark(),
       sectorUnit,
+      objective: goal,
     });
     fx.update(now, camera.zoom, locate);
     const gate = selectedGate();
@@ -764,6 +845,7 @@ async function main(): Promise<void> {
         radar: hull.radar ?? DEFAULT_RADAR,
         ships: [...remote.visible()].map((s) => ({ id: s.id, x: s.x, y: s.y, kind: s.kind, dead: s.dead })),
         targetId,
+        objective: goal,
       },
       now,
     );

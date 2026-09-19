@@ -1003,6 +1003,48 @@ body {
   font-weight: 600;
 }
 
+/* Вкладка «Задания»: обучение и своё задание — карточками над доской станции. */
+.dock-mission {
+  margin: 8px 0;
+  padding: 10px 12px;
+  border-left: 3px solid #ffd166;
+  border-radius: 8px;
+  background: rgba(255, 209, 102, 0.07);
+}
+
+.dock-mission .dock-name {
+  margin: 2px 0;
+}
+
+.dock-mission-head {
+  color: #ffd166;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.dock-mission-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 14px;
+  margin-top: 8px;
+}
+
+.dock-link {
+  padding: 6px 0;
+  border: 0;
+  background: transparent;
+  color: #8fb4e8;
+  font: inherit;
+  font-size: 13px;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.cargo-mission {
+  color: #ffd166;
+}
+
 .dock-sell-all {
   display: block;
   width: 100%;
@@ -1047,6 +1089,45 @@ body {
   top: calc(env(safe-area-inset-top) + 172px);
 }
 
+/* Трекер цели (GDD §36, §54): справа под миникартой, золотой — как маркер цели в мире. */
+.objective {
+  position: absolute;
+  top: calc(env(safe-area-inset-top) + 172px);
+  right: calc(env(safe-area-inset-right) + 10px);
+  width: 200px;
+  box-sizing: border-box;
+  padding: 6px 8px;
+  border-left: 3px solid #ffd166;
+  border-radius: 8px;
+  background: rgba(10, 16, 28, 0.66);
+  font-size: 13px;
+  line-height: 17px;
+  pointer-events: auto;
+  cursor: pointer;
+}
+
+.objective[hidden],
+.objective-hint[hidden] {
+  display: none;
+}
+
+.objective-title {
+  color: #ffd166;
+  font-weight: 600;
+}
+
+.objective-hint {
+  margin-top: 2px;
+  color: #b8c6da;
+  font-size: 12px;
+  line-height: 15px;
+}
+
+/* Трекер занял место под миникартой — dev-панель ещё ниже. */
+#minimap:not([hidden]) ~ #objective:not([hidden]) ~ .dev {
+  top: calc(env(safe-area-inset-top) + 270px);
+}
+
 @media (max-width: 520px) {
   /* На телефоне строка полёта уехала влево, во второй ряд: справа от неё и встаёт миникарта. Первый ряд — статусу. */
   .minimap {
@@ -1057,6 +1138,19 @@ body {
 
   #minimap:not([hidden]) ~ .dev {
     top: calc(env(safe-area-inset-top) + 124px);
+  }
+
+  /* Лента слева не заходит под трекер справа. */
+  #objective:not([hidden]) ~ .feed {
+    max-width: calc(100vw - min(170px, 44vw) - 30px);
+  }
+
+  /* На телефоне правая колонка свободна до карточки цели внизу — трекер под миникартой, поуже. */
+  .objective {
+    top: calc(env(safe-area-inset-top) + 140px);
+    width: min(170px, 44vw);
+    font-size: 12px;
+    line-height: 15px;
   }
 }
 
@@ -1164,6 +1258,13 @@ body {
   stroke: #ffffff;
   stroke-width: 0.5;
   stroke-dasharray: 1 0.8;
+}
+
+/* Система задания — золотое кольцо, как маркер цели в мире. */
+.galaxy-objective {
+  fill: none;
+  stroke: #ffd166;
+  stroke-width: 0.7;
 }
 
 .galaxy-station {

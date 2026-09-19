@@ -18,6 +18,7 @@ const COLORS = {
   pirate: '#ff6b5a',
   drone: '#9ccf9a',
   target: '#ffffff',
+  objective: '#ffd166',
 };
 
 /** Точка на миникарте: корабль в радаре. */
@@ -42,6 +43,8 @@ export interface MinimapFrame {
   radar: number;
   ships: Iterable<MinimapShip>;
   targetId: number;
+  /** Цель задания или обучения — золотое кольцо; null — нет. */
+  objective?: { x: number; y: number } | null;
 }
 
 /**
@@ -145,6 +148,14 @@ export class Minimap {
         ctx.arc(px(ship.x), px(ship.y), 4.5 * dpr, 0, 2 * Math.PI);
         ctx.stroke();
       }
+    }
+
+    if (frame.objective) {
+      ctx.beginPath();
+      ctx.arc(px(frame.objective.x), px(frame.objective.y), 6 * dpr, 0, 2 * Math.PI);
+      ctx.strokeStyle = COLORS.objective;
+      ctx.lineWidth = 1.5 * dpr;
+      ctx.stroke();
     }
 
     if (frame.own) {

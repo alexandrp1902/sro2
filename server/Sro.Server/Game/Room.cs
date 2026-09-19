@@ -189,6 +189,8 @@ public sealed class Room
             Home = SystemId,
         };
         player.Fuel = Tank(player);
+        // Гость — это тесты, смоук-скрипты и боты: обучения у него нет, доска заданий есть.
+        player.Missions.Seed = Random.Shared.Next();
         Enter(player, connection);
     }
 
@@ -224,23 +226,40 @@ public sealed class Room
         // Профиль старше M7 — бак полный. Дом — система, где пилот появился: её выбрала галактика по профилю.
         player.Fuel = Math.Clamp(profile?.Fuel ?? int.MaxValue, 0, Tank(player));
         player.Home = SystemId;
+        // Обучение — только новому пилоту (GDD §54): профиль старше M8 считается прошедшим его.
+        player.Missions.Tutorial = profile is null ? 0 : profile.Tutorial ?? MissionLog.Finished;
+        player.Missions.Active = profile?.Mission;
+        player.Missions.Seed = profile?.MissionSeed ?? Random.Shared.Next();
+        player.Cargo.Reserved = Reserve(player.Missions.Active);
         Enter(player, connection);
         if (profile is null) Save(player);
     }
 
-    /// <summary>Новый корабль в системе: у станции, с защитой (GDD §25).</summary>
+    /// <summary>
+    /// Новый корабль в системе: у станции, с защитой (GDD §25). Новичок начинает в доке: первый шаг обучения —
+    /// вылететь с базы (§54).
+    /// </summary>
     private void Enter(Player player, IClientConnection connection)
     {
         SpawnHere(player);
         player.Attach(connection);
         _players[player.Id] = player;
-        _ships[player.Id] = player;
+        if (Balance.HasStation && Balance.Missions.Step(player.Missions.Tutorial)?.Id == MissionRules.UndockStep)
+        {
+            player.Docked = true;
+            player.DockOffset = Balance.StationPath.ToLocal(OrbitSeconds, player.Ship.X, player.Ship.Y);
+        }
+        else
+        {
+            _ships[player.Id] = player;
+        }
         _byConnection[connection.Id] = player;
         if (player.Token is not null) _byToken[player.Token] = player;
         connection.Send(Welcome(player, resumed: false));
         BroadcastPlayers();
         SendCargo(player); // трюм пуст, но клиенту нужна ёмкость корпуса
         SendHangar(player);
+        SendMissions(player);
         _log.LogInformation("Player {Id} '{Name}' joined as {Hull}, online {Count}", player.Id, player.Name, player.HullId, OnlineCount);
     }
 
@@ -260,6 +279,7 @@ public sealed class Room
         BroadcastPlayers();
         SendCargo(player); // иначе вернувшийся видел бы пустой трюм до первого подбора
         SendHangar(player); // в том числе — что корабль всё ещё в доке
+        SendMissions(player);
         _log.LogInformation("Player {Id} '{Name}' resumed, online {Count}", player.Id, player.Name, OnlineCount);
     }
 
@@ -315,6 +335,9 @@ public sealed class Room
             SendCargo(player);
             SendHangar(player);
         }
+        // Доска — уже этой системы. Прыжок — шаг обучения; засчитывается после welcome, чтобы строка в ленте
+        // пришла уже в новую систему.
+        if (arrival is null || !Advance(player, MissionRules.JumpStep)) SendMissions(player);
         BroadcastPlayers();
         _log.LogInformation("Player {Id} '{Name}' arrived in {System}", player.Id, player.Name, SystemId);
     }
@@ -541,6 +564,7 @@ public sealed class Room
             player.Connection?.SendRaw(message);
             SendCargo(player); // объёмы предметов и ёмкость корпуса могли измениться
             SendHangar(player); // корпус или пушку могли убрать из баланса
+            SendMissions(player); // шаги обучения и шаблоны доски
         }
 
         if (!old.Rules.DroneList.SequenceEqual(balance.Rules.DroneList))
@@ -592,6 +616,11 @@ public sealed class Room
         // одновременно пиратом и метеоритом, погибает один раз.
         _meteors.Collide(_ships, Balance, Tick, _shots);
         _battle.Run(Tick, _ships, Balance, _shots, _kills, Spawn, CanAttack);
+        // Задания — до уборки налётчиков: погибший должен ещё найтись среди кораблей.
+        foreach (var kill in _kills)
+        {
+            if (_players.GetValueOrDefault(kill.By) is { } killer) CountKill(killer, _ships.GetValueOrDefault(kill.Id));
+        }
         foreach (var meteor in _meteors.Shatter(_loot, Balance.Loot, Tick)) RemoveShip(meteor);
         RemoveGonePirates();
         StepRaids();
@@ -1062,6 +1091,7 @@ public sealed class Room
                 player.SelectedLootId = 0;
                 SendCargo(player);
                 Save(player);
+                if (!Advance(player, MissionRules.GrabStep)) SendCollect(player);
                 break;
             case LootSystem.GrabResult.NoRoom:
                 WarnCargoFull(player);
@@ -1109,6 +1139,7 @@ public sealed class Room
         SendCargo(player);
         Save(player);
         _log.LogInformation("Player {Id} sold cargo for {Credits} credits", player.Id, credits);
+        if (!Advance(player, MissionRules.SellStep)) SendCollect(player);
     }
 
     /// <summary>
@@ -1143,6 +1174,9 @@ public sealed class Room
             RemoveShip(player);
             Save(player);
             _log.LogInformation("Player {Id} docked in {System}", player.Id, SystemId);
+            // Груз доставки сдаётся сам, стоит пристыковаться к нужной станции.
+            if (player.Missions.Active?.Offer is { Kind: MissionRules.DeliverKind } deliver && deliver.System == SystemId)
+                Complete(player);
         }
         else
         {
@@ -1155,6 +1189,7 @@ public sealed class Room
             _log.LogInformation("Player {Id} undocked", player.Id);
         }
         SendHangar(player);
+        if (!on) Advance(player, MissionRules.UndockStep);
     }
 
     /// <summary>Купить в доке корпус или пушку (GDD §26, §30). Купленное сразу ставится на корабль.</summary>
@@ -1259,7 +1294,159 @@ public sealed class Room
             [.. player.Weapons.Order(StringComparer.Ordinal)],
             new Dictionary<string, int>(player.Cargo.Items),
             player.Fuel,
-            player.Home));
+            player.Home,
+            player.Missions.Tutorial,
+            player.Missions.Active,
+            player.Missions.Seed));
+    }
+
+    /// <summary>
+    /// Задания (GDD §36): взять с доски и сдать «собрать» — в доке, бросить — где угодно; пропустить обучение (§54).
+    /// Взять можно только одно; груз доставки должен влезть в трюм.
+    /// </summary>
+    public void Mission(IClientConnection connection, string? action, string? id)
+    {
+        if (!_byConnection.TryGetValue(connection.Id, out var player)) return;
+        var log = player.Missions;
+        switch (action)
+        {
+            case Protocol.AcceptMission:
+            {
+                if (log.Active is not null) return;
+                if (!player.Docked)
+                {
+                    connection.Send(new NoticeMsg(Protocol.TooFarNotice));
+                    return;
+                }
+                var offer = Board(player).FirstOrDefault(o => o.Id == id);
+                if (offer is null)
+                {
+                    SendMissions(player); // доска успела смениться: пусть клиент увидит новую
+                    return;
+                }
+                if (offer.Kind == MissionRules.DeliverKind &&
+                    player.Cargo.Used(Balance.Loot) + offer.Count > player.Hull(Hulls).Cargo)
+                {
+                    connection.Send(new NoticeMsg(Protocol.CargoFullNotice));
+                    return;
+                }
+                log.Active = new ActiveMission(offer);
+                log.Seed++;
+                player.Cargo.Reserved = Reserve(log.Active);
+                _log.LogInformation("Player {Id} took a {Kind} mission for {Reward} credits", player.Id, offer.Kind, offer.Reward);
+                break;
+            }
+            case Protocol.AbandonMission:
+                if (log.Active is null) return;
+                log.Active = null;
+                player.Cargo.Reserved = 0;
+                break;
+            case Protocol.CompleteMission:
+            {
+                if (log.Active?.Offer is not { Kind: MissionRules.CollectKind, Item: { } item } collect) return;
+                if (!player.Docked)
+                {
+                    connection.Send(new NoticeMsg(Protocol.TooFarNotice));
+                    return;
+                }
+                if (!player.Cargo.Remove(item, collect.Count)) return;
+                Complete(player);
+                return;
+            }
+            case Protocol.SkipTutorial:
+                if (log.Tutorial == MissionLog.Finished) return;
+                log.Tutorial = MissionLog.Finished;
+                break;
+            default:
+                return;
+        }
+        SendCargo(player);
+        SendMissions(player);
+        Save(player);
+    }
+
+    /// <summary>Шаг обучения stepId сделан — если он сейчас текущий. Шаги идут строго по порядку.</summary>
+    /// <returns>true — засчитан: состояние заданий уже ушло клиенту.</returns>
+    private bool Advance(Player player, string stepId)
+    {
+        var rules = Balance.Missions;
+        if (rules.Step(player.Missions.Tutorial) is not { } step || step.Id != stepId) return false;
+        var last = rules.Step(player.Missions.Tutorial + 1) is null;
+        player.Missions.Tutorial = last ? MissionLog.Finished : player.Missions.Tutorial + 1;
+        player.Credits += step.Reward;
+        SendCargo(player);
+        SendMissions(player, new MissionDoneDto(Protocol.TutorialDone, step.Reward, step.Title, Last: last));
+        Save(player);
+        _log.LogInformation("Player {Id} did tutorial step {Step} for {Reward} credits", player.Id, step.Id, step.Reward);
+        return true;
+    }
+
+    /// <summary>Пилот уничтожил корабль: учебный дрон — шаг обучения, пират — в счёт задания в той системе.</summary>
+    private void CountKill(Player player, ShipEntity? victim)
+    {
+        if (victim is Drone)
+        {
+            Advance(player, MissionRules.DroneStep);
+            return;
+        }
+        if (victim is not Pirate pirate || player.Missions.Active is not { } active) return;
+        var offer = active.Offer;
+        if (offer.Kind != MissionRules.KillKind || offer.System != SystemId) return;
+        if (offer.Npc is not null && offer.Npc != pirate.Spawn.Type) return;
+        player.Missions.Active = active with { Progress = active.Progress + 1 };
+        if (active.Progress + 1 >= offer.Count)
+        {
+            Complete(player);
+            return;
+        }
+        SendMissions(player);
+        Save(player);
+    }
+
+    /// <summary>Задание выполнено: награда, место в трюме свободно, доска обновляется.</summary>
+    private void Complete(Player player)
+    {
+        if (player.Missions.Active is not { } active) return;
+        player.Missions.Active = null;
+        player.Missions.Seed++;
+        player.Cargo.Reserved = 0;
+        player.Credits += active.Offer.Reward;
+        SendCargo(player);
+        SendMissions(player, new MissionDoneDto(Protocol.MissionDone, active.Offer.Reward, Mission: active.Offer));
+        Save(player);
+        _log.LogInformation(
+            "Player {Id} completed a {Kind} mission for {Reward} credits", player.Id, active.Offer.Kind, active.Offer.Reward);
+    }
+
+    /// <summary>У «собрать» прогресс — сколько такого в трюме: трюм изменился — клиенту новый счёт.</summary>
+    private void SendCollect(Player player)
+    {
+        if (player.Missions.Active?.Offer.Kind == MissionRules.CollectKind) SendMissions(player);
+    }
+
+    /// <summary>Сколько места в трюме держит задание: груз доставки.</summary>
+    private static int Reserve(ActiveMission? active) =>
+        active?.Offer is { Kind: MissionRules.DeliverKind } deliver ? deliver.Count : 0;
+
+    /// <summary>Доска станции этой системы для пилота; без станции — пусто.</summary>
+    private IReadOnlyList<MissionOffer> Board(Player player) =>
+        Balance.HasStation ? Balance.Missions.Board(Balance, SystemId, player.Missions.Seed) : [];
+
+    /// <summary>Обучение и задания — личное дело пилота, как и трюм.</summary>
+    private void SendMissions(Player player, MissionDoneDto? done = null)
+    {
+        if (player.Connection is null) return;
+        var rules = Balance.Missions;
+        var log = player.Missions;
+        var step = rules.Step(log.Tutorial);
+        var active = log.Active;
+        if (active?.Offer is { Kind: MissionRules.CollectKind, Item: { } item })
+            active = active with { Progress = Math.Min(active.Offer.Count, player.Cargo.Items.GetValueOrDefault(item)) };
+        player.Connection.Send(new MissionsMsg(
+            step is null ? null : new TutorialDto(log.Tutorial, rules.Steps.Count, step.Id, step.Title, step.Hint),
+            active,
+            Board(player),
+            done));
     }
 
     /// <summary>Трюм — личное дело игрока: снапшот один на всех, места для него там нет.</summary>
@@ -1271,7 +1458,8 @@ public sealed class Room
             player.Cargo.Used(loot),
             player.Hull(Hulls).Cargo,
             player.Cargo.Items,
-            player.Credits));
+            player.Credits,
+            player.Cargo.Reserved));
     }
 
     /// <summary>«Недостаточно места в трюме» (GDD §21) — не чаще раза в FullHoldSeconds, иначе это спам.</summary>

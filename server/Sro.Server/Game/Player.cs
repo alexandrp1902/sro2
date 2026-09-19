@@ -66,6 +66,9 @@ public sealed class Player(int id, string? token, string name, string hullId, st
     /// <summary>В этот тик прыжок состоится.</summary>
     public long JumpAtTick;
 
+    /// <summary>Обучение и задания (GDD §36, §54).</summary>
+    public MissionLog Missions { get; } = new();
+
     /// <summary>Что этот клиент уже знает о системе — от этого считаются дельты снапшота.</summary>
     public SnapshotCodec.Encoder View { get; } = new();
 

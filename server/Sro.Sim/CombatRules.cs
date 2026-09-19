@@ -8,6 +8,7 @@ namespace Sro.Sim;
 /// <param name="Throttle">Тяга на орбите, 0…1.</param>
 /// <param name="Hp">Своя прочность вместо корпусной; null — как у корпуса.</param>
 /// <param name="Shield">Свой щит вместо корпусного; null — как у корпуса.</param>
+/// <param name="Table">Таблица лута из loot.json, что выпадает с дрона; null — ничего (обучение, GDD §54: «подобрать выпавший ресурс»).</param>
 public sealed record DroneSpec(
     string Name,
     string Hull,
@@ -16,7 +17,8 @@ public sealed record DroneSpec(
     double OrbitRadius = 0,
     double Throttle = 1,
     double? Hp = null,
-    double? Shield = null)
+    double? Shield = null,
+    string? Table = null)
 {
     public string? Validate(IReadOnlyDictionary<string, HullParams> hulls)
     {
@@ -95,10 +97,14 @@ public sealed record CombatRules(
 
 /// <summary>Тексты файлов баланса — по имени, а не по позиции: восемь соседних строк легко переставить и не заметить.</summary>
 /// <param name="Galaxy">galaxy.json; null — одна система, раскладка из npcs.json, loot.json и combat.json.</param>
-public sealed record BalanceSources(string Hulls, string Weapons, string Rules, string Npcs, string Loot, string Meteors, string Shop, string? Galaxy = null);
+/// <param name="Missions">missions.json; null — заданий и обучения нет.</param>
+public sealed record BalanceSources(
+    string Hulls, string Weapons, string Rules, string Npcs, string Loot, string Meteors, string Shop,
+    string? Galaxy = null, string? Missions = null);
 
 /// <summary>
-/// Весь баланс: корпуса, пушки, правила боя, NPC, лут, метеориты, магазин станции, галактика. Меняется только целиком.
+/// Весь баланс: корпуса, пушки, правила боя, NPC, лут, метеориты, магазин станции, галактика, задания.
+/// Меняется только целиком.
 /// Комната системы получает свой вид баланса (<see cref="ForSystem"/>): логова, контейнеры и дроны — её собственные.
 /// </summary>
 /// <param name="Npcs">Пираты; null — NPC, кроме дронов, нет.</param>
@@ -111,6 +117,7 @@ public sealed record BalanceSources(string Hulls, string Weapons, string Rules, 
 /// Метеориты пролетают не ближе этого к центру системы. Обычно — укрытие станции, но в системе без станции
 /// укрытия нет, а звезда в центре никуда не делась.
 /// </param>
+/// <param name="MissionSet">Задания и обучение; null — их нет.</param>
 public sealed record Balance(
     IReadOnlyDictionary<string, HullParams> Hulls,
     IReadOnlyDictionary<string, WeaponParams> Weapons,
@@ -121,7 +128,8 @@ public sealed record Balance(
     ShopRules? ShopSet = null,
     GalaxyRules? GalaxySet = null,
     string? SystemId = null,
-    double? CoreRadius = null)
+    double? CoreRadius = null,
+    MissionRules? MissionSet = null)
 {
     public const string HullsFile = "hulls.json";
     public const string WeaponsFile = "weapons.json";
@@ -131,9 +139,10 @@ public sealed record Balance(
     public const string MeteorsFile = MeteorRules.File;
     public const string ShopFile = ShopRules.File;
     public const string GalaxyFile = GalaxyRules.File;
+    public const string MissionsFile = MissionRules.File;
 
     /// <summary>Все файлы баланса в порядке разбора.</summary>
-    public static readonly string[] Files = [HullsFile, WeaponsFile, RulesFile, NpcsFile, LootFile, MeteorsFile, ShopFile, GalaxyFile];
+    public static readonly string[] Files = [HullsFile, WeaponsFile, RulesFile, NpcsFile, LootFile, MeteorsFile, ShopFile, GalaxyFile, MissionsFile];
 
     public NpcRules Npc => Npcs ?? NpcRules.None;
 
@@ -144,6 +153,8 @@ public sealed record Balance(
     public ShopRules Shop => ShopSet ?? ShopRules.None;
 
     public GalaxyRules Galaxy => GalaxySet ?? GalaxyRules.Single;
+
+    public MissionRules Missions => MissionSet ?? MissionRules.None;
 
     /// <summary>Система этого вида баланса.</summary>
     public string System => SystemId ?? Galaxy.StartSystem;
@@ -206,6 +217,10 @@ public sealed record Balance(
         var view = View(b, system);
         if (view.Rules.Validate(b.Hulls) is { } rules) return rules;
         var orbit = system.Station ? system.StationPath.Radius : 0;
+        foreach (var drone in view.Rules.DroneList)
+        {
+            if (drone.Table is { } table && !b.Loot.TableMap.ContainsKey(table)) return $"drones: unknown loot table '{table}'";
+        }
         if (view.Npc.Validate(b.Hulls, b.Weapons, orbit) is { } npcs) return npcs;
         if (system.Pirates?.Validate(b.Npc.TypeMap) is { } raids) return $"pirates: {raids}";
         return view.Loot.Validate(view.Npc.StationSafeRadius, orbit);
@@ -213,7 +228,8 @@ public sealed record Balance(
 
     /// <summary>
     /// Разбирает все файлы вместе: правила и NPC ссылаются на корпуса и пушки, лут — на укрытие из NPC,
-    /// метеориты — на корпуса, укрытие и таблицы лута, магазин — на корпуса и пушки, галактика — на всё сразу.
+    /// метеориты — на корпуса, укрытие и таблицы лута, магазин — на корпуса и пушки, галактика — на всё сразу,
+/// задания — на типы пиратов и предметы.
     /// </summary>
     public static bool TryParse(BalanceSources sources, out Balance? balance, out string? error)
     {
@@ -263,6 +279,15 @@ public sealed record Balance(
                 return false;
             }
             parsed = parsed with { GalaxySet = galaxy };
+        }
+        if (sources.Missions is not null)
+        {
+            if (!MissionRules.TryParse(sources.Missions, npcs.TypeMap, loot.ItemMap, out var missions, out error))
+            {
+                error = $"{MissionsFile}: {error}";
+                return false;
+            }
+            parsed = parsed with { MissionSet = missions };
         }
         balance = parsed;
         return true;

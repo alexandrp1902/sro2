@@ -82,7 +82,7 @@ public sealed class BalanceStore : IDisposable
     }
 
     private static bool Parse(string[] texts, out Balance? balance, out string? error) =>
-        Balance.TryParse(new BalanceSources(texts[0], texts[1], texts[2], texts[3], texts[4], texts[5], texts[6], texts[7]), out balance, out error);
+        Balance.TryParse(new BalanceSources(texts[0], texts[1], texts[2], texts[3], texts[4], texts[5], texts[6], texts[7], texts[8]), out balance, out error);
 
     private string? TryRead(string file)
     {

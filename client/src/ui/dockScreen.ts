@@ -1,7 +1,8 @@
-import type { BuyKind, HangarMsg } from '../net/protocol';
+import type { BuyKind, HangarMsg, MissionOffer, MissionsMsg } from '../net/protocol';
 import type { WeaponParams } from '../sim/combat';
 import { itemSprite, shipSprite, spriteUrl, weaponSprite } from '../render/sprites';
 import type { Hulls } from '../sim/hulls';
+import { activeHint, activeLine, offerNote, offerTitle, type MissionNames } from '../sim/missions';
 import { lootItem, rarityColor, type LootRules } from '../sim/loot';
 import { NO_SHOP, formatCredits, fuelCost, price, repairCost, type ShopRules } from '../sim/shop';
 import type { Weapons } from '../sim/weapons';
@@ -27,9 +28,10 @@ export function offerState(owned: boolean, active: boolean, cost: number | null,
   return cost <= credits ? 'buy' : 'poor';
 }
 
-type Tab = 'cargo' | 'hulls' | 'weapons';
+export type Tab = 'missions' | 'cargo' | 'hulls' | 'weapons';
 
 const TABS: { id: Tab; label: string }[] = [
+  { id: 'missions', label: 'Задания' },
   { id: 'cargo', label: 'Груз' },
   { id: 'hulls', label: 'Корабли' },
   { id: 'weapons', label: 'Оружие' },
@@ -44,6 +46,24 @@ export interface DockHandlers {
   onRepair(): void;
   onRefuel(): void;
   onUndock(): void;
+  /** Взять задание с доски. */
+  onAccept(id: string): void;
+  /** Бросить своё задание. */
+  onAbandon(): void;
+  /** Сдать «собрать». */
+  onComplete(): void;
+  onSkipTutorial(): void;
+}
+
+/**
+ * С какой вкладки начать заход в док: идёт обучение или есть что сдать — с заданий, иначе с груза.
+ * @param cargo что лежит в трюме — хватает ли на «собрать»
+ */
+export function startTab(missions: MissionsMsg | null, cargo: Record<string, number>): Tab {
+  if (missions?.tutorial) return 'missions';
+  const offer = missions?.active?.offer;
+  if (offer?.kind === 'collect' && (cargo[offer.item ?? ''] ?? 0) >= offer.count) return 'missions';
+  return 'cargo';
 }
 
 /**
@@ -57,12 +77,15 @@ export class DockScreen {
   private loot: LootRules | null = null;
   private shop: ShopRules = NO_SHOP;
   private station = 'Станция';
+  private here: string | null = null;
+  private missions: MissionsMsg | null = null;
 
   constructor(
     private readonly root: HTMLElement,
     private readonly hulls: Hulls,
     private readonly weapons: Weapons,
     private readonly handlers: DockHandlers,
+    private readonly names: MissionNames,
   ) {}
 
   get open(): boolean {
@@ -82,14 +105,24 @@ export class DockScreen {
 
   /** null — связи нет: экран закрыт до нового ангара от сервера. */
   setHangar(hangar: HangarMsg | null): void {
-    if (hangar?.docked && !this.open) this.tab = 'cargo'; // каждый заход в док начинается с груза
+    // Каждый заход в док начинается с груза — или с заданий, если там ждут.
+    if (hangar?.docked && !this.open) this.tab = startTab(this.missions, this.cargo?.items ?? {});
     this.hangar = hangar;
     this.render();
   }
 
   /** Имя станции в заголовке — по системе: «Станция Vega». */
-  setStation(name: string | null): void {
+  setStation(name: string | null, system: string | null = null): void {
     this.station = name ? `Станция ${name}` : 'Станция';
+    this.here = system;
+    this.render();
+  }
+
+  /** Обучение, взятое задание и доска этой станции. */
+  setMissions(missions: MissionsMsg | null): void {
+    // Новичок входит сразу в док, а задания приходят следом за ангаром — тогда и открываем их вкладку.
+    if (this.open && missions?.tutorial && !this.missions?.tutorial) this.tab = 'missions';
+    this.missions = missions;
     this.render();
   }
 
@@ -127,7 +160,8 @@ export class DockScreen {
 
     const body = el('div', 'dock-body');
     body.dataset.tab = this.tab;
-    if (this.tab === 'cargo') this.renderCargo(body);
+    if (this.tab === 'missions') this.renderMissions(body, hangar);
+    else if (this.tab === 'cargo') this.renderCargo(body);
     else if (this.tab === 'hulls') this.renderHulls(body, hangar, credits);
     else this.renderWeapons(body, hangar, credits);
     card.append(body);
@@ -177,6 +211,7 @@ export class DockScreen {
     const rules = this.loot;
     if (!cargo || !rules) return;
     body.append(el('div', 'dock-note', `Трюм ${round(cargo.used)} / ${round(cargo.max)}`));
+    if (cargo.reserved > 0) body.append(el('div', 'dock-note', `Из них груз задания — ${cargo.reserved} ед.: не продаётся`));
     const items = Object.entries(cargo.items);
     if (items.length === 0) {
       body.append(el('div', 'dock-empty', 'Трюм пуст. Груз добывают с пиратов, метеоритов и из контейнеров.'));
@@ -199,6 +234,58 @@ export class DockScreen {
     if (rules.stationUnload && items.length > 1) {
       body.append(button(`Продать всё · ${formatCredits(total)}`, 'dock-buy dock-sell-all', () => this.handlers.onSell()));
     }
+  }
+
+  /** Обучение (GDD §54), своё задание и доска станции (§36). */
+  private renderMissions(body: HTMLElement, hangar: HangarMsg): void {
+    const missions = this.missions;
+    if (!missions) return;
+    const tutorial = missions.tutorial;
+    if (tutorial) {
+      const box = el('div', 'dock-mission dock-tutorial');
+      box.append(el('div', 'dock-mission-head', `Обучение · шаг ${tutorial.step + 1} из ${tutorial.total}`));
+      box.append(el('div', 'dock-name', tutorial.title));
+      if (tutorial.hint) box.append(el('div', 'dock-stats', tutorial.hint));
+      const actions = el('div', 'dock-mission-actions');
+      if (tutorial.id === 'undock') actions.append(button('Вылет', 'dock-buy', () => this.handlers.onUndock()));
+      actions.append(button('Пропустить обучение', 'dock-link', () => this.handlers.onSkipTutorial()));
+      box.append(actions);
+      body.append(box);
+    }
+
+    const active = missions.active;
+    if (active) {
+      const box = el('div', 'dock-mission');
+      box.append(el('div', 'dock-mission-head', `Задание · награда ${formatCredits(active.offer.reward)}`));
+      box.append(el('div', 'dock-name', activeLine(active, this.names)));
+      box.append(el('div', 'dock-stats', activeHint(active, this.here, hangar.docked, this.names)));
+      const actions = el('div', 'dock-mission-actions');
+      if (active.offer.kind === 'collect') {
+        const give = button('Сдать', 'dock-buy', () => this.handlers.onComplete());
+        give.disabled = active.progress < active.offer.count;
+        actions.append(give);
+      }
+      actions.append(button('Отказаться', 'dock-link', () => this.handlers.onAbandon()));
+      box.append(actions);
+      body.append(box);
+    }
+
+    if (missions.offers.length === 0) {
+      if (!active) body.append(el('div', 'dock-empty', 'Заданий на этой станции нет.'));
+      return;
+    }
+    body.append(el('div', 'dock-note', active ? 'Доска станции: сначала сдайте или бросьте своё задание' : 'Доска станции'));
+    for (const offer of missions.offers) body.append(this.missionRow(offer, active !== null));
+  }
+
+  private missionRow(offer: MissionOffer, busy: boolean): HTMLElement {
+    const row = el('div', 'dock-row');
+    row.dataset.state = busy ? 'poor' : 'buy';
+    row.append(el('div', 'dock-name', offerTitle(offer, this.names)), el('div', 'dock-stats', offerNote(offer)));
+    const take = button(`Взять · ${formatCredits(offer.reward)}`, 'dock-buy', () => this.handlers.onAccept(offer.id));
+    take.disabled = busy;
+    row.append(take);
+    return row;
   }
 
   private renderHulls(body: HTMLElement, hangar: HangarMsg, credits: number): void {

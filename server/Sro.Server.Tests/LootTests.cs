@@ -165,7 +165,7 @@ public class LootTests
     [Fact]
     public void KilledDrone_DropsNothing()
     {
-        // Источник дропа — только пираты: у дрона нет ни типа, ни таблицы.
+        // У дрона без своей таблицы дропа нет: типа пирата у него нет, искать таблицу не по чему.
         var rules = new CombatRules(RespawnSeconds: 2, ProtectionSeconds: 0, SpawnJitter: 0,
             Drones: [new DroneSpec("Учебный дрон", "light", 0, -600)]);
         _room = NewRoom(Loot(), rules);
@@ -179,6 +179,28 @@ public class LootTests
 
         Assert.Equal(1, a.Last<SnapshotMsg>().Kills?.Count);
         Assert.Empty(LootOf(a));
+    }
+
+    [Fact]
+    public void KilledDrone_DropsItsOwnTable()
+    {
+        // Учебный дрон роняет груз: второй шаг обучения — подобрать его (GDD §54).
+        var rules = new CombatRules(RespawnSeconds: 2, ProtectionSeconds: 0, SpawnJitter: 0,
+            Drones: [new DroneSpec("Учебный дрон", "light", 0, -600, Table: "drone")]);
+        _room = NewRoom(Loot(tables: new Dictionary<string, LootTable>
+        {
+            ["drone"] = new([new LootRoll("metal", 1, 3, 3)]),
+        }), rules);
+
+        var a = Connect(weapon: "doom");
+        var drone = a.Last<PlayersMsg>().Players.Single(p => p.Kind == Protocol.DroneKind);
+        Place(IdOf(a), 0, -300);
+        _room.SetTarget(a, drone.Id);
+        _room.SetFire(a, true);
+        _room.Step();
+        _room.Step();
+
+        Assert.Equal(("metal", 3), LootOf(a).Select(l => (l.I, l.N)).Single());
     }
 
     [Fact]

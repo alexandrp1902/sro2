@@ -8,7 +8,7 @@ import type { NpcRules } from '../sim/npcs';
 import type { ShopRules } from '../sim/shop';
 
 /** Версия протокола; зеркало Protocol.Version на сервере. Сервер другой версии (или старый, без поля) — не играем. */
-export const PROTOCOL_VERSION = 10;
+export const PROTOCOL_VERSION = 11;
 
 /** Состояние ИИ пирата: патруль, бой, возврат в логово (налётчик — полёт от врат к точке), уход из системы. */
 export type AiState = 'patrol' | 'attack' | 'return' | 'leave';
@@ -52,7 +52,14 @@ export type ClientMessage =
   /** Начать гиперпрыжок через врата в систему to (GDD §5); null — отменить подготовку. */
   | { t: 'jump'; to: string | null }
   /** Заправить бак в доке до полного. */
-  | { t: 'refuel' };
+  | { t: 'refuel' }
+  /**
+   * Задания (GDD §36, §54): accept — взять с доски (в доке), abandon — бросить своё, complete — сдать «собрать»
+   * (в доке), skip — пропустить обучение.
+   */
+  | { t: 'mission'; action: MissionAction; id?: string };
+
+export type MissionAction = 'accept' | 'abandon' | 'complete' | 'skip';
 
 /** Что покупают в доке. */
 export type BuyKind = 'hull' | 'weapon';
@@ -370,6 +377,55 @@ export interface CargoMsg {
   items: Record<string, number>;
   /** Кредиты пилота. */
   credits?: number;
+  /** Из занятого — груз доставки: его не продать и не выбросить. */
+  reserved?: number;
+}
+
+/** Вид задания (GDD §36). */
+export type MissionKind = 'kill' | 'collect' | 'deliver';
+
+/** Задание на доске или взятое. Текст собираем сами (sim/missions.ts). */
+export interface MissionOffer {
+  id: string;
+  kind: MissionKind;
+  /** kill — где бить; deliver — куда везти; collect — нет: сдать можно на любой станции. */
+  system?: string | null;
+  /** kill: тип пирата из npcs.json; нет — любой. */
+  npc?: string | null;
+  /** collect: предмет из loot.json. */
+  item?: string | null;
+  count: number;
+  reward: number;
+  /** Где выдали. */
+  from: string;
+}
+
+/** Шаг обучения (GDD §54). id — что его засчитывает. */
+export interface TutorialDto {
+  step: number;
+  total: number;
+  id: 'undock' | 'drone' | 'grab' | 'sell' | 'jump';
+  title: string;
+  hint: string;
+}
+
+/** Обучение и задания пилота: по событию — вход, прыжок, прогресс, правка баланса. */
+export interface MissionsMsg {
+  t: 'missions';
+  tutorial: TutorialDto | null;
+  /** Взятое задание; progress у kill — сколько уничтожено, у collect — сколько такого в трюме. */
+  active: { offer: MissionOffer; progress: number } | null;
+  /** Доска станции этой системы; без станции пусто. */
+  offers: MissionOffer[];
+  /** Что сделано этим событием — строка в ленте. */
+  done?: {
+    kind: 'tutorial' | 'mission';
+    reward: number;
+    title?: string | null;
+    mission?: MissionOffer | null;
+    /** Это был последний шаг обучения. */
+    last?: boolean;
+  } | null;
 }
 
 /** Короткое уведомление по коду; текст подставляем у себя (ui/feed.ts). */
@@ -388,4 +444,5 @@ export type ServerMessage =
   | NoticeMsg
   | AccountMsg
   | DeniedMsg
-  | HangarMsg;
+  | HangarMsg
+  | MissionsMsg;

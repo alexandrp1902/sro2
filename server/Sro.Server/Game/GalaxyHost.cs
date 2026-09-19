@@ -79,6 +79,8 @@ public sealed class GalaxyHost : BackgroundService
 
     public void Refuel(IClientConnection connection) => With(connection, r => r.Refuel(connection));
 
+    public void Mission(IClientConnection connection, string? action, string? id) => With(connection, r => r.Mission(connection, action, id));
+
     /// <summary>Комната выбирается в потоке тика: к моменту выполнения корабль мог уже перелететь в другую систему.</summary>
     private void With(IClientConnection connection, Action<Room> command) =>
         _commands.Enqueue(() => _galaxy.With(connection, command));

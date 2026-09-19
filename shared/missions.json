@@ -1,0 +1,50 @@
+{
+  "offers": 4,
+  "dangerBonus": 0.35,
+  "tutorial": [
+    {
+      "id": "undock",
+      "title": "Вылетите со станции",
+      "hint": "Кнопка «Вылет» вверху экрана станции",
+      "reward": 0
+    },
+    {
+      "id": "drone",
+      "title": "Уничтожьте учебный дрон",
+      "hint": "Выберите дрон тапом, кликом или Q / E и включите огонь: пробел или «ОГОНЬ»",
+      "reward": 100
+    },
+    {
+      "id": "grab",
+      "title": "Подберите выпавший груз",
+      "hint": "Выберите груз тапом или кликом, подлетите ближе и нажмите пробел или «ВЗЯТЬ»",
+      "reward": 100
+    },
+    {
+      "id": "sell",
+      "title": "Продайте груз на станции",
+      "hint": "Выберите станцию, подлетите и нажмите пробел или «ДОК»; в доке — «Продать»",
+      "reward": 150
+    },
+    {
+      "id": "jump",
+      "title": "Совершите гиперпрыжок",
+      "hint": "Выберите врата «→ Vega», подлетите в фиолетовый круг и нажмите пробел или «ПРЫЖОК»",
+      "reward": 250
+    }
+  ],
+  "kill": [
+    { "npc": null, "min": 3, "max": 5, "reward": 80, "weight": 3 },
+    { "npc": "heavyPirate", "min": 1, "max": 2, "reward": 350, "weight": 1 }
+  ],
+  "collect": [
+    { "item": "metal", "min": 8, "max": 15, "factor": 1.8 },
+    { "item": "ore", "min": 8, "max": 15, "factor": 1.8 },
+    { "item": "titanium", "min": 3, "max": 6, "factor": 1.6 },
+    { "item": "energy", "min": 2, "max": 4, "factor": 1.5, "weight": 0.7 },
+    { "item": "crystals", "min": 2, "max": 4, "factor": 1.5, "weight": 0.5 }
+  ],
+  "deliver": [
+    { "min": 3, "max": 8, "perUnit": 20, "perJump": 150, "weight": 2 }
+  ]
+}

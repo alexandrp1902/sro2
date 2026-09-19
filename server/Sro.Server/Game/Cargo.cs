@@ -15,10 +15,16 @@ public sealed class Cargo
 
     public bool IsEmpty => _items.Count == 0;
 
-    /// <summary>Занятый объём.</summary>
+    /// <summary>
+    /// Место под груз доставки (GDD §36): единица — единица объёма. Это не предмет — его не продать, не выбросить
+    /// и не потерять; освобождается, когда задание сдано или брошено.
+    /// </summary>
+    public int Reserved;
+
+    /// <summary>Занятый объём, включая груз доставки.</summary>
     public double Used(LootRules loot)
     {
-        var used = 0.0;
+        var used = (double)Reserved;
         foreach (var (item, count) in _items) used += loot.Volume(item) * count;
         return used;
     }
@@ -48,5 +54,17 @@ public sealed class Cargo
         return loot.Price(item) * count;
     }
 
+    /// <summary>Убирает count штук — без денег: так сдают задание «собрать».</summary>
+    /// <returns>false — столько нет, трюм не тронут.</returns>
+    public bool Remove(string item, int count)
+    {
+        var have = _items.GetValueOrDefault(item);
+        if (count <= 0 || have < count) return false;
+        if (have == count) _items.Remove(item);
+        else _items[item] = have - count;
+        return true;
+    }
+
+    /// <summary>Продано всё: груз доставки остаётся на месте.</summary>
     public void Clear() => _items.Clear();
 }

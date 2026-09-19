@@ -6,6 +6,7 @@ import {
   type ClientMessage,
   type DeniedCode,
   type HangarMsg,
+  type MissionsMsg,
   type NoticeMsg,
   type ServerMessage,
   type SnapshotMsg,
@@ -64,6 +65,7 @@ export class Connection {
   onAccount: ((message: AccountMsg) => void) | null = null;
   onDenied: ((code: DeniedCode) => void) | null = null;
   onHangar: ((message: HangarMsg) => void) | null = null;
+  onMissions: ((message: MissionsMsg) => void) | null = null;
 
   private ws: WebSocket | null = null;
   private credentials: Credentials | null = null;
@@ -234,6 +236,9 @@ export class Connection {
         break;
       case 'hangar':
         this.onHangar?.(message);
+        break;
+      case 'missions':
+        this.onMissions?.(message);
         break;
     }
   }

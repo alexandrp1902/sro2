@@ -85,6 +85,31 @@ export function hops(galaxy: GalaxyDto, from: string): Map<string, number> {
   return result;
 }
 
+/**
+ * Куда прыгать первым, чтобы кратчайшим путём попасть из from в to: соседняя система на этом пути.
+ * null — уже там или пути нет. При равных путях — сосед, который раньше в списке маршрутов.
+ */
+export function nextHop(galaxy: GalaxyDto, from: string, to: string): string | null {
+  if (from === to) return null;
+  const distance = hops(galaxy, to);
+  if (!distance.has(from)) return null;
+  const want = distance.get(from)! - 1;
+  return neighbours(galaxy, from).find((n) => distance.get(n.id) === want)?.id ?? null;
+}
+
+/** Ближайшая система со станцией (сама from, если в ней есть); null — станций нет. */
+export function nearestStation(galaxy: GalaxyDto, from: string): string | null {
+  let best: string | null = null;
+  let bestHops = Infinity;
+  for (const [id, n] of hops(galaxy, from)) {
+    if (n < bestHops && galaxy.systems.find((s) => s.id === id)?.station) {
+      best = id;
+      bestHops = n;
+    }
+  }
+  return best;
+}
+
 /** Врата в прицеле: id −2, −3… — отрицательные, как у станции, чтобы не совпасть с id сервера. */
 export function gateMarkId(index: number): number {
   return -2 - index;

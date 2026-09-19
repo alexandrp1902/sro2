@@ -137,16 +137,22 @@ internal sealed class LootSystem(Func<int> nextId, Random rng, ILogger log)
     }
 
     /// <summary>
-    /// Дроп с уничтоженных в этом тике. Таблица ищется по типу NPC: имя таблицы в loot.json — это ключ типа
-    /// в npcs.json, поэтому новый тип пиратов начинает ронять добычу без правок кода.
+    /// Дроп с уничтоженных в этом тике. Таблица пирата ищется по его типу: имя таблицы в loot.json — это ключ типа
+    /// в npcs.json, поэтому новый тип пиратов начинает ронять добычу без правок кода. У дрона таблица своя, в описании.
     /// </summary>
     public void DropFrom(IReadOnlyList<KillDto> kills, IReadOnlyDictionary<int, ShipEntity> ships, LootRules loot, long tick)
     {
         foreach (var kill in kills)
         {
-            if (ships.GetValueOrDefault(kill.Id) is not Pirate pirate) continue;
-            if (!loot.TableMap.TryGetValue(pirate.Spawn.Type, out var table)) continue;
-            DropAt(loot, table, pirate.Level, pirate.Ship.X, pirate.Ship.Y, pirate.DeathVx, pirate.DeathVy, tick);
+            var (tableId, level) = ships.GetValueOrDefault(kill.Id) switch
+            {
+                Pirate pirate => (pirate.Spawn.Type, pirate.Level),
+                Drone { Spec.Table: { } own } => (own, 1),
+                _ => (null, 0),
+            };
+            if (tableId is null || !loot.TableMap.TryGetValue(tableId, out var table)) continue;
+            var ship = ships[kill.Id];
+            DropAt(loot, table, level, ship.Ship.X, ship.Ship.Y, ship.DeathVx, ship.DeathVy, tick);
         }
     }
 

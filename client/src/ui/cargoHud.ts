@@ -8,6 +8,8 @@ export interface CargoState {
   max: number;
   items: Record<string, number>;
   credits: number;
+  /** Из занятого — груз доставки (GDD §36): не продаётся, место освободится, когда задание сдано. */
+  reserved: number;
 }
 
 /** Выбранный предмет: что это и далеко ли до него. */
@@ -148,7 +150,7 @@ export class CargoHud {
       return;
     }
 
-    const key = `${state.used}|${state.max}|${state.credits}|${JSON.stringify(state.items)}`;
+    const key = `${state.used}|${state.max}|${state.credits}|${state.reserved}|${JSON.stringify(state.items)}`;
     if (key === this.lastKey) return;
     this.lastKey = key;
 
@@ -184,6 +186,12 @@ export class CargoHud {
       icon.src = spriteUrl(itemSprite(id));
       icon.alt = '';
       line.append(dot, icon, document.createTextNode(`${lootItem(rules, id)?.name ?? id} ×${count}`));
+      list.append(line);
+    }
+    if (state.reserved > 0) {
+      const line = document.createElement('div');
+      line.className = 'cargo-item cargo-mission';
+      line.textContent = `Груз задания · ${state.reserved} ед.`;
       list.append(line);
     }
     this.root.append(list);
