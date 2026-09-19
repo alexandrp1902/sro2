@@ -163,7 +163,9 @@ public sealed record NpcRules(
 
         // Логово нельзя достать из укрытия: иначе игрок бьёт пирата дома, тот агрится, видит цель в укрытии и уходит — по кругу.
         // Станция ходит по орбите — считаем от ближайшей точки её круга, то есть от любого положения станции.
-        var reach = weapons.Values.Select(w => w.MaxRange).DefaultIfEmpty(0).Max();
+        // Дальность считаем по пушкам самих NPC: снайперские орудия пилотов (рельсотрон, M11) логова не касаются.
+        var npcWeapons = TypeMap.Values.SelectMany(t => t.WeaponList).Distinct();
+        var reach = npcWeapons.Select(id => weapons.TryGetValue(id, out var w) ? w.MaxRange : 0).DefaultIfEmpty(0).Max();
         var minHomeDistance = StationSafeRadius + PatrolRadius + reach;
         for (var i = 0; i < SpawnList.Count; i++)
         {

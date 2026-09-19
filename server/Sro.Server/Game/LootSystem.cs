@@ -57,7 +57,7 @@ internal sealed class LootSystem(Func<int> nextId, Random rng, ILogger log)
         int count,
         bool fromContainer = false)
     {
-        if (count < 1 || !loot.ItemMap.ContainsKey(item)) return null;
+        if (count < 1 || !loot.Knows(item)) return null;
         if (_drops.Count >= loot.MaxItems)
         {
             log.LogDebug("Loot field is full ({Max}), dropping {Item} x{Count}", loot.MaxItems, item, count);
@@ -212,7 +212,8 @@ internal sealed class LootSystem(Func<int> nextId, Random rng, ILogger log)
         var bestDistance = range;
         foreach (var drop in _drops)
         {
-            if (drop.FromContainer || !pirate.Hold.Fits(drop.Item, drop.Count, capacity, loot)) continue;
+            // Снаряжение пиратам ни к чему: трюм считает объём, а у пушки его нет.
+            if (drop.FromContainer || loot.IsGear(drop.Item) || !pirate.Hold.Fits(drop.Item, drop.Count, capacity, loot)) continue;
             if (Math.Sqrt(Sq(drop.X - pirate.HomeX) + Sq(drop.Y - pirate.HomeY)) > leash) continue;
             var distance = Math.Sqrt(Sq(drop.X - pirate.Ship.X) + Sq(drop.Y - pirate.Ship.Y));
             if (distance > bestDistance) continue;
@@ -230,7 +231,7 @@ internal sealed class LootSystem(Func<int> nextId, Random rng, ILogger log)
         if (index < 0) return false;
         var drop = _drops[index];
         if (Math.Sqrt(Sq(pirate.Ship.X - drop.X) + Sq(pirate.Ship.Y - drop.Y)) > loot.PickupRange) return false;
-        if (!pirate.Hold.Fits(drop.Item, drop.Count, capacity, loot)) return false;
+        if (loot.IsGear(drop.Item) || !pirate.Hold.Fits(drop.Item, drop.Count, capacity, loot)) return false;
         pirate.Hold.Add(drop.Item, drop.Count);
         _drops.RemoveAt(index);
         _picks.Add(new PickDto(pirate.Id, drop.Id, drop.Item, drop.Count));
@@ -251,11 +252,12 @@ internal sealed class LootSystem(Func<int> nextId, Random rng, ILogger log)
     /// Взять выбранный предмет тракторным лучом (GDD §21). Подбор ручной: луч берёт ровно то, что игрок
     /// пометил, и только когда тот подлетел ближе PickupRange.
     /// </summary>
+    /// <param name="capacity">Трюм корпуса с модулями: грузовой расширитель (M11) его увеличивает.</param>
     public GrabResult TryGrab(
         Player player,
         int lootId,
         LootRules loot,
-        IReadOnlyDictionary<string, HullParams> hulls,
+        double capacity,
         long tick)
     {
         var index = _drops.FindIndex(d => d.Id == lootId);
@@ -264,9 +266,12 @@ internal sealed class LootSystem(Func<int> nextId, Random rng, ILogger log)
         var drop = _drops[index];
         var distance = Math.Sqrt(Sq(player.Ship.X - drop.X) + Sq(player.Ship.Y - drop.Y));
         if (distance > loot.PickupRange) return GrabResult.TooFar;
-        if (!player.Cargo.Fits(drop.Item, drop.Count, player.Hull(hulls).Cargo, loot)) return GrabResult.NoRoom;
+        // Снаряжение (M11) не занимает трюм: пушка или модуль сразу ложатся на склад пилота.
+        var gear = loot.IsGear(drop.Item);
+        if (!gear && !player.Cargo.Fits(drop.Item, drop.Count, capacity, loot)) return GrabResult.NoRoom;
 
-        player.Cargo.Add(drop.Item, drop.Count);
+        if (gear) player.Store(drop.Item, drop.Count);
+        else player.Cargo.Add(drop.Item, drop.Count);
         player.CargoFullUntilTick = 0; // место освободилось — о следующем отказе скажем сразу
         if (drop.FromContainer) Release(drop.Id, tick);
         _drops.RemoveAt(index);
@@ -304,7 +309,7 @@ internal sealed class LootSystem(Func<int> nextId, Random rng, ILogger log)
         for (var i = _drops.Count - 1; i >= 0; i--)
         {
             var drop = _drops[i];
-            if (loot.ItemMap.ContainsKey(drop.Item)) continue;
+            if (loot.Knows(drop.Item)) continue;
             if (drop.FromContainer) Release(drop.Id, 0);
             _drops.RemoveAt(i);
             removed = true;

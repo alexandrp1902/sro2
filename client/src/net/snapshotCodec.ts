@@ -7,7 +7,7 @@ import type { AiState, KillDto, LootDto, MeteorDto, MissileDto, PickDto, ShipDto
 
 const FRAME_TYPE = 1;
 
-const SHIP_FIELDS = 16;
+const SHIP_FIELDS = 17;
 const LOOT_FIELDS = 6;
 const METEOR_FIELDS = 6;
 const MISSILE_FIELDS = 6;
@@ -80,7 +80,7 @@ export class SnapshotDecoder {
     let s = this.ships.get(id);
     if (!s) {
       if (mask !== (1 << SHIP_FIELDS) - 1) this.desyncs++;
-      s = { id, x: 0, y: 0, r: 0, vx: 0, vy: 0, hull: '', th: 0, ack: 0, hp: 0, sh: 0, w: '', rt: 0, pu: 0, tg: 0, ai: null, j: 0 };
+      s = { id, x: 0, y: 0, r: 0, vx: 0, vy: 0, hull: '', th: 0, ack: 0, hp: 0, sh: 0, w: '', rt: 0, pu: 0, tg: 0, ai: null, j: 0, sl: 0 };
       this.ships.set(id, s);
     }
     let i = 2;
@@ -101,6 +101,7 @@ export class SnapshotDecoder {
     if (mask & (1 << 13)) s.tg = next() as number;
     if (mask & (1 << 14)) s.ai = (next() as AiState | null) ?? null;
     if (mask & (1 << 15)) s.j = next() as number;
+    if (mask & (1 << 16)) s.sl = next() as number;
   }
 
   private readLoot(row: Row): void {

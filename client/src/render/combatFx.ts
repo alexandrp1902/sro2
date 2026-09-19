@@ -16,12 +16,12 @@ export type Locate = (id: number) => FxAnchor | null;
 /** Псевдо-пушка тарана метеорита в ShotDto (MeteorRules.RamWeapon на сервере). */
 export const RAM_WEAPON = 'ram';
 /** Время полёта снаряда до цели, мс; луч — мгновенный. */
-const FLIGHT_MS: Record<string, number> = { bolt: 150, orb: 320, beam: 0 };
+const FLIGHT_MS: Record<string, number> = { bolt: 150, orb: 320, beam: 0, rail: 90, ion: 260, flak: 120 };
 const BEAM_MS = 140;
 /** Длина снаряда в мире; у плазмы — сгусток с хвостом. */
-const PROJECTILE_LENGTH: Record<string, number> = { bolt: 42, orb: 34 };
+const PROJECTILE_LENGTH: Record<string, number> = { bolt: 42, orb: 34, rail: 90, ion: 40, flak: 26 };
 /** Где на картинке снаряда его голова (доля ширины): она и летит в цель. */
-const PROJECTILE_HEAD: Record<string, number> = { bolt: 0.9, orb: 0.78 };
+const PROJECTILE_HEAD: Record<string, number> = { bolt: 0.9, orb: 0.78, rail: 0.95, ion: 0.8, flak: 0.85 };
 /** Толщина луча лазера. */
 const BEAM_WIDTH = 12;
 /** Вспышка у ствола и вспышка попадания — в размерах корабля. */
@@ -441,9 +441,11 @@ function copy(anchor: FxAnchor | null): FxAnchor | null {
   return anchor ? { x: anchor.x, y: anchor.y, size: anchor.size } : null;
 }
 
-type ShotKind = 'bolt' | 'beam' | 'orb';
+type ShotKind = 'bolt' | 'beam' | 'orb' | 'rail' | 'ion' | 'flak';
+
+const SHOT_KINDS: ShotKind[] = ['bolt', 'beam', 'orb', 'rail', 'ion', 'flak'];
 
 /** Вид выстрела по пушке — от него картинки снаряда и вспышек; неизвестный — импульсный снаряд. */
 function shotKind(kind: string): ShotKind {
-  return kind === 'beam' || kind === 'orb' ? kind : 'bolt';
+  return (SHOT_KINDS as string[]).includes(kind) ? (kind as ShotKind) : 'bolt';
 }

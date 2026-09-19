@@ -24,8 +24,12 @@ public class GalaxyRulesTests
     {
         Assert.True(Balance.TryParse(TestHulls.SharedSources(), out var balance, out var error), error);
         var galaxy = balance!.Galaxy;
-        Assert.Equal(5, galaxy.SystemMap.Count); // GDD §59: пять систем
-        Assert.Equal(3, galaxy.SystemMap.Values.Count(s => s.Station)); // и три станции
+        Assert.Equal(11, galaxy.SystemMap.Count); // M11: одиннадцать систем в трёх регионах
+        Assert.Equal(8, galaxy.SystemMap.Values.Count(s => s.Station)); // и восемь станций
+        Assert.Equal(["core", "frontier", "rim"], galaxy.RegionMap.Keys.Order());
+        // В каждом регионе есть где пристыковаться.
+        foreach (var region in galaxy.RegionMap.Keys)
+            Assert.Contains(galaxy.SystemMap.Values, s => s.Region == region && s.Station);
         Assert.True(galaxy.System(galaxy.StartSystem)!.Station);
         Assert.Equal(GalaxyRules.PvpOff, galaxy.System(galaxy.StartSystem)!.Pvp); // новичок начинает без PvP (§34)
         Assert.Contains(galaxy.SystemMap.Values, s => s.Pvp == GalaxyRules.PvpFree);
@@ -100,7 +104,7 @@ public class GalaxyRulesTests
         Assert.Contains("unknown system 'x'", Two(a: new SystemDef("A", Gates: [new GateDef("x", 0, 3000)])).Validate(NoLayoutProblems));
         Assert.Contains("another system", Two(a: new SystemDef("A", Gates: [new GateDef("a", 0, 3000)])).Validate(NoLayoutProblems));
         Assert.Contains("pvp", Two(a: new SystemDef("A", Pvp: "sometimes", Gates: [new GateDef("b", 3000, 0)])).Validate(NoLayoutProblems));
-        Assert.Contains("danger", Two(a: new SystemDef("A", Danger: 6, Gates: [new GateDef("b", 3000, 0)])).Validate(NoLayoutProblems));
+        Assert.Contains("danger", Two(a: new SystemDef("A", Danger: 7, Gates: [new GateDef("b", 3000, 0)])).Validate(NoLayoutProblems));
         Assert.Contains("within", Two(a: new SystemDef("A", Gates: [new GateDef("b", 5000, 0)])).Validate(NoLayoutProblems));
         Assert.Contains("no gate from b to a", Two(b: new SystemDef("B")).Validate(NoLayoutProblems));
         Assert.Contains("has no link", Two(links: []).Validate(NoLayoutProblems));
@@ -139,7 +143,7 @@ public class GalaxyRulesTests
     public void Balance_RejectsAContainerInTheHeatOfTheSun()
     {
         var sources = TestHulls.SharedSources();
-        var galaxy = ReplaceFirst(sources.Galaxy!, "\"x\": 600, \"y\": 700", "\"x\": 300, \"y\": 300");
+        var galaxy = ReplaceFirst(sources.Galaxy!, "\"x\": 600,\n          \"y\": 700", "\"x\": 300,\n          \"y\": 300");
         Assert.False(Balance.TryParse(sources with { Galaxy = galaxy }, out _, out var error));
         Assert.Contains("galaxy.json: systems.tau: containers[0]: too close to the sun", error);
     }

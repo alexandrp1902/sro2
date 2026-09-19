@@ -10,6 +10,10 @@ public sealed record GateDef(string To, double X, double Y);
 /// <summary>Положение системы на карте галактики (GDD §55) — только для рисования, в симуляции не участвует.</summary>
 public sealed record MapPoint(double X, double Y);
 
+/// <summary>Регион галактики (M11): Ядро, Пограничье, Дальний рубеж — ассортимент магазинов и подпись на карте.</summary>
+/// <param name="Color">Цвет подложки на карте галактики, #rrggbb.</param>
+public sealed record RegionDef(string Name, string Color = "#4f7cc4");
+
 /// <summary>Маршрут между двумя системами (GDD §55). Прыжок стоит distance × fuelPerDistance топлива (§6).</summary>
 public sealed record LinkDef(string A, string B, double Distance);
 
@@ -17,7 +21,7 @@ public sealed record LinkDef(string A, string B, double Distance);
 /// Звёздная система (GDD §4, §33–34): своя карта с логовами, контейнерами, дронами и вратами.
 /// В центре — звезда; станция, если есть, и планеты ходят вокруг неё по орбитам. Без станции дока и укрытия нет.
 /// </summary>
-/// <param name="Danger">Опасность 1–5 (§33) — для игрока; сила пиратов задаётся их уровнями в spawns.</param>
+/// <param name="Danger">Опасность 1–6 (§33) — для игрока; сила пиратов задаётся их уровнями в spawns.</param>
 /// <param name="Pvp">PvP (§34): <see cref="GalaxyRules.PvpOff"/>, <see cref="GalaxyRules.PvpBorder"/> или <see cref="GalaxyRules.PvpFree"/>.</param>
 /// <param name="Seed">Небо системы: звёзды и туманность клиента.</param>
 /// <param name="Meteors">Множитель метеоритов к meteors.json: 0 — их нет, 2 — вдвое чаще и вдвое больше в полёте.</param>
@@ -26,6 +30,10 @@ public sealed record LinkDef(string A, string B, double Distance);
 /// <param name="Planets">Планеты на орбитах.</param>
 /// <param name="Pirates">Налёты пиратов (<see cref="RaidRules"/>); null — только логова из spawns.</param>
 /// <param name="Drones">Учебные дроны; x и y — в осях станции (<see cref="OrbitDef.ToWorld"/>): они летят вместе с ней.</param>
+/// <param name="Region">Регион (M11) из <see cref="GalaxyRules.Regions"/>: от него ассортимент магазина.</param>
+/// <param name="StationSprite">Картинка станции на клиенте: ring, mining, fortress, habitat, outpost, trade, ranger…; null — по опасности.</param>
+/// <param name="MeteorSizes">Свои веса размеров метеоритов (small, medium, large); null — как в meteors.json.</param>
+/// <param name="LootTables">Замена таблиц лута в системе: «тип NPC → таблица» (пираты Рубежа роняют Mk2/Mk3).</param>
 public sealed record SystemDef(
     string Name,
     int Danger = 1,
@@ -42,7 +50,11 @@ public sealed record SystemDef(
     OrbitDef? StationOrbit = null,
     IReadOnlyList<PlanetDef>? Planets = null,
     RaidRules? Pirates = null,
-    TraderRules? Traders = null)
+    TraderRules? Traders = null,
+    string? Region = null,
+    string? StationSprite = null,
+    IReadOnlyDictionary<string, double>? MeteorSizes = null,
+    IReadOnlyDictionary<string, string>? LootTables = null)
 {
     [JsonIgnore] public OrbitDef StationPath => StationOrbit ?? OrbitDef.Center;
     [JsonIgnore] public IReadOnlyList<PlanetDef> PlanetList => Planets ?? [];
@@ -64,6 +76,7 @@ public sealed record SystemDef(
 /// <param name="JumpSeconds">Подготовка прыжка (§5 — 3 секунды).</param>
 /// <param name="ArrivalOffset">Корабль после прыжка появляется на столько ближе к центру, чем врата.</param>
 /// <param name="StartSystem">Здесь появляются новые пилоты и гости; в ней обязана быть станция.</param>
+/// <param name="Regions">Регионы (M11); null — регионов нет, магазин везде один.</param>
 public sealed record GalaxyRules(
     double FuelPerDistance = 1,
     double GateRange = 250,
@@ -71,7 +84,8 @@ public sealed record GalaxyRules(
     double ArrivalOffset = 250,
     string StartSystem = GalaxyRules.DefaultSystem,
     IReadOnlyDictionary<string, SystemDef>? Systems = null,
-    IReadOnlyList<LinkDef>? Links = null)
+    IReadOnlyList<LinkDef>? Links = null,
+    IReadOnlyDictionary<string, RegionDef>? Regions = null)
 {
     public const string File = "galaxy.json";
 
@@ -82,7 +96,7 @@ public sealed record GalaxyRules(
     /// <summary>Система тестов и баланса без galaxy.json: одна, со станцией, без врат.</summary>
     public const string DefaultSystem = "sol";
 
-    public const int MaxDanger = 5;
+    public const int MaxDanger = 6;
     public const double MaxDistance = 1000;
 
     /// <summary>Логова, контейнеры и врата — не ближе этого к краю жара звезды.</summary>
@@ -101,6 +115,7 @@ public sealed record GalaxyRules(
 
     [JsonIgnore] public IReadOnlyDictionary<string, SystemDef> SystemMap => Systems ?? new Dictionary<string, SystemDef>();
     [JsonIgnore] public IReadOnlyList<LinkDef> LinkList => Links ?? [];
+    [JsonIgnore] public IReadOnlyDictionary<string, RegionDef> RegionMap => Regions ?? new Dictionary<string, RegionDef>();
     [JsonIgnore] public int JumpTicks => Math.Max(1, Combat.SecondsToTicks(JumpSeconds));
 
     public SystemDef? System(string? id) => id is not null ? SystemMap.GetValueOrDefault(id) : null;
@@ -134,6 +149,10 @@ public sealed record GalaxyRules(
         if (SystemMap.Count == 0) return "no systems";
         if (System(StartSystem) is not { } start) return $"unknown startSystem '{StartSystem}'";
         if (!start.Station) return "startSystem must have a station";
+        foreach (var (id, region) in RegionMap)
+        {
+            if (region is null || string.IsNullOrWhiteSpace(region.Name)) return $"regions.{id}: name is empty";
+        }
 
         foreach (var (id, system) in SystemMap)
         {
@@ -176,6 +195,9 @@ public sealed record GalaxyRules(
         if (system.Danger is < 1 or > MaxDanger) return $"danger must be within 1..{MaxDanger}";
         if (system.Pvp is not (PvpOff or PvpBorder or PvpFree)) return $"pvp must be one of {PvpOff}, {PvpBorder}, {PvpFree}";
         if (!(system.Meteors >= 0)) return "meteors must not be negative";
+        if (Regions is not null && (system.Region is null || !Regions.ContainsKey(system.Region)))
+            return $"region must be one of {string.Join(", ", Regions.Keys)}";
+        if (system.MeteorSizes is { } weights && weights.Values.Any(w => !(w >= 0))) return "meteorSizes: weights must not be negative";
         if (system.Sun is { } sun && sun.Validate() is { } sunProblem) return $"sun: {sunProblem}";
         if (system.StationOrbit is { } orbit && orbit.Validate() is { } orbitProblem) return $"stationOrbit: {orbitProblem}";
         var burn = system.Sun?.BurnRadius ?? 0;

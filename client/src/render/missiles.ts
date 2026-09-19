@@ -3,8 +3,9 @@ import type { MissileDto, SnapshotMsg } from '../net/protocol';
 import { DT } from '../sim/movement';
 import type { Weapons } from '../sim/weapons';
 
-/** Длина ракеты в мире. */
+/** Длина ракеты в мире; торпеда (M11) заметно больше. */
 const LENGTH = 16;
+const TORPEDO_LENGTH = 30;
 /** Хвост — столько последних точек пути. */
 const TRAIL_POINTS = 14;
 /** Ракета, которая летит в меня, — красная; остальные — цвета своей ракетницы. */
@@ -84,6 +85,11 @@ export class MissileField {
     return this.drawn;
   }
 
+  /** Ракета по id среди нарисованных: по ней трассер зенитки (M11) знает, куда стрелять. */
+  find(id: number): MissileInfo | null {
+    return this.drawn.find((m) => m.id === id) ?? null;
+  }
+
   /** @param renderTick тик, в котором сейчас нарисован мир (дробный); NaN — снапшотов ещё нет */
   update(renderTick: number, ownId: number): void {
     this.drawn.length = 0;
@@ -101,17 +107,22 @@ export class MissileField {
       }
       m.body.visible = m.tail.visible = true;
       const incoming = m.dto.t === ownId;
-      const color = incoming ? INCOMING_COLOR : colorOf(this.weapons.get(m.dto.w).color);
+      const weapon = this.weapons.get(m.dto.w);
+      const color = incoming ? INCOMING_COLOR : colorOf(weapon.color);
+      const torpedo = weapon.missile?.sprite === 'torpedo';
+      const length = torpedo ? TORPEDO_LENGTH : LENGTH;
+      const halfWidth = torpedo ? 7 : 4;
       m.body.clear();
-      // Корпус ракеты носом вверх и огонёк двигателя.
+      // Корпус ракеты носом вверх и огонёк двигателя; у торпеды корпус толще и огонь крупнее.
       m.body
-        .poly([0, -LENGTH / 2, 4, LENGTH / 2, -4, LENGTH / 2])
+        .poly([0, -length / 2, halfWidth, length / 2, -halfWidth, length / 2])
         .fill({ color })
-        .circle(0, LENGTH / 2 + 2, 3)
+        .circle(0, length / 2 + 2, torpedo ? 5 : 3)
         .fill({ color: 0xffe0a0, alpha: 0.9 });
       m.body.position.set(at.x, at.y);
       m.body.rotation = at.r;
 
+      m.body.scale.set(1);
       const last = m.trail[m.trail.length - 1];
       if (!last || Math.hypot(last.x - at.x, last.y - at.y) > 4) m.trail.push({ x: at.x, y: at.y });
       if (m.trail.length > TRAIL_POINTS) m.trail.shift();

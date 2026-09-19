@@ -27,7 +27,10 @@ public static class EquipClass
     public static bool Fits(string item, string slot) => Rank(item) <= Rank(slot);
 }
 
-/// <summary>Модуль корабля из shared/modules.json (GDD §13): двигатель, щит, радар, бак или генератор.</summary>
+/// <summary>
+/// Модуль корабля из shared/modules.json (GDD §13): двигатель, щит, радар, бак, генератор — по одному на корабль —
+/// или вспомогательный (utility, M11): ремонт, охлаждение, грузовой расширитель — сколько utility-слотов у корпуса.
+/// </summary>
 /// <param name="Slot">Куда ставится: <see cref="Fitting.EngineSlot"/> и соседние.</param>
 /// <param name="Class">Класс (GDD §20): не старше класса корпуса.</param>
 /// <param name="Power">Сколько энергии генератора забирает (GDD §18).</param>
@@ -38,6 +41,10 @@ public static class EquipClass
 /// <param name="Radar">Радар: дальность обзора (GDD §10).</param>
 /// <param name="Fuel">Бак: ёмкость (GDD §6).</param>
 /// <param name="Output">Генератор: сколько энергии он даёт всему остальному (GDD §18).</param>
+/// <param name="Repair">Utility: чинит корпус, единиц в секунду, если давно не было урона (<see cref="CombatRules.RepairDelay"/>).</param>
+/// <param name="Cooling">Utility: доля, на которую короче перезарядка всех пушек (0.1 — на 10 %).</param>
+/// <param name="Cargo">Utility: прибавка к трюму корпуса.</param>
+/// <param name="Tier">Тир Mk1–Mk3 (<see cref="Tiers"/>): в файле всегда 1, старшие тиры раскрываются при разборе.</param>
 public sealed record ModuleParams(
     string Name,
     string Slot,
@@ -49,12 +56,17 @@ public sealed record ModuleParams(
     double ShieldRegen = 0,
     double Radar = 0,
     double Fuel = 0,
-    double Output = 0)
+    double Output = 0,
+    double Repair = 0,
+    double Cooling = 0,
+    double Cargo = 0,
+    int Tier = 1)
 {
     public string? Validate()
     {
         if (string.IsNullOrWhiteSpace(Name)) return "name is empty";
-        if (!Fitting.ModuleSlots.Contains(Slot)) return $"slot must be one of {string.Join(", ", Fitting.ModuleSlots)}";
+        if (!Fitting.ModuleSlots.Contains(Slot) && Slot != Fitting.UtilityKind)
+            return $"slot must be one of {string.Join(", ", Fitting.ModuleSlots)}, {Fitting.UtilityKind}";
         if (!EquipClass.IsValid(Class)) return "class must be S, M or L";
         if (!(Power >= 0)) return "power must not be negative";
         return Slot switch
@@ -64,13 +76,17 @@ public sealed record ModuleParams(
             Fitting.RadarSlot when !(Radar > 0) => "radar must be positive",
             Fitting.TankSlot when !(Fuel >= 0) => "fuel must not be negative",
             Fitting.GeneratorSlot when !(Output > 0) => "output must be positive",
+            Fitting.UtilityKind when !(Repair >= 0) || !(Cargo >= 0) || !(Cooling >= 0 && Cooling <= Fitting.MaxCooling) =>
+                $"repair and cargo must not be negative, cooling must be within 0..{Fitting.MaxCooling}",
+            Fitting.UtilityKind when !(Repair > 0 || Cooling > 0 || Cargo > 0) => "a utility module must repair, cool or add cargo",
             _ => null,
         };
     }
 }
 
 /// <summary>
-/// Что стоит на корабле пилота (GDD §62): пушка в каждом оружейном слоте (null — пусто) и по модулю каждого вида.
+/// Что стоит на корабле пилота (GDD §62): пушка в каждом оружейном слоте (null — пусто), по модулю каждого вида
+/// и вспомогательные модули в utility-слотах (M11; null в старых профилях — пусто).
 /// Неизменяемый: любая перестановка — новый объект, поэтому по ссылке видно, что оснащение сменилось.
 /// </summary>
 public sealed record ShipFit(
@@ -79,12 +95,16 @@ public sealed record ShipFit(
     string? Shield = null,
     string? Radar = null,
     string? Tank = null,
-    string? Generator = null)
+    string? Generator = null,
+    IReadOnlyList<string?>? Utility = null)
 {
-    /// <summary>Что стоит в слоте: w0…w5 или вид модуля; null — пусто или такого слота нет.</summary>
+    [JsonIgnore] public IReadOnlyList<string?> UtilityList => Utility ?? [];
+
+    /// <summary>Что стоит в слоте: w0…w5, u0…u2 или вид модуля; null — пусто или такого слота нет.</summary>
     public string? Get(string slot)
     {
         if (Fitting.WeaponIndex(slot) is { } i) return i < Weapons.Count ? Weapons[i] : null;
+        if (Fitting.UtilityIndex(slot) is { } u) return u < UtilityList.Count ? UtilityList[u] : null;
         return slot switch
         {
             Fitting.EngineSlot => Engine,
@@ -106,6 +126,13 @@ public sealed record ShipFit(
             weapons[i] = id;
             return this with { Weapons = weapons };
         }
+        if (Fitting.UtilityIndex(slot) is { } u)
+        {
+            var utility = UtilityList.ToList();
+            while (utility.Count <= u) utility.Add(null);
+            utility[u] = id;
+            return this with { Utility = utility };
+        }
         return slot switch
         {
             Fitting.EngineSlot => this with { Engine = id },
@@ -122,13 +149,23 @@ public sealed record ShipFit(
     {
         for (var i = 0; i < Weapons.Count; i++) if (Weapons[i] is { } w) yield return (Fitting.WeaponSlot(i), w);
         foreach (var slot in Fitting.ModuleSlots) if (Get(slot) is { } m) yield return (slot, m);
+        for (var i = 0; i < UtilityList.Count; i++) if (UtilityList[i] is { } u) yield return (Fitting.UtilitySlot(i), u);
     }
 
     public bool Equals(ShipFit? other) =>
         other is not null && Weapons.SequenceEqual(other.Weapons) && Engine == other.Engine && Shield == other.Shield &&
-        Radar == other.Radar && Tank == other.Tank && Generator == other.Generator;
+        Radar == other.Radar && Tank == other.Tank && Generator == other.Generator &&
+        Trim(UtilityList).SequenceEqual(Trim(other.UtilityList));
 
-    public override int GetHashCode() => HashCode.Combine(Weapons.Count, Engine, Shield, Radar, Tank, Generator);
+    public override int GetHashCode() => HashCode.Combine(Weapons.Count, Engine, Shield, Radar, Tank, Generator, Trim(UtilityList).Count());
+
+    /// <summary>Пустые utility-слоты в конце оснащения не отличают: [] и [null] — одно и то же.</summary>
+    private static IEnumerable<string?> Trim(IReadOnlyList<string?> list)
+    {
+        var n = list.Count;
+        while (n > 0 && list[n - 1] is null) n--;
+        return list.Take(n);
+    }
 }
 
 /// <summary>Почему предмет не встаёт в слот (<see cref="Fitting.CanInstall"/>). Коды уходят клиенту.</summary>
@@ -148,6 +185,15 @@ public static class Fitting
 {
     /// <summary>Больше оружейных слотов у корпуса не бывает (линкор GDD §12 — 6).</summary>
     public const int MaxWeaponSlots = 6;
+
+    /// <summary>Больше utility-слотов у корпуса не бывает (M11).</summary>
+    public const int MaxUtilitySlots = 3;
+
+    /// <summary>Охлаждение не укорачивает перезарядку больше чем наполовину, сколько модулей ни ставь.</summary>
+    public const double MaxCooling = 0.5;
+
+    /// <summary>Вид вспомогательного модуля: встаёт в любой utility-слот u0…u2.</summary>
+    public const string UtilityKind = "utility";
 
     public const string EngineSlot = "engine";
     public const string ShieldSlot = "shield";
@@ -184,15 +230,23 @@ public static class Fitting
 
     public static string WeaponSlot(int index) => $"w{index}";
 
+    public static string UtilitySlot(int index) => $"u{index}";
+
     /// <returns>Номер оружейного слота из «w0»…«w5»; null — это не оружейный слот.</returns>
     public static int? WeaponIndex(string? slot) =>
         slot is ['w', var d] && d is >= '0' and <= '9' && d - '0' < MaxWeaponSlots ? d - '0' : null;
 
-    public static bool IsSlot(string? slot) => WeaponIndex(slot) is not null || ModuleSlots.Contains(slot);
+    /// <returns>Номер utility-слота из «u0»…«u2»; null — это не utility-слот.</returns>
+    public static int? UtilityIndex(string? slot) =>
+        slot is ['u', var d] && d is >= '0' and <= '9' && d - '0' < MaxUtilitySlots ? d - '0' : null;
+
+    public static bool IsSlot(string? slot) =>
+        WeaponIndex(slot) is not null || UtilityIndex(slot) is not null || ModuleSlots.Contains(slot);
 
     /// <summary>
     /// Корпус с учётом модулей — по нему пилот летает, держит щит, видит радаром и заправляется. Двигатель умножает
-    /// скорость, разгон и торможение; щит, радар и бак берутся из модулей. Без каталога модулей — корпус как есть (до M9).
+    /// скорость, разгон и торможение; щит, радар и бак берутся из модулей, грузовые расширители прибавляют трюм.
+    /// Без каталога модулей — корпус как есть (до M9).
     /// Зеркало effectiveHull в client/src/sim/fitting.ts: предсказание движения обязано совпасть с сервером.
     /// </summary>
     public static HullParams Effective(HullParams hull, ShipFit fit, IReadOnlyDictionary<string, ModuleParams>? modules)
@@ -213,8 +267,24 @@ public static class Fitting
             ShieldRegen = shield?.ShieldRegen ?? 0,
             Radar = radar?.Radar ?? hull.Radar,
             Fuel = tank?.Fuel ?? 0,
+            Cargo = hull.Cargo + Utilities(fit, modules).Sum(m => m.Cargo),
         };
     }
+
+    /// <summary>Стоящие utility-модули.</summary>
+    public static IEnumerable<ModuleParams> Utilities(ShipFit fit, IReadOnlyDictionary<string, ModuleParams>? modules)
+    {
+        if (modules is null) yield break;
+        foreach (var id in fit.UtilityList) if (Module(modules, id, UtilityKind) is { } m) yield return m;
+    }
+
+    /// <summary>Ремонт корпуса в секунду от ремонтных блоков (M11).</summary>
+    public static double Repair(ShipFit fit, IReadOnlyDictionary<string, ModuleParams>? modules) =>
+        Utilities(fit, modules).Sum(m => m.Repair);
+
+    /// <summary>Множитель перезарядки от охлаждения: 1 — без него, не меньше 1 − <see cref="MaxCooling"/>.</summary>
+    public static double CooldownScale(ShipFit fit, IReadOnlyDictionary<string, ModuleParams>? modules) =>
+        1 - Math.Min(MaxCooling, Utilities(fit, modules).Sum(m => m.Cooling));
 
     /// <summary>Сколько энергии забирает всё, что стоит (GDD §18).</summary>
     public static double Power(ShipFit fit, IReadOnlyDictionary<string, WeaponParams> weapons, IReadOnlyDictionary<string, ModuleParams>? modules)
@@ -223,6 +293,7 @@ public static class Fitting
         foreach (var id in fit.Weapons) if (id is not null && weapons.TryGetValue(id, out var w)) total += w.Power;
         if (modules is null) return total;
         foreach (var slot in ModuleSlots) if (Module(modules, fit.Get(slot), slot) is { } m) total += m.Power;
+        foreach (var m in Utilities(fit, modules)) total += m.Power;
         return total;
     }
 
@@ -250,6 +321,15 @@ public static class Fitting
             {
                 if (!weapons.TryGetValue(id, out var weapon)) return FitProblem.Slot;
                 if (!EquipClass.Fits(weapon.Class, hull.Slots[index])) return FitProblem.Class;
+            }
+        }
+        else if (UtilityIndex(slot) is { } utility)
+        {
+            if (modules is null || utility >= hull.UtilitySlots) return FitProblem.Slot;
+            if (id is not null)
+            {
+                if (!modules.TryGetValue(id, out var module) || module.Slot != UtilityKind) return FitProblem.Slot;
+                if (!EquipClass.Fits(module.Class, hull.Class)) return FitProblem.Class;
             }
         }
         else if (ModuleSlots.Contains(slot))
@@ -311,12 +391,25 @@ public static class Fitting
                 if (RequiredSlots.Contains(slot) && StarterFor(slot) is { } starter && modules.ContainsKey(starter))
                     result = result.With(slot, starter);
             }
+            for (var i = 0; i < fit.UtilityList.Count; i++)
+            {
+                if (fit.UtilityList[i] is not { } id || !modules.TryGetValue(id, out var module)) continue;
+                if (i < hull.UtilitySlots && module.Slot == UtilityKind && EquipClass.Fits(module.Class, hull.Class))
+                    result = result.With(UtilitySlot(i), id);
+                else removed?.Add(id);
+            }
         }
         for (var i = guns.Length - 1; i >= 0 && Power(result, weapons, modules) > Output(result, modules) + 1e-9; i--)
         {
             if (result.Weapons[i] is not { } id) continue;
             removed?.Add(id);
             result = result.With(WeaponSlot(i), null);
+        }
+        for (var i = result.UtilityList.Count - 1; i >= 0 && Power(result, weapons, modules) > Output(result, modules) + 1e-9; i--)
+        {
+            if (result.UtilityList[i] is not { } id) continue;
+            removed?.Add(id);
+            result = result.With(UtilitySlot(i), null);
         }
         return result;
     }
@@ -355,7 +448,10 @@ public static class ModuleCatalog
 /// <param name="TurnRate">Доворот к цели, градусы в секунду: от ракеты уходят резким манёвром.</param>
 /// <param name="Lifetime">Столько секунд ракета летит, потом гаснет.</param>
 /// <param name="HitRadius">Ракета попадает, если ближе этого к борту цели (к кругу радиусом size корпуса).</param>
-public sealed record MissileParams(double Speed = 330, double TurnRate = 120, double Lifetime = 5, double HitRadius = 10)
+/// <param name="Hp">Прочность: столько урона зенитки (M11) ракета выдерживает. 1 — любое попадание сбивает.</param>
+/// <param name="Sprite">Как рисовать на клиенте: null — ракета, «torpedo» — торпеда.</param>
+public sealed record MissileParams(
+    double Speed = 330, double TurnRate = 120, double Lifetime = 5, double HitRadius = 10, double Hp = 1, string? Sprite = null)
 {
     [JsonIgnore] public int LifetimeTicks => Math.Max(1, Combat.SecondsToTicks(Lifetime));
 
@@ -363,6 +459,7 @@ public sealed record MissileParams(double Speed = 330, double TurnRate = 120, do
     {
         if (!(Speed > 0) || !(TurnRate > 0) || !(Lifetime > 0)) return "speed, turnRate and lifetime must be positive";
         if (!(HitRadius >= 0)) return "hitRadius must not be negative";
+        if (!(Hp > 0)) return "hp must be positive";
         return null;
     }
 }

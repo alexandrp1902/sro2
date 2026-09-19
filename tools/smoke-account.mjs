@@ -195,9 +195,11 @@ async function main() {
   check('docked ship is gone from space for others', true);
 
   // Покупка (M9): самая дешёвая пушка по карману встаёт во второй, свободный слот; самый дорогой корпус — не по карману.
+  // С M11 у станции свой ассортимент (shop.stock): чего здесь не продают, то и не купить ни за какие деньги.
   const credits = a.cargo.credits;
-  const weapons = Object.entries(shop.items ?? {}).filter(([id]) => a.welcome.weapons[id]).sort((x, y) => x[1] - y[1]);
-  const hulls = Object.entries(shop.hulls ?? {}).filter(([id]) => !a.hangar.hulls.includes(id)).sort((x, y) => y[1] - x[1]);
+  const sold = (id) => !shop.stock || shop.stock.includes(id);
+  const weapons = Object.entries(shop.items ?? {}).filter(([id]) => a.welcome.weapons[id] && sold(id)).sort((x, y) => x[1] - y[1]);
+  const hulls = Object.entries(shop.hulls ?? {}).filter(([id]) => !a.hangar.hulls.includes(id) && sold(id)).sort((x, y) => y[1] - x[1]);
   let bought = null;
   if (weapons.length > 0 && weapons[0][1] <= credits) {
     const [id, price] = weapons[0];

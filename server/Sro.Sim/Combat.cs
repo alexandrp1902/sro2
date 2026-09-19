@@ -20,6 +20,12 @@ namespace Sro.Sim;
 /// <param name="Class">Класс (GDD §20): встаёт в оружейный слот того же класса или старше.</param>
 /// <param name="Power">Сколько энергии генератора забирает (GDD §18).</param>
 /// <param name="Missile">Ракетница (боевой документ §37): пушка запускает самонаводящуюся ракету вместо броска на попадание.</param>
+/// <param name="ShieldFactor">Множитель урона по щиту (ионный разрядник — 2).</param>
+/// <param name="HullFactor">Множитель урона по корпусу (ионный разрядник — 0.3).</param>
+/// <param name="Slow">Попадание замедляет цель: доля, на которую падают скорость и разгон (0.4 — на 40 %).</param>
+/// <param name="SlowSeconds">Сколько длится замедление.</param>
+/// <param name="Intercept">Зенитка (M11): сама бьёт ракеты и торпеды, летящие рядом, даже без цели и без огня.</param>
+/// <param name="Tier">Тир Mk1–Mk3 (<see cref="Tiers"/>): в файле всегда 1, старшие тиры раскрываются при разборе.</param>
 public sealed record WeaponParams(
     string Name,
     double Damage,
@@ -35,8 +41,16 @@ public sealed record WeaponParams(
     double ClosePenalty = 0,
     string Class = EquipClass.S,
     double Power = 0,
-    MissileParams? Missile = null)
+    MissileParams? Missile = null,
+    double ShieldFactor = 1,
+    double HullFactor = 1,
+    double Slow = 0,
+    double SlowSeconds = 0,
+    InterceptParams? Intercept = null,
+    int Tier = 1)
 {
+    [System.Text.Json.Serialization.JsonIgnore] public int SlowTicks => Combat.SecondsToTicks(SlowSeconds);
+
     public const string MissileKind = "missile";
 
     /// <returns>Описание ошибки или null, если параметры годятся.</returns>
@@ -56,6 +70,10 @@ public sealed record WeaponParams(
         if (!(Power >= 0)) return "power must not be negative";
         if ((Kind == MissileKind) != (Missile is not null)) return "kind 'missile' and the missile block go together";
         if (Missile?.Validate() is { } missile) return $"missile: {missile}";
+        if (!(ShieldFactor >= 0) || !(HullFactor >= 0)) return "shieldFactor and hullFactor must not be negative";
+        if (!(Slow >= 0 && Slow <= 0.9) || !(SlowSeconds >= 0)) return "slow must be within 0..0.9, slowSeconds must not be negative";
+        if (Intercept?.Validate() is { } intercept) return $"intercept: {intercept}";
+        if (Intercept is not null && Missile is not null) return "a missile launcher cannot intercept";
         return null;
     }
 }
@@ -119,19 +137,42 @@ public static class Combat
         return Math.Abs(Movement.WrapAngle(bearing - rot)) <= arcDeg * DegToRad + ArcEpsilon;
     }
 
-    /// <summary>Урон снимает сначала щит, остаток — корпус (GDD §17). Корпус не уходит ниже нуля.</summary>
-    public static DamageResult ApplyDamage(ref double hp, ref double shield, double damage)
+    /// <summary>
+    /// Урон снимает сначала щит, остаток — корпус (GDD §17). Корпус не уходит ниже нуля.
+    /// Множители (ионный разрядник): по щиту урон × shieldFactor; что щит не принял — в исходных единицах × hullFactor
+    /// по корпусу.
+    /// </summary>
+    public static DamageResult ApplyDamage(ref double hp, ref double shield, double damage, double shieldFactor = 1, double hullFactor = 1)
     {
-        var absorbed = Math.Min(shield, damage);
+        var absorbed = shieldFactor > 0 ? Math.Min(shield, damage * shieldFactor) : 0;
         shield -= absorbed;
-        var hull = Math.Min(hp, damage - absorbed);
+        var rest = shieldFactor > 0 ? damage - absorbed / shieldFactor : damage;
+        var hull = Math.Min(hp, Math.Max(0, rest) * hullFactor);
         hp -= hull;
         return new DamageResult(absorbed, hull);
     }
 
+    /// <summary>Урон пушки с её множителями по щиту и корпусу.</summary>
+    public static DamageResult ApplyDamage(ref double hp, ref double shield, WeaponParams weapon) =>
+        ApplyDamage(ref hp, ref shield, weapon.Damage, weapon.ShieldFactor, weapon.HullFactor);
+
     /// <summary>Перезарядка в тиках: выстрел не чаще раза за столько тиков.</summary>
-    public static int CooldownTicks(WeaponParams weapon) =>
-        Math.Max(1, (int)Math.Ceiling(weapon.Cooldown * SimConfig.TickRate - 1e-9));
+    /// <param name="scale">Множитель от охлаждения (<see cref="Fitting.CooldownScale"/>); 1 — без него.</param>
+    public static int CooldownTicks(WeaponParams weapon, double scale = 1) =>
+        Math.Max(1, (int)Math.Ceiling(weapon.Cooldown * scale * SimConfig.TickRate - 1e-9));
 
     public static int SecondsToTicks(double seconds) => (int)Math.Round(seconds * SimConfig.TickRate);
+}
+
+/// <summary>Зенитка (M11): сбивает ракеты и торпеды в радиусе.</summary>
+/// <param name="Range">Ракета ближе этого к кораблю — под огнём.</param>
+/// <param name="Chance">Шанс попасть по ракете, %.</param>
+public sealed record InterceptParams(double Range = 350, double Chance = 60)
+{
+    public string? Validate()
+    {
+        if (!(Range > 0)) return "range must be positive";
+        if (!(Chance > 0 && Chance <= 100)) return "chance must be within 0..100";
+        return null;
+    }
 }

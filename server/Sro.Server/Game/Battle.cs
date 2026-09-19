@@ -9,16 +9,18 @@ namespace Sro.Server.Game;
 /// ищутся уничтоженные — порядок кораблей в словаре на исход не влияет, взаимное уничтожение возможно.
 /// Каждый оружейный слот стреляет сам, со своей перезарядкой (GDD §12). Ракетница не бросает кубик,
 /// а запускает ракету (боевой документ §37) — дальше её ведёт <see cref="MissileSystem"/>.
+/// Зенитка (M11) бьёт ракеты и торпеды рядом сама, до обычного огня; ион замедляет; охлаждение укорачивает перезарядку.
 /// </summary>
 internal sealed class Battle(Func<double> roll, ILogger log)
 {
-    private readonly record struct Volley(ShipEntity Shooter, ShipEntity Target, int Slot, WeaponParams Weapon, double Chance);
+    private readonly record struct Volley(ShipEntity Shooter, ShipEntity Target, int Slot, WeaponParams Weapon, double Chance, double Cooldown);
 
     private readonly List<Volley> _volleys = [];
 
     /// <param name="respawn">Возвращает уничтоженный корабль в систему, когда вышел его срок.</param>
     /// <param name="canAttack">Можно ли стрелку бить эту цель — PvP по правилам системы; null — можно всех.</param>
     /// <param name="launch">Запуск ракеты: стрелок, цель, слот, ракетница; null — ракетницы молчат.</param>
+    /// <param name="missiles">Ракеты в полёте — цели зениток; null — зенитки бьют только корабли.</param>
     public void Run(
         long tick,
         Dictionary<int, ShipEntity> ships,
@@ -27,8 +29,10 @@ internal sealed class Battle(Func<double> roll, ILogger log)
         List<KillDto> kills,
         Action<ShipEntity> respawn,
         Func<ShipEntity, ShipEntity, bool>? canAttack = null,
-        Action<ShipEntity, ShipEntity, int, WeaponParams>? launch = null)
+        Action<ShipEntity, ShipEntity, int, WeaponParams>? launch = null,
+        MissileSystem? missiles = null)
     {
+        if (missiles is { Alive.Count: > 0 }) Intercept(tick, ships, balance, missiles, shots, canAttack);
         foreach (var shooter in ships.Values) Aim(tick, shooter, ships, balance, canAttack, launch is not null);
         foreach (var volley in _volleys)
         {
@@ -60,7 +64,9 @@ internal sealed class Battle(Func<double> roll, ILogger log)
             }
             else
             {
-                RegenerateShield(tick, ship, ship.Effective(balance), rules);
+                var hull = ship.Effective(balance);
+                RegenerateShield(tick, ship, hull, rules);
+                Repair(tick, ship, hull, rules, ship.RepairRate(balance));
             }
         }
     }
@@ -86,6 +92,7 @@ internal sealed class Battle(Func<double> roll, ILogger log)
         var distance = Math.Sqrt(dx * dx + dy * dy);
         var speed = Math.Sqrt(target.Ship.Vx * target.Ship.Vx + target.Ship.Vy * target.Ship.Vy);
         var allowed = (bool?)null;
+        var cooldown = shooter.CooldownScale(balance);
         var slots = Math.Min(shooter.WeaponIds.Count, Fitting.MaxWeaponSlots);
         for (var slot = 0; slot < slots; slot++)
         {
@@ -95,15 +102,15 @@ internal sealed class Battle(Func<double> roll, ILogger log)
             allowed ??= canAttack is null || canAttack(shooter, target);
             if (allowed == false) return;
             var chance = weapon.Missile is null ? Combat.HitChance(weapon, distance, target.Evasion(balance, speed)) : 100;
-            _volleys.Add(new Volley(shooter, target, slot, weapon, chance));
+            _volleys.Add(new Volley(shooter, target, slot, weapon, chance, cooldown));
         }
     }
 
     /// <summary>Ракета ушла: перезарядка, защита снята, цель знает о нападении — урон будет, когда ракета долетит.</summary>
     private static void Launch(long tick, Volley volley, Action<ShipEntity, ShipEntity, int, WeaponParams> launch)
     {
-        var (shooter, target, slot, weapon, _) = volley;
-        shooter.NextFireTicks[slot] = tick + Combat.CooldownTicks(weapon);
+        var (shooter, target, slot, weapon, _, cooldown) = volley;
+        shooter.NextFireTicks[slot] = tick + Combat.CooldownTicks(weapon, cooldown);
         shooter.ProtectedUntilTick = 0;
         target.LastAttackerId = shooter.Id;
         launch(shooter, target, slot, weapon);
@@ -111,8 +118,8 @@ internal sealed class Battle(Func<double> roll, ILogger log)
 
     private void Fire(long tick, Volley volley, List<ShotDto> shots)
     {
-        var (shooter, target, slot, weapon, chance) = volley;
-        shooter.NextFireTicks[slot] = tick + Combat.CooldownTicks(weapon);
+        var (shooter, target, slot, weapon, chance, cooldown) = volley;
+        shooter.NextFireTicks[slot] = tick + Combat.CooldownTicks(weapon, cooldown);
         shooter.ProtectedUntilTick = 0; // выстрел снимает защиту после появления (GDD §25)
         target.LastAttackerId = shooter.Id; // и промах — нападение: пират ответит
 
@@ -120,8 +127,9 @@ internal sealed class Battle(Func<double> roll, ILogger log)
         var damage = default(DamageResult);
         if (hit)
         {
-            damage = Combat.ApplyDamage(ref target.Hp, ref target.Shield, weapon.Damage);
+            damage = Combat.ApplyDamage(ref target.Hp, ref target.Shield, weapon);
             target.LastDamageTick = tick;
+            target.SlowDown(weapon, tick);
             if (target.Hp <= 0 && target.KilledBy == 0) target.KilledBy = shooter.Id;
         }
         target.Stats.Record(tick, hit, chance);
@@ -133,6 +141,53 @@ internal sealed class Battle(Func<double> roll, ILogger log)
             (int)Math.Round(damage.Shield + damage.Hull),
             (int)Math.Round(damage.Shield),
             Math.Round(chance, 2)));
+    }
+
+    /// <summary>
+    /// Зенитки (M11): готовый слот с зениткой бьёт ближайшую вражескую ракету в радиусе — сам, без цели и без огня.
+    /// Вражеская — летит в этот корабль или пущена пиратом, которого корабль может бить, не в пирата.
+    /// Выстрел по ракете уходит клиенту обычным выстрелом: To — id ракеты.
+    /// </summary>
+    private void Intercept(
+        long tick,
+        Dictionary<int, ShipEntity> ships,
+        Balance balance,
+        MissileSystem missiles,
+        List<ShotDto> shots,
+        Func<ShipEntity, ShipEntity, bool>? canAttack)
+    {
+        foreach (var ship in ships.Values)
+        {
+            if (ship.IsDead || ship is Meteor) continue;
+            var slots = Math.Min(ship.WeaponIds.Count, Fitting.MaxWeaponSlots);
+            for (var slot = 0; slot < slots; slot++)
+            {
+                if (tick < ship.NextFireTicks[slot] || ship.WeaponAt(balance, slot) is not { Intercept: { } intercept } weapon) continue;
+                var missile = missiles.Nearest(ship.Ship.X, ship.Ship.Y, intercept.Range, m => Threat(m, ship, ships, canAttack));
+                if (missile is null) break; // рядом нечего сбивать — остальные зенитки тоже молчат
+                ship.NextFireTicks[slot] = tick + Combat.CooldownTicks(weapon, ship.CooldownScale(balance));
+                var hit = Combat.IsHit(intercept.Chance, roll());
+                if (hit) missiles.Hit(missile, weapon.Damage);
+                shots.Add(new ShotDto(ship.Id, missile.Id, ship.WeaponIds[slot] ?? "", hit, hit ? (int)Math.Round(weapon.Damage) : 0, 0, intercept.Chance));
+            }
+        }
+    }
+
+    private static bool Threat(MissileSystem.Missile missile, ShipEntity ship, Dictionary<int, ShipEntity> ships, Func<ShipEntity, ShipEntity, bool>? canAttack)
+    {
+        if (missile.OwnerId == ship.Id) return false;
+        if (missile.TargetId == ship.Id) return true;
+        return ships.GetValueOrDefault(missile.OwnerId) is Pirate { Type.IsPirate: true } owner &&
+            ships.GetValueOrDefault(missile.TargetId) is not Pirate { Type.IsPirate: true } &&
+            (canAttack?.Invoke(ship, owner) ?? true);
+    }
+
+    /// <summary>Ремонтный блок (M11): корпус чинится, если давно не было урона.</summary>
+    private static void Repair(long tick, ShipEntity ship, HullParams hull, CombatRules rules, double rate)
+    {
+        if (rate <= 0 || tick - ship.LastDamageTick < rules.RepairDelayTicks) return;
+        var max = ship.MaxHp(hull);
+        if (ship.Hp < max) ship.Hp = Math.Min(max, ship.Hp + rate * SimConfig.Dt);
     }
 
     private static void RegenerateShield(long tick, ShipEntity ship, HullParams hull, CombatRules rules)

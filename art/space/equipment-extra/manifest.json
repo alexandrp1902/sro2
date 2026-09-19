@@ -1,0 +1,86 @@
+{
+  "weapons-cannon": {
+    "file": "client/public/sprites/weapons-cannon.webp",
+    "w": 256,
+    "h": 231,
+    "alpha": true,
+    "bytes": 22268
+  },
+  "weapons-heavy-laser": {
+    "file": "client/public/sprites/weapons-heavy-laser.webp",
+    "w": 256,
+    "h": 240,
+    "alpha": true,
+    "bytes": 30164
+  },
+  "weapons-railgun": {
+    "file": "client/public/sprites/weapons-railgun.webp",
+    "w": 256,
+    "h": 206,
+    "alpha": true,
+    "bytes": 23212
+  },
+  "weapons-ion": {
+    "file": "client/public/sprites/weapons-ion.webp",
+    "w": 253,
+    "h": 256,
+    "alpha": true,
+    "bytes": 30336
+  },
+  "weapons-point-defense": {
+    "file": "client/public/sprites/weapons-point-defense.webp",
+    "w": 256,
+    "h": 250,
+    "alpha": true,
+    "bytes": 30128
+  },
+  "weapons-torpedoes": {
+    "file": "client/public/sprites/weapons-torpedoes.webp",
+    "w": 256,
+    "h": 239,
+    "alpha": true,
+    "bytes": 26626
+  },
+  "modules-reactor": {
+    "file": "client/public/sprites/modules-reactor.webp",
+    "w": 222,
+    "h": 256,
+    "alpha": true,
+    "bytes": 27928
+  },
+  "modules-fuel-tank": {
+    "file": "client/public/sprites/modules-fuel-tank.webp",
+    "w": 256,
+    "h": 254,
+    "alpha": true,
+    "bytes": 32156
+  },
+  "modules-military-radar": {
+    "file": "client/public/sprites/modules-military-radar.webp",
+    "w": 248,
+    "h": 256,
+    "alpha": true,
+    "bytes": 28474
+  },
+  "modules-afterburner": {
+    "file": "client/public/sprites/modules-afterburner.webp",
+    "w": 256,
+    "h": 220,
+    "alpha": true,
+    "bytes": 27770
+  },
+  "modules-repair": {
+    "file": "client/public/sprites/modules-repair.webp",
+    "w": 256,
+    "h": 212,
+    "alpha": true,
+    "bytes": 26036
+  },
+  "modules-cooling": {
+    "file": "client/public/sprites/modules-cooling.webp",
+    "w": 256,
+    "h": 191,
+    "alpha": true,
+    "bytes": 21114
+  }
+}

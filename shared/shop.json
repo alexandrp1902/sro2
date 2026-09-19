@@ -3,10 +3,23 @@
   "repairPrice": 0.25,
   "fuelPrice": 1,
   "sellShare": 0.5,
+
+  // Множители старших тиров (M11): первый — Mk2, второй — Mk3. Раскрывают weapons.json и modules.json.
+  "tiers": [
+    { "stat": 1.25, "power": 1.15, "price": 3, "engine": 1.5, "radar": 1.1 },
+    { "stat": 1.5, "power": 1.3, "price": 8, "engine": 2, "radar": 1.2 }
+  ],
+
   "hulls": {
     "light": 0,
+    "scout": 2500,
     "medium": 3000,
-    "heavy": 8000
+    "industrial": 5000,
+    "interceptor": 9000,
+    "heavy": 8000,
+    "frigate": 18000,
+    "freighter": 26000,
+    "cruiser": 60000
   },
   "items": {
     "pulse": 300,
@@ -15,9 +28,15 @@
     "plasma": 1800,
     "missiles": 2500,
     "heavyLaser": 4500,
+    "ion": 2200,
+    "pointDefense": 900,
+    "railgun": 6000,
+    "torpedoes": 7000,
     "engineS": 200,
     "engineM": 1500,
     "engineL": 4000,
+    "afterburnerM": 2200,
+    "afterburnerL": 5000,
     "shieldS": 200,
     "shieldM": 1500,
     "shieldL": 4000,
@@ -29,6 +48,52 @@
     "tankL": 1500,
     "generatorS": 200,
     "generatorM": 1500,
-    "generatorL": 4000
+    "generatorL": 4000,
+    "repair": 1200,
+    "cooling": 1500,
+    "cargoPod": 800
+  },
+
+  // Ассортимент по регионам галактики (M11): чем дальше от Sol, тем лучше снаряжение и выше тир.
+  "regions": {
+    "core": {
+      "tiers": [1],
+      "hulls": ["light", "scout", "medium", "industrial"],
+      "items": [
+        "pulse", "laser", "cannon", "missiles",
+        "engineS", "engineM", "shieldS", "shieldM", "radarS", "radarM",
+        "tankS", "tankM", "generatorS", "generatorM", "cargoPod", "repair"
+      ]
+    },
+    "frontier": {
+      "tiers": [1, 2],
+      "hulls": ["scout", "medium", "industrial", "interceptor", "heavy", "frigate"],
+      "items": [
+        "pulse", "laser", "cannon", "plasma", "missiles", "heavyLaser", "ion", "pointDefense",
+        "engineM", "engineL", "afterburnerM", "shieldM", "shieldL", "radarM", "radarL",
+        "tankM", "tankL", "generatorM", "generatorL", "cargoPod", "repair", "cooling"
+      ]
+    },
+    "rim": {
+      "tiers": [2, 3],
+      "hulls": ["interceptor", "heavy", "frigate", "freighter", "cruiser"],
+      "items": [
+        "plasma", "heavyLaser", "missiles", "ion", "pointDefense", "railgun", "torpedoes",
+        "engineL", "afterburnerL", "shieldL", "radarL", "tankL", "generatorL",
+        "cargoPod", "repair", "cooling"
+      ]
+    }
+  },
+
+  // Личные отличия станций: что добавили, чего нет и как плавают цены.
+  "stations": {
+    "sol": { "title": "Торговый порт Sol" },
+    "vega": { "title": "Верфь Веги", "items": ["heavyLaser"], "price": 1.05 },
+    "alphaCen": { "title": "Причал Альфы", "remove": ["cannon"], "price": 0.92 },
+    "castor": { "title": "Шахтёрский склад Кастора", "hulls": ["freighter"], "items": ["tankL", "cargoPod"], "price": 0.95 },
+    "nova": { "title": "Военная станция Nova", "items": ["railgun"], "price": 1.1 },
+    "barnard": { "title": "Пост рейнджеров Барнарда", "items": ["pointDefense", "ion", "repair"], "price": 1.05 },
+    "aldebaran": { "title": "Крепость Альдебарана", "items": ["torpedoes"], "price": 1.12 },
+    "epsilon": { "title": "Вольная гавань Эпсилона", "hulls": ["cruiser"], "price": 1.15 }
   }
 }

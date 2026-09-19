@@ -25,14 +25,17 @@ public sealed record LootItem(string Name, string Rarity = LootItem.Common, doub
     }
 }
 
-/// <summary>Одна строка таблицы дропа: с шансом Chance выпадает от Min до Max штук предмета.</summary>
+/// <summary>
+/// Одна строка таблицы дропа: с шансом Chance выпадает от Min до Max штук предмета. Предмет — груз из items
+/// или (M11) пушка или модуль любого тира: подобранное снаряжение уходит на склад, а не в трюм.
+/// </summary>
 public sealed record LootRoll(string Item, double Chance = 1, int Min = 1, int Max = 1)
 {
     public const int MaxCount = 100;
 
-    public string? Validate(IReadOnlyDictionary<string, LootItem> items)
+    public string? Validate(IReadOnlyDictionary<string, LootItem> items, IReadOnlySet<string>? gear = null)
     {
-        if (Item is null || !items.ContainsKey(Item)) return $"unknown item '{Item}'";
+        if (Item is null || !(items.ContainsKey(Item) || gear?.Contains(Item) == true)) return $"unknown item '{Item}'";
         if (!(Chance > 0 && Chance <= 1)) return "chance must be within 0..1";
         if (Min < 1) return "min must be at least 1";
         if (Max < Min) return "max must not be less than min";
@@ -68,12 +71,12 @@ public sealed record LootTable(
         }
     }
 
-    public string? Validate(IReadOnlyDictionary<string, LootItem> items)
+    public string? Validate(IReadOnlyDictionary<string, LootItem> items, IReadOnlySet<string>? gear = null)
     {
         if (!(LevelChanceBonus >= 0) || !(LevelCountBonus >= 0)) return "level bonuses must not be negative";
         for (var i = 0; i < RollList.Count; i++)
         {
-            var problem = RollList[i] is null ? "is null" : RollList[i].Validate(items);
+            var problem = RollList[i] is null ? "is null" : RollList[i].Validate(items, gear);
             if (problem is not null) return $"rolls[{i}]: {problem}";
         }
         return null;
@@ -172,6 +175,15 @@ public sealed record LootRules(
     [JsonIgnore] public IReadOnlyDictionary<string, LootTable> TableMap => Tables ?? new Dictionary<string, LootTable>();
     [JsonIgnore] public IReadOnlyList<LootContainer> ContainerList => Containers ?? [];
 
+    /// <summary>Пушки и модули всех тиров: они тоже выпадают (M11) и уходят на склад пилота.</summary>
+    [JsonIgnore] public IReadOnlySet<string> Gear { get; init; } = new HashSet<string>();
+
+    /// <summary>Предмет — снаряжение, а не груз.</summary>
+    public bool IsGear(string item) => !ItemMap.ContainsKey(item) && Gear.Contains(item);
+
+    /// <summary>Такой предмет может лежать в космосе: груз или снаряжение.</summary>
+    public bool Knows(string item) => ItemMap.ContainsKey(item) || Gear.Contains(item);
+
     /// <returns>Объём одной штуки; 0 — предмета такого нет.</returns>
     public double Volume(string item) => ItemMap.TryGetValue(item, out var found) ? found.Volume : 0;
 
@@ -200,7 +212,7 @@ public sealed record LootRules(
         }
         foreach (var (id, table) in TableMap)
         {
-            var problem = table is null ? "is null" : table.Validate(ItemMap);
+            var problem = table is null ? "is null" : table.Validate(ItemMap, Gear);
             if (problem is not null) return $"tables.{id}: {problem}";
         }
         for (var i = 0; i < ContainerList.Count; i++)
@@ -212,7 +224,9 @@ public sealed record LootRules(
         return null;
     }
 
-    public static bool TryParse(string json, out LootRules rules, out string? error, double stationSafeRadius = 0)
+    /// <param name="gear">Пушки и модули, которые могут выпадать; null — только груз.</param>
+    public static bool TryParse(
+        string json, out LootRules rules, out string? error, double stationSafeRadius = 0, IReadOnlySet<string>? gear = null)
     {
         rules = None;
         LootRules? parsed;
@@ -230,6 +244,7 @@ public sealed record LootRules(
             error = "no rules";
             return false;
         }
+        if (gear is not null) parsed = parsed with { Gear = gear };
         error = parsed.Validate(stationSafeRadius);
         if (error is not null) return false;
         rules = parsed;

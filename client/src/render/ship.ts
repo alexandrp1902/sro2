@@ -1,15 +1,11 @@
-import { Container, Graphics, Sprite } from 'pixi.js';
+import { Container, Graphics, Sprite, Texture } from 'pixi.js';
 import { localVelocity, wrapAngle, type HullParams, type ShipState } from '../sim/movement';
-import { shipSprite, spriteSize, texture, type SpriteName } from './sprites';
+import { flameSprite, shipSprite, spriteSize, texture, type SpriteName } from './sprites';
 
 /** Указатель желаемого направления (§26) — на таком расстоянии от центра, в размерах корпуса. */
 const POINTER_DISTANCE = 2.6;
 /** Дроны — учебные мишени: тот же корабль, но зеленоватый, чтобы не путать с пилотами. */
 const DRONE_TINT = 0xa8dca0;
-/** Торговцы — гружёные «купцы»: корабль по корпусу, но в тёплом золотистом оттенке. */
-const TRADER_TINT = 0xf3dc9c;
-/** Рейнджеры — страж торговых путей: корабль по корпусу, бирюзовый. */
-const RANGER_TINT = 0x9ff0e0;
 /** Пилот своей группы — чуть салатовый, в цвет группы. */
 const ALLY_TINT = 0xd8ffb8;
 
@@ -37,9 +33,8 @@ export class ShipView {
   constructor(private readonly look: ShipLook) {
     this.hull.addChild(this.flame, this.body);
     this.view.addChild(this.pointer, this.hull);
+    // С M11 у дрона, торговца и рейнджера свои корабли — оттенок только подчёркивает их роль.
     if (look === 'drone') this.body.tint = DRONE_TINT;
-    if (look === 'trader') this.body.tint = TRADER_TINT;
-    if (look === 'ranger') this.body.tint = RANGER_TINT;
     this.pointer
       .poly([-7, 5, 0, -3, 7, 5], false)
       .stroke({ width: 2.5, color: 0xcfe3ff, alpha: 0.9, cap: 'round', join: 'round' });
@@ -84,7 +79,9 @@ export class ShipView {
     const { h, body = h } = spriteSize(sprite);
     this.body.texture = texture(sprite);
     this.body.anchor.set(0.5, body / 2 / h);
-    this.flame.texture = texture(`${sprite}-flame`);
+    // У новых корпусов (M11) своего пламени нет — берём чужое по размеру, шириной по корпусу.
+    const flame = flameSprite(sprite);
+    this.flame.texture = flame ? texture(flame) : Texture.EMPTY;
     // Пламя масштабируется от линии сопел: там его опорная точка.
     this.flame.anchor.set(0.5, body / h);
     this.flame.position.set(0, body / 2);

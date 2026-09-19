@@ -20,8 +20,8 @@ public static class SnapshotCodec
 
     // Поля корабля по битам маски.
     public const int ShipX = 0, ShipY = 1, ShipR = 2, ShipVx = 3, ShipVy = 4, ShipHull = 5, ShipTh = 6, ShipAck = 7,
-        ShipHp = 8, ShipSh = 9, ShipW = 10, ShipRt = 11, ShipPu = 12, ShipTg = 13, ShipAi = 14, ShipJ = 15;
-    public const int ShipFields = 16;
+        ShipHp = 8, ShipSh = 9, ShipW = 10, ShipRt = 11, ShipPu = 12, ShipTg = 13, ShipAi = 14, ShipJ = 15, ShipSl = 16;
+    public const int ShipFields = 17;
 
     public const int LootX = 0, LootY = 1, LootI = 2, LootN = 3, LootE = 4, LootC = 5;
     public const int LootFields = 6;
@@ -142,6 +142,7 @@ public static class SnapshotCodec
                 if (Has(mask, ShipTg)) w.Write(ship.Tg);
                 if (Has(mask, ShipAi)) WriteString(ref w, ship.Ai);
                 if (Has(mask, ShipJ)) w.Write(ship.J);
+                if (Has(mask, ShipSl)) w.Write(ship.Sl);
             }
             WriteGone(ref w, _ships);
         }
@@ -330,7 +331,7 @@ public static class SnapshotCodec
         Bit(Differs(a.Vx, b.Vx), ShipVx) | Bit(Differs(a.Vy, b.Vy), ShipVy) | Bit(a.Hull != b.Hull, ShipHull) |
         Bit(Differs(a.Th, b.Th), ShipTh) | Bit(a.Ack != b.Ack, ShipAck) | Bit(a.Hp != b.Hp, ShipHp) | Bit(a.Sh != b.Sh, ShipSh) |
         Bit(a.W != b.W, ShipW) | Bit(a.Rt != b.Rt, ShipRt) | Bit(a.Pu != b.Pu, ShipPu) | Bit(a.Tg != b.Tg, ShipTg) |
-        Bit(a.Ai != b.Ai, ShipAi) | Bit(a.J != b.J, ShipJ);
+        Bit(a.Ai != b.Ai, ShipAi) | Bit(a.J != b.J, ShipJ) | Bit(a.Sl != b.Sl, ShipSl);
 
     private static int LootMask(LootDto a, LootDto b) =>
         Bit(Differs(a.X, b.X), LootX) | Bit(Differs(a.Y, b.Y), LootY) | Bit(a.I != b.I, LootI) |
@@ -500,6 +501,7 @@ public static class SnapshotCodec
             if (Has(mask, ShipTg)) s = s with { Tg = r.ReadInt32() };
             if (Has(mask, ShipAi)) s = s with { Ai = r.TryReadNil() ? null : r.ReadString() };
             if (Has(mask, ShipJ)) s = s with { J = r.ReadInt64() };
+            if (Has(mask, ShipSl)) s = s with { Sl = r.ReadInt64() };
             _ships[id] = s;
         }
 

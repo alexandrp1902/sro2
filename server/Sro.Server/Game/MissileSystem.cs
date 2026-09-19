@@ -19,12 +19,41 @@ public sealed class MissileSystem(Func<int> newId)
         public WeaponParams Weapon { get; } = weapon;
         public MissileState State = state;
         public long ExpiresAtTick { get; } = expiresAtTick;
+        /// <summary>Прочность: зенитка сбивает, когда кончится (M11).</summary>
+        public double Hp = weapon.Missile?.Hp ?? 1;
     }
 
     private readonly List<Missile> _alive = [];
     private readonly List<MissileDto> _dtos = [];
 
     public IReadOnlyList<Missile> Alive => _alive;
+
+    /// <summary>Ближайшая к точке ракета не дальше range, которая подходит под filter; null — таких нет.</summary>
+    public Missile? Nearest(double x, double y, double range, Func<Missile, bool> filter)
+    {
+        Missile? best = null;
+        var bestSq = range * range;
+        foreach (var m in _alive)
+        {
+            var dx = m.State.X - x;
+            var dy = m.State.Y - y;
+            var sq = dx * dx + dy * dy;
+            if (sq > bestSq || !filter(m)) continue;
+            best = m;
+            bestSq = sq;
+        }
+        return best;
+    }
+
+    /// <summary>Попадание зенитки: ракета теряет прочность и, если кончилась, гаснет.</summary>
+    /// <returns>true — сбита.</returns>
+    public bool Hit(Missile missile, double damage)
+    {
+        missile.Hp -= damage;
+        if (missile.Hp > 0) return false;
+        _alive.Remove(missile);
+        return true;
+    }
 
     /// <summary>Пуск от носа стрелка — туда же и смотрит ракета: к цели она доворачивает уже в полёте.</summary>
     public void Launch(ShipEntity shooter, ShipEntity target, int slot, WeaponParams weapon, long tick)
@@ -51,8 +80,9 @@ public sealed class MissileSystem(Func<int> newId)
             if (!Missiles.Hits(missile.State, p, target.Ship.X, target.Ship.Y, radius)) continue;
 
             _alive.RemoveAt(i);
-            var damage = Combat.ApplyDamage(ref target.Hp, ref target.Shield, missile.Weapon.Damage);
+            var damage = Combat.ApplyDamage(ref target.Hp, ref target.Shield, missile.Weapon);
             target.LastDamageTick = tick;
+            target.SlowDown(missile.Weapon, tick);
             target.LastAttackerId = missile.OwnerId;
             if (target.Hp <= 0 && target.KilledBy == 0) target.KilledBy = missile.OwnerId;
             target.Stats.Record(tick, true, 100);

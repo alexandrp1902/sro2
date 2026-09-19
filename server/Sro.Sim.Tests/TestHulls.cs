@@ -46,6 +46,14 @@ internal static class TestHulls
             Read(Balance.NpcsFile), Read(Balance.LootFile), Read(Balance.MeteorsFile), Read(Balance.ShopFile), Read(Balance.GalaxyFile),
             Read(Balance.MissionsFile), Read(Balance.ModulesFile), Read(Balance.PartyFile), Read(Balance.InvasionFile));
     }
+
+    /// <summary>Все пушки и модули всех тиров из shared/ — их роняют пираты дальних регионов (M11).</summary>
+    public static IReadOnlySet<string> SharedGear()
+    {
+        var sources = SharedSources();
+        Assert.True(Balance.TryParse(sources, out var balance, out var error), error);
+        return balance!.ItemIds.ToHashSet();
+    }
 }
 
 /// <summary>Пушки из GDD (§14, §47–48). Не читаются из weapons.json, чтобы тюнинг не ломал тесты.</summary>

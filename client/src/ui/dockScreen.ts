@@ -4,11 +4,16 @@ import {
   MODULE_SLOTS,
   REQUIRED_SLOTS,
   SLOT_NAMES,
+  UTILITY,
   canInstall,
   describeFitProblem,
   fitGet,
   hullSlots,
+  hullUtilitySlots,
   moduleLabel,
+  tierBadge,
+  utilityIndex,
+  utilitySlot,
   weaponIndex,
   weaponSlot,
   type FitProblem,
@@ -19,7 +24,7 @@ import { itemSprite, moduleSprite, shipSprite, spriteUrl, weaponSprite } from '.
 import type { Hulls } from '../sim/hulls';
 import { activeHint, activeLine, offerNote, offerTitle, type MissionNames } from '../sim/missions';
 import { lootItem, rarityColor, type LootRules } from '../sim/loot';
-import { NO_SHOP, formatCredits, fuelCost, price, repairCost, sellPrice, type ShopRules } from '../sim/shop';
+import { NO_SHOP, formatCredits, fuelCost, price, repairCost, sells, sellPrice, type ShopRules } from '../sim/shop';
 import type { Weapons } from '../sim/weapons';
 import { color, round, type CargoState } from './cargoHud';
 
@@ -222,7 +227,10 @@ export class DockScreen {
 
     const card = el('div', 'dock-card');
     const head = el('div', 'dock-head');
-    head.append(el('div', 'dock-title', this.station), el('div', 'dock-credits', formatCredits(credits)));
+    const title = el('div', 'dock-title', this.station);
+    // Подпись магазина станции (M11): «Военная станция Nova» — по ней видно, чем здесь торгуют.
+    if (this.shop.title) title.append(el('span', 'dock-shop-title', this.shop.title));
+    head.append(title, el('div', 'dock-credits', formatCredits(credits)));
     const gear = button('⚙', 'controls-open dock-controls', () => this.handlers.onControls());
     gear.title = 'Управление';
     gear.setAttribute('aria-label', 'Управление');
@@ -408,12 +416,16 @@ export class DockScreen {
     for (const id of this.hulls.ids()) {
       const hull = this.hulls.get(id);
       const slots = hullSlots(hull).join(' ');
+      const utility = hullUtilitySlots(hull);
       const own = this.modules.enabled
-        ? [`класс ${hull.class ?? 'L'}`, `пушки ${slots}`]
+        ? [`класс ${hull.class ?? 'L'}`, `пушки ${slots}`, utility ? `вспомогательных ${utility}` : '']
         : [`щит ${hull.shield}`, hull.fuel ? `бак ${hull.fuel}` : '', hull.radar ? `радар ${hull.radar}` : ''];
       const stats = [`корпус ${hull.hp} · скорость ${hull.maxSpeed} · трюм ${hull.cargo}`, ...own.filter(Boolean)].join(' · ');
-      const state = offerState(hangar.hulls.includes(id), id === hangar.hull, price(this.shop.hulls, id), credits);
-      body.append(this.offer(id, hull.name, stats, state));
+      // Здесь продают не всё (M11): чего нет в ассортименте станции, то и не купить.
+      const cost = sells(this.shop, id, this.shop.hulls) ? price(this.shop.hulls, id) : null;
+      const state = offerState(hangar.hulls.includes(id), id === hangar.hull, cost, credits);
+      const name = hull.role ? `${hull.name} — ${hull.role}` : hull.name;
+      body.append(this.offer(id, name, stats, state));
     }
   }
 
@@ -438,6 +450,13 @@ export class DockScreen {
     if (this.modules.enabled) {
       body.append(el('div', 'dock-note', `Модули · класс корпуса ${hull.class ?? 'L'}`));
       for (const slot of MODULE_SLOTS) this.slotRow(body, hangar, credits, slot, SLOT_NAMES[slot]);
+      const utility = hullUtilitySlots(hull);
+      if (utility > 0) {
+        body.append(el('div', 'dock-note', `Вспомогательные · слотов ${utility}`));
+        for (let i = 0; i < utility; i++) {
+          this.slotRow(body, hangar, credits, utilitySlot(i), `${SLOT_NAMES[UTILITY]} ${i + 1}`);
+        }
+      }
     }
 
     const stored = Object.entries(hangar.storage ?? {}).filter(([, count]) => count > 0);
@@ -451,7 +470,10 @@ export class DockScreen {
       const row = el('div', 'dock-row');
       const picture = this.picture(id);
       if (picture) row.append(icon(picture));
-      row.append(el('div', 'dock-name', `${this.itemName(id)} ×${count}`), el('div', 'dock-stats', this.itemLabel(id)));
+      const stock = el('div', 'dock-name', `${this.itemName(id)} ×${count}`);
+      const mark = tierBadge(id);
+      if (mark) stock.append(el('span', 'dock-tier', mark));
+      row.append(stock, el('div', 'dock-stats', this.itemLabel(id)));
       const cost = sellPrice(this.shop, id);
       row.append(button(cost > 0 ? `Продать · ${formatCredits(cost)}` : 'Выбросить', 'dock-buy', () => this.handlers.onSellItem(id)));
       body.append(row);
@@ -486,20 +508,26 @@ export class DockScreen {
     }
     const weaponsCatalog = this.weapons.config;
     const modules = this.modules.catalog;
-    const ids = weaponIndex(slot) !== null ? this.weapons.ids() : this.modules.ids().filter((id) => this.modules.get(id)?.slot === slot);
+    const kind = utilityIndex(slot) !== null ? UTILITY : slot;
+    const ids = weaponIndex(slot) !== null ? this.weapons.ids() : this.modules.ids().filter((id) => this.modules.get(id)?.slot === kind);
     for (const id of ids) {
       const stored = hangar.guest ? Infinity : (hangar.storage?.[id] ?? 0);
       const problem = id === current ? null : canInstall(hull, hangar.fit, slot, id, weaponsCatalog, modules);
       // Чего не поставить по классу — и не показываем: список не должен тонуть в недоступном.
       if (problem === 'class' || problem === 'slot') continue;
-      const offer = slotOffer(id === current, stored, price(this.shop.items, id), credits, problem);
+      // Купить можно только то, что продают здесь (M11); своё со склада ставится везде.
+      const cost = sells(this.shop, id, this.shop.items) ? price(this.shop.items, id) : null;
+      const offer = slotOffer(id === current, stored, cost, credits, problem);
       if (offer.action === 'none') continue;
       const item = el('div', 'dock-row');
       item.dataset.state = offer.action === 'installed' ? 'active' : offer.action === 'install' ? 'owned' : offer.poor || offer.problem ? 'poor' : 'buy';
       const picture = this.picture(id);
       if (picture) item.append(icon(picture));
       const name = offer.action === 'install' && Number.isFinite(stored) ? `${this.itemName(id)} · на складе ${stored}` : this.itemName(id);
-      item.append(el('div', 'dock-name', name), el('div', 'dock-stats', this.itemLabel(id)));
+      const title = el('div', 'dock-name', name);
+      const badge = tierBadge(id);
+      if (badge) title.append(el('span', 'dock-tier', badge));
+      item.append(title, el('div', 'dock-stats', this.itemLabel(id)));
       switch (offer.action) {
         case 'installed':
           item.append(el('div', 'dock-tag', 'Стоит'));
@@ -537,7 +565,7 @@ export class DockScreen {
   private picture(id: string): string | null {
     if (this.weapons.has(id)) return weaponSprite(id);
     const m = this.modules.get(id);
-    return m ? moduleSprite(m.slot) : null;
+    return m ? moduleSprite(m.slot, id) : null;
   }
 
   private offer(id: string, name: string, stats: string, state: OfferState): HTMLElement {
@@ -563,7 +591,7 @@ export class DockScreen {
         break;
       }
       case 'none':
-        row.append(el('div', 'dock-tag', 'Не продаётся'));
+        row.append(el('div', 'dock-tag', 'Здесь нет'));
         break;
     }
     return row;

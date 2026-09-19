@@ -1,0 +1,1019 @@
+[
+  {
+    "file": "art/space/npc-ships/ships-ranger.png",
+    "status": "present",
+    "width": 1254,
+    "height": 1254,
+    "expectedSize": [
+      1024,
+      1024
+    ],
+    "sizeMatches": false,
+    "alphaRequired": true,
+    "transparentPixels": 881292,
+    "alphaBounds": [
+      72,
+      10,
+      1182,
+      1211
+    ]
+  },
+  {
+    "file": "art/space/npc-ships/ships-ranger-heavy.png",
+    "status": "present",
+    "width": 1254,
+    "height": 1254,
+    "expectedSize": [
+      1024,
+      1024
+    ],
+    "sizeMatches": false,
+    "alphaRequired": true,
+    "transparentPixels": 1018095,
+    "alphaBounds": [
+      320,
+      2,
+      935,
+      1238
+    ]
+  },
+  {
+    "file": "art/space/npc-ships/ships-trader-hauler.png",
+    "status": "present",
+    "width": 1254,
+    "height": 1254,
+    "expectedSize": [
+      1024,
+      1024
+    ],
+    "sizeMatches": false,
+    "alphaRequired": true,
+    "transparentPixels": 964230,
+    "alphaBounds": [
+      230,
+      26,
+      1023,
+      1225
+    ]
+  },
+  {
+    "file": "art/space/npc-ships/ships-trader-convoy.png",
+    "status": "present",
+    "width": 1254,
+    "height": 1254,
+    "expectedSize": [
+      1024,
+      1024
+    ],
+    "sizeMatches": false,
+    "alphaRequired": true,
+    "transparentPixels": 1096116,
+    "alphaBounds": [
+      328,
+      10,
+      925,
+      1235
+    ]
+  },
+  {
+    "file": "art/space/npc-ships/ships-pirate-raider.png",
+    "status": "present",
+    "width": 1254,
+    "height": 1254,
+    "expectedSize": [
+      1024,
+      1024
+    ],
+    "sizeMatches": false,
+    "alphaRequired": true,
+    "transparentPixels": 1019708,
+    "alphaBounds": [
+      88,
+      14,
+      1164,
+      1206
+    ]
+  },
+  {
+    "file": "art/space/npc-ships/ships-pirate-brute.png",
+    "status": "present",
+    "width": 1254,
+    "height": 1254,
+    "expectedSize": [
+      1024,
+      1024
+    ],
+    "sizeMatches": false,
+    "alphaRequired": true,
+    "transparentPixels": 844109,
+    "alphaBounds": [
+      175,
+      5,
+      1078,
+      1232
+    ]
+  },
+  {
+    "file": "art/space/npc-ships/ships-pirate-flagship.png",
+    "status": "present",
+    "width": 1254,
+    "height": 1254,
+    "expectedSize": [
+      1024,
+      1024
+    ],
+    "sizeMatches": false,
+    "alphaRequired": true,
+    "transparentPixels": 1001425,
+    "alphaBounds": [
+      165,
+      9,
+      1092,
+      1239
+    ]
+  },
+  {
+    "file": "art/space/npc-ships/ships-drone.png",
+    "status": "present",
+    "width": 1254,
+    "height": 1254,
+    "expectedSize": [
+      1024,
+      1024
+    ],
+    "sizeMatches": false,
+    "alphaRequired": true,
+    "transparentPixels": 1003928,
+    "alphaBounds": [
+      38,
+      19,
+      1216,
+      1204
+    ]
+  },
+  {
+    "file": "art/space/weapon-effects/weapon-shots-rail.png",
+    "status": "present",
+    "width": 2172,
+    "height": 724,
+    "expectedSize": [
+      1536,
+      512
+    ],
+    "sizeMatches": false,
+    "alphaRequired": true,
+    "transparentPixels": 1270386,
+    "alphaBounds": [
+      335,
+      87,
+      1986,
+      669
+    ]
+  },
+  {
+    "file": "art/space/weapon-effects/weapon-shots-ion.png",
+    "status": "present",
+    "width": 2172,
+    "height": 724,
+    "expectedSize": [
+      1536,
+      512
+    ],
+    "sizeMatches": false,
+    "alphaRequired": true,
+    "transparentPixels": 956707,
+    "alphaBounds": [
+      231,
+      62,
+      2050,
+      673
+    ]
+  },
+  {
+    "file": "art/space/weapon-effects/weapon-shots-torpedo.png",
+    "status": "present",
+    "width": 2172,
+    "height": 724,
+    "expectedSize": [
+      1536,
+      512
+    ],
+    "sizeMatches": false,
+    "alphaRequired": true,
+    "transparentPixels": 996501,
+    "alphaBounds": [
+      306,
+      58,
+      2086,
+      677
+    ]
+  },
+  {
+    "file": "art/space/weapon-effects/weapon-shots-flak.png",
+    "status": "present",
+    "width": 2172,
+    "height": 724,
+    "expectedSize": [
+      1536,
+      512
+    ],
+    "sizeMatches": false,
+    "alphaRequired": true,
+    "transparentPixels": 1153393,
+    "alphaBounds": [
+      335,
+      79,
+      2027,
+      685
+    ]
+  },
+  {
+    "file": "art/space/galaxy/planets-lava.png",
+    "status": "present",
+    "width": 1254,
+    "height": 1254,
+    "expectedSize": [
+      1024,
+      1024
+    ],
+    "sizeMatches": false,
+    "alphaRequired": true,
+    "transparentPixels": 522537,
+    "alphaBounds": [
+      47,
+      50,
+      1207,
+      1188
+    ]
+  },
+  {
+    "file": "art/space/galaxy/planets-toxic.png",
+    "status": "present",
+    "width": 1254,
+    "height": 1254,
+    "expectedSize": [
+      1024,
+      1024
+    ],
+    "sizeMatches": false,
+    "alphaRequired": true,
+    "transparentPixels": 530462,
+    "alphaBounds": [
+      51,
+      58,
+      1206,
+      1198
+    ]
+  },
+  {
+    "file": "art/space/galaxy/planets-ocean.png",
+    "status": "present",
+    "width": 1254,
+    "height": 1254,
+    "expectedSize": [
+      1024,
+      1024
+    ],
+    "sizeMatches": false,
+    "alphaRequired": true,
+    "transparentPixels": 518546,
+    "alphaBounds": [
+      48,
+      52,
+      1206,
+      1197
+    ]
+  },
+  {
+    "file": "art/space/galaxy/planets-barren.png",
+    "status": "present",
+    "width": 1254,
+    "height": 1254,
+    "expectedSize": [
+      1024,
+      1024
+    ],
+    "sizeMatches": false,
+    "alphaRequired": true,
+    "transparentPixels": 598399,
+    "alphaBounds": [
+      70,
+      74,
+      1182,
+      1179
+    ]
+  },
+  {
+    "file": "art/space/galaxy/planets-jungle.png",
+    "status": "present",
+    "width": 1254,
+    "height": 1254,
+    "expectedSize": [
+      1024,
+      1024
+    ],
+    "sizeMatches": false,
+    "alphaRequired": true,
+    "transparentPixels": 536935,
+    "alphaBounds": [
+      54,
+      61,
+      1199,
+      1193
+    ]
+  },
+  {
+    "file": "art/space/galaxy/planets-ringed.png",
+    "status": "present",
+    "width": 1254,
+    "height": 1254,
+    "expectedSize": [
+      1024,
+      1024
+    ],
+    "sizeMatches": false,
+    "alphaRequired": true,
+    "transparentPixels": 578865,
+    "alphaBounds": [
+      58,
+      72,
+      1195,
+      1177
+    ]
+  },
+  {
+    "file": "art/space/galaxy/stations-pirate.png",
+    "status": "present",
+    "width": 1254,
+    "height": 1254,
+    "expectedSize": [
+      1024,
+      1024
+    ],
+    "sizeMatches": false,
+    "alphaRequired": true,
+    "transparentPixels": 700972,
+    "alphaBounds": [
+      26,
+      6,
+      1228,
+      1190
+    ]
+  },
+  {
+    "file": "art/space/galaxy/stations-outpost.png",
+    "status": "present",
+    "width": 1254,
+    "height": 1254,
+    "expectedSize": [
+      1024,
+      1024
+    ],
+    "sizeMatches": false,
+    "alphaRequired": true,
+    "transparentPixels": 1085475,
+    "alphaBounds": [
+      64,
+      25,
+      1190,
+      1226
+    ]
+  },
+  {
+    "file": "art/space/galaxy/stations-trade.png",
+    "status": "present",
+    "width": 1254,
+    "height": 1254,
+    "expectedSize": [
+      1024,
+      1024
+    ],
+    "sizeMatches": false,
+    "alphaRequired": true,
+    "transparentPixels": 1000016,
+    "alphaBounds": [
+      51,
+      5,
+      1203,
+      1241
+    ]
+  },
+  {
+    "file": "art/space/galaxy/stations-ranger.png",
+    "status": "present",
+    "width": 1254,
+    "height": 1254,
+    "expectedSize": [
+      1024,
+      1024
+    ],
+    "sizeMatches": false,
+    "alphaRequired": true,
+    "transparentPixels": 829625,
+    "alphaBounds": [
+      14,
+      15,
+      1239,
+      1240
+    ]
+  },
+  {
+    "file": "art/space/galaxy/suns-white.png",
+    "status": "present",
+    "width": 1254,
+    "height": 1254,
+    "expectedSize": [
+      1024,
+      1024
+    ],
+    "sizeMatches": false,
+    "alphaRequired": true,
+    "transparentPixels": 717942,
+    "alphaBounds": [
+      126,
+      141,
+      1121,
+      1106
+    ]
+  },
+  {
+    "file": "art/space/galaxy/suns-binary.png",
+    "status": "present",
+    "width": 1254,
+    "height": 1254,
+    "expectedSize": [
+      1024,
+      1024
+    ],
+    "sizeMatches": false,
+    "alphaRequired": true,
+    "transparentPixels": 706274,
+    "alphaBounds": [
+      41,
+      151,
+      1219,
+      1068
+    ]
+  },
+  {
+    "file": "art/space/galaxy/bg-core.png",
+    "status": "present",
+    "width": 1254,
+    "height": 1254,
+    "expectedSize": [
+      2048,
+      2048
+    ],
+    "sizeMatches": false,
+    "alphaRequired": false,
+    "transparentPixels": 0,
+    "alphaBounds": [
+      0,
+      0,
+      1253,
+      1253
+    ]
+  },
+  {
+    "file": "art/space/galaxy/bg-frontier.png",
+    "status": "present",
+    "width": 1254,
+    "height": 1254,
+    "expectedSize": [
+      2048,
+      2048
+    ],
+    "sizeMatches": false,
+    "alphaRequired": false,
+    "transparentPixels": 0,
+    "alphaBounds": [
+      0,
+      0,
+      1253,
+      1253
+    ]
+  },
+  {
+    "file": "art/space/galaxy/bg-rim.png",
+    "status": "present",
+    "width": 1254,
+    "height": 1254,
+    "expectedSize": [
+      2048,
+      2048
+    ],
+    "sizeMatches": false,
+    "alphaRequired": false,
+    "transparentPixels": 0,
+    "alphaBounds": [
+      0,
+      0,
+      1253,
+      1253
+    ]
+  },
+  {
+    "file": "art/space/trade-missions/goods-food.png",
+    "status": "missing"
+  },
+  {
+    "file": "art/space/trade-missions/goods-medicine.png",
+    "status": "missing"
+  },
+  {
+    "file": "art/space/trade-missions/goods-machinery.png",
+    "status": "missing"
+  },
+  {
+    "file": "art/space/trade-missions/goods-luxury.png",
+    "status": "missing"
+  },
+  {
+    "file": "art/space/trade-missions/goods-weapons.png",
+    "status": "missing"
+  },
+  {
+    "file": "art/space/trade-missions/goods-fuel-cells.png",
+    "status": "missing"
+  },
+  {
+    "file": "art/space/trade-missions/item-letter.png",
+    "status": "missing"
+  },
+  {
+    "file": "art/space/mission-reputation/mission-escort.png",
+    "status": "missing"
+  },
+  {
+    "file": "art/space/mission-reputation/mission-patrol.png",
+    "status": "missing"
+  },
+  {
+    "file": "art/space/mission-reputation/mission-courier.png",
+    "status": "missing"
+  },
+  {
+    "file": "art/space/mission-reputation/mission-meteor.png",
+    "status": "missing"
+  },
+  {
+    "file": "art/space/mission-reputation/mission-ground.png",
+    "status": "missing"
+  },
+  {
+    "file": "art/space/mission-reputation/rep-enemy.png",
+    "status": "missing"
+  },
+  {
+    "file": "art/space/mission-reputation/rep-distrust.png",
+    "status": "missing"
+  },
+  {
+    "file": "art/space/mission-reputation/rep-neutral.png",
+    "status": "missing"
+  },
+  {
+    "file": "art/space/mission-reputation/rep-friend.png",
+    "status": "missing"
+  },
+  {
+    "file": "art/space/mission-reputation/rep-hero.png",
+    "status": "missing"
+  },
+  {
+    "file": "art/dock/ranger/station-ranger-office.png",
+    "status": "missing"
+  },
+  {
+    "file": "art/dock/planet-settlements/desert-office.png",
+    "status": "missing"
+  },
+  {
+    "file": "art/dock/planet-settlements/desert-trader.png",
+    "status": "missing"
+  },
+  {
+    "file": "art/dock/planet-settlements/desert-shipyard.png",
+    "status": "missing"
+  },
+  {
+    "file": "art/dock/planet-settlements/desert-hangar.png",
+    "status": "missing"
+  },
+  {
+    "file": "art/dock/planet-settlements/ice-office.png",
+    "status": "missing"
+  },
+  {
+    "file": "art/dock/planet-settlements/ice-trader.png",
+    "status": "missing"
+  },
+  {
+    "file": "art/dock/planet-settlements/ice-shipyard.png",
+    "status": "missing"
+  },
+  {
+    "file": "art/dock/planet-settlements/ice-hangar.png",
+    "status": "missing"
+  },
+  {
+    "file": "art/dock/planet-settlements/lava-office.png",
+    "status": "missing"
+  },
+  {
+    "file": "art/dock/planet-settlements/lava-trader.png",
+    "status": "missing"
+  },
+  {
+    "file": "art/dock/planet-settlements/lava-shipyard.png",
+    "status": "missing"
+  },
+  {
+    "file": "art/dock/planet-settlements/lava-hangar.png",
+    "status": "missing"
+  },
+  {
+    "file": "art/dock/planet-settlements/jungle-office.png",
+    "status": "missing"
+  },
+  {
+    "file": "art/dock/planet-settlements/jungle-trader.png",
+    "status": "missing"
+  },
+  {
+    "file": "art/dock/planet-settlements/jungle-shipyard.png",
+    "status": "missing"
+  },
+  {
+    "file": "art/dock/planet-settlements/jungle-hangar.png",
+    "status": "missing"
+  },
+  {
+    "file": "art/dock/planet-settlements/barren-office.png",
+    "status": "missing"
+  },
+  {
+    "file": "art/dock/planet-settlements/barren-trader.png",
+    "status": "missing"
+  },
+  {
+    "file": "art/dock/planet-settlements/barren-shipyard.png",
+    "status": "missing"
+  },
+  {
+    "file": "art/dock/planet-settlements/barren-hangar.png",
+    "status": "missing"
+  },
+  {
+    "file": "art/dock/planet-settlements/orbital-platform-office.png",
+    "status": "missing"
+  },
+  {
+    "file": "art/dock/planet-settlements/orbital-platform-trader.png",
+    "status": "missing"
+  },
+  {
+    "file": "art/dock/planet-settlements/orbital-platform-shipyard.png",
+    "status": "missing"
+  },
+  {
+    "file": "art/dock/planet-settlements/orbital-platform-hangar.png",
+    "status": "missing"
+  },
+  {
+    "file": "art/dock/landings/landing-terran.png",
+    "status": "missing"
+  },
+  {
+    "file": "art/dock/landings/landing-desert.png",
+    "status": "missing"
+  },
+  {
+    "file": "art/dock/landings/landing-ice.png",
+    "status": "missing"
+  },
+  {
+    "file": "art/dock/landings/landing-lava.png",
+    "status": "missing"
+  },
+  {
+    "file": "art/dock/landings/landing-jungle.png",
+    "status": "missing"
+  },
+  {
+    "file": "art/dock/landings/landing-barren.png",
+    "status": "missing"
+  },
+  {
+    "file": "art/dock/landings/landing-orbital-platform.png",
+    "status": "missing"
+  },
+  {
+    "file": "art/dock/landings/landing-ocean.png",
+    "status": "missing"
+  },
+  {
+    "file": "art/dock/landings/landing-toxic.png",
+    "status": "missing"
+  },
+  {
+    "file": "art/mechs/parts/mech-body-light.png",
+    "status": "missing"
+  },
+  {
+    "file": "art/mechs/parts/mech-body-medium.png",
+    "status": "missing"
+  },
+  {
+    "file": "art/mechs/parts/mech-body-heavy.png",
+    "status": "missing"
+  },
+  {
+    "file": "art/mechs/parts/mech-body-sniper.png",
+    "status": "missing"
+  },
+  {
+    "file": "art/mechs/parts/mech-legs-light.png",
+    "status": "missing"
+  },
+  {
+    "file": "art/mechs/parts/mech-legs-medium.png",
+    "status": "missing"
+  },
+  {
+    "file": "art/mechs/parts/mech-legs-heavy.png",
+    "status": "missing"
+  },
+  {
+    "file": "art/mechs/parts/mech-legs-tracks.png",
+    "status": "missing"
+  },
+  {
+    "file": "art/mechs/parts/mech-arm-mg.png",
+    "status": "missing"
+  },
+  {
+    "file": "art/mechs/parts/mech-arm-cannon.png",
+    "status": "missing"
+  },
+  {
+    "file": "art/mechs/parts/mech-arm-shotgun.png",
+    "status": "missing"
+  },
+  {
+    "file": "art/mechs/parts/mech-arm-rifle.png",
+    "status": "missing"
+  },
+  {
+    "file": "art/mechs/parts/mech-arm-rockets.png",
+    "status": "missing"
+  },
+  {
+    "file": "art/mechs/parts/mech-arm-sword.png",
+    "status": "missing"
+  },
+  {
+    "file": "art/mechs/parts/mech-arm-experimental.png",
+    "status": "missing"
+  },
+  {
+    "file": "art/mechs/parts/mech-shield-light.png",
+    "status": "missing"
+  },
+  {
+    "file": "art/mechs/parts/mech-shield-heavy.png",
+    "status": "missing"
+  },
+  {
+    "file": "art/mechs/parts/mech-pack-accuracy.png",
+    "status": "missing"
+  },
+  {
+    "file": "art/mechs/parts/mech-pack-armor.png",
+    "status": "missing"
+  },
+  {
+    "file": "art/mechs/parts/mech-pack-damage.png",
+    "status": "missing"
+  },
+  {
+    "file": "art/mechs/parts/mech-pack-mobility.png",
+    "status": "missing"
+  },
+  {
+    "file": "art/mechs/parts/mech-pack-repair.png",
+    "status": "missing"
+  },
+  {
+    "file": "art/mechs/units/mech-unit-light.png",
+    "status": "missing"
+  },
+  {
+    "file": "art/mechs/units/mech-unit-medium.png",
+    "status": "missing"
+  },
+  {
+    "file": "art/mechs/units/mech-unit-heavy.png",
+    "status": "missing"
+  },
+  {
+    "file": "art/mechs/units/mech-unit-sniper.png",
+    "status": "missing"
+  },
+  {
+    "file": "art/mechs/units/mech-unit-enemy-bandit.png",
+    "status": "missing"
+  },
+  {
+    "file": "art/mechs/units/mech-unit-enemy-militia.png",
+    "status": "missing"
+  },
+  {
+    "file": "art/mechs/units/mech-unit-enemy-heavy.png",
+    "status": "missing"
+  },
+  {
+    "file": "art/mechs/arm-layers/mech-arm-layer-mg.png",
+    "status": "missing"
+  },
+  {
+    "file": "art/mechs/arm-layers/mech-arm-layer-cannon.png",
+    "status": "missing"
+  },
+  {
+    "file": "art/mechs/arm-layers/mech-arm-layer-shotgun.png",
+    "status": "missing"
+  },
+  {
+    "file": "art/mechs/arm-layers/mech-arm-layer-rifle.png",
+    "status": "missing"
+  },
+  {
+    "file": "art/mechs/arm-layers/mech-arm-layer-rockets.png",
+    "status": "missing"
+  },
+  {
+    "file": "art/mechs/arm-layers/mech-arm-layer-sword.png",
+    "status": "missing"
+  },
+  {
+    "file": "art/mechs/arm-layers/mech-arm-layer-experimental.png",
+    "status": "missing"
+  },
+  {
+    "file": "art/mechs/tiles/desert-ground-1.png",
+    "status": "missing"
+  },
+  {
+    "file": "art/mechs/tiles/desert-ground-2.png",
+    "status": "missing"
+  },
+  {
+    "file": "art/mechs/tiles/desert-rough.png",
+    "status": "missing"
+  },
+  {
+    "file": "art/mechs/tiles/desert-wall.png",
+    "status": "missing"
+  },
+  {
+    "file": "art/mechs/tiles/desert-building.png",
+    "status": "missing"
+  },
+  {
+    "file": "art/mechs/tiles/desert-crate.png",
+    "status": "missing"
+  },
+  {
+    "file": "art/mechs/tiles/desert-high-ground.png",
+    "status": "missing"
+  },
+  {
+    "file": "art/mechs/tiles/ice-ground-1.png",
+    "status": "missing"
+  },
+  {
+    "file": "art/mechs/tiles/ice-ground-2.png",
+    "status": "missing"
+  },
+  {
+    "file": "art/mechs/tiles/ice-rough.png",
+    "status": "missing"
+  },
+  {
+    "file": "art/mechs/tiles/ice-wall.png",
+    "status": "missing"
+  },
+  {
+    "file": "art/mechs/tiles/ice-building.png",
+    "status": "missing"
+  },
+  {
+    "file": "art/mechs/tiles/ice-crate.png",
+    "status": "missing"
+  },
+  {
+    "file": "art/mechs/tiles/ice-high-ground.png",
+    "status": "missing"
+  },
+  {
+    "file": "art/mechs/tiles/jungle-ground-1.png",
+    "status": "missing"
+  },
+  {
+    "file": "art/mechs/tiles/jungle-ground-2.png",
+    "status": "missing"
+  },
+  {
+    "file": "art/mechs/tiles/jungle-rough.png",
+    "status": "missing"
+  },
+  {
+    "file": "art/mechs/tiles/jungle-wall.png",
+    "status": "missing"
+  },
+  {
+    "file": "art/mechs/tiles/jungle-building.png",
+    "status": "missing"
+  },
+  {
+    "file": "art/mechs/tiles/jungle-crate.png",
+    "status": "missing"
+  },
+  {
+    "file": "art/mechs/tiles/jungle-high-ground.png",
+    "status": "missing"
+  },
+  {
+    "file": "art/mechs/tiles/barren-ground-1.png",
+    "status": "missing"
+  },
+  {
+    "file": "art/mechs/tiles/barren-ground-2.png",
+    "status": "missing"
+  },
+  {
+    "file": "art/mechs/tiles/barren-rough.png",
+    "status": "missing"
+  },
+  {
+    "file": "art/mechs/tiles/barren-wall.png",
+    "status": "missing"
+  },
+  {
+    "file": "art/mechs/tiles/barren-building.png",
+    "status": "missing"
+  },
+  {
+    "file": "art/mechs/tiles/barren-crate.png",
+    "status": "missing"
+  },
+  {
+    "file": "art/mechs/tiles/barren-high-ground.png",
+    "status": "missing"
+  },
+  {
+    "file": "art/mechs/tiles/station-interior-ground-1.png",
+    "status": "missing"
+  },
+  {
+    "file": "art/mechs/tiles/station-interior-ground-2.png",
+    "status": "missing"
+  },
+  {
+    "file": "art/mechs/tiles/station-interior-rough.png",
+    "status": "missing"
+  },
+  {
+    "file": "art/mechs/tiles/station-interior-wall.png",
+    "status": "missing"
+  },
+  {
+    "file": "art/mechs/tiles/station-interior-building.png",
+    "status": "missing"
+  },
+  {
+    "file": "art/mechs/tiles/station-interior-crate.png",
+    "status": "missing"
+  },
+  {
+    "file": "art/mechs/tiles/station-interior-high-ground.png",
+    "status": "missing"
+  },
+  {
+    "file": "art/mechs/effects/mech-fx-hit.png",
+    "status": "missing"
+  },
+  {
+    "file": "art/mechs/effects/mech-fx-explosion.png",
+    "status": "missing"
+  },
+  {
+    "file": "art/mechs/effects/mech-fx-shield-block.png",
+    "status": "missing"
+  },
+  {
+    "file": "art/mechs/scenes/dock-mech-hangar.png",
+    "status": "missing"
+  }
+]

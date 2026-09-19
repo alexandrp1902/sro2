@@ -32,6 +32,7 @@ const NOTICES: Record<string, string> = {
   unloaded: 'Груз продан',
   tooFar: 'Слишком далеко',
   noCredits: 'Не хватает кредитов',
+  notSold: 'Здесь этого не продают — ищите в другом регионе',
   noFuel: 'Не хватает топлива на прыжок',
   gateFar: 'Подлетите ближе к вратам',
   jumpCancelled: 'Прыжок сорван',

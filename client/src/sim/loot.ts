@@ -25,6 +25,17 @@ export interface LootRules {
   stationRange: number;
   /** Каталог предметов; сервер может прислать null, если лута нет. */
   items?: Record<string, LootItem> | null;
+  /** Снаряжение, которое тоже лежит в космосе (M11): его имя и картинку клиент берёт из каталогов. */
+  gear?: Record<string, GearItem> | null;
+}
+
+/** Пушка или модуль, выпавший с пирата (M11): в трюм не кладётся, уходит на склад. */
+export interface GearItem {
+  name: string;
+  /** Тир Mk1–Mk3: от него цвет. */
+  tier: number;
+  /** Картинка из каталога спрайтов; null — нарисуем общий контейнер. */
+  sprite: string | null;
 }
 
 /** Лута нет: до welcome и на серверах без loot.json. */
@@ -47,7 +58,21 @@ export const RARITY_COLORS: Record<Rarity, number> = {
 
 /** Предмет по идентификатору; нет в каталоге — null (баланс мог поменяться). */
 export function lootItem(rules: LootRules, id: string): LootItem | null {
-  return rules.items?.[id] ?? null;
+  const item = rules.items?.[id];
+  if (item) return item;
+  const gear = rules.gear?.[id];
+  // Снаряжение не груз: места в трюме не занимает и на станции не продаётся — его цену знает склад.
+  return gear ? { name: gear.name, rarity: gear.tier >= 3 ? 'epic' : gear.tier === 2 ? 'rare' : 'uncommon', volume: 0, price: 0 } : null;
+}
+
+/** Картинка предмета в космосе: у снаряжения (M11) — иконка пушки или модуля. */
+export function lootSprite(rules: LootRules, id: string): string | null {
+  return rules.gear?.[id]?.sprite ?? null;
+}
+
+/** Предмет — снаряжение, а не груз: подобранное уходит на склад. */
+export function isGear(rules: LootRules, id: string): boolean {
+  return !rules.items?.[id] && !!rules.gear?.[id];
 }
 
 /** Название стопки: «Металл ×5». Неизвестный предмет показываем как есть, чтобы не терять его. */

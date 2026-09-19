@@ -1,5 +1,5 @@
 import type { GalaxyDto, GalaxySystemDto } from '../net/protocol';
-import { dangerColor, dangerName, hops, jumpCost, jumpOutlook, pvpName, type JumpOutlook } from '../sim/galaxy';
+import { dangerColor, dangerName, hops, jumpCost, jumpOutlook, pvpName, regionName, type JumpOutlook } from '../sim/galaxy';
 import { color } from './cargoHud';
 
 const SVG = 'http://www.w3.org/2000/svg';
@@ -92,6 +92,31 @@ export class GalaxyMap {
     svg.setAttribute('viewBox', '0 0 100 100');
     const byId = new Map(galaxy.systems.map((s) => [s.id, s]));
 
+    // Регионы (M11) — облаком под системами: видно, где кончается Ядро и начинается Рубеж.
+    for (const region of galaxy.regions ?? []) {
+      const inside = galaxy.systems.filter((s) => s.region === region.id);
+      if (inside.length === 0) continue;
+      const xs = inside.map((s) => s.x);
+      const ys = inside.map((s) => s.y);
+      const pad = 7;
+      const x = Math.min(...xs) - pad;
+      const y = Math.min(...ys) - pad;
+      svg.append(
+        svgEl('rect', {
+          x,
+          y,
+          width: Math.max(...xs) - Math.min(...xs) + pad * 2,
+          height: Math.max(...ys) - Math.min(...ys) + pad * 2,
+          rx: 6,
+          class: 'galaxy-region',
+          fill: region.color,
+        }),
+      );
+      const label = svgEl('text', { x: x + 1.5, y: y + 4, class: 'galaxy-region-name', fill: region.color });
+      label.textContent = region.name;
+      svg.append(label);
+    }
+
     for (const link of galaxy.links) {
       const a = byId.get(link.a);
       const b = byId.get(link.b);
@@ -133,7 +158,14 @@ export class GalaxyMap {
     }
     card.append(svg);
     card.append(this.info(byId.get(this.selected ?? current), state));
-    card.append(el('div', 'galaxy-legend', 'Цвет — опасность, квадрат — станция, ⌂ — где вы появитесь после гибели, ★ — цель задания, ⚔ — вторжение пиратов. Числа — топливо на прыжок.'));
+    const regions = (galaxy.regions ?? []).map((r) => r.name).join(' · ');
+    card.append(
+      el(
+        'div',
+        'galaxy-legend',
+        `${regions ? `Регионы: ${regions}. ` : ''}Цвет — опасность, квадрат — станция, ⌂ — где вы появитесь после гибели, ★ — цель задания, ⚔ — вторжение пиратов. Числа — топливо на прыжок.`,
+      ),
+    );
     this.root.replaceChildren(card);
   }
 
@@ -145,6 +177,8 @@ export class GalaxyMap {
     title.style.color = color(dangerColor(system.danger));
     box.append(title);
     const facts = [dangerName(system.danger), pvpName(system.pvp), system.station ? 'есть станция' : 'станции нет'];
+    const region = regionName(state.galaxy, system.region);
+    if (region) facts.unshift(region);
     box.append(el('div', 'galaxy-info-facts', facts.join(' · ')));
     const cost = jumpCost(state.galaxy, state.current, system.id);
     const outlook = jumpOutlook(state.galaxy, state.current, system.id, state.fuel);

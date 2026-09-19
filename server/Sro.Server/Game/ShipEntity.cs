@@ -45,7 +45,34 @@ public abstract class ShipEntity(int id, string name, string hullId, IReadOnlyLi
     public int LastAttackerId;
     public DamageStats Stats;
 
+    /// <summary>Ионный разрядник (M11): до этого тика корабль замедлен на <see cref="SlowFactor"/>.</summary>
+    public long SlowUntilTick;
+    public double SlowFactor;
+
     public bool IsDead => DeadUntilTick > 0;
+
+    public bool IsSlowed(long tick) => tick < SlowUntilTick;
+
+    /// <summary>Попадание замедляющей пушкой: сильнее из двух замедлений, дольше из двух сроков.</summary>
+    public void SlowDown(WeaponParams weapon, long tick)
+    {
+        if (weapon.Slow <= 0 || weapon.SlowTicks <= 0) return;
+        SlowFactor = IsSlowed(tick) ? Math.Max(SlowFactor, weapon.Slow) : weapon.Slow;
+        SlowUntilTick = Math.Max(SlowUntilTick, tick + weapon.SlowTicks);
+    }
+
+    /// <summary>
+    /// Корпус для шага движения: замедленный ионкой летит медленнее и хуже разгоняется, тормозит как обычно.
+    /// Зеркало slowedHull в client/src/sim/movement.ts — предсказание своего корабля.
+    /// </summary>
+    public HullParams MoveHull(HullParams hull, long tick) =>
+        IsSlowed(tick) ? Movement.Slowed(hull, SlowFactor) : hull;
+
+    /// <summary>Ремонт корпуса в секунду вне боя (ремонтный блок, M11); 0 — нечем.</summary>
+    public virtual double RepairRate(Balance balance) => 0;
+
+    /// <summary>Множитель перезарядки пушек (охлаждение, M11); 1 — без него.</summary>
+    public virtual double CooldownScale(Balance balance) => 1;
 
     public bool IsProtected(long tick) => tick < ProtectedUntilTick;
 
@@ -109,6 +136,7 @@ public abstract class ShipEntity(int id, string name, string hullId, IReadOnlyLi
         KilledBy = 0;
         LastAttackerId = 0;
         LastDamageTick = long.MinValue / 2;
+        SlowUntilTick = 0;
         ProtectedUntilTick = protectedUntil;
         FireHeld = false;
         Stats = default;

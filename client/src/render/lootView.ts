@@ -1,8 +1,8 @@
 import { Container, Graphics, Sprite } from 'pixi.js';
 import type { LootDto, SnapshotMsg } from '../net/protocol';
-import { NO_LOOT, rarityColor, type LootRules } from '../sim/loot';
+import { NO_LOOT, lootSprite, rarityColor, type LootRules } from '../sim/loot';
 import { TICK_RATE } from '../sim/movement';
-import { itemSprite, spriteSize, texture, type SpriteName } from './sprites';
+import { hasSprite, itemSprite, spriteSize, texture, type SpriteName } from './sprites';
 
 /** Радиус предмета в мировых единицах: заметно мельче лёгкого корпуса (16), но пальцем попадаешь. */
 const SIZE = 11;
@@ -176,7 +176,12 @@ export class LootField {
   /** Предмет — его иконка на ореоле цвета редкости (GDD §23); содержимое контейнера — ящиком. */
   private paint(drop: Drop): void {
     const color = rarityColor(this.rules, drop.info.item);
-    const sprite: SpriteName = drop.container ? 'resources-container' : itemSprite(drop.info.item);
+    const gear = lootSprite(this.rules, drop.info.item);
+    const sprite: SpriteName = drop.container
+      ? 'resources-container'
+      : gear && hasSprite(gear)
+        ? gear
+        : itemSprite(drop.info.item);
     const { w, h } = spriteSize(sprite);
     drop.icon.texture = texture(sprite);
     drop.icon.scale.set((SIZE * 2 * ICON_SCALE) / Math.max(w, h));

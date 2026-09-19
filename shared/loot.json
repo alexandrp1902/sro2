@@ -41,6 +41,61 @@
         { "item": "rareMetal", "chance": 0.1, "min": 1, "max": 1 }
       ]
     },
+    "frontierPirate": {
+      "levelChanceBonus": 0.05,
+      "levelCountBonus": 0.2,
+      "rolls": [
+        { "item": "metal", "chance": 1, "min": 3, "max": 6 },
+        { "item": "energy", "chance": 0.5, "min": 1, "max": 2 },
+        { "item": "titanium", "chance": 0.35, "min": 1, "max": 2 },
+        { "item": "tech", "chance": 0.07, "min": 1, "max": 1 },
+        { "item": "pointDefense_mk2", "chance": 0.03 },
+        { "item": "ion_mk2", "chance": 0.02 },
+        { "item": "cooling_mk2", "chance": 0.02 },
+        { "item": "shieldM_mk2", "chance": 0.02 }
+      ]
+    },
+    "frontierBrute": {
+      "levelChanceBonus": 0.05,
+      "levelCountBonus": 0.2,
+      "rolls": [
+        { "item": "metal", "chance": 1, "min": 5, "max": 9 },
+        { "item": "titanium", "chance": 0.5, "min": 1, "max": 3 },
+        { "item": "crystals", "chance": 0.25, "min": 1, "max": 2 },
+        { "item": "tech", "chance": 0.14, "min": 1, "max": 1 },
+        { "item": "plasma_mk2", "chance": 0.04 },
+        { "item": "engineM_mk2", "chance": 0.03 },
+        { "item": "repair_mk2", "chance": 0.03 }
+      ]
+    },
+    "rimPirate": {
+      "levelChanceBonus": 0.05,
+      "levelCountBonus": 0.2,
+      "rolls": [
+        { "item": "metal", "chance": 1, "min": 4, "max": 8 },
+        { "item": "titanium", "chance": 0.5, "min": 2, "max": 4 },
+        { "item": "crystals", "chance": 0.3, "min": 1, "max": 2 },
+        { "item": "tech", "chance": 0.12, "min": 1, "max": 1 },
+        { "item": "ion_mk2", "chance": 0.05 },
+        { "item": "railgun_mk2", "chance": 0.02 },
+        { "item": "cooling_mk3", "chance": 0.015 },
+        { "item": "shieldL_mk2", "chance": 0.02 }
+      ]
+    },
+    "rimBrute": {
+      "levelChanceBonus": 0.05,
+      "levelCountBonus": 0.2,
+      "rolls": [
+        { "item": "metal", "chance": 1, "min": 6, "max": 12 },
+        { "item": "rareMetal", "chance": 0.35, "min": 1, "max": 2 },
+        { "item": "crystals", "chance": 0.45, "min": 1, "max": 3 },
+        { "item": "tech", "chance": 0.2, "min": 1, "max": 2 },
+        { "item": "railgun_mk3", "chance": 0.02 },
+        { "item": "torpedoes_mk2", "chance": 0.03 },
+        { "item": "afterburnerL_mk2", "chance": 0.03 },
+        { "item": "generatorL_mk3", "chance": 0.015 }
+      ]
+    },
     "rockSmall": { "rolls": [{ "item": "ore", "chance": 1, "min": 1, "max": 2 }] },
     "rockMedium": {
       "rolls": [

@@ -19,30 +19,6 @@
     "h": 256,
     "body": 222
   },
-  "ships-scout": {
-    "w": 198,
-    "h": 512
-  },
-  "ships-interceptor": {
-    "w": 491,
-    "h": 512
-  },
-  "ships-freighter": {
-    "w": 412,
-    "h": 512
-  },
-  "ships-frigate": {
-    "w": 254,
-    "h": 512
-  },
-  "ships-cruiser": {
-    "w": 319,
-    "h": 512
-  },
-  "ships-industrial": {
-    "w": 330,
-    "h": 512
-  },
   "stations-ring": {
     "w": 512,
     "h": 501
@@ -266,5 +242,205 @@
   "weapon-shots-orb-hit": {
     "w": 192,
     "h": 179
+  },
+  "weapon-shots-rail": {
+    "w": 31,
+    "h": 192
+  },
+  "weapon-shots-rail-flash": {
+    "w": 134,
+    "h": 192
+  },
+  "weapon-shots-rail-hit": {
+    "w": 178,
+    "h": 192
+  },
+  "weapon-shots-ion": {
+    "w": 87,
+    "h": 192
+  },
+  "weapon-shots-ion-flash": {
+    "w": 155,
+    "h": 192
+  },
+  "weapon-shots-ion-hit": {
+    "w": 192,
+    "h": 178
+  },
+  "weapon-shots-torpedo": {
+    "w": 43,
+    "h": 192
+  },
+  "weapon-shots-torpedo-flash": {
+    "w": 105,
+    "h": 192
+  },
+  "weapon-shots-torpedo-hit": {
+    "w": 180,
+    "h": 192
+  },
+  "weapon-shots-flak": {
+    "w": 39,
+    "h": 192
+  },
+  "weapon-shots-flak-flash": {
+    "w": 92,
+    "h": 192
+  },
+  "weapon-shots-flak-hit": {
+    "w": 182,
+    "h": 192
+  },
+  "ships-ranger": {
+    "w": 237,
+    "h": 256
+  },
+  "ships-ranger-heavy": {
+    "w": 127,
+    "h": 256
+  },
+  "ships-trader-hauler": {
+    "w": 170,
+    "h": 256
+  },
+  "ships-trader-convoy": {
+    "w": 125,
+    "h": 256
+  },
+  "ships-pirate-raider": {
+    "w": 231,
+    "h": 256
+  },
+  "ships-pirate-brute": {
+    "w": 188,
+    "h": 256
+  },
+  "ships-pirate-flagship": {
+    "w": 193,
+    "h": 256
+  },
+  "ships-drone": {
+    "w": 254,
+    "h": 256
+  },
+  "ships-scout": {
+    "w": 99,
+    "h": 256
+  },
+  "ships-interceptor": {
+    "w": 245,
+    "h": 256
+  },
+  "ships-industrial": {
+    "w": 166,
+    "h": 256
+  },
+  "ships-frigate": {
+    "w": 126,
+    "h": 256
+  },
+  "ships-freighter": {
+    "w": 206,
+    "h": 256
+  },
+  "ships-cruiser": {
+    "w": 160,
+    "h": 256
+  },
+  "planets-barren": {
+    "w": 512,
+    "h": 509
+  },
+  "planets-jungle": {
+    "w": 512,
+    "h": 506
+  },
+  "planets-lava": {
+    "w": 512,
+    "h": 502
+  },
+  "planets-ocean": {
+    "w": 512,
+    "h": 506
+  },
+  "planets-ringed": {
+    "w": 512,
+    "h": 498
+  },
+  "planets-toxic": {
+    "w": 512,
+    "h": 505
+  },
+  "stations-outpost": {
+    "w": 480,
+    "h": 512
+  },
+  "stations-pirate": {
+    "w": 512,
+    "h": 504
+  },
+  "stations-ranger": {
+    "w": 512,
+    "h": 512
+  },
+  "stations-trade": {
+    "w": 478,
+    "h": 512
+  },
+  "suns-white": {
+    "w": 640,
+    "h": 619
+  },
+  "suns-binary": {
+    "w": 640,
+    "h": 497
+  },
+  "weapons-cannon": {
+    "w": 128,
+    "h": 115
+  },
+  "weapons-heavy-laser": {
+    "w": 128,
+    "h": 120
+  },
+  "weapons-railgun": {
+    "w": 128,
+    "h": 103
+  },
+  "weapons-ion": {
+    "w": 126,
+    "h": 128
+  },
+  "weapons-point-defense": {
+    "w": 128,
+    "h": 125
+  },
+  "weapons-torpedoes": {
+    "w": 128,
+    "h": 119
+  },
+  "modules-reactor": {
+    "w": 111,
+    "h": 128
+  },
+  "modules-fuel-tank": {
+    "w": 128,
+    "h": 127
+  },
+  "modules-military-radar": {
+    "w": 124,
+    "h": 128
+  },
+  "modules-afterburner": {
+    "w": 128,
+    "h": 110
+  },
+  "modules-repair": {
+    "w": 128,
+    "h": 106
+  },
+  "modules-cooling": {
+    "w": 128,
+    "h": 95
   }
 }

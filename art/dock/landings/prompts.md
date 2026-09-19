@@ -1,0 +1,39 @@
+# Generation prompts
+
+Source brief: `art/next-art-requests.md`. Built-in image_gen; one generation per listed asset. PNG source deliverables; no game integration.
+
+## landing-terran.png
+
+Use case: stylized-concept. Single production space RPG background, 1600x1200 landscape 4:3. Detailed semi-realistic game illustration, worn gunmetal and blue-gray steel, dark navy shadows, restrained cyan practical lighting and amber details, clear midtones, matching industrial spaceship sprites. No text, logos, watermark, borders, UI. Key content inside central 60%, background fills frame. Bottom quarter quiet and dark for dialogue overlay. Cockpit view during descent toward a settlement, unobtrusive dark canopy struts at far edges, no instruments or readable UI obscuring main view. Settlement lights below and landing approach through this environment. Temperate blue-green world, broken clouds above a city and coastal spaceport. Clouds appropriate to this biome open to reveal settlement below.
+
+## landing-desert.png
+
+Use case: stylized-concept. Single production space RPG background, 1600x1200 landscape 4:3. Detailed semi-realistic game illustration, worn gunmetal and blue-gray steel, dark navy shadows, restrained cyan practical lighting and amber details, clear midtones, matching industrial spaceship sprites. No text, logos, watermark, borders, UI. Key content inside central 60%, background fills frame. Bottom quarter quiet and dark for dialogue overlay. Cockpit view during descent toward a settlement, unobtrusive dark canopy struts at far edges, no instruments or readable UI obscuring main view. Settlement lights below and landing approach through this environment. Sand-colored domes and wind-worn metal, orange dusty sky, mesa cliffs. Clouds appropriate to this biome open to reveal settlement below.
+
+## landing-ice.png
+
+Use case: stylized-concept. Single production space RPG background, 1600x1200 landscape 4:3. Detailed semi-realistic game illustration, worn gunmetal and blue-gray steel, dark navy shadows, restrained cyan practical lighting and amber details, clear midtones, matching industrial spaceship sprites. No text, logos, watermark, borders, UI. Key content inside central 60%, background fills frame. Bottom quarter quiet and dark for dialogue overlay. Cockpit view during descent toward a settlement, unobtrusive dark canopy struts at far edges, no instruments or readable UI obscuring main view. Settlement lights below and landing approach through this environment. Pressurized habitats half buried in snow, pale cyan ice cliffs, aurora in the sky. Clouds appropriate to this biome open to reveal settlement below.
+
+## landing-lava.png
+
+Use case: stylized-concept. Single production space RPG background, 1600x1200 landscape 4:3. Detailed semi-realistic game illustration, worn gunmetal and blue-gray steel, dark navy shadows, restrained cyan practical lighting and amber details, clear midtones, matching industrial spaceship sprites. No text, logos, watermark, borders, UI. Key content inside central 60%, background fills frame. Bottom quarter quiet and dark for dialogue overlay. Cockpit view during descent toward a settlement, unobtrusive dark canopy struts at far edges, no instruments or readable UI obscuring main view. Settlement lights below and landing approach through this environment. Heat-shielded black basalt bunkers, orange glow from distant lava flows, ash in the air. Clouds appropriate to this biome open to reveal settlement below.
+
+## landing-jungle.png
+
+Use case: stylized-concept. Single production space RPG background, 1600x1200 landscape 4:3. Detailed semi-realistic game illustration, worn gunmetal and blue-gray steel, dark navy shadows, restrained cyan practical lighting and amber details, clear midtones, matching industrial spaceship sprites. No text, logos, watermark, borders, UI. Key content inside central 60%, background fills frame. Bottom quarter quiet and dark for dialogue overlay. Cockpit view during descent toward a settlement, unobtrusive dark canopy struts at far edges, no instruments or readable UI obscuring main view. Settlement lights below and landing approach through this environment. Elevated platforms among giant alien trees, humid mist, bioluminescent plants. Clouds appropriate to this biome open to reveal settlement below.
+
+## landing-barren.png
+
+Use case: stylized-concept. Single production space RPG background, 1600x1200 landscape 4:3. Detailed semi-realistic game illustration, worn gunmetal and blue-gray steel, dark navy shadows, restrained cyan practical lighting and amber details, clear midtones, matching industrial spaceship sprites. No text, logos, watermark, borders, UI. Key content inside central 60%, background fills frame. Bottom quarter quiet and dark for dialogue overlay. Cockpit view during descent toward a settlement, unobtrusive dark canopy struts at far edges, no instruments or readable UI obscuring main view. Settlement lights below and landing approach through this environment. Sealed dome colony on a gray cratered moon, black sky with the parent planet on the horizon. Airless moon: NO atmospheric clouds or fog, crisp black sky and gray cratered terrain, parent planet on horizon.
+
+## landing-orbital-platform.png
+
+Use case: stylized-concept. Single production space RPG background, 1600x1200 landscape 4:3. Detailed semi-realistic game illustration, worn gunmetal and blue-gray steel, dark navy shadows, restrained cyan practical lighting and amber details, clear midtones, matching industrial spaceship sprites. No text, logos, watermark, borders, UI. Key content inside central 60%, background fills frame. Bottom quarter quiet and dark for dialogue overlay. Cockpit view during descent toward a settlement, unobtrusive dark canopy struts at far edges, no instruments or readable UI obscuring main view. Settlement lights below and landing approach through this environment. For a gas giant: engineered platform floating in atmospheric clouds, immense gas-giant bands filling the sky. A floating atmospheric settlement, not open space. Clouds appropriate to this biome open to reveal settlement below.
+
+## landing-ocean.png
+
+Use case: stylized-concept. Single production space RPG background, 1600x1200 landscape 4:3. Detailed semi-realistic game illustration, worn gunmetal and blue-gray steel, dark navy shadows, restrained cyan practical lighting and amber details, clear midtones, matching industrial spaceship sprites. No text, logos, watermark, borders, UI. Key content inside central 60%, background fills frame. Bottom quarter quiet and dark for dialogue overlay. Cockpit view during descent toward a settlement, unobtrusive dark canopy struts at far edges, no instruments or readable UI obscuring main view. Settlement lights below and landing approach through this environment. Ocean planet with deep blue water, scattered small islands and a settlement on offshore platforms. Clouds appropriate to this biome open to reveal settlement below.
+
+## landing-toxic.png
+
+Use case: stylized-concept. Single production space RPG background, 1600x1200 landscape 4:3. Detailed semi-realistic game illustration, worn gunmetal and blue-gray steel, dark navy shadows, restrained cyan practical lighting and amber details, clear midtones, matching industrial spaceship sprites. No text, logos, watermark, borders, UI. Key content inside central 60%, background fills frame. Bottom quarter quiet and dark for dialogue overlay. Cockpit view during descent toward a settlement, unobtrusive dark canopy struts at far edges, no instruments or readable UI obscuring main view. Settlement lights below and landing approach through this environment. Toxic world with sickly yellow-green clouds, brown rock, sealed habitats and filtered landing lights. Clouds appropriate to this biome open to reveal settlement below.

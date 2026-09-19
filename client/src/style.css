@@ -1875,3 +1875,33 @@ body {
   font-size: 13px;
   cursor: pointer;
 }
+
+/* Регионы галактики (M11): бледная подложка под системами и подпись в её углу. */
+.galaxy-region {
+  opacity: 0.1;
+}
+
+.galaxy-region-name {
+  font-size: 2.6px;
+  opacity: 0.75;
+}
+
+/* Значок тира на строке снаряжения (M11): «Mk2» рядом с названием. */
+.dock-tier {
+  margin-left: 6px;
+  padding: 1px 5px;
+  border-radius: 6px;
+  background: #23406b;
+  color: #cfe3ff;
+  font-size: 11px;
+  font-weight: 600;
+  vertical-align: middle;
+}
+
+/* Чем торгует эта станция — строкой под её именем. */
+.dock-shop-title {
+  display: block;
+  color: #7f97b8;
+  font-size: 12px;
+  font-weight: 400;
+}

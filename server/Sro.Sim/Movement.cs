@@ -57,6 +57,8 @@ public readonly record struct MoveInput(double Dx, double Dy, double Throttle)
 /// </param>
 /// <param name="Class">Старший класс оборудования, которое встаёт на корпус (GDD §20): S, M или L.</param>
 /// <param name="WeaponSlots">Оружейные слоты и их классы (GDD §12, §20); null — один слот класса корпуса.</param>
+/// <param name="UtilitySlots">Сколько вспомогательных модулей встаёт (M11): ремонт, охлаждение, трюм.</param>
+/// <param name="Role">Роль корпуса для витрины: «разведчик», «танк»…</param>
 public sealed record HullParams(
     string Name,
     double MaxSpeed,
@@ -75,7 +77,9 @@ public sealed record HullParams(
     double Fuel = 100,
     double Radar = 2000,
     string Class = EquipClass.L,
-    IReadOnlyList<string>? WeaponSlots = null)
+    IReadOnlyList<string>? WeaponSlots = null,
+    int UtilitySlots = 0,
+    string? Role = null)
 {
     /// <summary>Классы оружейных слотов по порядку.</summary>
     [System.Text.Json.Serialization.JsonIgnore]
@@ -99,6 +103,7 @@ public sealed record HullParams(
         if (!(Radar > 0)) return "radar must be positive";
         if (!EquipClass.IsValid(Class)) return "class must be S, M or L";
         if (Slots.Count is < 1 or > Fitting.MaxWeaponSlots) return $"weaponSlots must have 1..{Fitting.MaxWeaponSlots} slots";
+        if (UtilitySlots is < 0 or > Fitting.MaxUtilitySlots) return $"utilitySlots must be within 0..{Fitting.MaxUtilitySlots}";
         foreach (var slot in Slots)
         {
             if (!EquipClass.IsValid(slot)) return "weaponSlots must be S, M or L";
@@ -110,6 +115,10 @@ public sealed record HullParams(
 
 public static class Movement
 {
+    /// <summary>Корпус замедленного корабля (ионка, M11): скорость и разгон × (1 − slow), торможение прежнее.</summary>
+    public static HullParams Slowed(HullParams hull, double slow) =>
+        hull with { MaxSpeed = hull.MaxSpeed * (1 - slow), Acceleration = hull.Acceleration * (1 - slow) };
+
     /// <summary>Мир — квадрат ±WorldHalfSize.</summary>
     public const double WorldHalfSize = 4000;
 

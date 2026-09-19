@@ -20,8 +20,15 @@ const SUN_SCALE = 1.3;
 /** Картинка планеты в радиусах планеты: у газового гиганта кольца шире диска. */
 const PLANET_SCALE = 1.15;
 const PIRATE_BASE_RADIUS = 140;
-/** Станция по опасности системы: безопасная — кольцо, дальше — жилой купол и рудная станция. */
-const STATIONS: SpriteName[] = ['stations-ring', 'stations-habitat', 'stations-mining', 'stations-mining', 'stations-mining'];
+/** Станция по опасности системы, когда своя картинка не задана: безопасная — кольцо, дальше — купол и рудная. */
+const STATIONS: SpriteName[] = ['stations-ring', 'stations-habitat', 'stations-mining', 'stations-mining', 'stations-mining', 'stations-mining'];
+
+/** Картинка станции этой системы (M11): из galaxy.json, иначе по опасности. */
+function stationSprite(system: { stationSprite?: string | null; danger: number }): SpriteName {
+  const own = system.stationSprite ? `stations-${system.stationSprite}` : null;
+  if (own && hasSprite(own)) return own;
+  return STATIONS[Math.min(STATIONS.length, Math.max(1, system.danger)) - 1];
+}
 
 /** Размер врат на экране — для рамки прицела и выбора тапом. */
 export const GATE_SIZE = GATE_RADIUS;
@@ -85,7 +92,7 @@ export class SystemView {
 
     if (!system || system.station) {
       // Станция и всё, что у неё, — в её осях: +y — прочь от звезды. Контейнер поворачивается вместе с ней.
-      this.station.addChild(centred(STATIONS[Math.min(5, Math.max(1, system?.danger ?? 1)) - 1], 0, 0, STATION.radius * STATION_SCALE));
+      this.station.addChild(centred(stationSprite(system ?? { danger: 1 }), 0, 0, STATION.radius * STATION_SCALE));
       this.stationLabel = label(system ? `Станция ${system.name}` : 'Станция', 0, 0, STATION_LABEL_COLOR);
       view.addChild(this.station, this.stationLabel);
     }

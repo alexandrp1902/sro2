@@ -751,7 +751,7 @@ public sealed partial class Room
         foreach (var drone in _drones)
         {
             var input = drone.NextInput();
-            if (!drone.IsDead) Movement.Step(ref drone.Ship, input, drone.Hull(Hulls), SimConfig.Dt);
+            if (!drone.IsDead) Movement.Step(ref drone.Ship, input, drone.MoveHull(drone.Hull(Hulls), Tick), SimConfig.Dt);
         }
         // Уничтоженный пират не думает: иначе снова взял бы огонь, который Battle снял при смерти.
         ForgiveOffenders();
@@ -765,7 +765,7 @@ public sealed partial class Room
                 _ships.GetValueOrDefault(pirate.TargetId) is Player { Connection: { } connection } && _offenders.ContainsKey(pirate.TargetId))
                 connection.Send(new NoticeMsg(Protocol.RangersNotice));
             if (pirate.Gone) _gonePirates.Add(pirate);
-            else Movement.Step(ref pirate.Ship, pirate.LastInput, pirate.Hull(Hulls), SimConfig.Dt);
+            else Movement.Step(ref pirate.Ship, pirate.LastInput, pirate.MoveHull(pirate.Hull(Hulls), Tick), SimConfig.Dt);
         }
         if (Balance.Traders is { } traders)
         {
@@ -783,7 +783,7 @@ public sealed partial class Room
                 TraderBrain.Think(
                     trader, traders, Tick, Balance.Galaxy.JumpTicks, station, Balance.Loot.StationRange, heat, _ships, Balance.Npc.DropRange);
                 if (trader.Gone) _goneTraders.Add(trader);
-                else Movement.Step(ref trader.Ship, trader.LastInput, trader.Hull(Hulls), SimConfig.Dt);
+                else Movement.Step(ref trader.Ship, trader.LastInput, trader.MoveHull(trader.Hull(Hulls), Tick), SimConfig.Dt);
             }
         }
         _meteors.Move(Balance.Meteors);
@@ -807,7 +807,7 @@ public sealed partial class Room
         _meteors.Collide(_ships, Balance, Tick, _shots);
         // Ракеты — тоже до боя: их урон попадает в тот же свод смертей. Запущенные в этом тике полетят со следующего.
         _missiles.Step(Tick, _ships, Balance, _shots);
-        _battle.Run(Tick, _ships, Balance, _shots, _kills, Spawn, CanAttack, Launch);
+        _battle.Run(Tick, _ships, Balance, _shots, _kills, Spawn, CanAttack, Launch, _missiles);
         // Задания — до уборки налётчиков: погибший должен ещё найтись среди кораблей.
         foreach (var kill in _kills)
         {
@@ -898,7 +898,7 @@ public sealed partial class Room
     /// </summary>
     private void Move(Player player)
     {
-        var hull = player.Effective(Balance);
+        var hull = player.MoveHull(player.Effective(Balance), Tick);
         if (player.Connection is null)
         {
             if (Tick - player.LostAtTick >= ReconnectGraceTicks)
@@ -1426,7 +1426,8 @@ public sealed partial class Room
                 Pirate { LeaveAtTick: > 0 } leaving => leaving.LeaveAtTick,
                 Trader { LeaveAtTick: > 0 } leaving => leaving.LeaveAtTick,
                 _ => 0,
-            });
+            },
+            ship.IsSlowed(Tick) ? ship.SlowUntilTick : 0);
     }
 
     /// <summary>Состояния ИИ в снапшоте — по индексу <see cref="PirateState"/>.</summary>
@@ -1456,14 +1457,18 @@ public sealed partial class Room
             Balance.StationPath,
             Balance.GalaxySet is null ? [] : system.PlanetList,
             OrbitEpoch,
-            Balance.Raids?.Base);
+            Balance.Raids?.Base,
+            system.StationSprite,
+            system.Region);
     }
 
     /// <summary>Карта галактики (GDD §55): все системы и маршруты с ценой прыжка.</summary>
     public static GalaxyDto GalaxyInfo(GalaxyRules galaxy) => new(
         [.. galaxy.SystemMap.Select(kv => new GalaxySystemDto(
-            kv.Key, kv.Value.Name, kv.Value.Danger, kv.Value.Pvp, kv.Value.Station, kv.Value.Map?.X ?? 0, kv.Value.Map?.Y ?? 0))],
-        [.. galaxy.LinkList.Select(l => new LinkDto(l.A, l.B, galaxy.Cost(l)))]);
+            kv.Key, kv.Value.Name, kv.Value.Danger, kv.Value.Pvp, kv.Value.Station,
+            kv.Value.Map?.X ?? 0, kv.Value.Map?.Y ?? 0, kv.Value.Region))],
+        [.. galaxy.LinkList.Select(l => new LinkDto(l.A, l.B, galaxy.Cost(l)))],
+        galaxy.Regions is null ? null : [.. galaxy.RegionMap.Select(kv => new RegionDto(kv.Key, kv.Value.Name, kv.Value.Color))]);
 
     /// <summary>Занятое другим игроком имя получает номер: «Имя 2», «Имя 3»…</summary>
     private string UniqueName(string name, Player? self)
@@ -1516,11 +1521,12 @@ public sealed partial class Room
         if (!_byConnection.TryGetValue(connection.Id, out var player) || player.IsDead) return;
         if (player.SelectedLootId == 0) return;
 
-        switch (_loot.TryGrab(player, player.SelectedLootId, Balance.Loot, Hulls, Tick))
+        switch (_loot.TryGrab(player, player.SelectedLootId, Balance.Loot, player.Effective(Balance).Cargo, Tick))
         {
             case LootSystem.GrabResult.Taken:
                 player.SelectedLootId = 0;
                 SendCargo(player);
+                SendHangar(player); // подобранное снаряжение попадает на склад
                 Save(player);
                 if (!Advance(player, MissionRules.GrabStep)) SendCollect(player);
                 break;
@@ -1634,11 +1640,17 @@ public sealed partial class Room
         var shop = Balance.Shop;
         var price = kind switch
         {
-            Protocol.HullItem when Hulls.ContainsKey(id) && !player.OwnsHull(id) => shop.HullPrice(id),
-            Protocol.ItemKind when IsItem(id) => shop.ItemPrice(id),
+            Protocol.HullItem when Hulls.ContainsKey(id) && !player.OwnsHull(id) => shop.SellsHull(id) ? shop.HullPrice(id) : null,
+            Protocol.ItemKind when IsItem(id) => shop.SellsItem(id) ? shop.ItemPrice(id) : null,
             _ => null,
         };
-        if (price is not { } cost) return;
+        if (price is not { } cost)
+        {
+            // Здесь этого нет: за крейсером и Mk3 надо лететь на Рубеж (M11).
+            if (kind == Protocol.HullItem ? Hulls.ContainsKey(id) && !player.OwnsHull(id) : IsItem(id))
+                connection.Send(new NoticeMsg(Protocol.NotSoldNotice));
+            return;
+        }
         if (kind == Protocol.ItemKind)
         {
             if (slot is null)
@@ -1685,7 +1697,9 @@ public sealed partial class Room
         var hull = player.Hull(Hulls);
         IEnumerable<string> slots = Balance.Weapons.ContainsKey(id)
             ? Enumerable.Range(0, hull.Slots.Count).Select(Fitting.WeaponSlot)
-            : Balance.Modules?.GetValueOrDefault(id) is { } module ? [module.Slot] : [];
+            : Balance.Modules?.GetValueOrDefault(id) is { } module
+                ? module.Slot == Fitting.UtilityKind ? Enumerable.Range(0, hull.UtilitySlots).Select(Fitting.UtilitySlot) : [module.Slot]
+                : [];
         return slots.FirstOrDefault(slot =>
             player.Fit.Get(slot) is null && Fitting.CanInstall(hull, player.Fit, slot, id, Balance.Weapons, Balance.Modules) is null);
     }
@@ -1802,7 +1816,7 @@ public sealed partial class Room
                     return;
                 }
                 if (offer.Kind == MissionRules.DeliverKind &&
-                    player.Cargo.Used(Balance.Loot) + offer.Count > player.Hull(Hulls).Cargo)
+                    player.Cargo.Used(Balance.Loot) + offer.Count > player.Effective(Balance).Cargo)
                 {
                     connection.Send(new NoticeMsg(Protocol.CargoFullNotice));
                     return;
@@ -1934,7 +1948,7 @@ public sealed partial class Room
         var loot = Balance.Loot;
         player.Connection.Send(new CargoMsg(
             player.Cargo.Used(loot),
-            player.Hull(Hulls).Cargo,
+            player.Effective(Balance).Cargo,
             player.Cargo.Items,
             player.Credits,
             player.Cargo.Reserved));

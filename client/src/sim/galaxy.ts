@@ -1,9 +1,21 @@
 import type { GalaxyDto, GalaxySystemDto, GateDto, PvpRule, SystemDto } from '../net/protocol';
 
-/** Цвет опасности (GDD §33): от спокойного зелёного к красному. */
-const DANGER_COLORS = [0x6fe08a, 0xb9e06f, 0xe0c46f, 0xe08a4a, 0xe0524a];
+/** Цвет опасности (GDD §33): от спокойного зелёного к красному; 6 — Дальний рубеж (M11). */
+const DANGER_COLORS = [0x6fe08a, 0xb9e06f, 0xe0c46f, 0xe08a4a, 0xe0524a, 0xb53247];
 
-const DANGER_NAMES = ['безопасная', 'низкая опасность', 'средняя опасность', 'высокая опасность', 'экстремальная'];
+const DANGER_NAMES = [
+  'безопасная',
+  'низкая опасность',
+  'средняя опасность',
+  'высокая опасность',
+  'экстремальная',
+  'гиблое место',
+];
+
+/** Регион системы словами; null — сервер регионов не знает. */
+export function regionName(galaxy: GalaxyDto, id: string | null | undefined): string | null {
+  return galaxy.regions?.find((r) => r.id === id)?.name ?? null;
+}
 
 const PVP_NAMES: Record<PvpRule, string> = {
   off: 'PvP нет',

@@ -9,9 +9,9 @@
   "gravity": 15000000,
   "gravityMinRadius": 600,
   "sizes": {
-    "small": { "name": "Мелкий метеорит", "radius": 14, "hp": 60, "speedMin": 240, "speedMax": 300, "ramDamage": 110, "weight": 0.45, "table": "rockSmall" },
-    "medium": { "name": "Метеорит", "radius": 22, "hp": 140, "speedMin": 210, "speedMax": 260, "ramDamage": 190, "weight": 0.4, "table": "rockMedium" },
-    "large": { "name": "Крупный метеорит", "radius": 34, "hp": 320, "speedMin": 180, "speedMax": 220, "ramDamage": 300, "weight": 0.15, "table": "rockLarge" }
+    "small": { "name": "Мелкий метеорит", "radius": 28, "hp": 120, "speedMin": 240, "speedMax": 300, "ramDamage": 165, "weight": 0.45, "table": "rockSmall" },
+    "medium": { "name": "Метеорит", "radius": 44, "hp": 280, "speedMin": 210, "speedMax": 260, "ramDamage": 285, "weight": 0.4, "table": "rockMedium" },
+    "large": { "name": "Крупный метеорит", "radius": 68, "hp": 640, "speedMin": 180, "speedMax": 220, "ramDamage": 450, "weight": 0.15, "table": "rockLarge" }
   },
   "tracks": {
     "flyby": { "name": "Пролёт", "aimFactor": 1, "speedFactor": 1, "weight": 0.4 },

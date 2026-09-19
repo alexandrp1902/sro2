@@ -26,16 +26,16 @@ import { MissileField } from './render/missiles';
 import { Nebula } from './render/nebulaView';
 import { PlayerOverlay } from './render/playerOverlay';
 import { ShipView, engineGlow } from './render/ship';
-import { loadSprites } from './render/sprites';
+import { loadSprites, moduleSprite, weaponSprite } from './render/sprites';
 import { Starfield } from './render/starfield';
 import { WeaponArc } from './render/weaponArc';
 import { GATE_SIZE, SystemView } from './render/world';
 import { DEFAULT_SECTOR_UNIT, assessBest, cooldownTicks, evasion, longestRange } from './sim/combat';
-import { Modules, effectiveHull, fitWeapons, type ShipFit } from './sim/fitting';
+import { Modules, effectiveHull, fitWeapons, tierOf, type ShipFit } from './sim/fitting';
 import { describeSystem, gateIndex, gateMarkId, pvpName } from './sim/galaxy';
 import { DEFAULT_HULL, Hulls } from './sim/hulls';
-import { NO_LOOT, lootLabel, rarityColor, type LootRules } from './sim/loot';
-import { DT, directionAngle, localVelocity, type MoveInput } from './sim/movement';
+import { NO_LOOT, lootLabel, rarityColor, type GearItem, type LootRules } from './sim/loot';
+import { DT, ION_SLOW, directionAngle, localVelocity, slowedHull, type MoveInput } from './sim/movement';
 import { orbitSeconds } from './sim/orbits';
 import { objective, objectiveSystem, trackerLines, doneLines, type MissionNames, type Objective } from './sim/missions';
 import type { NpcRules } from './sim/npcs';
@@ -71,6 +71,8 @@ const SKY_SEED = 0;
 const DEFAULT_RADAR = 2000;
 /** Клавиша «взять ближайший предмет» ищет его в этом радиусе — примерно экран на среднем зуме. */
 const LOOT_KEY_RANGE = 1200;
+/** Размер ракеты как цели для эффектов: трассер зенитки летит в точку, а не в корабль. */
+const MISSILE_TARGET_SIZE = 10;
 /** Ниже этой скорости «корабль тормозит» в статусе не показываем. */
 const STOPPED_SPEED = 1;
 /** Переключатель PvP на этом устройстве: '1' — включён. */
@@ -90,8 +92,16 @@ async function main(): Promise<void> {
   const modules = new Modules();
   /** Что стоит на своём корабле — из ангара; до него летим на стартовом. */
   let fit: ShipFit | null = null;
+  /** Замедлен ионкой (M11) до этого тика сервера; 0 — нет. Предсказание летит на замедленном корпусе. */
+  let slowUntilTick = 0;
+  let serverTick = 0;
   /** Свой корабль летает и держит щит на корпусе с модулями — как его считает сервер. */
-  const ownHulls = { get: (id: string) => effectiveHull(hulls.get(id), fit, modules.catalog) };
+  const ownHulls = {
+    get: (id: string) => {
+      const hull = effectiveHull(hulls.get(id), fit, modules.catalog);
+      return slowUntilTick > serverTick ? slowedHull(hull, ION_SLOW) : hull;
+    },
+  };
   /** Свои пушки по слотам; до ангара — стартовая. */
   const ownWeapons = () => (fit ? fitWeapons(fit, weapons) : [weapons.get(DEFAULT_WEAPON)]);
   /** Пушка первого слота: по её выстрелам крутится кольцо перезарядки на кнопке огня. */
@@ -106,6 +116,19 @@ async function main(): Promise<void> {
   const prediction = new Prediction(ownHulls, DEFAULT_HULL, SPAWN);
   /** Каталог лута с сервера: названия, редкость и радиус захвата. */
   let lootRules: LootRules = NO_LOOT;
+  /**
+   * Каталог лута вместе со снаряжением (M11): выпавшие пушки и модули подписываются именами из каталогов,
+   * а цвет им даёт тир — Mk2 синий, Mk3 фиолетовый.
+   */
+  const withGear = (rules: LootRules | null | undefined): LootRules => {
+    const gear: Record<string, GearItem> = {};
+    for (const id of weapons.ids()) gear[id] = { name: weapons.get(id).name, tier: tierOf(id), sprite: weaponSprite(id) };
+    for (const id of modules.ids()) {
+      const m = modules.get(id);
+      if (m) gear[id] = { name: m.name, tier: tierOf(id), sprite: moduleSprite(m.slot, id) };
+    }
+    return { ...(rules ?? NO_LOOT), gear };
+  };
   /** Единица дистанции для игрока: «цель в 1.4 сектора» вместо «в 980». */
   let sectorUnit = DEFAULT_SECTOR_UNIT;
 
@@ -520,6 +543,9 @@ async function main(): Promise<void> {
     if (id === ownId()) return ownAnchor;
     const ship = remote.get(id);
     if (ship) return { x: ship.x, y: ship.y, size: ship.size };
+    // Зенитка (M11) стреляет по ракетам: цель выстрела — ракета, а не корабль.
+    const missile = missiles.find(id);
+    if (missile) return { x: missile.x, y: missile.y, size: MISSILE_TARGET_SIZE };
     return meteors.lastSeen(id, performance.now());
   };
   // Метеоритов нет в ростере — их имя знает поле метеоритов, в том числе у только что разбитого.
@@ -641,11 +667,11 @@ async function main(): Promise<void> {
       const sameSystem = (message.system?.id ?? null) === (system?.id ?? null);
       applySystem(message.system, message.galaxy, true);
       sectorUnit = message.combat.sectorUnit || DEFAULT_SECTOR_UNIT;
-      lootRules = message.loot ?? NO_LOOT;
+      lootRules = withGear(message.loot);
       npcRules = message.npcs ?? null;
-      loot.setRules(message.loot);
-      cargoHud.setRules(message.loot);
-      dockScreen.setRules(message.loot, message.shop);
+      loot.setRules(lootRules);
+      cargoHud.setRules(lootRules);
+      dockScreen.setRules(lootRules, message.shop);
       loot.clear();
       meteors.setRules(message.meteors);
       meteors.clear();
@@ -656,6 +682,7 @@ async function main(): Promise<void> {
       remote.clear();
       combat.clear();
       ownDto = null;
+      slowUntilTick = 0;
       if (message.resumed && sameSystem) feed.add('Снова на связи — корабль ждал на месте');
       // Сервер после переподключения не помнит, во что мы целились и держим ли атаку.
       if (targetId !== 0) connection.send({ t: 'target', id: targetId });
@@ -667,11 +694,11 @@ async function main(): Promise<void> {
       modules.set(message.modules);
       if (message.system) applySystem(message.system, message.galaxy, false);
       sectorUnit = message.combat.sectorUnit || DEFAULT_SECTOR_UNIT;
-      lootRules = message.loot ?? NO_LOOT;
+      lootRules = withGear(message.loot);
       npcRules = message.npcs ?? null;
-      loot.setRules(message.loot);
-      cargoHud.setRules(message.loot);
-      dockScreen.setRules(message.loot, message.shop);
+      loot.setRules(lootRules);
+      cargoHud.setRules(lootRules);
+      dockScreen.setRules(lootRules, message.shop);
       meteors.setRules(message.meteors);
       dockScreen.refresh();
     };
@@ -823,7 +850,9 @@ async function main(): Promise<void> {
     wasOnline = online;
     if (latestSnapshot && online) {
       const own = latestSnapshot.ships.find((ship) => ship.id === connection!.playerId);
+      serverTick = latestSnapshot.tick;
       if (own) {
+        slowUntilTick = own.sl ?? 0;
         prediction.reconcile(own);
         ownDto = own;
       }

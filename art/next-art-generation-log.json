@@ -1,0 +1,164 @@
+[
+  {
+    "file": "art/space/npc-ships/ships-ranger.png",
+    "prompt": "Use case: stylized-concept. Generate ONE isolated spaceship hull sprite for a top-down 2D space RPG, 1024x1024 canvas with genuinely TRANSPARENT alpha background, not a checkerboard drawing. STRICT ORTHOGRAPHIC 90-degree overhead dorsal view, nose toward exact TOP of image, engines toward bottom, no perspective or isometric tilt. Entire craft centered, all protrusions inside canvas with 8% clear padding. Detailed semi-realistic game art: worn blue-gray armor, gunmetal mechanical parts, scratched pale steel panels, subtle cyan windows and tiny amber indicators; crisp readable silhouette, coherent soft upper-left illumination, no cast shadow outside hull. No engine flames, exhaust, smoke, bloom outside silhouette, starfield, floor, text, letters, numbers, logo, frame or watermark. A finished functional industrial spacecraft, not a sketch.\n\nRanger patrol corvette of a law-enforcement fleet. Compact wedge hull with twin forward gun housings, a raised armored bridge, broad white-and-navy livery with bold light-blue chevron stripes along both wings, a small beacon light pod on the dorsal spine. Disciplined, clean, clearly official — different from any civilian or pirate craft.",
+    "tool": "built-in image_gen",
+    "sourcePath": "C:\\Users\\467\\.codex\\generated_images\\01a0bb74-f947-7c11-92ae-e52069facd3c\\exec-e77d5159-bf6a-4f0f-a65a-e0bf028bd844.png"
+  },
+  {
+    "file": "art/space/npc-ships/ships-ranger-heavy.png",
+    "prompt": "Use case: stylized-concept. Generate ONE isolated spaceship hull sprite for a top-down 2D space RPG, 1024x1024 canvas with genuinely TRANSPARENT alpha background, not a checkerboard drawing. STRICT ORTHOGRAPHIC 90-degree overhead dorsal view, nose toward exact TOP of image, engines toward bottom, no perspective or isometric tilt. Entire craft centered, all protrusions inside canvas with 8% clear padding. Detailed semi-realistic game art: worn blue-gray armor, gunmetal mechanical parts, scratched pale steel panels, subtle cyan windows and tiny amber indicators; crisp readable silhouette, coherent soft upper-left illumination, no cast shadow outside hull. No engine flames, exhaust, smoke, bloom outside silhouette, starfield, floor, text, letters, numbers, logo, frame or watermark. A finished functional industrial spacecraft, not a sketch. Ranger heavy patrol cruiser, leader of a ranger squad. Long armored hull with a broad forward shield plate, four dorsal turret housings, navy-and-white livery with light-blue chevrons like the ranger corvette, twin large engines. Larger and more imposing than the ranger corvette.",
+    "tool": "built-in image_gen",
+    "sourcePath": "C:\\Users\\467\\.codex\\generated_images\\01a0bb74-f947-7c11-92ae-e52069facd3c\\exec-f1a7366d-a36a-4f33-a245-ca89e5ae7ca3.png"
+  },
+  {
+    "file": "art/space/npc-ships/ships-trader-hauler.png",
+    "prompt": "Use case: stylized-concept. Generate ONE isolated spaceship hull sprite for a top-down 2D space RPG, 1024x1024 canvas with genuinely TRANSPARENT alpha background, not a checkerboard drawing. STRICT ORTHOGRAPHIC 90-degree overhead dorsal view, nose toward exact TOP of image, engines toward bottom, no perspective or isometric tilt. Entire craft centered, all protrusions inside canvas with 8% clear padding. Detailed semi-realistic game art: worn blue-gray armor, gunmetal mechanical parts, scratched pale steel panels, subtle cyan windows and tiny amber indicators; crisp readable silhouette, coherent soft upper-left illumination, no cast shadow outside hull. No engine flames, exhaust, smoke, bloom outside silhouette, starfield, floor, text, letters, numbers, logo, frame or watermark. A finished functional industrial spacecraft, not a sketch. Small civilian merchant hauler used by NPC traders. Stubby boxy hull with one cargo container clamped under a short spine, rounded cockpit at top, faded yellow-ochre and gray civilian paint with hazard stripes on the container, no weapons. Humble and slow looking, clearly smaller than a big freighter.",
+    "tool": "built-in image_gen",
+    "sourcePath": "C:\\Users\\467\\.codex\\generated_images\\01a0bb74-f947-7c11-92ae-e52069facd3c\\exec-299d71bc-8a90-44ae-8c8b-e6ddf6f56898.png"
+  },
+  {
+    "file": "art/space/npc-ships/ships-trader-convoy.png",
+    "prompt": "Use case: stylized-concept. Generate ONE isolated spaceship hull sprite for a top-down 2D space RPG, 1024x1024 canvas with genuinely TRANSPARENT alpha background, not a checkerboard drawing. STRICT ORTHOGRAPHIC 90-degree overhead dorsal view, nose toward exact TOP of image, engines toward bottom, no perspective or isometric tilt. Entire craft centered, all protrusions inside canvas with 8% clear padding. Detailed semi-realistic game art: worn blue-gray armor, gunmetal mechanical parts, scratched pale steel panels, subtle cyan windows and tiny amber indicators; crisp readable silhouette, coherent soft upper-left illumination, no cast shadow outside hull. No engine flames, exhaust, smoke, bloom outside silhouette, starfield, floor, text, letters, numbers, logo, frame or watermark. A finished functional industrial spacecraft, not a sketch. Large merchant convoy transport for escort missions. Long spine carrying eight stacked colorful cargo containers (muted ochre, rust red, teal), bridge tower at top, four engines at bottom, a couple of small defensive turret bumps. Must read as \"valuable cargo to protect\".",
+    "tool": "built-in image_gen",
+    "sourcePath": "C:\\Users\\467\\.codex\\generated_images\\01a0bb74-f947-7c11-92ae-e52069facd3c\\exec-74bf6c81-65c2-4bcc-9cfb-943df2b6ed78.png"
+  },
+  {
+    "file": "art/space/npc-ships/ships-pirate-raider.png",
+    "prompt": "Use case: stylized-concept. Generate ONE isolated spaceship hull sprite for a top-down 2D space RPG, 1024x1024 canvas with genuinely TRANSPARENT alpha background, not a checkerboard drawing. STRICT ORTHOGRAPHIC 90-degree overhead dorsal view, nose toward exact TOP of image, engines toward bottom, no perspective or isometric tilt. Entire craft centered, all protrusions inside canvas with 8% clear padding. Detailed semi-realistic game art: worn blue-gray armor, gunmetal mechanical parts, scratched pale steel panels, subtle cyan windows and tiny amber indicators; crisp readable silhouette, coherent soft upper-left illumination, no cast shadow outside hull. No engine flames, exhaust, smoke, bloom outside silhouette, starfield, floor, text, letters, numbers, logo, frame or watermark. A finished functional industrial spacecraft, not a sketch. Light pirate raider. Asymmetric patched-together hull built from scavenged parts, one wing longer than the other, mismatched rust-red and black armor plates, crude welded spikes on the nose, a single oversized gun bolted on one side. Aggressive and ragged.",
+    "tool": "built-in image_gen",
+    "sourcePath": "C:\\Users\\467\\.codex\\generated_images\\01a0bb74-f947-7c11-92ae-e52069facd3c\\exec-e6e137bd-3495-4e1e-8711-45709d5a5744.png"
+  },
+  {
+    "file": "art/space/npc-ships/ships-pirate-brute.png",
+    "prompt": "Use case: stylized-concept. Generate ONE isolated spaceship hull sprite for a top-down 2D space RPG, 1024x1024 canvas with genuinely TRANSPARENT alpha background, not a checkerboard drawing. STRICT ORTHOGRAPHIC 90-degree overhead dorsal view, nose toward exact TOP of image, engines toward bottom, no perspective or isometric tilt. Entire craft centered, all protrusions inside canvas with 8% clear padding. Detailed semi-realistic game art: worn blue-gray armor, gunmetal mechanical parts, scratched pale steel panels, subtle cyan windows and tiny amber indicators; crisp readable silhouette, coherent soft upper-left illumination, no cast shadow outside hull. No engine flames, exhaust, smoke, bloom outside silhouette, starfield, floor, text, letters, numbers, logo, frame or watermark. A finished functional industrial spacecraft, not a sketch. Heavy pirate gunship. Bulky rectangular hull made from a stripped cargo hauler, heavy welded armor slabs, rust red and soot black paint, skull-like pattern of vents on the prow (no text), two big mismatched turrets and a missile rack. Menacing and crude.",
+    "tool": "built-in image_gen",
+    "sourcePath": "C:\\Users\\467\\.codex\\generated_images\\01a0bb74-f947-7c11-92ae-e52069facd3c\\exec-3ce2aaad-4f67-4d64-a661-85ad9499e2ae.png"
+  },
+  {
+    "file": "art/space/npc-ships/ships-pirate-flagship.png",
+    "prompt": "Use case: stylized-concept. Generate ONE isolated spaceship hull sprite for a top-down 2D space RPG, 1024x1024 canvas with genuinely TRANSPARENT alpha background, not a checkerboard drawing. STRICT ORTHOGRAPHIC 90-degree overhead dorsal view, nose toward exact TOP of image, engines toward bottom, no perspective or isometric tilt. Entire craft centered, all protrusions inside canvas with 8% clear padding. Detailed semi-realistic game art: worn blue-gray armor, gunmetal mechanical parts, scratched pale steel panels, subtle cyan windows and tiny amber indicators; crisp readable silhouette, coherent soft upper-left illumination, no cast shadow outside hull. No engine flames, exhaust, smoke, bloom outside silhouette, starfield, floor, text, letters, numbers, logo, frame or watermark. A finished functional industrial spacecraft, not a sketch. Pirate flagship, boss of an invasion. Very large dreadnought assembled from several ships welded together, jagged prow ram, many mismatched turrets, black and blood-red plating with scorched patches, glowing orange reactor slits. Clearly the biggest and most dangerous pirate.",
+    "tool": "built-in image_gen",
+    "sourcePath": "C:\\Users\\467\\.codex\\generated_images\\01a0bb74-f947-7c11-92ae-e52069facd3c\\exec-720e7555-3654-4211-9b17-9d221dd9961c.png"
+  },
+  {
+    "file": "art/space/npc-ships/ships-drone.png",
+    "prompt": "Use case: stylized-concept. Generate ONE isolated spaceship hull sprite for a top-down 2D space RPG, 1024x1024 canvas with genuinely TRANSPARENT alpha background, not a checkerboard drawing. STRICT ORTHOGRAPHIC 90-degree overhead dorsal view, nose toward exact TOP of image, engines toward bottom, no perspective or isometric tilt. Entire craft centered, all protrusions inside canvas with 8% clear padding. Detailed semi-realistic game art: worn blue-gray armor, gunmetal mechanical parts, scratched pale steel panels, subtle cyan windows and tiny amber indicators; crisp readable silhouette, coherent soft upper-left illumination, no cast shadow outside hull. No engine flames, exhaust, smoke, bloom outside silhouette, starfield, floor, text, letters, numbers, logo, frame or watermark. A finished functional industrial spacecraft, not a sketch. Unmanned training/target drone. Small round-disc hull with four short thruster arms, bright orange-and-white safety livery, a single sensor eye in the center. Obviously robotic and harmless.",
+    "tool": "built-in image_gen",
+    "sourcePath": "C:\\Users\\467\\.codex\\generated_images\\01a0bb74-f947-7c11-92ae-e52069facd3c\\exec-c1f6787c-68fa-4d20-8005-66c33a07de11.png"
+  },
+  {
+    "file": "art/space/weapon-effects/weapon-shots-rail.png",
+    "prompt": "Use case: stylized-concept. Production top-down game VFX sprite sheet, 1536x512, exactly THREE equal square cells in ONE horizontal row. Left cell projectile moving UP with trail DOWN; center cell muzzle flash pointing UP; right cell impact. Genuine transparent alpha, each effect fully inside central 65% of its own cell, generous transparent gutters, no overlap, no grid, no labels, no weapons or scenery. Consistent detailed science-fiction effects with controlled transparent glows. Railgun slug: a very thin long white-cyan streak with a tiny bright metallic core, short sharp muzzle flash with radial shock ring, impact as small hard white spark burst with fragments.",
+    "tool": "built-in image_gen",
+    "sourcePath": "C:\\Users\\467\\.codex\\generated_images\\01a0bb74-f947-7c11-92ae-e52069facd3c\\exec-39bc2cfe-e367-4e4d-a8b0-f114ee6ee289.png"
+  },
+  {
+    "file": "art/space/weapon-effects/weapon-shots-ion.png",
+    "prompt": "Use case: stylized-concept. Production top-down game VFX sprite sheet, 1536x512, exactly THREE equal square cells in ONE horizontal row. Left cell projectile moving UP with trail DOWN; center cell muzzle flash pointing UP; right cell impact. Genuine transparent alpha, each effect fully inside central 65% of its own cell, generous transparent gutters, no overlap, no grid, no labels, no weapons or scenery. Consistent detailed science-fiction effects with controlled transparent glows. Ion bolt: a rippling teal-cyan pulse, like a small electric ring wave; muzzle flash is a teal ring; impact is a teal electric crackle spreading over a shield surface.",
+    "tool": "built-in image_gen",
+    "sourcePath": "C:\\Users\\467\\.codex\\generated_images\\01a0bb74-f947-7c11-92ae-e52069facd3c\\exec-1d8582d6-fb3c-4d1d-af52-ed5f40ab647e.png"
+  },
+  {
+    "file": "art/space/weapon-effects/weapon-shots-torpedo.png",
+    "prompt": "Use case: stylized-concept. Production top-down game VFX sprite sheet, 1536x512, exactly THREE equal square cells in ONE horizontal row. Left cell projectile moving UP with trail DOWN; center cell muzzle flash pointing UP; right cell impact. Genuine transparent alpha, each effect fully inside central 65% of its own cell, generous transparent gutters, no overlap, no grid, no labels, no weapons or scenery. Consistent detailed science-fiction effects with controlled transparent glows. Torpedo: a chunky dark-gray elongated torpedo body with red warning band and a bright orange exhaust at the tail; launch flash puff; impact a large orange-white explosion with dark smoke ring.",
+    "tool": "built-in image_gen",
+    "sourcePath": "C:\\Users\\467\\.codex\\generated_images\\01a0bb74-f947-7c11-92ae-e52069facd3c\\exec-4c633a27-b23a-4a64-98ff-0624bc2106c5.png"
+  },
+  {
+    "file": "art/space/weapon-effects/weapon-shots-flak.png",
+    "prompt": "Use case: stylized-concept. Production top-down game VFX sprite sheet, 1536x512, exactly THREE equal square cells in ONE horizontal row. Left cell projectile moving UP with trail DOWN; center cell muzzle flash pointing UP; right cell impact. Genuine transparent alpha, each effect fully inside central 65% of its own cell, generous transparent gutters, no overlap, no grid, no labels, no weapons or scenery. Consistent detailed science-fiction effects with controlled transparent glows. Point-defense tracer: short yellow tracer dashes in a tight burst; small muzzle flash; impact tiny flak puffs of gray smoke with sparks.",
+    "tool": "built-in image_gen",
+    "sourcePath": "C:\\Users\\467\\.codex\\generated_images\\01a0bb74-f947-7c11-92ae-e52069facd3c\\exec-aafb8399-af3b-4b73-898a-5759142ae149.png"
+  },
+  {
+    "file": "art/space/galaxy/planets-lava.png",
+    "prompt": "Use case: stylized-concept. ONE isolated space object sprite for a top-down 2D space RPG, 1024x1024 canvas with genuinely TRANSPARENT alpha background, not a checkerboard drawing. STRICT ORTHOGRAPHIC overhead view, object centered with 6% clear padding. Detailed semi-realistic game art matching worn blue-gray industrial spaceships, soft upper-left illumination. No starfield, text, letters, numbers, logo, frame or watermark. volcanic world, black crust with glowing orange lava rivers and cracks. Round planetary sphere with physically shaded surface; delicate limb atmosphere only if appropriate, keep entire ring system if any fully in frame.",
+    "tool": "built-in image_gen",
+    "sourcePath": "C:\\Users\\467\\.codex\\generated_images\\01a0bb74-f947-7c11-92ae-e52069facd3c\\exec-6d51d54a-ad5b-4db7-8b33-6fe1dadc934a.png"
+  },
+  {
+    "file": "art/space/galaxy/planets-toxic.png",
+    "prompt": "Use case: stylized-concept. ONE isolated space object sprite for a top-down 2D space RPG, 1024x1024 canvas with genuinely TRANSPARENT alpha background, not a checkerboard drawing. STRICT ORTHOGRAPHIC overhead view, object centered with 6% clear padding. Detailed semi-realistic game art matching worn blue-gray industrial spaceships, soft upper-left illumination. No starfield, text, letters, numbers, logo, frame or watermark. toxic world, sickly yellow-green swirling clouds with dark brown land patches. Round planetary sphere with physically shaded surface; delicate limb atmosphere only if appropriate, keep entire ring system if any fully in frame.",
+    "tool": "built-in image_gen",
+    "sourcePath": "C:\\Users\\467\\.codex\\generated_images\\01a0bb74-f947-7c11-92ae-e52069facd3c\\exec-d2f26344-7d9f-4713-b015-cc5dcadf53a8.png"
+  },
+  {
+    "file": "art/space/galaxy/planets-ocean.png",
+    "prompt": "Use case: stylized-concept. ONE isolated space object sprite for a top-down 2D space RPG, 1024x1024 canvas with genuinely TRANSPARENT alpha background, not a checkerboard drawing. STRICT ORTHOGRAPHIC overhead view, object centered with 6% clear padding. Detailed semi-realistic game art matching worn blue-gray industrial spaceships, soft upper-left illumination. No starfield, text, letters, numbers, logo, frame or watermark. ocean world, deep blue sea with scattered small islands and white cloud spirals. Round planetary sphere with physically shaded surface; delicate limb atmosphere only if appropriate, keep entire ring system if any fully in frame.",
+    "tool": "built-in image_gen",
+    "sourcePath": "C:\\Users\\467\\.codex\\generated_images\\01a0bb74-f947-7c11-92ae-e52069facd3c\\exec-b1bf170c-eeeb-4da8-a689-fab7f9ea9486.png"
+  },
+  {
+    "file": "art/space/galaxy/planets-barren.png",
+    "prompt": "Use case: stylized-concept. ONE isolated space object sprite for a top-down 2D space RPG, 1024x1024 canvas with genuinely TRANSPARENT alpha background, not a checkerboard drawing. STRICT ORTHOGRAPHIC overhead view, object centered with 6% clear padding. Detailed semi-realistic game art matching worn blue-gray industrial spaceships, soft upper-left illumination. No starfield, text, letters, numbers, logo, frame or watermark. airless gray moon-like planet with many craters, no atmosphere. Round planetary sphere with physically shaded surface; delicate limb atmosphere only if appropriate, keep entire ring system if any fully in frame.",
+    "tool": "built-in image_gen",
+    "sourcePath": "C:\\Users\\467\\.codex\\generated_images\\01a0bb74-f947-7c11-92ae-e52069facd3c\\exec-633c35aa-1424-47ad-a434-401780b8b229.png"
+  },
+  {
+    "file": "art/space/galaxy/planets-jungle.png",
+    "prompt": "Use case: stylized-concept. ONE isolated space object sprite for a top-down 2D space RPG, 1024x1024 canvas with genuinely TRANSPARENT alpha background, not a checkerboard drawing. STRICT ORTHOGRAPHIC overhead view, object centered with 6% clear padding. Detailed semi-realistic game art matching worn blue-gray industrial spaceships, soft upper-left illumination. No starfield, text, letters, numbers, logo, frame or watermark. lush jungle world, dark green continents, turquoise shallow seas, thick clouds. Round planetary sphere with physically shaded surface; delicate limb atmosphere only if appropriate, keep entire ring system if any fully in frame.",
+    "tool": "built-in image_gen",
+    "sourcePath": "C:\\Users\\467\\.codex\\generated_images\\01a0bb74-f947-7c11-92ae-e52069facd3c\\exec-dba36ae8-3476-4e3e-995d-0d90e3260ec7.png"
+  },
+  {
+    "file": "art/space/galaxy/planets-ringed.png",
+    "prompt": "Use case: stylized-concept. ONE isolated space object sprite for a top-down 2D space RPG, 1024x1024 canvas with genuinely TRANSPARENT alpha background, not a checkerboard drawing. STRICT ORTHOGRAPHIC overhead view, object centered with 6% clear padding. Detailed semi-realistic game art matching worn blue-gray industrial spaceships, soft upper-left illumination. No starfield, text, letters, numbers, logo, frame or watermark. pale beige gas giant with a wide flat ring system seen from above. Round planetary sphere with physically shaded surface; delicate limb atmosphere only if appropriate, keep entire ring system if any fully in frame.",
+    "tool": "built-in image_gen",
+    "sourcePath": "C:\\Users\\467\\.codex\\generated_images\\01a0bb74-f947-7c11-92ae-e52069facd3c\\exec-84f1d43d-f3f7-479c-af41-b6fca3894511.png"
+  },
+  {
+    "file": "art/space/galaxy/stations-pirate.png",
+    "prompt": "Use case: stylized-concept. ONE isolated space object sprite for a top-down 2D space RPG, 1024x1024 canvas with genuinely TRANSPARENT alpha background, not a checkerboard drawing. STRICT ORTHOGRAPHIC overhead view, object centered with 6% clear padding. Detailed semi-realistic game art matching worn blue-gray industrial spaceships, soft upper-left illumination. No starfield, text, letters, numbers, logo, frame or watermark. pirate hideout station built into a hollowed asteroid, scrap docking arms, red lights, patched hull.",
+    "tool": "built-in image_gen",
+    "sourcePath": "C:\\Users\\467\\.codex\\generated_images\\01a0bb74-f947-7c11-92ae-e52069facd3c\\exec-14c90291-297b-43d3-8b8e-4c6e73bfc994.png"
+  },
+  {
+    "file": "art/space/galaxy/stations-outpost.png",
+    "prompt": "Use case: stylized-concept. ONE isolated space object sprite for a top-down 2D space RPG, 1024x1024 canvas with genuinely TRANSPARENT alpha background, not a checkerboard drawing. STRICT ORTHOGRAPHIC overhead view, object centered with 6% clear padding. Detailed semi-realistic game art matching worn blue-gray industrial spaceships, soft upper-left illumination. No starfield, text, letters, numbers, logo, frame or watermark. small frontier outpost: a single cross-shaped module with two docking arms and solar panels, worn and lonely.",
+    "tool": "built-in image_gen",
+    "sourcePath": "C:\\Users\\467\\.codex\\generated_images\\01a0bb74-f947-7c11-92ae-e52069facd3c\\exec-fc3e9c18-5a6c-426a-bc3f-e4ab57829b58.png"
+  },
+  {
+    "file": "art/space/galaxy/stations-trade.png",
+    "prompt": "Use case: stylized-concept. ONE isolated space object sprite for a top-down 2D space RPG, 1024x1024 canvas with genuinely TRANSPARENT alpha background, not a checkerboard drawing. STRICT ORTHOGRAPHIC overhead view, object centered with 6% clear padding. Detailed semi-realistic game art matching worn blue-gray industrial spaceships, soft upper-left illumination. No starfield, text, letters, numbers, logo, frame or watermark. large trade hub: central hexagonal core with six long docking piers full of small container stacks.",
+    "tool": "built-in image_gen",
+    "sourcePath": "C:\\Users\\467\\.codex\\generated_images\\01a0bb74-f947-7c11-92ae-e52069facd3c\\exec-1283f6b8-feed-43f4-9c58-75dc3d1e548a.png"
+  },
+  {
+    "file": "art/space/galaxy/stations-ranger.png",
+    "prompt": "Use case: stylized-concept. ONE isolated space object sprite for a top-down 2D space RPG, 1024x1024 canvas with genuinely TRANSPARENT alpha background, not a checkerboard drawing. STRICT ORTHOGRAPHIC overhead view, object centered with 6% clear padding. Detailed semi-realistic game art matching worn blue-gray industrial spaceships, soft upper-left illumination. No starfield, text, letters, numbers, logo, frame or watermark. ranger base: star-shaped fortified station, navy-and-white livery with light-blue chevrons, landing bays, sensor dishes.",
+    "tool": "built-in image_gen",
+    "sourcePath": "C:\\Users\\467\\.codex\\generated_images\\01a0bb74-f947-7c11-92ae-e52069facd3c\\exec-6a223282-30a3-452e-b970-95d182633836.png"
+  },
+  {
+    "file": "art/space/galaxy/suns-white.png",
+    "prompt": "Use case: stylized-concept. ONE isolated space object sprite for a top-down 2D space RPG, 1024x1024 canvas with genuinely TRANSPARENT alpha background, not a checkerboard drawing. STRICT ORTHOGRAPHIC overhead view, object centered with 6% clear padding. Detailed semi-realistic game art matching worn blue-gray industrial spaceships, soft upper-left illumination. No starfield, text, letters, numbers, logo, frame or watermark. small intense white dwarf with a tight bright corona. Glowing stellar sphere with restrained corona, no cross-shaped rays, isolated on transparent alpha.",
+    "tool": "built-in image_gen",
+    "sourcePath": "C:\\Users\\467\\.codex\\generated_images\\01a0bb74-f947-7c11-92ae-e52069facd3c\\exec-cfbe9f36-2ca9-421d-b72e-a07083437719.png"
+  },
+  {
+    "file": "art/space/galaxy/suns-binary.png",
+    "prompt": "Use case: stylized-concept. ONE isolated space object sprite for a top-down 2D space RPG, 1024x1024 canvas with genuinely TRANSPARENT alpha background, not a checkerboard drawing. STRICT ORTHOGRAPHIC overhead view, object centered with 6% clear padding. Detailed semi-realistic game art matching worn blue-gray industrial spaceships, soft upper-left illumination. No starfield, text, letters, numbers, logo, frame or watermark. two stars close together: a yellow and a small red one with merging coronas. Glowing stellar sphere with restrained corona, no cross-shaped rays, isolated on transparent alpha.",
+    "tool": "built-in image_gen",
+    "sourcePath": "C:\\Users\\467\\.codex\\generated_images\\01a0bb74-f947-7c11-92ae-e52069facd3c\\exec-9d72d493-a8aa-49f8-b140-b7d00301e733.png"
+  },
+  {
+    "file": "art/space/galaxy/bg-core.png",
+    "prompt": "Use case: stylized-concept. 2048x2048 opaque seamless tileable deep space parallax background. calm dark navy space with faint blue nebula wisps. Very dark navy space so game ships remain readable. Tiny sparse stars no larger than 3 px at final resolution, no planets, no large bright stars or flares, no text. EXACT seamless periodic texture: left edge matches right, top matches bottom, uniform low brightness at all edges, no vignette, no border.",
+    "tool": "built-in image_gen",
+    "sourcePath": "C:\\Users\\467\\.codex\\generated_images\\01a0bb74-f947-7c11-92ae-e52069facd3c\\exec-4c251322-2549-40a1-b4ad-ac34bdf6e7fb.png"
+  },
+  {
+    "file": "art/space/galaxy/bg-frontier.png",
+    "prompt": "Use case: stylized-concept. 2048x2048 opaque seamless tileable deep space parallax background. dark space with faint violet and amber dust clouds. Very dark navy space so game ships remain readable. Tiny sparse stars no larger than 3 px at final resolution, no planets, no large bright stars or flares, no text. EXACT seamless periodic texture: left edge matches right, top matches bottom, uniform low brightness at all edges, no vignette, no border.",
+    "tool": "built-in image_gen",
+    "sourcePath": "C:\\Users\\467\\.codex\\generated_images\\01a0bb74-f947-7c11-92ae-e52069facd3c\\exec-270e8e55-c82d-43b5-b4ab-a7dd32986e9f.png"
+  },
+  {
+    "file": "art/space/galaxy/bg-rim.png",
+    "prompt": "Use case: stylized-concept. 2048x2048 opaque seamless tileable deep space parallax background. dark space with a faint blood-red and teal nebula, sparse cold stars. Very dark navy space so game ships remain readable. Tiny sparse stars no larger than 3 px at final resolution, no planets, no large bright stars or flares, no text. EXACT seamless periodic texture: left edge matches right, top matches bottom, uniform low brightness at all edges, no vignette, no border.",
+    "tool": "built-in image_gen",
+    "sourcePath": "C:\\Users\\467\\.codex\\generated_images\\01a0bb74-f947-7c11-92ae-e52069facd3c\\exec-eb68fa78-7153-4b0d-9aa7-b84a524c51fe.png"
+  }
+]

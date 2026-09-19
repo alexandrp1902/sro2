@@ -47,20 +47,42 @@ export async function loadSprites(): Promise<void> {
 /** Чей корабль, если не пилота: у пиратов, торговцев, рейнджеров и дронов свои картинки. */
 export type ShipRole = 'pirate' | 'trader' | 'ranger' | 'drone';
 
-/** Картинки NPC: грузовик у торговца, фрегат у рейнджера, разведчик у дрона. Пламени у них нет. */
+/**
+ * Картинки NPC (M11): свои силуэты, чтобы их не путали с кораблями пилотов — те летают на scout, frigate
+ * и прочих корпусах. Пламени у NPC нет.
+ */
 const ROLE_SPRITES: Record<ShipRole, SpriteName> = {
-  pirate: 'ships-pirate',
-  trader: 'ships-freighter',
-  ranger: 'ships-frigate',
-  drone: 'ships-scout',
+  pirate: 'ships-pirate-raider',
+  trader: 'ships-trader-hauler',
+  ranger: 'ships-ranger',
+  drone: 'ships-drone',
 };
 
 /** Спрайт корабля по корпусу и виду: у NPC свои корабли, у пилотов — по корпусу; размер — всегда по корпусу. */
 export function shipSprite(hull: string, role: ShipRole | null = null): SpriteName {
   if (role) return ROLE_SPRITES[role];
-  if (hull === 'medium') return 'ships-medium';
-  if (hull === 'heavy') return 'ships-heavy';
-  return 'ships-light';
+  const name = `ships-${hull}`;
+  return name in meta ? (name as SpriteName) : 'ships-light';
+}
+
+/**
+ * Пламя двигателей для корпусов, которым его не нарисовали (M11): берём чужое по размеру корабля.
+ * Временная замена — когда придут свои flame-спрайты, строка уходит (см. art/next-art-status.md).
+ */
+const FLAME_STANDINS: Record<string, SpriteName> = {
+  'ships-scout': 'ships-light',
+  'ships-interceptor': 'ships-light',
+  'ships-industrial': 'ships-medium',
+  'ships-frigate': 'ships-medium',
+  'ships-freighter': 'ships-heavy',
+  'ships-cruiser': 'ships-heavy',
+};
+
+/** Имя текстуры пламени для корпуса; null — пламени у этого корабля нет (NPC). */
+export function flameSprite(sprite: SpriteName): string | null {
+  if ('body' in meta[sprite]) return `${sprite}-flame`;
+  const standin = FLAME_STANDINS[sprite];
+  return standin ? `${standin}-flame` : null;
 }
 
 /** Предметы, чья картинка на листе названа иначе: tech в loot.json — «Плазменный компонент». */
@@ -72,26 +94,48 @@ export function itemSprite(item: string): SpriteName {
   return name in meta ? (name as SpriteName) : 'resources-metal';
 }
 
-/** Пушки, чья картинка названа иначе или общая с родственной. */
-const WEAPON_SPRITES: Record<string, string> = { missiles: 'rockets', heavyLaser: 'laser', cannon: 'pulse' };
+/** Пушки, чья картинка названа иначе. */
+const WEAPON_SPRITES: Record<string, string> = {
+  missiles: 'rockets',
+  heavyLaser: 'heavy-laser',
+  pointDefense: 'point-defense',
+};
 
-/** Иконка пушки на витрине; неизвестная — null. */
+/** Иконка пушки на витрине; тир на картинку не влияет — Mk2 рисуется значком. */
 export function weaponSprite(weapon: string): SpriteName | null {
-  const name = `weapons-${WEAPON_SPRITES[weapon] ?? weapon}`;
+  const id = baseId(weapon);
+  const name = `weapons-${WEAPON_SPRITES[id] ?? id}`;
   return name in meta ? (name as SpriteName) : null;
 }
 
-/** Картинки модулей по слоту: бак — грузовой модуль, радар — сканер, генератор — энергоблок. */
+/** Картинки модулей: у некоторых своя (M11), у остальных — по слоту. */
 const MODULE_SPRITES: Record<string, string> = {
   engine: 'modules-engine',
   shield: 'modules-shield',
   radar: 'modules-scanner',
-  tank: 'modules-cargo',
-  generator: 'resources-energy',
+  tank: 'modules-fuel-tank',
+  generator: 'modules-reactor',
+  utility: 'modules-cargo',
 };
 
-/** Иконка модуля на витрине по его слоту; неизвестный — null. */
-export function moduleSprite(slot: string): SpriteName | null {
-  const name = MODULE_SPRITES[slot];
+const MODULE_ITEM_SPRITES: Record<string, string> = {
+  afterburnerM: 'modules-afterburner',
+  afterburnerL: 'modules-afterburner',
+  radarL: 'modules-military-radar',
+  generatorS: 'resources-energy',
+  repair: 'modules-repair',
+  cooling: 'modules-cooling',
+  cargoPod: 'modules-cargo',
+};
+
+/** Иконка модуля на витрине: своя по id, иначе по слоту; неизвестный — null. */
+export function moduleSprite(slot: string, id?: string): SpriteName | null {
+  const name = (id ? MODULE_ITEM_SPRITES[baseId(id)] : undefined) ?? MODULE_SPRITES[slot];
   return name && name in meta ? (name as SpriteName) : null;
+}
+
+/** Базовый id без тира: «ion_mk2» → «ion» (M11). Иконка у всех тиров одна. */
+function baseId(id: string): string {
+  const m = /^(.+)_mk[2-3]$/.exec(id);
+  return m ? m[1] : id;
 }

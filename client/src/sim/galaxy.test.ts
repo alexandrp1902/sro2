@@ -51,6 +51,6 @@ describe('galaxy', () => {
   it('keeps gate mark ids away from the station and the server ids', () => {
     expect(gateMarkId(0)).toBe(-2);
     expect(gateIndex(gateMarkId(3))).toBe(3);
-    expect(dangerColor(9)).toBe(dangerColor(5));
+    expect(dangerColor(9)).toBe(dangerColor(6)); // выше шестой опасности цвета нет (M11)
   });
 });

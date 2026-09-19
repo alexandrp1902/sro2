@@ -11,44 +11,180 @@
       "pvp": "off",
       "station": true,
       "seed": 0,
-      "map": { "x": 20, "y": 55 },
+      "map": {
+        "x": 12,
+        "y": 55
+      },
       "meteors": 1,
-      "sun": { "kind": "yellow", "radius": 220, "burnRadius": 600, "burnDps": 150 },
+      "sun": {
+        "kind": "yellow",
+        "radius": 220,
+        "burnRadius": 600,
+        "burnDps": 150
+      },
       "stationOrbit": { "radius": 1000, "periodMinutes": 60, "phase": 90 },
       "planets": [
-        { "name": "Терра", "kind": "terran", "size": 150, "orbit": { "radius": 1900, "periodMinutes": 90, "phase": 200 } },
-        { "name": "Марс", "kind": "desert", "size": 120, "orbit": { "radius": 2700, "periodMinutes": 150, "phase": 20 } },
-        { "name": "Юпитер", "kind": "gas", "size": 240, "orbit": { "radius": 3500, "periodMinutes": 240, "phase": 300 } }
+        {
+          "name": "Терра",
+          "kind": "terran",
+          "size": 150,
+          "orbit": { "radius": 1900, "periodMinutes": 90, "phase": 200 }
+        },
+        {
+          "name": "Марс",
+          "kind": "desert",
+          "size": 120,
+          "orbit": { "radius": 2700, "periodMinutes": 150, "phase": 20 }
+        },
+        {
+          "name": "Юпитер",
+          "kind": "gas",
+          "size": 240,
+          "orbit": { "radius": 3500, "periodMinutes": 240, "phase": 300 }
+        }
       ],
       "drones": [
-        { "name": "Учебный дрон", "hull": "heavy", "x": -450, "y": 250, "hp": 600, "shield": 0, "table": "drone" },
-        { "name": "Дрон-мишень", "hull": "light", "x": -750, "y": 750, "orbitRadius": 250, "throttle": 1, "table": "drone" }
+        {
+          "name": "Учебный дрон",
+          "hull": "heavy",
+          "x": -450,
+          "y": 250,
+          "hp": 600,
+          "shield": 0,
+          "table": "drone"
+        },
+        {
+          "name": "Дрон-мишень",
+          "hull": "light",
+          "x": -750,
+          "y": 750,
+          "orbitRadius": 250,
+          "throttle": 1,
+          "table": "drone"
+        }
       ],
-      "spawns": [{ "type": "ranger", "level": 1, "x": 3085, "y": -303, "count": 2 }],
-      "traders": { "count": 2, "respawnSeconds": 40, "type": "trader", "throttle": 0.7, "sosReward": 150, "sosQuietSeconds": 8 },
+      "spawns": [
+        {
+          "type": "ranger",
+          "level": 1,
+          "x": 3085,
+          "y": -303,
+          "count": 2
+        }
+      ],
+      "traders": {
+        "count": 2,
+        "respawnSeconds": 40,
+        "type": "trader",
+        "throttle": 0.7,
+        "sosReward": 150,
+        "sosQuietSeconds": 8
+      },
       "pirates": {
-        "maxGroups": 2, "intervalSeconds": 60, "patrolMinSeconds": 120, "patrolMaxSeconds": 240,
+        "maxGroups": 2,
+        "intervalSeconds": 60,
+        "patrolMinSeconds": 120,
+        "patrolMaxSeconds": 240,
         "groups": [
           { "type": "pirate", "level": 1, "count": 1, "weight": 3 },
           { "type": "pirate", "level": 1, "count": 2, "weight": 1 }
         ]
       },
       "containers": [
-        { "name": "Грузовой контейнер", "x": 1600, "y": -1200, "item": "metal", "count": 4, "respawnSeconds": 90, "chance": 0.8 },
-        { "name": "Ящик с титаном", "x": -1800, "y": 1500, "table": "container", "respawnSeconds": 150, "chance": 0.6 },
-        { "name": "Тайник пиратов", "x": 300, "y": -2900, "table": "cache", "respawnSeconds": 240, "chance": 0.45 },
-        { "name": "Грузовой контейнер", "x": -1250, "y": -1580, "item": "metal", "count": 3, "respawnSeconds": 110, "chance": 0.7 },
-        { "name": "Грузовой контейнер", "x": 2450, "y": 800, "item": "ore", "count": 5, "respawnSeconds": 100, "chance": 0.75 },
-        { "name": "Ящик с титаном", "x": 1650, "y": 2300, "table": "container", "respawnSeconds": 170, "chance": 0.5 },
-        { "name": "Обломки грузовика", "x": -2700, "y": -600, "table": "wreck", "respawnSeconds": 200, "chance": 0.4 },
-        { "name": "Ящик с энергоблоками", "x": -600, "y": 2600, "item": "energy", "count": 2, "respawnSeconds": 190, "chance": 0.45 },
-        { "name": "Грузовой контейнер", "x": -3200, "y": 2400, "item": "ore", "count": 6, "respawnSeconds": 140, "chance": 0.5 },
-        { "name": "Забытый груз", "x": 500, "y": -3300, "item": "metal", "count": 6, "respawnSeconds": 150, "chance": 0.45 }
+        {
+          "name": "Грузовой контейнер",
+          "x": 1600,
+          "y": -1200,
+          "item": "metal",
+          "count": 4,
+          "respawnSeconds": 90,
+          "chance": 0.8
+        },
+        {
+          "name": "Ящик с титаном",
+          "x": -1800,
+          "y": 1500,
+          "table": "container",
+          "respawnSeconds": 150,
+          "chance": 0.6
+        },
+        {
+          "name": "Тайник пиратов",
+          "x": 300,
+          "y": -2900,
+          "table": "cache",
+          "respawnSeconds": 240,
+          "chance": 0.45
+        },
+        {
+          "name": "Грузовой контейнер",
+          "x": -1250,
+          "y": -1580,
+          "item": "metal",
+          "count": 3,
+          "respawnSeconds": 110,
+          "chance": 0.7
+        },
+        {
+          "name": "Грузовой контейнер",
+          "x": 2450,
+          "y": 800,
+          "item": "ore",
+          "count": 5,
+          "respawnSeconds": 100,
+          "chance": 0.75
+        },
+        {
+          "name": "Ящик с титаном",
+          "x": 1650,
+          "y": 2300,
+          "table": "container",
+          "respawnSeconds": 170,
+          "chance": 0.5
+        },
+        {
+          "name": "Обломки грузовика",
+          "x": -2700,
+          "y": -600,
+          "table": "wreck",
+          "respawnSeconds": 200,
+          "chance": 0.4
+        },
+        {
+          "name": "Ящик с энергоблоками",
+          "x": -600,
+          "y": 2600,
+          "item": "energy",
+          "count": 2,
+          "respawnSeconds": 190,
+          "chance": 0.45
+        },
+        {
+          "name": "Грузовой контейнер",
+          "x": -3200,
+          "y": 2400,
+          "item": "ore",
+          "count": 6,
+          "respawnSeconds": 140,
+          "chance": 0.5
+        },
+        {
+          "name": "Забытый груз",
+          "x": 500,
+          "y": -3300,
+          "item": "metal",
+          "count": 6,
+          "respawnSeconds": 150,
+          "chance": 0.45
+        }
       ],
       "gates": [
-        { "to": "vega", "x": 2263, "y": -2263 },
-        { "to": "tau", "x": 2662, "y": 1775 }
-      ]
+        { "to": "vega", "x": 1564, "y": -2792 },
+        { "to": "alphaCen", "x": 747, "y": 3112 },
+        { "to": "tau", "x": 2752, "y": 1634 }
+      ],
+      "region": "core",
+      "stationSprite": "ring"
     },
     "vega": {
       "name": "Vega",
@@ -56,18 +192,54 @@
       "pvp": "border",
       "station": true,
       "seed": 1,
-      "map": { "x": 50, "y": 25 },
+      "map": {
+        "x": 26,
+        "y": 30
+      },
       "meteors": 1,
-      "sun": { "kind": "blue", "radius": 240, "burnRadius": 650, "burnDps": 170 },
+      "sun": {
+        "kind": "blue",
+        "radius": 240,
+        "burnRadius": 650,
+        "burnDps": 170
+      },
       "stationOrbit": { "radius": 1050, "periodMinutes": 45, "phase": 30 },
       "planets": [
-        { "name": "Вега I", "kind": "ice", "size": 140, "orbit": { "radius": 1850, "periodMinutes": 70, "phase": 250 } },
-        { "name": "Вега II", "kind": "gas", "size": 250, "orbit": { "radius": 3000, "periodMinutes": 200, "phase": 120 } }
+        {
+          "name": "Вега I",
+          "kind": "ice",
+          "size": 140,
+          "orbit": { "radius": 1850, "periodMinutes": 70, "phase": 250 }
+        },
+        {
+          "name": "Вега II",
+          "kind": "gas",
+          "size": 250,
+          "orbit": { "radius": 3000, "periodMinutes": 200, "phase": 120 }
+        }
       ],
-      "spawns": [{ "type": "ranger", "level": 1, "x": 1310, "y": 2810, "count": 2 }],
-      "traders": { "count": 2, "respawnSeconds": 40, "type": "trader", "throttle": 0.7, "sosReward": 150, "sosQuietSeconds": 8 },
+      "spawns": [
+        {
+          "type": "ranger",
+          "level": 1,
+          "x": 1310,
+          "y": 2810,
+          "count": 2
+        }
+      ],
+      "traders": {
+        "count": 2,
+        "respawnSeconds": 40,
+        "type": "trader",
+        "throttle": 0.7,
+        "sosReward": 150,
+        "sosQuietSeconds": 8
+      },
       "pirates": {
-        "maxGroups": 3, "intervalSeconds": 50, "patrolMinSeconds": 120, "patrolMaxSeconds": 240,
+        "maxGroups": 3,
+        "intervalSeconds": 50,
+        "patrolMinSeconds": 120,
+        "patrolMaxSeconds": 240,
         "groups": [
           { "type": "pirate", "level": 1, "count": 1, "weight": 2 },
           { "type": "pirate", "level": 2, "count": 1, "weight": 2 },
@@ -75,20 +247,184 @@
         ]
       },
       "containers": [
-        { "name": "Обломки грузовика", "x": 900, "y": 2500, "table": "wreck", "respawnSeconds": 200, "chance": 0.45 },
-        { "name": "Забытый груз", "x": 2100, "y": -1250, "table": "container", "respawnSeconds": 160, "chance": 0.55 },
-        { "name": "Тайник пиратов", "x": -2400, "y": -2500, "table": "cache", "respawnSeconds": 260, "chance": 0.35 },
-        { "name": "Тайник пиратов", "x": 2900, "y": -2300, "table": "cache", "respawnSeconds": 280, "chance": 0.3 },
-        { "name": "Ящик с энергоблоками", "x": 3300, "y": 900, "item": "energy", "count": 3, "respawnSeconds": 230, "chance": 0.4 },
-        { "name": "Забытый груз", "x": -1400, "y": 3100, "table": "wreck", "respawnSeconds": 180, "chance": 0.4 },
-        { "name": "Грузовой контейнер", "x": -1550, "y": -1310, "item": "metal", "count": 5, "respawnSeconds": 120, "chance": 0.6 },
-        { "name": "Ящик с титаном", "x": 1600, "y": 1230, "table": "container", "respawnSeconds": 150, "chance": 0.55 }
+        {
+          "name": "Обломки грузовика",
+          "x": 900,
+          "y": 2500,
+          "table": "wreck",
+          "respawnSeconds": 200,
+          "chance": 0.45
+        },
+        {
+          "name": "Забытый груз",
+          "x": 2100,
+          "y": -1250,
+          "table": "container",
+          "respawnSeconds": 160,
+          "chance": 0.55
+        },
+        {
+          "name": "Тайник пиратов",
+          "x": -2400,
+          "y": -2500,
+          "table": "cache",
+          "respawnSeconds": 260,
+          "chance": 0.35
+        },
+        {
+          "name": "Тайник пиратов",
+          "x": 2900,
+          "y": -2300,
+          "table": "cache",
+          "respawnSeconds": 280,
+          "chance": 0.3
+        },
+        {
+          "name": "Ящик с энергоблоками",
+          "x": 3300,
+          "y": 900,
+          "item": "energy",
+          "count": 3,
+          "respawnSeconds": 230,
+          "chance": 0.4
+        },
+        {
+          "name": "Забытый груз",
+          "x": -1400,
+          "y": 3100,
+          "table": "wreck",
+          "respawnSeconds": 180,
+          "chance": 0.4
+        },
+        {
+          "name": "Грузовой контейнер",
+          "x": -1550,
+          "y": -1310,
+          "item": "metal",
+          "count": 5,
+          "respawnSeconds": 120,
+          "chance": 0.6
+        },
+        {
+          "name": "Ящик с титаном",
+          "x": 1600,
+          "y": 1230,
+          "table": "container",
+          "respawnSeconds": 150,
+          "chance": 0.55
+        }
       ],
       "gates": [
-        { "to": "sol", "x": -2263, "y": 2263 },
-        { "to": "tau", "x": 0, "y": 3200 },
-        { "to": "nova", "x": 2458, "y": 2048 }
-      ]
+        { "to": "sol", "x": -1564, "y": 2792 },
+        { "to": "alphaCen", "x": -2746, "y": 1644 },
+        { "to": "tau", "x": 1212, "y": 2962 },
+        { "to": "nova", "x": 2818, "y": 1517 },
+        { "to": "castor", "x": 2263, "y": -2263 }
+      ],
+      "region": "core",
+      "stationSprite": "trade"
+    },
+    "alphaCen": {
+      "name": "Альфа Центавра",
+      "danger": 1,
+      "pvp": "off",
+      "region": "core",
+      "station": true,
+      "seed": 5,
+      "map": {
+        "x": 18,
+        "y": 80
+      },
+      "meteors": 1,
+      "sun": {
+        "kind": "white",
+        "radius": 200,
+        "burnRadius": 560,
+        "burnDps": 140
+      },
+      "stationOrbit": { "radius": 1000, "periodMinutes": 55, "phase": 150 },
+      "planets": [
+        {
+          "name": "Прокси́ма",
+          "kind": "ocean",
+          "size": 150,
+          "orbit": { "radius": 1800, "periodMinutes": 80, "phase": 40 }
+        },
+        {
+          "name": "Альфа II",
+          "kind": "barren",
+          "size": 120,
+          "orbit": { "radius": 2900, "periodMinutes": 160, "phase": 220 }
+        }
+      ],
+      "spawns": [
+        {
+          "type": "ranger",
+          "level": 1,
+          "x": -2400,
+          "y": 2400,
+          "count": 2
+        }
+      ],
+      "traders": {
+        "count": 2,
+        "respawnSeconds": 40,
+        "type": "trader",
+        "throttle": 0.7,
+        "sosReward": 150,
+        "sosQuietSeconds": 8
+      },
+      "pirates": {
+        "maxGroups": 2,
+        "intervalSeconds": 60,
+        "patrolMinSeconds": 120,
+        "patrolMaxSeconds": 240,
+        "groups": [
+          { "type": "pirate", "level": 1, "count": 1, "weight": 3 },
+          { "type": "pirate", "level": 2, "count": 1, "weight": 1 }
+        ]
+      },
+      "containers": [
+        {
+          "name": "Грузовой контейнер",
+          "x": 1500,
+          "y": 1500,
+          "item": "metal",
+          "count": 4,
+          "respawnSeconds": 110,
+          "chance": 0.7
+        },
+        {
+          "name": "Ящик с энергоблоками",
+          "x": -2200,
+          "y": 900,
+          "item": "energy",
+          "count": 2,
+          "respawnSeconds": 180,
+          "chance": 0.5
+        },
+        {
+          "name": "Забытый груз",
+          "x": 800,
+          "y": -2600,
+          "table": "wreck",
+          "respawnSeconds": 150,
+          "chance": 0.5
+        },
+        {
+          "name": "Ящик с титаном",
+          "x": -1400,
+          "y": -1900,
+          "table": "container",
+          "respawnSeconds": 160,
+          "chance": 0.55
+        }
+      ],
+      "gates": [
+        { "to": "sol", "x": -747, "y": -3112 },
+        { "to": "vega", "x": 1794, "y": -2650 }
+      ],
+      "stationSprite": "habitat"
     },
     "tau": {
       "name": "Tau",
@@ -96,17 +432,53 @@
       "pvp": "border",
       "station": false,
       "seed": 2,
-      "map": { "x": 50, "y": 75 },
+      "map": {
+        "x": 44,
+        "y": 74
+      },
       "meteors": 2.5,
-      "sun": { "kind": "orange", "radius": 230, "burnRadius": 600, "burnDps": 160 },
+      "sun": {
+        "kind": "orange",
+        "radius": 230,
+        "burnRadius": 600,
+        "burnDps": 160
+      },
       "planets": [
-        { "name": "Тау-Прима", "kind": "desert", "size": 160, "orbit": { "radius": 1500, "periodMinutes": 50, "phase": 60 } },
-        { "name": "Тау-Секунда", "kind": "ice", "size": 130, "orbit": { "radius": 3000, "periodMinutes": 180, "phase": 210 } }
+        {
+          "name": "Тау-Прима",
+          "kind": "desert",
+          "size": 160,
+          "orbit": { "radius": 1500, "periodMinutes": 50, "phase": 60 }
+        },
+        {
+          "name": "Тау-Секунда",
+          "kind": "ice",
+          "size": 130,
+          "orbit": { "radius": 3000, "periodMinutes": 180, "phase": 210 }
+        }
       ],
-      "spawns": [{ "type": "ranger", "level": 1, "x": -1408, "y": -2649, "count": 1 }],
-      "traders": { "count": 1, "respawnSeconds": 40, "type": "trader", "throttle": 0.7, "sosReward": 150, "sosQuietSeconds": 8 },
+      "spawns": [
+        {
+          "type": "ranger",
+          "level": 1,
+          "x": -1408,
+          "y": -2649,
+          "count": 1
+        }
+      ],
+      "traders": {
+        "count": 1,
+        "respawnSeconds": 40,
+        "type": "trader",
+        "throttle": 0.7,
+        "sosReward": 150,
+        "sosQuietSeconds": 8
+      },
       "pirates": {
-        "maxGroups": 3, "intervalSeconds": 45, "patrolMinSeconds": 120, "patrolMaxSeconds": 240,
+        "maxGroups": 3,
+        "intervalSeconds": 45,
+        "patrolMinSeconds": 120,
+        "patrolMaxSeconds": 240,
         "groups": [
           { "type": "pirate", "level": 2, "count": 1, "weight": 2 },
           { "type": "pirate", "level": 3, "count": 1, "weight": 2 },
@@ -114,19 +486,79 @@
         ]
       },
       "containers": [
-        { "name": "Рудная глыба", "x": 600, "y": 700, "item": "ore", "count": 10, "respawnSeconds": 120, "chance": 0.7 },
-        { "name": "Кристаллическая друза", "x": -900, "y": -500, "item": "crystals", "count": 2, "respawnSeconds": 180, "chance": 0.5 },
-        { "name": "Рудная глыба", "x": -2600, "y": 2600, "item": "ore", "count": 12, "respawnSeconds": 140, "chance": 0.6 },
-        { "name": "Тайник пиратов", "x": 2100, "y": 2400, "table": "cache", "respawnSeconds": 220, "chance": 0.45 },
-        { "name": "Жила редких металлов", "x": 3100, "y": 400, "item": "rareMetal", "count": 2, "respawnSeconds": 260, "chance": 0.35 },
-        { "name": "Кристаллическая друза", "x": -2900, "y": -300, "item": "crystals", "count": 3, "respawnSeconds": 240, "chance": 0.35 },
-        { "name": "Обломки рудовоза", "x": 700, "y": -2600, "table": "wreck", "respawnSeconds": 180, "chance": 0.5 }
+        {
+          "name": "Рудная глыба",
+          "x": 600,
+          "y": 700,
+          "item": "ore",
+          "count": 10,
+          "respawnSeconds": 120,
+          "chance": 0.7
+        },
+        {
+          "name": "Кристаллическая друза",
+          "x": -900,
+          "y": -500,
+          "item": "crystals",
+          "count": 2,
+          "respawnSeconds": 180,
+          "chance": 0.5
+        },
+        {
+          "name": "Рудная глыба",
+          "x": -2600,
+          "y": 2600,
+          "item": "ore",
+          "count": 12,
+          "respawnSeconds": 140,
+          "chance": 0.6
+        },
+        {
+          "name": "Тайник пиратов",
+          "x": 2100,
+          "y": 2400,
+          "table": "cache",
+          "respawnSeconds": 220,
+          "chance": 0.45
+        },
+        {
+          "name": "Жила редких металлов",
+          "x": 3100,
+          "y": 400,
+          "item": "rareMetal",
+          "count": 2,
+          "respawnSeconds": 260,
+          "chance": 0.35
+        },
+        {
+          "name": "Кристаллическая друза",
+          "x": -2900,
+          "y": -300,
+          "item": "crystals",
+          "count": 3,
+          "respawnSeconds": 240,
+          "chance": 0.35
+        },
+        {
+          "name": "Обломки рудовоза",
+          "x": 700,
+          "y": -2600,
+          "table": "wreck",
+          "respawnSeconds": 180,
+          "chance": 0.5
+        }
       ],
       "gates": [
-        { "to": "sol", "x": -2662, "y": -1775 },
-        { "to": "vega", "x": 0, "y": -3200 },
-        { "to": "nova", "x": 2458, "y": -2048 }
-      ]
+        { "to": "sol", "x": -2752, "y": -1634 },
+        { "to": "vega", "x": -1212, "y": -2962 },
+        { "to": "nova", "x": 825, "y": -3092 },
+        { "to": "barnard", "x": 2744, "y": -1646 }
+      ],
+      "region": "frontier",
+      "lootTables": {
+        "pirate": "frontierPirate",
+        "heavyPirate": "frontierBrute"
+      }
     },
     "nova": {
       "name": "Nova",
@@ -134,18 +566,54 @@
       "pvp": "free",
       "station": true,
       "seed": 3,
-      "map": { "x": 80, "y": 50 },
+      "map": {
+        "x": 52,
+        "y": 44
+      },
       "meteors": 1,
-      "sun": { "kind": "red", "radius": 260, "burnRadius": 700, "burnDps": 190 },
+      "sun": {
+        "kind": "red",
+        "radius": 260,
+        "burnRadius": 700,
+        "burnDps": 190
+      },
       "stationOrbit": { "radius": 1100, "periodMinutes": 80, "phase": 200 },
       "planets": [
-        { "name": "Нова-Прайм", "kind": "desert", "size": 150, "orbit": { "radius": 2000, "periodMinutes": 110, "phase": 330 } },
-        { "name": "Нова-Гигант", "kind": "gas", "size": 230, "orbit": { "radius": 3300, "periodMinutes": 260, "phase": 80 } }
+        {
+          "name": "Нова-Прайм",
+          "kind": "desert",
+          "size": 150,
+          "orbit": { "radius": 2000, "periodMinutes": 110, "phase": 330 }
+        },
+        {
+          "name": "Нова-Гигант",
+          "kind": "gas",
+          "size": 230,
+          "orbit": { "radius": 3300, "periodMinutes": 260, "phase": 80 }
+        }
       ],
-      "spawns": [{ "type": "ranger", "level": 1, "x": -802, "y": 2994, "count": 2 }],
-      "traders": { "count": 2, "respawnSeconds": 40, "type": "trader", "throttle": 0.7, "sosReward": 150, "sosQuietSeconds": 8 },
+      "spawns": [
+        {
+          "type": "ranger",
+          "level": 1,
+          "x": -802,
+          "y": 2994,
+          "count": 2
+        }
+      ],
+      "traders": {
+        "count": 2,
+        "respawnSeconds": 40,
+        "type": "trader",
+        "throttle": 0.7,
+        "sosReward": 150,
+        "sosQuietSeconds": 8
+      },
       "pirates": {
-        "maxGroups": 3, "intervalSeconds": 40, "patrolMinSeconds": 150, "patrolMaxSeconds": 300,
+        "maxGroups": 3,
+        "intervalSeconds": 40,
+        "patrolMinSeconds": 150,
+        "patrolMaxSeconds": 300,
         "groups": [
           { "type": "pirate", "level": 3, "count": 2, "weight": 2 },
           { "type": "pirate", "level": 2, "count": 2, "weight": 1 },
@@ -153,18 +621,307 @@
         ]
       },
       "containers": [
-        { "name": "Контейнер с редкими металлами", "x": 3400, "y": -3300, "item": "rareMetal", "count": 2, "respawnSeconds": 300, "chance": 0.3 },
-        { "name": "Контейнер с редкими металлами", "x": -600, "y": -3300, "table": "rich", "respawnSeconds": 320, "chance": 0.25 },
-        { "name": "Тайник пиратов", "x": -3000, "y": 700, "table": "cache", "respawnSeconds": 220, "chance": 0.45 },
-        { "name": "Ящик с энергоблоками", "x": 3300, "y": 1900, "item": "energy", "count": 3, "respawnSeconds": 200, "chance": 0.45 },
-        { "name": "Обломки грузовика", "x": 1600, "y": -1400, "table": "wreck", "respawnSeconds": 170, "chance": 0.5 },
-        { "name": "Забытый груз", "x": -1300, "y": 1600, "table": "container", "respawnSeconds": 160, "chance": 0.55 }
+        {
+          "name": "Контейнер с редкими металлами",
+          "x": 3400,
+          "y": -3300,
+          "item": "rareMetal",
+          "count": 2,
+          "respawnSeconds": 300,
+          "chance": 0.3
+        },
+        {
+          "name": "Контейнер с редкими металлами",
+          "x": -600,
+          "y": -3300,
+          "table": "rich",
+          "respawnSeconds": 320,
+          "chance": 0.25
+        },
+        {
+          "name": "Тайник пиратов",
+          "x": -3000,
+          "y": 700,
+          "table": "cache",
+          "respawnSeconds": 220,
+          "chance": 0.45
+        },
+        {
+          "name": "Ящик с энергоблоками",
+          "x": 3300,
+          "y": 1900,
+          "item": "energy",
+          "count": 3,
+          "respawnSeconds": 200,
+          "chance": 0.45
+        },
+        {
+          "name": "Обломки грузовика",
+          "x": 1600,
+          "y": -1400,
+          "table": "wreck",
+          "respawnSeconds": 170,
+          "chance": 0.5
+        },
+        {
+          "name": "Забытый груз",
+          "x": -1300,
+          "y": 1600,
+          "table": "container",
+          "respawnSeconds": 160,
+          "chance": 0.55
+        }
       ],
       "gates": [
-        { "to": "vega", "x": -2458, "y": -2048 },
-        { "to": "tau", "x": -2458, "y": 2048 },
-        { "to": "sigma", "x": 1123, "y": 2996 }
-      ]
+        { "to": "vega", "x": -2818, "y": -1517 },
+        { "to": "castor", "x": -1261, "y": -2941 },
+        { "to": "tau", "x": -825, "y": 3092 },
+        { "to": "barnard", "x": 1775, "y": 2663 },
+        { "to": "sigma", "x": -2057, "y": 2451 }
+      ],
+      "region": "frontier",
+      "stationSprite": "fortress",
+      "lootTables": {
+        "pirate": "frontierPirate",
+        "heavyPirate": "frontierBrute"
+      }
+    },
+    "castor": {
+      "name": "Кастор",
+      "danger": 3,
+      "pvp": "border",
+      "region": "frontier",
+      "station": true,
+      "seed": 6,
+      "map": {
+        "x": 40,
+        "y": 16
+      },
+      "meteors": 2.2,
+      "meteorSizes": {
+        "small": 0.4,
+        "medium": 0.4,
+        "large": 0.2
+      },
+      "sun": {
+        "kind": "orange",
+        "radius": 240,
+        "burnRadius": 620,
+        "burnDps": 165
+      },
+      "stationOrbit": { "radius": 1100, "periodMinutes": 70, "phase": 20 },
+      "planets": [
+        {
+          "name": "Кастор-Руда",
+          "kind": "barren",
+          "size": 160,
+          "orbit": { "radius": 1700, "periodMinutes": 60, "phase": 100 }
+        },
+        {
+          "name": "Кастор-Туман",
+          "kind": "toxic",
+          "size": 140,
+          "orbit": { "radius": 2900, "periodMinutes": 170, "phase": 260 }
+        }
+      ],
+      "spawns": [
+        {
+          "type": "ranger",
+          "level": 2,
+          "x": 2500,
+          "y": 2400,
+          "count": 2
+        }
+      ],
+      "traders": {
+        "count": 2,
+        "respawnSeconds": 40,
+        "type": "trader",
+        "throttle": 0.7,
+        "sosReward": 150,
+        "sosQuietSeconds": 8
+      },
+      "pirates": {
+        "maxGroups": 3,
+        "intervalSeconds": 45,
+        "patrolMinSeconds": 120,
+        "patrolMaxSeconds": 240,
+        "groups": [
+          { "type": "pirate", "level": 2, "count": 1, "weight": 2 },
+          { "type": "pirate", "level": 3, "count": 1, "weight": 2 },
+          { "type": "pirate", "level": 2, "count": 2, "weight": 1 }
+        ]
+      },
+      "lootTables": {
+        "pirate": "frontierPirate",
+        "heavyPirate": "frontierBrute"
+      },
+      "containers": [
+        {
+          "name": "Рудная глыба",
+          "x": 1648,
+          "y": -1236,
+          "item": "ore",
+          "count": 12,
+          "respawnSeconds": 120,
+          "chance": 0.75
+        },
+        {
+          "name": "Рудная глыба",
+          "x": -1900,
+          "y": 1400,
+          "item": "ore",
+          "count": 10,
+          "respawnSeconds": 130,
+          "chance": 0.7
+        },
+        {
+          "name": "Кристаллическая друза",
+          "x": 2600,
+          "y": 1500,
+          "item": "crystals",
+          "count": 3,
+          "respawnSeconds": 200,
+          "chance": 0.45
+        },
+        {
+          "name": "Обломки рудовоза",
+          "x": -900,
+          "y": -2700,
+          "table": "wreck",
+          "respawnSeconds": 190,
+          "chance": 0.5
+        },
+        {
+          "name": "Тайник пиратов",
+          "x": 2900,
+          "y": -1500,
+          "table": "cache",
+          "respawnSeconds": 230,
+          "chance": 0.4
+        }
+      ],
+      "gates": [
+        { "to": "vega", "x": -2263, "y": 2263 },
+        { "to": "nova", "x": 1261, "y": 2941 }
+      ],
+      "stationSprite": "mining"
+    },
+    "barnard": {
+      "name": "Барнард",
+      "danger": 4,
+      "pvp": "free",
+      "region": "frontier",
+      "station": true,
+      "seed": 7,
+      "map": {
+        "x": 64,
+        "y": 62
+      },
+      "meteors": 1,
+      "sun": {
+        "kind": "blue",
+        "radius": 250,
+        "burnRadius": 660,
+        "burnDps": 180
+      },
+      "stationOrbit": { "radius": 1150, "periodMinutes": 85, "phase": 240 },
+      "planets": [
+        {
+          "name": "Барнард-Сад",
+          "kind": "jungle",
+          "size": 160,
+          "orbit": { "radius": 1900, "periodMinutes": 95, "phase": 300 }
+        },
+        {
+          "name": "Барнард-Кольцо",
+          "kind": "ringed",
+          "size": 230,
+          "orbit": { "radius": 3300, "periodMinutes": 240, "phase": 60 }
+        }
+      ],
+      "spawns": [
+        {
+          "type": "ranger",
+          "level": 3,
+          "x": -2600,
+          "y": -2200,
+          "count": 3
+        }
+      ],
+      "traders": {
+        "count": 2,
+        "respawnSeconds": 40,
+        "type": "trader",
+        "throttle": 0.7,
+        "sosReward": 150,
+        "sosQuietSeconds": 8
+      },
+      "pirates": {
+        "maxGroups": 3,
+        "intervalSeconds": 40,
+        "patrolMinSeconds": 120,
+        "patrolMaxSeconds": 240,
+        "groups": [
+          { "type": "pirate", "level": 3, "count": 2, "weight": 2 },
+          { "type": "pirate", "level": 4, "count": 1, "weight": 1 },
+          { "type": "heavyPirate", "level": 3, "count": 1, "weight": 1 }
+        ]
+      },
+      "lootTables": {
+        "pirate": "frontierPirate",
+        "heavyPirate": "frontierBrute"
+      },
+      "containers": [
+        {
+          "name": "Контейнер с редкими металлами",
+          "x": -3000,
+          "y": 1200,
+          "item": "rareMetal",
+          "count": 2,
+          "respawnSeconds": 280,
+          "chance": 0.35
+        },
+        {
+          "name": "Тайник пиратов",
+          "x": 2700,
+          "y": -2300,
+          "table": "cache",
+          "respawnSeconds": 220,
+          "chance": 0.45
+        },
+        {
+          "name": "Обломки грузовика",
+          "x": 1400,
+          "y": 2400,
+          "table": "wreck",
+          "respawnSeconds": 180,
+          "chance": 0.5
+        },
+        {
+          "name": "Ящик с энергоблоками",
+          "x": -1600,
+          "y": -1700,
+          "item": "energy",
+          "count": 3,
+          "respawnSeconds": 200,
+          "chance": 0.45
+        },
+        {
+          "name": "Забытый груз",
+          "x": 3200,
+          "y": 800,
+          "table": "container",
+          "respawnSeconds": 170,
+          "chance": 0.5
+        }
+      ],
+      "gates": [
+        { "to": "tau", "x": -2744, "y": 1646 },
+        { "to": "nova", "x": -1775, "y": -2663 },
+        { "to": "aldebaran", "x": 1775, "y": -2663 }
+      ],
+      "stationSprite": "ranger"
     },
     "sigma": {
       "name": "Sigma",
@@ -172,16 +929,41 @@
       "pvp": "free",
       "station": false,
       "seed": 4,
-      "map": { "x": 92, "y": 82 },
+      "map": {
+        "x": 80,
+        "y": 84
+      },
       "meteors": 1.5,
-      "sun": { "kind": "red", "radius": 320, "burnRadius": 800, "burnDps": 220 },
+      "sun": {
+        "kind": "red",
+        "radius": 320,
+        "burnRadius": 800,
+        "burnDps": 220
+      },
       "planets": [
-        { "name": "Сигма-Лёд", "kind": "ice", "size": 140, "orbit": { "radius": 2200, "periodMinutes": 100, "phase": 150 } },
-        { "name": "Сигма-Пустошь", "kind": "desert", "size": 170, "orbit": { "radius": 3400, "periodMinutes": 220, "phase": 10 } }
+        {
+          "name": "Сигма-Лёд",
+          "kind": "ice",
+          "size": 140,
+          "orbit": { "radius": 2200, "periodMinutes": 100, "phase": 150 }
+        },
+        {
+          "name": "Сигма-Пустошь",
+          "kind": "desert",
+          "size": 170,
+          "orbit": { "radius": 3400, "periodMinutes": 220, "phase": 10 }
+        }
       ],
       "pirates": {
-        "maxGroups": 4, "intervalSeconds": 30, "patrolMinSeconds": 150, "patrolMaxSeconds": 300,
-        "base": { "name": "Пиратская база", "x": 2600, "y": 2300 },
+        "maxGroups": 4,
+        "intervalSeconds": 30,
+        "patrolMinSeconds": 150,
+        "patrolMaxSeconds": 300,
+        "base": {
+          "name": "Пиратская база",
+          "x": 2600,
+          "y": 2300
+        },
         "groups": [
           { "type": "pirate", "level": 4, "count": 2, "weight": 2 },
           { "type": "pirate", "level": 3, "count": 3, "weight": 1 },
@@ -190,24 +972,483 @@
         ]
       },
       "containers": [
-        { "name": "Сокровищница", "x": 2500, "y": 2700, "table": "rich", "respawnSeconds": 240, "chance": 0.6 },
-        { "name": "Сокровищница", "x": -2600, "y": 1700, "table": "rich", "respawnSeconds": 260, "chance": 0.5 },
-        { "name": "Контейнер с редкими металлами", "x": 2300, "y": -2000, "item": "rareMetal", "count": 3, "respawnSeconds": 220, "chance": 0.5 },
-        { "name": "Ящик с плазменными компонентами", "x": 0, "y": 1400, "item": "tech", "count": 2, "respawnSeconds": 300, "chance": 0.35 },
-        { "name": "Кристаллическая друза", "x": -700, "y": -900, "item": "crystals", "count": 4, "respawnSeconds": 200, "chance": 0.5 },
-        { "name": "Тайник пиратов", "x": 3200, "y": 600, "table": "cache", "respawnSeconds": 200, "chance": 0.5 }
+        {
+          "name": "Сокровищница",
+          "x": 2500,
+          "y": 2700,
+          "table": "rich",
+          "respawnSeconds": 240,
+          "chance": 0.6
+        },
+        {
+          "name": "Сокровищница",
+          "x": -2600,
+          "y": 1700,
+          "table": "rich",
+          "respawnSeconds": 260,
+          "chance": 0.5
+        },
+        {
+          "name": "Контейнер с редкими металлами",
+          "x": 2300,
+          "y": -2000,
+          "item": "rareMetal",
+          "count": 3,
+          "respawnSeconds": 220,
+          "chance": 0.5
+        },
+        {
+          "name": "Ящик с плазменными компонентами",
+          "x": 0,
+          "y": 1400,
+          "item": "tech",
+          "count": 2,
+          "respawnSeconds": 300,
+          "chance": 0.35
+        },
+        {
+          "name": "Кристаллическая друза",
+          "x": -700,
+          "y": -900,
+          "item": "crystals",
+          "count": 4,
+          "respawnSeconds": 200,
+          "chance": 0.5
+        },
+        {
+          "name": "Тайник пиратов",
+          "x": 3200,
+          "y": 600,
+          "table": "cache",
+          "respawnSeconds": 200,
+          "chance": 0.5
+        }
       ],
       "gates": [
-        { "to": "nova", "x": -1123, "y": -2996 }
+        { "to": "nova", "x": -1835, "y": -2622 },
+        { "to": "aldebaran", "x": -318, "y": -3184 },
+        { "to": "epsilon", "x": 1532, "y": -2809 }
+      ],
+      "region": "rim",
+      "lootTables": {
+        "pirate": "rimPirate",
+        "heavyPirate": "rimBrute"
+      },
+      "meteorSizes": {
+        "small": 0.3,
+        "medium": 0.4,
+        "large": 0.3
+      }
+    },
+    "aldebaran": {
+      "name": "Альдебаран",
+      "danger": 5,
+      "pvp": "free",
+      "region": "rim",
+      "station": true,
+      "seed": 8,
+      "map": {
+        "x": 76,
+        "y": 44
+      },
+      "meteors": 1.5,
+      "sun": {
+        "kind": "red",
+        "radius": 300,
+        "burnRadius": 760,
+        "burnDps": 210
+      },
+      "stationOrbit": { "radius": 1250, "periodMinutes": 95, "phase": 310 },
+      "planets": [
+        {
+          "name": "Альдебаран-Пекло",
+          "kind": "lava",
+          "size": 170,
+          "orbit": { "radius": 1800, "periodMinutes": 75, "phase": 130 }
+        },
+        {
+          "name": "Альдебаран-Прах",
+          "kind": "barren",
+          "size": 150,
+          "orbit": { "radius": 3100, "periodMinutes": 200, "phase": 290 }
+        }
+      ],
+      "spawns": [
+        {
+          "type": "ranger",
+          "level": 4,
+          "x": 2800,
+          "y": -1800,
+          "count": 2
+        }
+      ],
+      "traders": {
+        "count": 1,
+        "respawnSeconds": 40,
+        "type": "trader",
+        "throttle": 0.7,
+        "sosReward": 150,
+        "sosQuietSeconds": 8
+      },
+      "pirates": {
+        "maxGroups": 4,
+        "intervalSeconds": 35,
+        "patrolMinSeconds": 120,
+        "patrolMaxSeconds": 240,
+        "groups": [
+          { "type": "pirate", "level": 4, "count": 2, "weight": 2 },
+          { "type": "heavyPirate", "level": 4, "count": 1, "weight": 2 },
+          { "type": "heavyPirate", "level": 5, "count": 1, "weight": 1 }
+        ]
+      },
+      "lootTables": {
+        "pirate": "rimPirate",
+        "heavyPirate": "rimBrute"
+      },
+      "containers": [
+        {
+          "name": "Сокровищница",
+          "x": 2400,
+          "y": 2500,
+          "table": "rich",
+          "respawnSeconds": 250,
+          "chance": 0.55
+        },
+        {
+          "name": "Контейнер с редкими металлами",
+          "x": -2600,
+          "y": 1600,
+          "item": "rareMetal",
+          "count": 3,
+          "respawnSeconds": 230,
+          "chance": 0.5
+        },
+        {
+          "name": "Ящик с плазменными компонентами",
+          "x": 900,
+          "y": -2900,
+          "item": "tech",
+          "count": 2,
+          "respawnSeconds": 300,
+          "chance": 0.35
+        },
+        {
+          "name": "Тайник пиратов",
+          "x": -1500,
+          "y": -2500,
+          "table": "cache",
+          "respawnSeconds": 210,
+          "chance": 0.5
+        }
+      ],
+      "gates": [
+        { "to": "barnard", "x": -1775, "y": 2663 },
+        { "to": "sigma", "x": 318, "y": 3184 },
+        { "to": "epsilon", "x": 2126, "y": 2392 }
+      ],
+      "stationSprite": "outpost"
+    },
+    "epsilon": {
+      "name": "Эпсилон",
+      "danger": 6,
+      "pvp": "free",
+      "region": "rim",
+      "station": true,
+      "seed": 9,
+      "map": {
+        "x": 92,
+        "y": 62
+      },
+      "meteors": 2.5,
+      "meteorSizes": {
+        "small": 0.3,
+        "medium": 0.4,
+        "large": 0.3
+      },
+      "sun": {
+        "kind": "white",
+        "radius": 280,
+        "burnRadius": 720,
+        "burnDps": 230
+      },
+      "stationOrbit": { "radius": 1300, "periodMinutes": 110, "phase": 70 },
+      "planets": [
+        {
+          "name": "Эпсилон-Лёд",
+          "kind": "ice",
+          "size": 150,
+          "orbit": { "radius": 2000, "periodMinutes": 110, "phase": 200 }
+        },
+        {
+          "name": "Эпсилон-Яд",
+          "kind": "toxic",
+          "size": 165,
+          "orbit": { "radius": 3200, "periodMinutes": 230, "phase": 20 }
+        }
+      ],
+      "traders": {
+        "count": 1,
+        "respawnSeconds": 40,
+        "type": "trader",
+        "throttle": 0.7,
+        "sosReward": 150,
+        "sosQuietSeconds": 8
+      },
+      "pirates": {
+        "maxGroups": 4,
+        "intervalSeconds": 30,
+        "patrolMinSeconds": 120,
+        "patrolMaxSeconds": 240,
+        "groups": [
+          { "type": "pirate", "level": 5, "count": 2, "weight": 2 },
+          { "type": "heavyPirate", "level": 5, "count": 1, "weight": 2 },
+          { "type": "heavyPirate", "level": 6, "count": 1, "weight": 1 }
+        ]
+      },
+      "lootTables": {
+        "pirate": "rimPirate",
+        "heavyPirate": "rimBrute"
+      },
+      "containers": [
+        {
+          "name": "Сокровищница",
+          "x": -2500,
+          "y": 2400,
+          "table": "rich",
+          "respawnSeconds": 260,
+          "chance": 0.5
+        },
+        {
+          "name": "Кристаллическая друза",
+          "x": 1700,
+          "y": -1600,
+          "item": "crystals",
+          "count": 4,
+          "respawnSeconds": 200,
+          "chance": 0.5
+        },
+        {
+          "name": "Ящик с плазменными компонентами",
+          "x": -900,
+          "y": -3000,
+          "item": "tech",
+          "count": 3,
+          "respawnSeconds": 300,
+          "chance": 0.4
+        },
+        {
+          "name": "Тайник пиратов",
+          "x": 3000,
+          "y": 1400,
+          "table": "cache",
+          "respawnSeconds": 220,
+          "chance": 0.5
+        }
+      ],
+      "gates": [
+        { "to": "aldebaran", "x": -2126, "y": -2392 },
+        { "to": "sigma", "x": -1532, "y": 2809 },
+        { "to": "edge", "x": 252, "y": -3190 }
+      ],
+      "stationSprite": "habitat"
+    },
+    "edge": {
+      "name": "Край",
+      "danger": 6,
+      "pvp": "free",
+      "region": "rim",
+      "station": false,
+      "seed": 10,
+      "map": {
+        "x": 95,
+        "y": 24
+      },
+      "meteors": 2.5,
+      "meteorSizes": {
+        "small": 0.3,
+        "medium": 0.35,
+        "large": 0.35
+      },
+      "sun": {
+        "kind": "binary",
+        "radius": 330,
+        "burnRadius": 820,
+        "burnDps": 240
+      },
+      "planets": [
+        {
+          "name": "Край-Пепел",
+          "kind": "lava",
+          "size": 180,
+          "orbit": { "radius": 2100, "periodMinutes": 120, "phase": 250 }
+        },
+        {
+          "name": "Край-Кольцо",
+          "kind": "ringed",
+          "size": 240,
+          "orbit": { "radius": 3400, "periodMinutes": 260, "phase": 100 }
+        }
+      ],
+      "pirates": {
+        "maxGroups": 5,
+        "intervalSeconds": 25,
+        "patrolMinSeconds": 120,
+        "patrolMaxSeconds": 240,
+        "base": {
+          "name": "Логово Края",
+          "x": -2500,
+          "y": 2600
+        },
+        "groups": [
+          { "type": "pirate", "level": 5, "count": 3, "weight": 2 },
+          { "type": "heavyPirate", "level": 5, "count": 2, "weight": 2 },
+          { "type": "heavyPirate", "level": 6, "count": 1, "weight": 1 }
+        ]
+      },
+      "lootTables": {
+        "pirate": "rimPirate",
+        "heavyPirate": "rimBrute"
+      },
+      "containers": [
+        {
+          "name": "Сокровищница",
+          "x": -2400,
+          "y": 2900,
+          "table": "rich",
+          "respawnSeconds": 240,
+          "chance": 0.6
+        },
+        {
+          "name": "Сокровищница",
+          "x": 2600,
+          "y": -2200,
+          "table": "rich",
+          "respawnSeconds": 260,
+          "chance": 0.55
+        },
+        {
+          "name": "Контейнер с редкими металлами",
+          "x": 1500,
+          "y": 2700,
+          "item": "rareMetal",
+          "count": 4,
+          "respawnSeconds": 230,
+          "chance": 0.5
+        },
+        {
+          "name": "Ящик с плазменными компонентами",
+          "x": -3100,
+          "y": -900,
+          "item": "tech",
+          "count": 3,
+          "respawnSeconds": 320,
+          "chance": 0.4
+        }
+      ],
+      "gates": [
+        { "to": "epsilon", "x": -252, "y": 3190 }
       ]
     }
   },
   "links": [
-    { "a": "sol", "b": "vega", "distance": 20 },
-    { "a": "sol", "b": "tau", "distance": 30 },
-    { "a": "vega", "b": "tau", "distance": 20 },
-    { "a": "vega", "b": "nova", "distance": 30 },
-    { "a": "tau", "b": "nova", "distance": 25 },
-    { "a": "nova", "b": "sigma", "distance": 25 }
-  ]
+    {
+      "a": "sol",
+      "b": "vega",
+      "distance": 20
+    },
+    {
+      "a": "sol",
+      "b": "alphaCen",
+      "distance": 18
+    },
+    {
+      "a": "alphaCen",
+      "b": "vega",
+      "distance": 22
+    },
+    {
+      "a": "sol",
+      "b": "tau",
+      "distance": 30
+    },
+    {
+      "a": "vega",
+      "b": "tau",
+      "distance": 20
+    },
+    {
+      "a": "vega",
+      "b": "nova",
+      "distance": 30
+    },
+    {
+      "a": "vega",
+      "b": "castor",
+      "distance": 24
+    },
+    {
+      "a": "castor",
+      "b": "nova",
+      "distance": 26
+    },
+    {
+      "a": "tau",
+      "b": "nova",
+      "distance": 25
+    },
+    {
+      "a": "tau",
+      "b": "barnard",
+      "distance": 28
+    },
+    {
+      "a": "barnard",
+      "b": "nova",
+      "distance": 22
+    },
+    {
+      "a": "nova",
+      "b": "sigma",
+      "distance": 25
+    },
+    {
+      "a": "barnard",
+      "b": "aldebaran",
+      "distance": 30
+    },
+    {
+      "a": "sigma",
+      "b": "aldebaran",
+      "distance": 26
+    },
+    {
+      "a": "aldebaran",
+      "b": "epsilon",
+      "distance": 28
+    },
+    {
+      "a": "sigma",
+      "b": "epsilon",
+      "distance": 30
+    },
+    {
+      "a": "epsilon",
+      "b": "edge",
+      "distance": 35
+    }
+  ],
+  "regions": {
+    "core": {
+      "name": "Ядро",
+      "color": "#3f7fbf"
+    },
+    "frontier": {
+      "name": "Пограничье",
+      "color": "#c99a3a"
+    },
+    "rim": {
+      "name": "Дальний рубеж",
+      "color": "#b1495a"
+    }
+  }
 }

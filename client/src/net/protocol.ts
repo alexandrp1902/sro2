@@ -9,7 +9,7 @@ import type { NpcRules } from '../sim/npcs';
 import type { ShopRules } from '../sim/shop';
 
 /** Версия протокола; зеркало Protocol.Version на сервере. Сервер другой версии (или старый, без поля) — не играем. */
-export const PROTOCOL_VERSION = 15;
+export const PROTOCOL_VERSION = 16;
 
 /** Состояние ИИ пирата: патруль, бой, возврат в логово (налётчик — полёт от врат к точке), уход из системы. */
 export type AiState = 'patrol' | 'attack' | 'return' | 'leave';
@@ -104,6 +104,8 @@ export interface ShipDto {
   ai?: AiState | null;
   /** Готовится гиперпрыжок: корабль уйдёт из системы в этот тик; нет поля или 0 — нет. */
   j?: number;
+  /** Замедлен ионкой (M11) до этого тика; нет поля или 0 — нет. */
+  sl?: number;
 }
 
 export interface ShotDto {
@@ -296,6 +298,10 @@ export interface SystemDto {
   /** Орбитальное время в тик 0 системы, секунды: орбиты считаются от тика снапшота. */
   orbitEpoch: number;
   pirateBase?: PirateBaseDto | null;
+  /** Картинка станции (M11); нет — по опасности системы. */
+  stationSprite?: string | null;
+  /** Регион галактики (M11). */
+  region?: string | null;
 }
 
 /** Система на карте галактики (GDD §55). */
@@ -307,6 +313,15 @@ export interface GalaxySystemDto {
   station: boolean;
   x: number;
   y: number;
+  /** Регион галактики (M11); нет — регионов нет. */
+  region?: string | null;
+}
+
+/** Регион галактики (M11): Ядро, Пограничье, Дальний рубеж. */
+export interface RegionDto {
+  id: string;
+  name: string;
+  color: string;
 }
 
 /** Маршрут; cost — топлива на прыжок в любую сторону. */
@@ -319,6 +334,8 @@ export interface LinkDto {
 export interface GalaxyDto {
   systems: GalaxySystemDto[];
   links: LinkDto[];
+  /** Регионы (M11); нет — сервер их не знает. */
+  regions?: RegionDto[] | null;
 }
 
 export interface PlayerDto {

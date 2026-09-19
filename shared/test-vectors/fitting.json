@@ -21,7 +21,9 @@
       "weaponSlots": [
         "S",
         "S"
-      ]
+      ],
+      "utilitySlots": 0,
+      "role": null
     },
     "heavy": {
       "name": "Тяжёлый",
@@ -44,7 +46,9 @@
       "weaponSlots": [
         "L",
         "M"
-      ]
+      ],
+      "utilitySlots": 0,
+      "role": null
     }
   },
   "weapons": {
@@ -63,7 +67,13 @@
       "closePenalty": 0,
       "class": "S",
       "power": 15,
-      "missile": null
+      "missile": null,
+      "shieldFactor": 1,
+      "hullFactor": 1,
+      "slow": 0,
+      "slowSeconds": 0,
+      "intercept": null,
+      "tier": 1
     },
     "plasma": {
       "name": "Плазма Mk1",
@@ -80,7 +90,13 @@
       "closePenalty": 35,
       "class": "M",
       "power": 30,
-      "missile": null
+      "missile": null,
+      "shieldFactor": 1,
+      "hullFactor": 1,
+      "slow": 0,
+      "slowSeconds": 0,
+      "intercept": null,
+      "tier": 1
     },
     "big": {
       "name": "Импульсная пушка Mk1",
@@ -97,7 +113,13 @@
       "closePenalty": 0,
       "class": "L",
       "power": 50,
-      "missile": null
+      "missile": null,
+      "shieldFactor": 1,
+      "hullFactor": 1,
+      "slow": 0,
+      "slowSeconds": 0,
+      "intercept": null,
+      "tier": 1
     }
   },
   "modules": {
@@ -112,7 +134,11 @@
       "shieldRegen": 0,
       "radar": 0,
       "fuel": 0,
-      "output": 0
+      "output": 0,
+      "repair": 0,
+      "cooling": 0,
+      "cargo": 0,
+      "tier": 1
     },
     "engineL": {
       "name": "Двигатель L",
@@ -125,7 +151,11 @@
       "shieldRegen": 0,
       "radar": 0,
       "fuel": 0,
-      "output": 0
+      "output": 0,
+      "repair": 0,
+      "cooling": 0,
+      "cargo": 0,
+      "tier": 1
     },
     "shieldS": {
       "name": "Щит S",
@@ -138,7 +168,11 @@
       "shieldRegen": 20,
       "radar": 0,
       "fuel": 0,
-      "output": 0
+      "output": 0,
+      "repair": 0,
+      "cooling": 0,
+      "cargo": 0,
+      "tier": 1
     },
     "radarS": {
       "name": "Радар S",
@@ -151,7 +185,11 @@
       "shieldRegen": 0,
       "radar": 2000,
       "fuel": 0,
-      "output": 0
+      "output": 0,
+      "repair": 0,
+      "cooling": 0,
+      "cargo": 0,
+      "tier": 1
     },
     "tankS": {
       "name": "Бак S",
@@ -164,7 +202,11 @@
       "shieldRegen": 0,
       "radar": 0,
       "fuel": 100,
-      "output": 0
+      "output": 0,
+      "repair": 0,
+      "cooling": 0,
+      "cargo": 0,
+      "tier": 1
     },
     "generatorS": {
       "name": "Генератор S",
@@ -177,7 +219,11 @@
       "shieldRegen": 0,
       "radar": 0,
       "fuel": 0,
-      "output": 60
+      "output": 60,
+      "repair": 0,
+      "cooling": 0,
+      "cargo": 0,
+      "tier": 1
     },
     "generatorL": {
       "name": "Генератор L",
@@ -190,7 +236,11 @@
       "shieldRegen": 0,
       "radar": 0,
       "fuel": 0,
-      "output": 200
+      "output": 200,
+      "repair": 0,
+      "cooling": 0,
+      "cargo": 0,
+      "tier": 1
     }
   },
   "cases": [
@@ -204,7 +254,8 @@
         "shield": "shieldS",
         "radar": "radarS",
         "tank": "tankS",
-        "generator": "generatorS"
+        "generator": "generatorS",
+        "utility": null
       },
       "effective": {
         "name": "Лёгкий",
@@ -227,7 +278,9 @@
         "weaponSlots": [
           "S",
           "S"
-        ]
+        ],
+        "utilitySlots": 0,
+        "role": null
       },
       "power": 35,
       "output": 60
@@ -243,7 +296,8 @@
         "shield": null,
         "radar": "radarS",
         "tank": "tankS",
-        "generator": "generatorS"
+        "generator": "generatorS",
+        "utility": null
       },
       "effective": {
         "name": "Лёгкий",
@@ -266,7 +320,9 @@
         "weaponSlots": [
           "S",
           "S"
-        ]
+        ],
+        "utilitySlots": 0,
+        "role": null
       },
       "power": 40,
       "output": 60
@@ -282,7 +338,8 @@
         "shield": "shieldS",
         "radar": "radarS",
         "tank": "tankS",
-        "generator": "generatorL"
+        "generator": "generatorL",
+        "utility": null
       },
       "effective": {
         "name": "Тяжёлый",
@@ -305,7 +362,9 @@
         "weaponSlots": [
           "L",
           "M"
-        ]
+        ],
+        "utilitySlots": 0,
+        "role": null
       },
       "power": 110,
       "output": 200
@@ -320,7 +379,8 @@
         "shield": null,
         "radar": "radarS",
         "tank": null,
-        "generator": "generatorS"
+        "generator": "generatorS",
+        "utility": null
       },
       "effective": {
         "name": "Тяжёлый",
@@ -343,7 +403,9 @@
         "weaponSlots": [
           "L",
           "M"
-        ]
+        ],
+        "utilitySlots": 0,
+        "role": null
       },
       "power": 10,
       "output": 60

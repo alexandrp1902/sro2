@@ -8,13 +8,20 @@ import type { HullParams } from './movement';
 
 export type EquipClass = 'S' | 'M' | 'L';
 export type ModuleSlot = 'engine' | 'shield' | 'radar' | 'tank' | 'generator';
-/** w0…w5 — оружейные слоты, остальное — модули. */
-export type Slot = `w${number}` | ModuleSlot;
+/** Вспомогательный модуль (M11): ремонт, охлаждение, грузовой расширитель — в слоты u0…u2. */
+export const UTILITY = 'utility';
+/** w0…w5 — оружейные слоты, u0…u2 — вспомогательные, остальное — модули. */
+export type Slot = `w${number}` | `u${number}` | ModuleSlot;
+
+/** Больше вспомогательных слотов у корпуса не бывает. */
+export const MAX_UTILITY_SLOTS = 3;
+/** Охлаждение не укорачивает перезарядку больше чем наполовину. */
+export const MAX_COOLING = 0.5;
 
 /** Поля, которых нет в файле, — по умолчанию, как на сервере: множители 1, остальное 0. */
 export interface ModuleParams {
   name: string;
-  slot: ModuleSlot;
+  slot: ModuleSlot | typeof UTILITY;
   class: EquipClass;
   /** Сколько энергии генератора забирает. */
   power?: number;
@@ -30,6 +37,14 @@ export interface ModuleParams {
   fuel?: number;
   /** Генератор: сколько энергии даёт. */
   output?: number;
+  /** Вспомогательный: ремонт корпуса вне боя, единиц в секунду. */
+  repair?: number;
+  /** Вспомогательный: доля, на которую короче перезарядка пушек. */
+  cooling?: number;
+  /** Вспомогательный: прибавка к трюму. */
+  cargo?: number;
+  /** Тир Mk1–Mk3 (M11). */
+  tier?: number;
 }
 
 export type ModuleConfig = Record<string, ModuleParams>;
@@ -42,13 +57,16 @@ export interface ShipFit {
   radar?: string | null;
   tank?: string | null;
   generator?: string | null;
+  /** Вспомогательные модули по слотам u0…u2 (M11); нет — старый профиль без них. */
+  utility?: (string | null)[] | null;
 }
 
 export const MODULE_SLOTS: ModuleSlot[] = ['engine', 'shield', 'radar', 'tank', 'generator'];
 /** Без этих модулей корабль не летает: заменить можно, снять нельзя. */
 export const REQUIRED_SLOTS: ModuleSlot[] = ['engine', 'radar', 'generator'];
 
-export const SLOT_NAMES: Record<ModuleSlot, string> = {
+export const SLOT_NAMES: Record<ModuleSlot | typeof UTILITY, string> = {
+  utility: 'Вспомогательный',
   engine: 'Двигатель',
   shield: 'Щит',
   radar: 'Радар',
@@ -97,10 +115,20 @@ export function weaponSlot(index: number): Slot {
   return `w${index}`;
 }
 
+export function utilitySlot(index: number): Slot {
+  return `u${index}`;
+}
+
 /** Номер оружейного слота; null — это модуль. */
 export function weaponIndex(slot: string): number | null {
   const m = /^w(\d)$/.exec(slot);
-  return m ? Number(m[1]) : null;
+  return m && Number(m[1]) < 6 ? Number(m[1]) : null;
+}
+
+/** Номер вспомогательного слота; null — это не он. */
+export function utilityIndex(slot: string): number | null {
+  const m = /^u(\d)$/.exec(slot);
+  return m && Number(m[1]) < MAX_UTILITY_SLOTS ? Number(m[1]) : null;
 }
 
 /** Оружейные слоты корпуса и их классы; у старого баланса — один слот класса корпуса. */
@@ -111,19 +139,53 @@ export function hullSlots(hull: HullParams): string[] {
 export function fitGet(fit: ShipFit, slot: string): string | null {
   const i = weaponIndex(slot);
   if (i !== null) return fit.weapons[i] ?? null;
+  const u = utilityIndex(slot);
+  if (u !== null) return fit.utility?.[u] ?? null;
   return fit[slot as ModuleSlot] ?? null;
 }
 
 export function fitWith(fit: ShipFit, slot: string, id: string | null): ShipFit {
   const i = weaponIndex(slot);
-  if (i === null) return { ...fit, [slot]: id };
-  const weapons = [...fit.weapons];
-  while (weapons.length <= i) weapons.push(null);
-  weapons[i] = id;
-  return { ...fit, weapons };
+  if (i !== null) {
+    const weapons = [...fit.weapons];
+    while (weapons.length <= i) weapons.push(null);
+    weapons[i] = id;
+    return { ...fit, weapons };
+  }
+  const u = utilityIndex(slot);
+  if (u !== null) {
+    const utility = [...(fit.utility ?? [])];
+    while (utility.length <= u) utility.push(null);
+    utility[u] = id;
+    return { ...fit, utility };
+  }
+  return { ...fit, [slot]: id };
 }
 
-function module(modules: ModuleConfig, id: string | null | undefined, slot: ModuleSlot): ModuleParams | null {
+/** Стоящие вспомогательные модули. */
+export function utilities(fit: ShipFit, modules: ModuleConfig | null): ModuleParams[] {
+  if (!modules) return [];
+  return (fit.utility ?? [])
+    .map((id) => (id ? modules[id] : null))
+    .filter((m): m is ModuleParams => !!m && m.slot === UTILITY);
+}
+
+/** Ремонт корпуса в секунду от ремонтных блоков (M11). */
+export function fitRepair(fit: ShipFit, modules: ModuleConfig | null): number {
+  return utilities(fit, modules).reduce((sum, m) => sum + (m.repair ?? 0), 0);
+}
+
+/** Множитель перезарядки от охлаждения: 1 — без него. */
+export function fitCooldown(fit: ShipFit, modules: ModuleConfig | null): number {
+  return 1 - Math.min(MAX_COOLING, utilities(fit, modules).reduce((sum, m) => sum + (m.cooling ?? 0), 0));
+}
+
+/** Сколько вспомогательных слотов у корпуса. */
+export function hullUtilitySlots(hull: HullParams): number {
+  return Math.min(MAX_UTILITY_SLOTS, hull.utilitySlots ?? 0);
+}
+
+function module(modules: ModuleConfig, id: string | null | undefined, slot: ModuleSlot | typeof UTILITY): ModuleParams | null {
   const m = id ? modules[id] : undefined;
   return m && m.slot === slot ? m : null;
 }
@@ -149,6 +211,7 @@ export function effectiveHull(hull: HullParams, fit: ShipFit | null, modules: Mo
     shieldRegen: shield?.shieldRegen ?? 0,
     radar: radar?.radar ?? hull.radar,
     fuel: tank?.fuel ?? 0,
+    cargo: hull.cargo + utilities(fit, modules).reduce((sum, m) => sum + (m.cargo ?? 0), 0),
   };
 }
 
@@ -158,6 +221,7 @@ export function fitPower(fit: ShipFit, weapons: WeaponConfig, modules: ModuleCon
   for (const id of fit.weapons) if (id && weapons[id]) total += weapons[id].power ?? 0;
   if (!modules) return total;
   for (const slot of MODULE_SLOTS) total += module(modules, fit[slot], slot)?.power ?? 0;
+  for (const m of utilities(fit, modules)) total += m.power ?? 0;
   return total;
 }
 
@@ -186,6 +250,13 @@ export function canInstall(
       const weapon = weapons[id];
       if (!weapon) return 'slot';
       if (!classFits(weapon.class, slots[index])) return 'class';
+    }
+  } else if (utilityIndex(slot) !== null) {
+    if (!modules || utilityIndex(slot)! >= hullUtilitySlots(hull)) return 'slot';
+    if (id !== null) {
+      const m = modules[id];
+      if (!m || m.slot !== UTILITY) return 'slot';
+      if (!classFits(m.class, hull.class)) return 'class';
     }
   } else {
     if (!modules) return 'slot';
@@ -221,7 +292,32 @@ export function moduleLabel(m: ModuleParams): string {
       return `топливо ${m.fuel ?? 0}${power}`;
     case 'generator':
       return `даёт энергии ${m.output ?? 0}`;
+    default: {
+      const parts: string[] = [];
+      if (m.repair) parts.push(`ремонт ${m.repair}/с вне боя`);
+      if (m.cooling) parts.push(`перезарядка −${Math.round(m.cooling * 100)} %`);
+      if (m.cargo) parts.push(`трюм +${m.cargo}`);
+      return parts.join(' · ') + power;
+    }
   }
+}
+
+/** Значок тира на иконке: «Mk2»; Mk1 — без значка. */
+export function tierBadge(id: string, tier?: number): string | null {
+  const mark = tier ?? tierOf(id);
+  return mark > 1 ? `Mk${mark}` : null;
+}
+
+/** Тир по id предмета: «ion_mk2» → 2. */
+export function tierOf(id: string): number {
+  const m = /^(.+)_mk([2-3])$/.exec(id);
+  return m ? Number(m[2]) : 1;
+}
+
+/** Базовый id без тира: «ion_mk2» → «ion». */
+export function baseId(id: string): string {
+  const m = /^(.+)_mk([2-3])$/.exec(id);
+  return m ? m[1] : id;
 }
 
 /** «Энергии не хватит» — текст к коду проблемы. */

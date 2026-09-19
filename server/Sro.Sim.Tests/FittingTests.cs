@@ -154,11 +154,15 @@ public class FittingTests
         var modules = balance!.Modules!;
         foreach (var slot in Fitting.ModuleSlots)
         {
-            // По три модуля каждого вида — S, M и L (GDD §59).
-            var classes = modules.Values.Where(m => m.Slot == slot).Select(m => m.Class).OrderBy(EquipClass.Rank).ToList();
+            // Хотя бы по модулю каждого вида на класс — S, M и L (GDD §59); с M11 бывают и варианты (форсаж).
+            var classes = modules.Values.Where(m => m.Slot == slot && m.Tier == 1).Select(m => m.Class).Distinct().OrderBy(EquipClass.Rank);
             Assert.Equal([EquipClass.S, EquipClass.M, EquipClass.L], classes);
         }
-        Assert.Equal(6, balance.Weapons.Count); // шесть пушек (GDD §59)
+        // Вспомогательные модули (M11): ремонт, охлаждение, трюм.
+        Assert.Equal(3, modules.Values.Count(m => m.Slot == Fitting.UtilityKind && m.Tier == 1));
+        // Десять пушек Mk1 (M11), каждая — ещё в Mk2 и Mk3.
+        Assert.Equal(10, balance.Weapons.Values.Count(w => w.Tier == 1));
+        Assert.Equal(30, balance.Weapons.Count);
         var light = balance.Hulls[SimConfig.DefaultHull];
         var starter = Fitting.Effective(light, Fitting.Starter, modules);
         Assert.True(starter.Shield > 0 && starter.Fuel > 0 && starter.Radar > 0);

@@ -1,13 +1,13 @@
 {
   "weapons": {
-    "pulse": {"name":"Импульсная пушка Mk1","damage":100,"accuracy":75,"cooldown":1,"optimalRange":500,"maxRange":700,"rangePenalty":10,"arc":60,"kind":"bolt","color":"#ffd166","closeRange":0,"closePenalty":0},
-    "laser": {"name":"Лазер Mk1","damage":40,"accuracy":90,"cooldown":0.5,"optimalRange":400,"maxRange":600,"rangePenalty":20,"arc":60,"kind":"beam","color":"#ffd166","closeRange":0,"closePenalty":0},
-    "plasma": {"name":"Плазма Mk1","damage":280,"accuracy":60,"cooldown":2,"optimalRange":450,"maxRange":650,"rangePenalty":15,"arc":60,"kind":"orb","color":"#ffd166","closeRange":250,"closePenalty":35}
+    "pulse": {"name":"Импульсная пушка Mk1","damage":100,"accuracy":75,"cooldown":1,"optimalRange":500,"maxRange":700,"rangePenalty":10,"arc":60,"kind":"bolt","color":"#ffd166","closeRange":0,"closePenalty":0,"class":"S","power":0,"missile":null,"shieldFactor":1,"hullFactor":1,"slow":0,"slowSeconds":0,"intercept":null,"tier":1},
+    "laser": {"name":"Лазер Mk1","damage":40,"accuracy":90,"cooldown":0.5,"optimalRange":400,"maxRange":600,"rangePenalty":20,"arc":60,"kind":"beam","color":"#ffd166","closeRange":0,"closePenalty":0,"class":"S","power":0,"missile":null,"shieldFactor":1,"hullFactor":1,"slow":0,"slowSeconds":0,"intercept":null,"tier":1},
+    "plasma": {"name":"Плазма Mk1","damage":280,"accuracy":60,"cooldown":2,"optimalRange":450,"maxRange":650,"rangePenalty":15,"arc":60,"kind":"orb","color":"#ffd166","closeRange":250,"closePenalty":35,"class":"S","power":0,"missile":null,"shieldFactor":1,"hullFactor":1,"slow":0,"slowSeconds":0,"intercept":null,"tier":1}
   },
   "hulls": {
-    "light": {"name":"Лёгкий","maxSpeed":330,"acceleration":180,"brakeAcceleration":220,"turnRate":150,"lateralDampTime":0.65,"lateralToForward":0,"size":16,"hp":1500,"shield":500,"shieldRegen":20,"evasion":25,"moveEvasion":8,"cargo":20},
-    "medium": {"name":"Средний","maxSpeed":250,"acceleration":120,"brakeAcceleration":145,"turnRate":100,"lateralDampTime":1,"lateralToForward":0,"size":22,"hp":3500,"shield":1000,"shieldRegen":35,"evasion":14,"moveEvasion":5,"cargo":20},
-    "heavy": {"name":"Тяжёлый","maxSpeed":170,"acceleration":70,"brakeAcceleration":80,"turnRate":55,"lateralDampTime":1.5,"lateralToForward":0,"size":30,"hp":7000,"shield":1800,"shieldRegen":50,"evasion":5,"moveEvasion":2,"cargo":20}
+    "light": {"name":"Лёгкий","maxSpeed":330,"acceleration":180,"brakeAcceleration":220,"turnRate":150,"lateralDampTime":0.65,"lateralToForward":0,"size":16,"hp":1500,"shield":500,"shieldRegen":20,"evasion":25,"moveEvasion":8,"cargo":20,"fuel":100,"radar":2000,"class":"L","weaponSlots":null,"utilitySlots":0,"role":null},
+    "medium": {"name":"Средний","maxSpeed":250,"acceleration":120,"brakeAcceleration":145,"turnRate":100,"lateralDampTime":1,"lateralToForward":0,"size":22,"hp":3500,"shield":1000,"shieldRegen":35,"evasion":14,"moveEvasion":5,"cargo":20,"fuel":100,"radar":2000,"class":"L","weaponSlots":null,"utilitySlots":0,"role":null},
+    "heavy": {"name":"Тяжёлый","maxSpeed":170,"acceleration":70,"brakeAcceleration":80,"turnRate":55,"lateralDampTime":1.5,"lateralToForward":0,"size":30,"hp":7000,"shield":1800,"shieldRegen":50,"evasion":5,"moveEvasion":2,"cargo":20,"fuel":100,"radar":2000,"class":"L","weaponSlots":null,"utilitySlots":0,"role":null}
   },
   "hitChance": [
     {"weapon":"pulse","hull":"light","distance":0,"speed":0,"chance":50,"inRange":true},

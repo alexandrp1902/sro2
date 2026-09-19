@@ -13,6 +13,10 @@ export interface ShopRules {
   fuelPrice?: number;
   /** Доля цены, за которую станция выкупает пушку или модуль со склада. */
   sellShare?: number;
+  /** Что продают именно здесь (M11); нет — продаётся всё, что в прайсе. */
+  stock?: string[] | null;
+  /** Подпись магазина станции: «Военная станция Nova». */
+  title?: string | null;
 }
 
 /** Магазина нет: до welcome и на серверах без shop.json. */
@@ -24,9 +28,17 @@ export function sellPrice(shop: ShopRules, id: string): number {
   return cost === null ? 0 : Math.floor(cost * (shop.sellShare ?? 0.5) + 1e-9);
 }
 
-/** Цена корпуса или пушки; null — не продаётся. */
+/** Цена корпуса или пушки; null — нет в прайсе. */
 export function price(prices: Record<string, number> | null | undefined, id: string): number | null {
   return prices?.[id] ?? null;
+}
+
+/**
+ * Продают ли это здесь (M11): у каждой станции свой ассортимент. Цена есть на всё, что знает сервер, —
+ * по ней принимают со склада, — но купить можно только из stock.
+ */
+export function sells(shop: ShopRules, id: string, prices: Record<string, number> | null | undefined): boolean {
+  return price(prices, id) !== null && (!shop.stock || shop.stock.includes(id));
 }
 
 /** Ремонт до полной прочности — как на сервере: округлено вверх. */

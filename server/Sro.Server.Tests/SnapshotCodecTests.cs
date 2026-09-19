@@ -257,7 +257,7 @@ public class SnapshotCodecTests
         ships = s.Ships.OrderBy(x => x.Id).Select(x => new
         {
             id = x.Id, x = x.X, y = x.Y, r = x.R, vx = x.Vx, vy = x.Vy, hull = x.Hull, th = x.Th, ack = x.Ack, hp = x.Hp,
-            sh = x.Sh, w = x.W, rt = x.Rt, pu = x.Pu, tg = x.Tg, ai = x.Ai, j = x.J,
+            sh = x.Sh, w = x.W, rt = x.Rt, pu = x.Pu, tg = x.Tg, ai = x.Ai, j = x.J, sl = x.Sl,
         }),
         loot = (s.Loot ?? []).OrderBy(x => x.Id).Select(x => new { id = x.Id, x = x.X, y = x.Y, i = x.I, n = x.N, e = x.E, c = x.C }),
         meteors = (s.Meteors ?? []).OrderBy(x => x.Id).Select(x => new { id = x.Id, x = x.X, y = x.Y, vx = x.Vx, vy = x.Vy, s = x.S, hp = x.Hp }),

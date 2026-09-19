@@ -40,6 +40,30 @@ SHEETS = [
     ("explosions", 3, 3, [f"f{i}" for i in range(9)], 256, "cell"),
     ("weapon-shots", 3, 3,
      ["bolt", "bolt-flash", "bolt-hit", "beam", "beam-flash", "beam-hit", "orb", "orb-flash", "orb-hit"], 192, "trim"),
+    # Эффекты нового оружия (M11): по листу 3×1 на каждое — снаряд, вспышка, попадание.
+    ("weapon-effects/weapon-shots-rail", 3, 1, ["rail", "rail-flash", "rail-hit"], 192, "trim", "weapon-shots"),
+    ("weapon-effects/weapon-shots-ion", 3, 1, ["ion", "ion-flash", "ion-hit"], 192, "trim", "weapon-shots"),
+    ("weapon-effects/weapon-shots-torpedo", 3, 1, ["torpedo", "torpedo-flash", "torpedo-hit"], 192, "trim", "weapon-shots"),
+    ("weapon-effects/weapon-shots-flak", 3, 1, ["flak", "flak-flash", "flak-hit"], 192, "trim", "weapon-shots"),
+]
+
+# Отдельные картинки (одна PNG — один спрайт): файл под art/space, имя в игре, длинная сторона.
+SINGLES = [
+    # Корабли NPC (пачка A): свои силуэты, чтобы их не путали с кораблями пилотов.
+    *[(f"npc-ships/ships-{n}", f"ships-{n}", 256) for n in
+      ["ranger", "ranger-heavy", "trader-hauler", "trader-convoy", "pirate-raider", "pirate-brute", "pirate-flagship", "drone"]],
+    # Корпуса пилотов (M11): пламени у них нет — клиент подставляет чужое (см. render/ship.ts).
+    *[(f"ships-extra/ships-{n}", f"ships-{n}", 256) for n in
+      ["scout", "interceptor", "industrial", "frigate", "freighter", "cruiser"]],
+    # Новые звёзды, планеты и станции (пачка B).
+    *[(f"galaxy/planets-{n}", f"planets-{n}", 512) for n in ["barren", "jungle", "lava", "ocean", "ringed", "toxic"]],
+    *[(f"galaxy/stations-{n}", f"stations-{n}", 512) for n in ["outpost", "pirate", "ranger", "trade"]],
+    *[(f"galaxy/suns-{n}", f"suns-{n}", 640) for n in ["white", "binary"]],
+    # Иконки нового снаряжения (M11).
+    *[(f"equipment-extra/weapons-{n}", f"weapons-{n}", 128) for n in
+      ["cannon", "heavy-laser", "railgun", "ion", "point-defense", "torpedoes"]],
+    *[(f"equipment-extra/modules-{n}", f"modules-{n}", 128) for n in
+      ["reactor", "fuel-tank", "military-radar", "afterburner", "repair", "cooling"]],
 ]
 
 
@@ -138,12 +162,23 @@ def split_ship(img: Image.Image):
     return to(hull), to(flame), bottom
 
 
+def single(img: Image.Image) -> Image.Image:
+    """Одиночная картинка: обрезаем прозрачные поля генератора по настоящей альфе."""
+    alpha = np.asarray(img)[..., 3]
+    ys, xs = np.nonzero(alpha > ALPHA_CUT)
+    if len(xs) == 0:
+        return img
+    return img.crop((int(xs.min()), int(ys.min()), int(xs.max()) + 1, int(ys.max()) + 1))
+
+
 def main() -> None:
     OUT.mkdir(parents=True, exist_ok=True)
     for old in OUT.glob("*.webp"):
         old.unlink()
     meta = {}
-    for sheet_name, cols, rows, names, longest, mode in SHEETS:
+    for sheet in SHEETS:
+        sheet_name, cols, rows, names, longest, mode = sheet[:6]
+        prefix = sheet[6] if len(sheet) > 6 else sheet_name
         sheet = clean(Image.open(SRC / f"{sheet_name}.png").convert("RGBA"))
         w, h = sheet.size
         if mode == "cell":
@@ -154,7 +189,7 @@ def main() -> None:
         for name, box in zip(names, boxes):
             if name is None:
                 continue
-            key = f"{sheet_name}-{name}"
+            key = f"{prefix}-{name}"
             img = fit(sheet.crop(box), longest)
             entry = {"w": img.width, "h": img.height}
             if mode == "ship":
@@ -167,6 +202,11 @@ def main() -> None:
                 save(img, key)
             meta[key] = entry
             print(f"{key:28} {img.width}x{img.height}")
+    for path, key, longest in SINGLES:
+        img = fit(single(clean(Image.open(SRC / f"{path}.png").convert("RGBA"))), longest)
+        save(img, key)
+        meta[key] = {"w": img.width, "h": img.height}
+        print(f"{key:28} {img.width}x{img.height}")
     META.write_text(json.dumps(meta, indent=2) + "\n", encoding="utf-8")
     total = sum(f.stat().st_size for f in OUT.glob("*.webp"))
     print(f"{len(list(OUT.glob('*.webp')))} файлов, {total / 1024:.0f} КБ")

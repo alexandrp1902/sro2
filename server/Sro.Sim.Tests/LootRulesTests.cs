@@ -185,7 +185,8 @@ public class LootRulesTests
     public void SharedLootJson_IsValid()
     {
         var json = System.IO.File.ReadAllText(Path.Combine(TestHulls.RepoRoot(), "shared", Balance.LootFile));
-        Assert.True(LootRules.TryParse(json, out var rules, out var error), error);
+        // Таблицы Пограничья и Рубежа роняют снаряжение (M11) — его каталог нужен для проверки.
+        Assert.True(LootRules.TryParse(json, out var rules, out var error, gear: TestHulls.SharedGear()), error);
         Assert.NotEmpty(rules.ItemMap);
         Assert.NotEmpty(rules.TableMap);
 

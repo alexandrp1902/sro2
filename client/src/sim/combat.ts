@@ -41,6 +41,10 @@ export interface MissileParams {
   turnRate: number;
   lifetime: number;
   hitRadius: number;
+  /** Прочность: столько урона зенитки (M11) ракета выдерживает. */
+  hp?: number;
+  /** Как рисовать: нет — ракета, «torpedo» — торпеда. */
+  sprite?: string | null;
 }
 
 export type WeaponConfig = Record<string, WeaponParams>;

@@ -45,7 +45,19 @@ export interface HullParams {
   class?: string;
   /** Оружейные слоты и их классы (GDD §12); нет — один слот класса корпуса. */
   weaponSlots?: string[] | null;
+  /** Сколько вспомогательных модулей встаёт (M11); нет — ни одного. */
+  utilitySlots?: number;
+  /** Роль корпуса для витрины: «разведчик», «танк»… */
+  role?: string | null;
 }
+
+/** Корпус замедленного ионкой корабля (M11): зеркало Movement.Slowed на сервере. */
+export function slowedHull(hull: HullParams, slow: number): HullParams {
+  return { ...hull, maxSpeed: hull.maxSpeed * (1 - slow), acceleration: hull.acceleration * (1 - slow) };
+}
+
+/** Насколько ион замедляет цель — одно число на сервере и клиенте. */
+export const ION_SLOW = 0.4;
 
 export type HullConfig = Record<string, HullParams>;
 

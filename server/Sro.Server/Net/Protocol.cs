@@ -210,15 +210,26 @@ public sealed record SystemDto(
     OrbitDef StationOrbit,
     IReadOnlyList<PlanetDef> Planets,
     double OrbitEpoch,
-    PirateBase? PirateBase = null);
+    PirateBase? PirateBase = null,
+    /// <summary>Картинка станции (M11); null — по опасности системы, как до M11.</summary>
+    string? StationSprite = null,
+    /// <summary>Регион галактики (M11); null — регионов нет.</summary>
+    string? Region = null);
 
 /// <summary>Система на карте галактики (GDD §55).</summary>
-public sealed record GalaxySystemDto(string Id, string Name, int Danger, string Pvp, bool Station, double X, double Y);
+/// <param name="Region">Регион (M11): ядро, пограничье, рубеж; null — регионов нет.</param>
+public sealed record GalaxySystemDto(string Id, string Name, int Danger, string Pvp, bool Station, double X, double Y, string? Region = null);
+
+/// <summary>Регион галактики на карте (M11).</summary>
+public sealed record RegionDto(string Id, string Name, string Color);
 
 /// <param name="Cost">Топлива на прыжок в любую сторону.</param>
 public sealed record LinkDto(string A, string B, int Cost);
 
-public sealed record GalaxyDto(IReadOnlyList<GalaxySystemDto> Systems, IReadOnlyList<LinkDto> Links);
+public sealed record GalaxyDto(
+    IReadOnlyList<GalaxySystemDto> Systems,
+    IReadOnlyList<LinkDto> Links,
+    IReadOnlyList<RegionDto>? Regions = null);
 
 public sealed record PongMsg(double C, long Tick) : ServerMessage;
 
@@ -438,7 +449,9 @@ public sealed record ShipDto(
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)] long Pu = 0,
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)] int Tg = 0,
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? Ai = null,
-    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)] long J = 0);
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)] long J = 0,
+    /// <summary>Тик, до которого корабль замедлен ионкой (M11); 0 — не замедлен.</summary>
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)] long Sl = 0);
 
 /// <param name="Dmg">Урон всего (0 при промахе).</param>
 /// <param name="Sh">Из него пришлось на щит.</param>
@@ -489,10 +502,11 @@ public static class Protocol
     /// (3 — бой, M3; 4 — пираты, M4; 5 — лут и трюм, M5a; 6 — ручной подбор и продажа груза; 7 — метеориты, M5b;
     /// 8 — аккаунты, док и магазин станции, M6; 9 — системы, врата, топливо, радар и бинарные дельта-снапшоты, M7;
     /// 10 — звезда, орбиты и налёты; 11 — задания и обучение, M8; 12 — слоты, модули, ракеты, торговцы, M9; 13 — SOS торговцев;
-    /// 14 — группы, награда за голову и вторжения, M10).
+    /// 14 — группы, награда за голову и вторжения, M10;
+    /// 15 — переключатель PvP; 16 — регионы, тиры Mk1–Mk3, utility-слоты, новое оружие и замедление, M11).
     /// Зеркало PROTOCOL_VERSION в client/src/net/protocol.ts.
     /// </summary>
-    public const int Version = 15;
+    public const int Version = 16;
 
     public const string DroneKind = "drone";
     public const string PirateKind = "pirate";
@@ -510,6 +524,7 @@ public static class Protocol
     public const string UnloadedNotice = "unloaded";
     public const string TooFarNotice = "tooFar";
     public const string NoCreditsNotice = "noCredits";
+    public const string NotSoldNotice = "notSold";
     public const string NoFuelNotice = "noFuel";
     public const string GateFarNotice = "gateFar";
     public const string JumpCancelledNotice = "jumpCancelled";

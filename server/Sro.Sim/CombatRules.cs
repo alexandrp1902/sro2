@@ -38,6 +38,7 @@ public sealed record DroneSpec(
 /// <param name="ProtectionSeconds">Защита после появления; снимается раньше, если корабль выстрелил (§25).</param>
 /// <param name="ShieldRegenDelay">Щит восстанавливается, если столько секунд не было урона (§17).</param>
 /// <param name="SpawnJitter">Разброс точки появления — корабли не появляются друг в друге.</param>
+/// <param name="RepairDelay">Ремонтный блок (M11) чинит корпус, если столько секунд не было урона.</param>
 /// <param name="SectorUnit">
 /// Сколько единиц мира в одном «секторе» — мере дистанции для игрока. Примерно дальность пушки по умолчанию
 /// и половина экрана телефона: «цель в 1.4 сектора» читается лучше, чем «в 980».
@@ -48,8 +49,10 @@ public sealed record CombatRules(
     double ShieldRegenDelay = 5,
     double SpawnJitter = 120,
     double SectorUnit = 700,
-    IReadOnlyList<DroneSpec>? Drones = null)
+    IReadOnlyList<DroneSpec>? Drones = null,
+    double RepairDelay = 6)
 {
+    [JsonIgnore] public int RepairDelayTicks => Combat.SecondsToTicks(RepairDelay);
     [JsonIgnore] public int RespawnTicks => Math.Max(1, Combat.SecondsToTicks(RespawnSeconds));
     [JsonIgnore] public int ProtectionTicks => Combat.SecondsToTicks(ProtectionSeconds);
     [JsonIgnore] public int ShieldRegenDelayTicks => Combat.SecondsToTicks(ShieldRegenDelay);
@@ -62,6 +65,7 @@ public sealed record CombatRules(
             return "respawnSeconds, protectionSeconds and shieldRegenDelay must not be negative";
         if (!(SpawnJitter >= 0)) return "spawnJitter must not be negative";
         if (!(SectorUnit > 0)) return "sectorUnit must be positive";
+        if (!(RepairDelay >= 0)) return "repairDelay must not be negative";
         for (var i = 0; i < DroneList.Count; i++)
         {
             var problem = DroneList[i] is null ? "is null" : DroneList[i].Validate(hulls);
@@ -204,13 +208,30 @@ public sealed record Balance(
     {
         if (GalaxySet is null) return this with { SystemId = id };
         var system = GalaxySet.System(id) ?? throw new ArgumentException($"unknown system '{id}'", nameof(id));
-        return View(this, system) with { SystemId = id };
+        return View(this, id, system) with { SystemId = id };
     }
 
-    private static Balance View(Balance b, SystemDef system)
+    /// <summary>Все пушки и модули всех тиров.</summary>
+    public IEnumerable<string> ItemIds => Weapons.Keys.Concat(Modules?.Keys ?? []);
+
+    private static Balance View(Balance b, string id, SystemDef system)
     {
         var npc = b.Npc;
         var meteors = b.MeteorSet;
+        if (meteors is not null && system.MeteorSizes is { } weights)
+        {
+            meteors = meteors with
+            {
+                Sizes = meteors.SizeMap.ToDictionary(p => p.Key, p => weights.TryGetValue(p.Key, out var w) ? p.Value with { Weight = w } : p.Value),
+            };
+        }
+        var loot = b.Loot with { Containers = system.ContainerList };
+        if (system.LootTables is { } aliases)
+        {
+            var tables = loot.TableMap.ToDictionary(p => p.Key, p => p.Value);
+            foreach (var (type, table) in aliases) if (loot.TableMap.TryGetValue(table, out var found)) tables[type] = found;
+            loot = loot with { Tables = tables };
+        }
         if (meteors is not null && system.Meteors != 1)
         {
             meteors = system.Meteors <= 0 || meteors.MaxAlive <= 0
@@ -225,16 +246,29 @@ public sealed record Balance(
         {
             Rules = b.Rules with { Drones = system.DroneList },
             Npcs = npc with { Spawns = system.SpawnList, StationSafeRadius = system.Station ? npc.StationSafeRadius : 0 },
-            Loots = b.Loot with { Containers = system.ContainerList },
+            Loots = loot,
             MeteorSet = meteors,
             CoreRadius = npc.StationSafeRadius,
+            ShopSet = b.ShopSet?.Local(id, system.Region, b.ItemIds),
         };
     }
 
     /// <summary>Раскладка системы по правилам NPC, лута и боя: логова и контейнеры — не в укрытии станции, дроны — в мире.</summary>
-    private static string? ValidateLayout(Balance b, SystemDef system)
+    private static string? ValidateLayout(Balance b, string id, SystemDef system)
     {
-        var view = View(b, system);
+        if (system.MeteorSizes is { } weights)
+        {
+            foreach (var size in weights.Keys) if (!b.Meteors.SizeMap.ContainsKey(size)) return $"meteorSizes: unknown size '{size}'";
+        }
+        if (system.LootTables is { } aliases)
+        {
+            foreach (var (type, table) in aliases)
+            {
+                if (!b.Npc.TypeMap.ContainsKey(type)) return $"lootTables: unknown npc type '{type}'";
+                if (!b.Loot.TableMap.ContainsKey(table)) return $"lootTables: unknown loot table '{table}'";
+            }
+        }
+        var view = View(b, id, system);
         if (view.Rules.Validate(b.Hulls) is { } rules) return rules;
         var orbit = system.Station ? system.StationPath.Radius : 0;
         foreach (var drone in view.Rules.DroneList)
@@ -274,6 +308,17 @@ public sealed record Balance(
                 return false;
             }
             modules = parsedModules;
+        }
+        // Тиры Mk2/Mk3 (M11): каталоги раскрываются по множителям из shop.json до всего, что ссылается на пушки и модули.
+        if (!ShopRules.TryReadTiers(sources.Shop, out var tiers, out error))
+        {
+            error = $"{ShopFile}: {error}";
+            return false;
+        }
+        weapons = Tiers.Expand(weapons, tiers);
+        if (modules is not null)
+        {
+            modules = Tiers.Expand(modules, tiers);
             // Новый пилот обязан взлететь: стартовый комплект должен влезть в стартовый корпус.
             var hull = hulls[SimConfig.DefaultHull];
             var starter = Fitting.Refit(hull, Fitting.Starter, weapons, modules);
@@ -294,7 +339,8 @@ public sealed record Balance(
             return false;
         }
         // Лут разбирается после NPC: контейнер нельзя поставить внутрь укрытия станции, а его радиус — там.
-        if (!LootRules.TryParse(sources.Loot, out var loot, out error, npcs.StationSafeRadius))
+        var gear = weapons.Keys.Concat(modules?.Keys ?? []).ToHashSet();
+        if (!LootRules.TryParse(sources.Loot, out var loot, out error, npcs.StationSafeRadius, gear))
         {
             error = $"{LootFile}: {error}";
             return false;
@@ -320,10 +366,26 @@ public sealed record Balance(
         var parsed = new Balance(hulls, weapons, rules, npcs, loot, meteors, shop, Modules: modules);
         if (sources.Galaxy is not null)
         {
-            if (!GalaxyRules.TryParse(sources.Galaxy, (_, system) => ValidateLayout(parsed, system), out var galaxy, out error))
+            if (!GalaxyRules.TryParse(sources.Galaxy, (id, system) => ValidateLayout(parsed, id, system), out var galaxy, out error))
             {
                 error = $"{GalaxyFile}: {error}";
                 return false;
+            }
+            foreach (var region in shop.Regions?.Keys ?? [])
+            {
+                if (!galaxy.RegionMap.ContainsKey(region))
+                {
+                    error = $"{ShopFile}: regions.{region}: unknown region in {GalaxyFile}";
+                    return false;
+                }
+            }
+            foreach (var station in shop.Stations?.Keys ?? [])
+            {
+                if (galaxy.System(station) is not { Station: true })
+                {
+                    error = $"{ShopFile}: stations.{station}: no station in that system";
+                    return false;
+                }
             }
             parsed = parsed with { GalaxySet = galaxy };
         }
