@@ -510,6 +510,42 @@ public sealed class FittingRoomTests : IDisposable
         Assert.Equal((PirateState.Attack, pirate.Id), (ranger.State, ranger.TargetId));
     }
 
+    /// <summary>Плейтест: пираты и рейнджеры пролетали друг мимо друга, пока кто-то не выстрелит первым.</summary>
+    [Fact]
+    public void PirateAndRanger_AttackEachOther_OnSight()
+    {
+        var merchant = PatrolledSystem(rangers: 1, pirate: true);
+        var observer = Guest();
+        var ranger = NpcOf(observer, Protocol.RangerKind);
+        var pirate = NpcOf(observer, Protocol.PirateKind);
+        PlayerOf(observer).Ship = new ShipState { X = 3500, Y = -3500 };
+        merchant.Ship = new ShipState { X = -2500, Y = -2500 };
+        ranger.Ship = new ShipState { X = 900, Y = 500 };
+
+        Steps(5);
+
+        Assert.Equal((PirateState.Attack, ranger.Id), (pirate.State, pirate.TargetId));
+        Assert.Equal((PirateState.Attack, pirate.Id), (ranger.State, ranger.TargetId));
+    }
+
+    [Fact]
+    public void Pirate_FleesFromMuchStrongerRangers()
+    {
+        var merchant = PatrolledSystem(rangers: 3, pirate: true);
+        var observer = Guest();
+        var pirate = NpcOf(observer, Protocol.PirateKind);
+        var rangers = observer.Last<PlayersMsg>().Players.Where(p => p.Kind == Protocol.RangerKind).Select(p => (Pirate)_room.Entity(p.Id)!).ToList();
+        PlayerOf(observer).Ship = new ShipState { X = 3500, Y = -3500 };
+        merchant.Ship = new ShipState { X = -2500, Y = -2500 };
+        pirate.Ship = new ShipState { X = 1300, Y = 1300 }; // вдали от логова: есть куда отступать
+        foreach (var ranger in rangers) ranger.Ship = new ShipState { X = 1700, Y = 1700 };
+
+        Steps(5);
+
+        Assert.Equal(PirateState.Return, pirate.State);
+        Assert.All(rangers, r => Assert.Equal((PirateState.Attack, pirate.Id), (r.State, r.TargetId)));
+    }
+
     /// <summary>Плейтест: рейнджер замечал обидчика с 2500, а бросал дальше 1000 — дёргался каждый тик и не долетал.</summary>
     [Fact]
     public void Ranger_ChasesAFarOffender_WithoutDroppingIt()

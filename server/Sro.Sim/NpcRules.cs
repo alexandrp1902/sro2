@@ -95,6 +95,10 @@ public sealed record NpcLevelScaling(double Hp = 0.2, double Shield = 0.2, doubl
 /// <param name="StationSafeRadius">Укрытие вокруг станции: пираты сюда не залетают и бросают цель, которая здесь.</param>
 /// <param name="PatrolRadius">Пират патрулирует в этом радиусе вокруг логова.</param>
 /// <param name="PatrolThrottle">Тяга на патруле, 0…1.</param>
+/// <param name="OutmatchRatio">
+/// Пираты и рейнджеры бросаются друг на друга при встрече, но если сила чужой стороны рядом больше своей во столько
+/// раз — не нападают, а из боя уходят в логово. Сила стороны — суммарная прочность со щитом на суммарный урон в секунду.
+/// </param>
 public sealed record NpcRules(
     double RespawnSeconds = 20,
     double AggroRange = 700,
@@ -104,6 +108,7 @@ public sealed record NpcRules(
     double StationSafeRadius = 900,
     double PatrolRadius = 250,
     double PatrolThrottle = 0.35,
+    double OutmatchRatio = 2,
     NpcLevelScaling? LevelScaling = null,
     IReadOnlyDictionary<string, NpcType>? Types = null,
     IReadOnlyList<NpcSpawn>? Spawns = null)
@@ -147,6 +152,7 @@ public sealed record NpcRules(
         if (!(AssistRange >= 0) || !(LeashRange > 0) || !(StationSafeRadius >= 0) || !(PatrolRadius >= 0))
             return "assistRange, stationSafeRadius and patrolRadius must not be negative, leashRange must be positive";
         if (!(PatrolThrottle > 0 && PatrolThrottle <= 1)) return "patrolThrottle must be within 0..1";
+        if (!(OutmatchRatio >= 1)) return "outmatchRatio must be at least 1";
         if (Scaling.Validate() is { } scaling) return scaling;
 
         foreach (var (id, type) in TypeMap)

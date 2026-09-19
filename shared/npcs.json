@@ -7,6 +7,7 @@
   "stationSafeRadius": 900,
   "patrolRadius": 250,
   "patrolThrottle": 0.35,
+  "outmatchRatio": 2,
   "levelScaling": { "hp": 0.2, "shield": 0.2, "damage": 0.1, "accuracy": 2, "bounty": 0.5 },
   "types": {
     "pirate": {

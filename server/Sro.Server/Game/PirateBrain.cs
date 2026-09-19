@@ -3,9 +3,10 @@ using Sro.Sim;
 namespace Sro.Server.Game;
 
 /// <summary>
-/// ИИ пирата и рейнджера — конечный автомат: патруль → бой → возврат в логово (GDD §31). Пират ищет пилотов
-/// и торговцев; рейнджер — тех, кто недавно напал на торговца (offenders в <see cref="Think"/>).
-/// Пираты и рейнджеры враждуют: кто по кому выстрелил, того и бьют в ответ — и в пути, и над торговцем. Раз в тик выставляет пирату вход, огонь
+/// ИИ пирата и рейнджера — конечный автомат: патруль → бой → возврат в логово (GDD §31). Пират ищет пилотов,
+/// торговцев и рейнджеров; рейнджер — пиратов и тех, кто недавно напал на торговца (offenders в <see cref="Think"/>).
+/// Пираты и рейнджеры бросаются друг на друга, как только заметят, — если у чужой стороны рядом нет явного перевеса
+/// (<see cref="NpcRules.OutmatchRatio"/>); при перевесе не нападают, а из боя уходят. Раз в тик выставляет пирату вход, огонь
 /// и цель — ровно то, что игрок присылает с клиента; сектор, дальность и шанс проверяет Battle, как для всех.
 /// </summary>
 internal static class PirateBrain
@@ -132,10 +133,11 @@ internal static class PirateBrain
                     return;
                 }
             }
-            else if (ReturnReason(pirate, target, hull, npc, shelter, OnTheWay(pirate, tick)) is { } reason)
+            else if ((ReturnReason(pirate, target, hull, npc, shelter, OnTheWay(pirate, tick)) ??
+                      (IsOutmatched(pirate, target, pirates, balance) ? Outmatched : null)) is { } reason)
             {
                 // Подбитый налётчик не чинится дома, а бежит из системы; уходивший — уходит дальше.
-                if (pirate.IsRaider && (reason == "retreat" || Leaving(pirate, tick))) StartLeave(pirate, reason, log);
+                if (pirate.IsRaider && (reason is "retreat" or Outmatched || Leaving(pirate, tick))) StartLeave(pirate, reason, log);
                 else StartReturn(pirate, reason, log);
                 Think(pirate, ships, pirates, balance, tick, rng, log, station, offenders);
                 return;
@@ -148,7 +150,7 @@ internal static class PirateBrain
         }
 
         // Патруль: сначала — не пора ли в бой.
-        if (Acquire(pirate, attacker, ships, pirates, npc, shelter, tick, offenders) is { } found)
+        if (Acquire(pirate, attacker, ships, pirates, balance, shelter, tick, offenders) is { } found)
         {
             if (pirate.Hp <= pirate.MaxHp(hull) * pirate.RetreatHp)
             {
@@ -248,8 +250,52 @@ internal static class PirateBrain
     private static bool Wants(Pirate self, ShipEntity ship, long tick, IReadOnlyDictionary<int, long>? offenders)
     {
         if (!CanFight(self, ship, tick)) return false;
+        if (ship is Pirate) return true; // CanFight уже проверил: чужая фракция — враг с первого взгляда
         if (self.Type.IsRanger) return offenders is not null && offenders.GetValueOrDefault(ship.Id) > tick;
         return ship is Player or Trader;
+    }
+
+    private const string Outmatched = "outmatched";
+
+    /// <summary>
+    /// У чужой фракции рядом явный перевес (<see cref="NpcRules.OutmatchRatio"/>): бой с NPC этой фракции не начинать,
+    /// а начатый — бросить. Считаются NPC обеих сторон: свои — в радиусе помощи от себя, чужие — в радиусе потери цели.
+    /// Налётчик вторжения не отступает никогда; у своего логова NPC тоже держится — отступать дальше некуда.
+    /// </summary>
+    private static bool IsOutmatched(Pirate self, ShipEntity target, IReadOnlyList<Pirate> pirates, Balance balance)
+    {
+        if (target is not Pirate || self.IsInvader) return false;
+        var npc = balance.Npc;
+        if (Distance(self.Ship.X, self.Ship.Y, self.HomeX, self.HomeY) <= npc.PatrolRadius && !self.IsRaider) return false;
+        double ownHp = 0, ownDps = 0, foeHp = 0, foeDps = 0;
+        foreach (var ship in pirates)
+        {
+            if (ship.IsDead) continue;
+            var distance = Distance(self, ship);
+            if (ship.Type.IsRanger == self.Type.IsRanger)
+            {
+                if (distance > npc.AssistRange) continue;
+                ownHp += ship.Hp + ship.Shield;
+                ownDps += Dps(ship, balance);
+            }
+            else if (distance <= npc.DropRange)
+            {
+                foeHp += ship.Hp + ship.Shield;
+                foeDps += Dps(ship, balance);
+            }
+        }
+        return foeHp * foeDps > npc.OutmatchRatio * ownHp * ownDps;
+    }
+
+    /// <summary>Урон в секунду всех пушек с учётом точности — без дистанции и сектора.</summary>
+    private static double Dps(ShipEntity ship, Balance balance)
+    {
+        var dps = 0.0;
+        foreach (var weapon in ship.Weapons(balance))
+        {
+            if (weapon.Cooldown > 0) dps += weapon.Damage * weapon.Accuracy / 100 / weapon.Cooldown;
+        }
+        return dps;
     }
 
     /// <summary>Укрытие у станции в этот тик.</summary>
@@ -270,11 +316,12 @@ internal static class PirateBrain
         int attackerId,
         IReadOnlyDictionary<int, ShipEntity> ships,
         IReadOnlyList<Pirate> pirates,
-        NpcRules npc,
+        Balance balance,
         Shelter shelter,
         long tick,
         IReadOnlyDictionary<int, long>? offenders)
     {
+        var npc = balance.Npc;
         if (ships.GetValueOrDefault(attackerId) is { } attacker && IsCandidate(pirate, attacker, tick, shelter) && Distance(pirate, attacker) <= npc.DropRange)
             return attacker;
 
@@ -283,6 +330,7 @@ internal static class PirateBrain
         foreach (var ship in ships.Values)
         {
             if (!IsCandidate(pirate, ship, tick, shelter) || !Wants(pirate, ship, tick, offenders)) continue;
+            if (IsOutmatched(pirate, ship, pirates, balance)) continue; // на сильную стаю сам не лезет
             var distance = Distance(pirate, ship);
             if (distance > nearestDistance) continue;
             nearest = ship;
