@@ -74,7 +74,9 @@ internal static class PirateBrain
         if (pirate.State is PirateState.Leave or PirateState.Return &&
             ships.GetValueOrDefault(attacker) is { } foe && IsCandidate(pirate, foe, tick, shelter) && Distance(pirate, foe) <= npc.DropRange)
         {
-            if (pirate.IsRaider && pirate.LeaveAtTick == 0 && pirate.Hp > pirate.MaxHp(hull) * pirate.RetreatHp)
+            // Уходит от превосходящих сил — не разворачивается, иначе каждый тик то в бой, то снова прочь.
+            if (pirate.IsRaider && pirate.LeaveAtTick == 0 && pirate.Hp > pirate.MaxHp(hull) * pirate.RetreatHp &&
+                !IsOutmatched(pirate, foe, pirates, balance))
             {
                 pirate.State = PirateState.Attack;
                 pirate.TargetId = foe.Id;
