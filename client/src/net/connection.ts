@@ -5,6 +5,7 @@ import {
   type BountyMsg,
   type CargoMsg,
   type MarketMsg,
+  type ShopMsg,
   type DemandMsg,
   type ClientMessage,
   type DeniedCode,
@@ -80,6 +81,9 @@ export class Connection {
   onCargo: ((message: CargoMsg) => void) | null = null;
   /** Живые цены станции (M12) — приходят, только пока пилот в доке. */
   onMarket: ((message: MarketMsg) => void) | null = null;
+
+  /** Витрина места (M15.6): приходит при стыковке и при правке баланса. */
+  onShop: ((message: ShopMsg) => void) | null = null;
   onDemand: ((message: DemandMsg) => void) | null = null;
   /** Репутация пилота (M13): полное состояние, а при изменении — ещё и его повод. */
   onRep: ((message: RepMsg) => void) | null = null;
@@ -296,6 +300,9 @@ export class Connection {
         break;
       case 'market':
         this.onMarket?.(message);
+        break;
+      case 'shop':
+        this.onShop?.(message);
         break;
       case 'demand':
         this.onDemand?.(message);

@@ -188,6 +188,7 @@ public sealed record PvpMsg(bool On) : ClientMessage;
 [JsonDerivedType(typeof(BountyMsg), "bounty")]
 [JsonDerivedType(typeof(InvasionMsg), "invasion")]
 [JsonDerivedType(typeof(MarketMsg), "market")]
+[JsonDerivedType(typeof(ShopMsg), "shop")]
 [JsonDerivedType(typeof(RepMsg), "rep")]
 public abstract record ServerMessage;
 
@@ -446,6 +447,14 @@ public sealed record MarketMsg(
     IReadOnlyList<RumourDto>? Rumours = null,
     MarketStation? Station = null,
     DemandQuoteDto? Demand = null) : ServerMessage;
+
+/// <summary>
+/// Витрина места, где стоит корабль (M15.6), — только тому, кто в доке. В welcome едет магазин главного
+/// места системы, поэтому на поселении клиент без этого показывал бы ассортимент, цены и подпись
+/// орбитальной станции, а сервер считал бы по здешним. Тот же приём, что у <see cref="MarketMsg"/>.
+/// Шлётся по событию — стыковка и правка баланса: сам по себе ассортимент места не меняется.
+/// </summary>
+public sealed record ShopMsg(string Place, ShopRules Shop) : ServerMessage;
 
 /// <summary>
 /// Спрос события на этом месте (M15.5). Множитель — уже посчитанный скаляр: клиент считает цену той же

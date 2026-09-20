@@ -143,6 +143,16 @@ public sealed partial class Room
         foreach (var player in DockedPlayers()) SendMarket(player);
     }
 
+    /// <summary>
+    /// Витрина места — только тому, кто в доке (M15.6). В welcome едет магазин главного места системы,
+    /// и на поселении он врёт: ассортимент, цены и подпись там свои.
+    /// </summary>
+    private void SendShop(Player player)
+    {
+        if (player.Connection is null || PlaceOf(player) is not { } place) return;
+        player.Connection.Send(new ShopMsg(place.Key, Balance.ShopAt(place.Key)));
+    }
+
     /// <summary>Цены — только тому, кто в доке: рынок у каждого места свой.</summary>
     private void SendMarket(Player player)
     {

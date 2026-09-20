@@ -63,7 +63,7 @@ export type OfferState =
   | 'poor'
   /** Продаётся, но только своим: не хватает репутации места (M13). */
   | 'locked'
-  /** Не продаётся. */
+  /** Не продаётся. Такую строку с M15.6 не рисуют вовсе — ни у корпусов, ни у снаряжения. */
   | 'none';
 
 export function offerState(
@@ -315,6 +315,8 @@ export class DockScreen {
   private cargo: CargoState | null = null;
   private loot: LootRules | null = null;
   private shop: ShopRules = NO_SHOP;
+  /** Витрина из welcome — главного места системы: к ней возвращаемся, выйдя из дока (M15.6). */
+  private welcomeShop: ShopRules = NO_SHOP;
   /** Заголовок экрана: «Станция Vega», «Поселение «Терра»». */
   private station = 'Станция';
   /** Голое имя места без слова «станция» — им подписываются задания и репутация. */
@@ -373,7 +375,8 @@ export class DockScreen {
     reputation?: ReputationRules | null,
   ): void {
     this.loot = loot ?? null;
-    this.shop = shop ?? NO_SHOP;
+    this.welcomeShop = shop ?? NO_SHOP;
+    this.shop = this.welcomeShop;
     this.market = market ?? NO_MARKET;
     this.repRules = reputation ?? NO_REP;
     this.render();
@@ -386,6 +389,15 @@ export class DockScreen {
       this.repLog.unshift(rep.change);
       if (this.repLog.length > REP_LOG_MAX) this.repLog.length = REP_LOG_MAX;
     }
+    this.render();
+  }
+
+  /**
+   * Витрина места, где стоим (M15.6): ассортимент, цены и подпись здешние, а не главного места системы.
+   * null — вернуться к витрине из welcome: так бывает при вылете, пока не пристыковались снова.
+   */
+  setShop(shop: ShopRules | null): void {
+    this.shop = shop ?? this.welcomeShop;
     this.render();
   }
 
@@ -743,8 +755,10 @@ export class DockScreen {
 
     // «Продать всё» — первым делом: с полным трюмом в док заходят чаще, чем за покупками.
     // Считает по здешним ценам и не трогает то, чего тут не берут.
+    // Одна строка — тоже повод: пилот с полным трюмом одного минерала заходит в док чаще всех,
+    // и жать «Продать» по одной строке ему было незачем.
     const sellable = rows.filter((r) => r.maxSell > 0 && r.quote);
-    if (sellable.length > 1) {
+    if (sellable.length > 0) {
       let total = 0;
       for (const r of sellable) {
         total += tradeCost(this.local, r.id, lootItem(rules, r.id)?.price ?? 0, r.quote!.stock, r.have, false);
@@ -887,7 +901,8 @@ export class DockScreen {
   }
 
   private renderHulls(body: HTMLElement, hangar: HangarMsg, credits: number): void {
-    if (this.modules.enabled) body.append(el('div', 'dock-note', 'Щит, радар, бак и двигатель — модули: они переходят на новый корпус'));
+    if (this.modules.enabled) body.append(el('div', 'dock-note', 'Щит, радар и двигатель — модули: они переходят на новый корпус'));
+    let shown = 0;
     for (const id of this.hulls.ids()) {
       const hull = this.hulls.get(id);
       const slots = hullSlots(hull).join(' ');
@@ -900,9 +915,15 @@ export class DockScreen {
       const listed = sells(this.shop, id, this.shop.hulls) ? price(this.shop.hulls, id) : null;
       const cost = listed === null ? null : this.repCost(listed);
       const state = offerState(hangar.hulls.includes(id), id === hangar.hull, cost, credits, !this.repAllows(id, true));
+      // Чего здесь не продают, того здесь и нет (M15.6): строка «Здесь нет» была длинным списком
+      // недоступного, в котором тонуло доступное. Свои корпуса и закрытые репутацией остаются:
+      // первые уже куплены, вторые — цель, а не шум.
+      if (state === 'none') continue;
+      shown++;
       const name = hull.role ? `${hull.name} — ${hull.role}` : hull.name;
       body.append(this.offer(id, name, stats, state));
     }
+    if (shown === 0) body.append(el('div', 'dock-empty', 'Здесь корпуса не продают — только чинят и меняют на свои.'));
   }
 
   /**
@@ -1080,9 +1101,6 @@ export class DockScreen {
       }
       case 'locked':
         row.append(el('div', 'dock-tag', repGateNote(this.repRules, this.rep?.here?.level, id, true) ?? 'Только для своих'));
-        break;
-      case 'none':
-        row.append(el('div', 'dock-tag', 'Здесь нет'));
         break;
     }
     return row;

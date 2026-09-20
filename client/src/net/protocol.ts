@@ -580,6 +580,16 @@ export interface MarketMsg {
   demand?: DemandQuoteDto | null;
 }
 
+/**
+ * Витрина места, где стоит корабль (M15.6) — только тому, кто в доке. В welcome едет магазин главного
+ * места системы, и на поселении он врёт: ассортимент, цены и подпись там свои.
+ */
+export interface ShopMsg {
+  t: 'shop';
+  place: string;
+  shop: ShopRules;
+}
+
 /** Спрос события на этом месте (M15.5): что просят, во сколько раз дороже и сколько ещё примут. */
 export interface DemandQuoteDto {
   case: string;
@@ -850,5 +860,6 @@ export type ServerMessage =
   | BountyMsg
   | InvasionMsg
   | MarketMsg
+  | ShopMsg
   | DemandMsg
   | RepMsg;

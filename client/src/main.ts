@@ -818,6 +818,8 @@ async function main(): Promise<void> {
     };
     // Живые цены станции (M12): приходят, пока пилот в доке, и после каждой сделки.
     connection.onMarket = (message) => dockScreen.setMarket(message);
+    // Витрина места (M15.6): приходит при стыковке — в welcome едет магазин главного места системы.
+    connection.onShop = (message) => dockScreen.setShop(message.shop);
     connection.onRep = (message) => {
       repState = message;
       dockScreen.setRep(message);
@@ -854,6 +856,7 @@ async function main(): Promise<void> {
         prediction.resetNet();
         landing.stop(); // взлетели, не досмотрев спуск
         dockScreen.setMarket(null); // цены того места больше не наши: в следующем они свои
+        dockScreen.setShop(null); // и витрина тоже: до следующей стыковки живём той, что в welcome
       }
     };
     connection.onMissions = (message) => {

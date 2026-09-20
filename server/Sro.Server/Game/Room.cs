@@ -790,7 +790,11 @@ public sealed partial class Room
             SendCargo(player); // объёмы предметов и ёмкость корпуса могли измениться
             SendHangar(player); // корпус, пушку или модуль могли убрать из баланса
             SendMissions(player); // шаги обучения и шаблоны доски
-            if (player.Docked) SendMarket(player); // цены станции могли поехать вместе с профилем
+            if (player.Docked)
+            {
+                SendShop(player);  // ассортимент и цены места могли поехать вместе с балансом
+                SendMarket(player); // цены станции могли поехать вместе с профилем
+            }
             player.Rep.Scrub(balance.Galaxy); // системы могли пропасть из галактики — их очки больше ни к чему
             SendRep(player); // ступени, цены и гейт могли уехать вместе с reputation.json
         }
@@ -1859,6 +1863,7 @@ public sealed partial class Room
             _log.LogInformation("Player {Id} docked at {Place} in {System}", player.Id, target.Key, SystemId);
             // Груз доставки сдаётся сам, стоит пристыковаться к нужной станции.
             MakeRumours(player); // что здесь рассказывают — услышано один раз, на входе
+            SendShop(player);   // витрина места: в поселении она не та, что на орбитальной станции
             SendMarket(player); // цены места нужны сразу: с ними открывается вкладка рынка
             SendRep(player); // и отношение: от него цены на витрине и что вообще выложат
             // Доска — тоже дело места (M15). До планет она была одна на систему и на стыковке не менялась;
