@@ -230,4 +230,43 @@ public class MissionRulesTests
             json, balance.Npc.TypeMap, balance.Loot.ItemMap, balance.Meteors.SizeMap, out _, out var error));
         Assert.StartsWith(problem, error);
     }
+
+    [Fact]
+    public void Defend_IsOfferedBySettlementsOnly()
+    {
+        // Оборону поселения предлагает само поселение: станцию обороняют вторжения (M10), а это работа планеты.
+        var balance = Shared();
+        var stations = 0;
+        var settlements = 0;
+        foreach (var place in balance.Galaxy.PlaceKeys)
+        {
+            var seen = false;
+            for (var seed = 0; seed < 60; seed++)
+            {
+                foreach (var offer in balance.Missions.Board(balance, place, seed))
+                {
+                    if (offer.Kind != MissionRules.DefendKind) continue;
+                    seen = true;
+                    // Обороняют то самое место, где взяли работу, и в своей же системе.
+                    Assert.Equal(place, offer.From);
+                    Assert.Equal(place, offer.Place);
+                    Assert.Equal(balance.Galaxy.SystemOfPlace(place), offer.System);
+                    Assert.True(offer.Count >= 1);
+                    Assert.True(offer.Radius > 0);
+                }
+            }
+            if (PlaceKey.Split(place).Kind == PlaceKey.PlanetKind)
+            {
+                Assert.True(seen, $"{place}: поселение обязано предлагать оборону");
+                settlements++;
+            }
+            else
+            {
+                Assert.False(seen, $"{place}: станция оборону предлагать не должна");
+                stations++;
+            }
+        }
+        Assert.Equal(10, settlements);
+        Assert.Equal(8, stations);
+    }
 }

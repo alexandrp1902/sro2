@@ -3,7 +3,7 @@
 // Нужен запущенный сервер и Node 24 (встроенный WebSocket). Идёт ~40 с.
 //   node tools/smoke-reputation.mjs [ws://localhost:5000/ws]
 
-import { openSocket, stationAt } from './wire.mjs';
+import { PROTOCOL_VERSION, openSocket, stationAt } from './wire.mjs';
 
 const url = process.argv[2] ?? 'ws://localhost:5000/ws';
 const INPUT_INTERVAL_MS = 50;
@@ -135,7 +135,7 @@ async function main() {
   const a = new Client(`Smoke-Rep-${RUN}`);
   await a.connect();
 
-  check(`the protocol is 18: ${a.welcome.version}`, a.welcome.version === 18);
+  check(`the protocol matches the client: ${a.welcome.version}`, a.welcome.version === PROTOCOL_VERSION);
   const rules = a.welcome.reputation;
   const levels = rules?.levels ?? [];
   check(`welcome carries reputation.json: ${levels.length} levels`, levels.length >= 3);
