@@ -64,8 +64,9 @@ public sealed partial class Room
     }
 
     /// <summary>
-    /// О чём здесь судачат. Считается один раз, на стыковке: слух — это то, что пилот услышал,
-    /// а не строка, которая переписывается после каждой его же сделки.
+    /// О чём здесь судачат. Торговец рассказывает одну историю — ту, что выгоднее прочих: список из трёх
+    /// читался как прайс-лист, а не как разговор. Считается один раз, на стыковке: слух — это то, что пилот
+    /// услышал, а не строка, которая переписывается после каждой его же сделки.
     /// </summary>
     private void MakeRumours(Player player)
     {
@@ -74,7 +75,7 @@ public sealed partial class Room
         if (!market.Any || _host is null) return;
         var here = new StationPrices(SystemId, Balance.SystemDef.Name, 0, Prices());
         if (here.Prices.Count == 0) return;
-        player.Rumours = Rumours.Pick(here, _host.MarketsExcept(SystemId));
+        player.Rumours = Rumours.Pick(here, _host.MarketsExcept(SystemId), count: 1);
     }
 
     /// <summary>Цены изменились — обновить их у всех, кто сейчас в доке. В космосе рынок не нужен.</summary>

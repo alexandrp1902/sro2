@@ -358,7 +358,7 @@ export class DockScreen {
     if (scene.who) {
       const caption = el('div', 'dock-scene-caption');
       // Торговец вместо приветствия рассказывает, что слышал: подсказка ценнее вежливости.
-      const line = this.tab === 'cargo' ? (this.rumours()[0] ?? scene.line) : scene.line;
+      const line = this.tab === 'cargo' ? (this.rumour() ?? scene.line) : scene.line;
       caption.append(el('div', 'dock-scene-who', scene.who), el('div', 'dock-scene-line', line));
       view.append(caption);
     }
@@ -436,11 +436,12 @@ export class DockScreen {
     });
   }
 
-  /** Что рассказывает здешний торговец — готовыми строками. */
-  private rumours(): string[] {
+  /** Одна история здешнего торговца, готовой строкой; null — рассказывать нечего. */
+  private rumour(): string | null {
     const rules = this.loot;
-    if (!rules) return [];
-    return (this.quotes?.rumours ?? []).map((r) => rumourLine(r, lootItem(rules, r.good)?.name ?? r.good));
+    const first = this.quotes?.rumours?.[0];
+    if (!rules || !first) return null;
+    return rumourLine(first, lootItem(rules, first.good)?.name ?? first.good);
   }
 
   /** Станция продаёт этот товар: покупают у неё только то, что она делает сама. */
@@ -466,15 +467,10 @@ export class DockScreen {
       body.append(el('div', 'dock-empty', 'Трюм пуст, и торговать здесь нечем. Груз добывают с пиратов, метеоритов и из контейнеров.'));
       return;
     }
-    // Слухи торговца: подсказка, что взять и куда везти. Сцену на телефоне прячет CSS, поэтому
-    // здесь они тоже нужны — иначе на телефоне подсказок не будет совсем.
-    const rumours = this.rumours();
-    if (rumours.length > 0) {
-      const box = el('div', 'dock-rumours');
-      box.append(el('div', 'dock-rumours-head', 'Торговец рассказывает'));
-      for (const line of rumours) box.append(el('div', 'dock-rumour', line));
-      body.append(box);
-    }
+    // Та же реплика торговца, что стоит под его картинкой, — для телефона, где сцены нет совсем.
+    // На широком экране её прячет CSS тем же брейкпоинтом, которым показывает сцену: дважды не повторяем.
+    const rumour = this.rumour();
+    if (rumour) body.append(el('div', 'dock-rumour', rumour));
 
     // «Продать всё» — первым делом: с полным трюмом в док заходят чаще, чем за покупками.
     // Считает по здешним ценам и не трогает то, чего тут не берут.

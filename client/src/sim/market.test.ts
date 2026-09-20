@@ -151,15 +151,33 @@ describe('эталоны рынка совпадают с сервером', () 
 });
 
 describe('слухи торговца', () => {
-  it('маршрут: куда везти и сколько с этого', () => {
+  it('маршрут: куда и за чем', () => {
     const line = rumourLine(
       { kind: 'route', good: 'food', system: 'aldebaran', name: 'Альдебаран', hops: 3, price: 64, profit: 41 },
       'Продовольствие',
     );
     expect(line).toContain('Альдебаран');
-    expect(line).toContain('в трёх прыжках');
-    expect(line).toContain('64 кр');
-    expect(line).toContain('41 кр с штуки');
+    expect(line.toLowerCase()).toContain('продовольствие');
+  });
+
+  it('про расстояние молчит: прыжки игрок посчитает по карте', () => {
+    const line = rumourLine(
+      { kind: 'route', good: 'food', system: 'aldebaran', name: 'Альдебаран', hops: 3, price: 64, profit: 41 },
+      'Продовольствие',
+    );
+    expect(line).not.toContain('прыж');
+  });
+
+  it('торговец не называет цен: ни числа, ни кредитов', () => {
+    const lines = [
+      rumourLine({ kind: 'route', good: 'food', system: 'a', name: 'Альдебаран', hops: 3, price: 64, profit: 41 }, 'Продовольствие'),
+      rumourLine({ kind: 'route', good: 'medicine', system: 'e', name: 'Эпсилон', hops: 2, price: 120, scarce: true }, 'Медикаменты'),
+      rumourLine({ kind: 'glut', good: 'ore', system: 'c', name: 'Кастор', hops: 2, price: 5 }, 'Руда'),
+    ];
+    for (const line of lines) {
+      expect(line).not.toMatch(/\d/);
+      expect(line).not.toContain('кр');
+    }
   });
 
   it('дефицит объясняется по-человечески, а не числом', () => {
@@ -184,16 +202,22 @@ describe('слухи торговца', () => {
     expect(line).toContain('Nova');
   });
 
+  it('товар ставится в винительный падеж', () => {
+    const line = rumourLine({ kind: 'glut', good: 'ore', system: 'c', name: 'Кастор', hops: 1, price: 5 }, 'Руда');
+    expect(line).toContain('руду');
+    expect(line).not.toContain('руда');
+  });
+
   it('завал: где взять дёшево', () => {
     const line = rumourLine({ kind: 'glut', good: 'ore', system: 'castor', name: 'Кастор', hops: 2, price: 5 }, 'Руда');
-    expect(line).toContain('завал');
     expect(line).toContain('Кастор');
-    expect(line).toContain('5 кр');
+    expect(line).toContain('даром');
+    expect(line).toContain('порожняком');
   });
 
   it('незнакомый товар не ломает строку', () => {
     const line = rumourLine({ kind: 'route', good: 'ghost', system: 'x', name: 'X', hops: 7, price: 10, scarce: true }, 'Нечто');
-    expect(line).toContain('в 7 прыжках');
-    expect(line).toContain('Нечто'.toLowerCase());
+    expect(line).toContain('X');
+    expect(line.toLowerCase()).toContain('нечто');
   });
 });

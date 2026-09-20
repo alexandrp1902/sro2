@@ -213,24 +213,44 @@ const SCARCITY: Record<string, string> = {
   tech: 'их плазменные узлы на ладан дышат',
 };
 
-const JUMPS = ['здесь же', 'в одном прыжке', 'в двух прыжках', 'в трёх прыжках', 'в четырёх прыжках', 'в пяти прыжках'];
+/**
+ * Как товар называют в винительном падеже: «берут руду», а не «берут руда». Совпадающие с именительным
+ * формы не перечисляем — их даёт запасной вариант. Заодно пара товаров звучит в торговой речи во
+ * множественном: возят не «энергоблок», а энергоблоки.
+ */
+const GOODS_ACC: Record<string, string> = {
+  ore: 'руду',
+  energy: 'энергоблоки',
+  tech: 'плазменные компоненты',
+};
 
-function jumps(hops: number): string {
-  return JUMPS[hops] ?? `в ${hops} прыжках`;
+/** Товар в винительном падеже, с маленькой буквы; незнакомый — как прислали. */
+function acc(rumour: RumourDto, good: string): string {
+  return GOODS_ACC[rumour.good] ?? good.toLowerCase();
+}
+
+function capitalize(text: string): string {
+  return text.charAt(0).toUpperCase() + text.slice(1);
 }
 
 /**
- * Что говорит торговец. Слух — это подсказка: «возьмите здесь X и везите в Y».
+ * Что говорит торговец — одна короткая история, а не строка прайса. Цену, выгоду и расстояние сервер
+ * считает (RumourDto.price, profit, hops) и по ним же выбирает, о чём рассказать, но вслух их не
+ * произносят: слух остаётся правдивым — система и товар названы верно, — а сколько туда прыжков и
+ * почём там берут, пилот посмотрит сам, по карте и на месте.
+ *
+ * Название системы стоит первым и в именительном падеже («Кастор — там…»): склонять его пришлось бы
+ * по-разному для «Кастора» и для «Vega», а так фраза цела с любым именем.
+ *
  * @param good название товара из loot.json
  */
 export function rumourLine(rumour: RumourDto, good: string): string {
-  const where = `${rumour.name} (${jumps(rumour.hops)})`;
+  const what = acc(rumour, good);
   if (rumour.kind === 'glut') {
-    return `В ${where} завал: ${good.toLowerCase()} отдают по ${rumour.price} кр. Сходить бы туда порожняком.`;
+    return `${rumour.name} — там ${what} отдают почти даром, девать некуда. Сходить бы туда порожняком.`;
   }
   const why = rumour.scarce ? SCARCITY[rumour.good] : null;
-  const profit = rumour.profit ? `, это ${rumour.profit} кр с штуки` : '';
   return why
-    ? `Говорят, ${why}: в ${where} за ${good.toLowerCase()} дают ${rumour.price} кр${profit}. Берите здесь и везите.`
-    : `В ${where} за ${good.toLowerCase()} дают ${rumour.price} кр${profit} — берите здесь и везите туда.`;
+    ? `${rumour.name} — ${why}. ${capitalize(what)} с руками оторвут.`
+    : `${rumour.name} — там хорошо берут ${what}.`;
 }

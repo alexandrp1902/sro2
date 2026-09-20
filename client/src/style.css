@@ -941,6 +941,11 @@ body {
     margin-top: 4px;
     font-size: 15px;
   }
+
+  /* Историю торговца говорит подпись под картинкой — над списком товаров она была бы вторым разом. */
+  .dock-rumour {
+    display: none;
+  }
 }
 
 .dock-head {
@@ -1109,25 +1114,15 @@ body {
   font-weight: 600;
 }
 
-/* Слухи торговца (M12): подсказки, что взять и куда везти. */
-.dock-rumours {
-  margin: 2px 0 10px;
-  padding: 8px 10px;
-  border-left: 3px solid #4a9be0;
-  border-radius: 8px;
-  background: rgba(74, 155, 224, 0.08);
-}
-
-.dock-rumours-head {
-  margin-bottom: 3px;
-  color: #7f97b8;
-  font-size: 12px;
-}
-
+/*
+ * Реплика торговца (M12) на телефоне: сцены с его картинкой здесь нет, а история нужна.
+ * На ПК ту же строку показывает подпись под картинкой, поэтому там эта скрыта (см. медиазапрос сцены).
+ */
 .dock-rumour {
-  margin: 3px 0;
+  margin: 2px 0 10px;
   color: #cfe0f5;
   font-size: 13px;
+  font-style: italic;
   line-height: 1.4;
 }
 
