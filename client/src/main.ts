@@ -31,6 +31,7 @@ import { loadSprites, moduleSprite, weaponSprite } from './render/sprites';
 import { Starfield } from './render/starfield';
 import { WeaponArc } from './render/weaponArc';
 import { GATE_SIZE, SystemView, type PlanetInfo } from './render/world';
+import { Landing } from './ui/landing';
 import { DEFAULT_SECTOR_UNIT, assessBest, cooldownTicks, evasion, longestRange } from './sim/combat';
 import { Modules, effectiveHull, fitWeapons, tierOf, type ShipFit } from './sim/fitting';
 import { describeSystem, gateIndex, gateMarkId, pvpName } from './sim/galaxy';
@@ -304,6 +305,10 @@ async function main(): Promise<void> {
   };
   /** Свой корабль готовит гиперпрыжок. */
   const jumping = () => (ownDto?.j ?? 0) > 0;
+  const landing = new Landing();
+  /** Вид планеты по ключу её поселения: по нему выбирается кадр снижения. */
+  const planetKindOf = (key: string): string | null =>
+    system?.planets.find((p) => p.id && `pl:${p.id}` === key)?.kind ?? null;
   const cargoHud = new CargoHud(el('cargo'), el('loot'), () => {
     setLoot(0);
     setMark(0);
@@ -780,6 +785,8 @@ async function main(): Promise<void> {
       dockScreen.setPlace(message.place); // где именно стоим: от этого заголовок, фон и вкладки (M15)
       dockScreen.setHangar(message);
       if (docked && !was) {
+        // Посадка — это спуск, а не стыковка: показываем проход сквозь атмосферу поверх экрана поселения.
+        if (message.place?.kind === 'pl') landing.show(planetKindOf(message.place.key));
         // В доке не целятся и не стреляют; после вылета корабль не рванёт с места сам.
         setTarget(0);
         setLoot(0);
@@ -791,7 +798,8 @@ async function main(): Promise<void> {
       // Вылет: сервер начал буфер входов заново — и мы нумеруем их с 1, первый снапшот принимаем как есть.
       if (!docked && was) {
         prediction.resetNet();
-        dockScreen.setMarket(null); // цены той станции больше не наши: на следующей они свои
+        landing.stop(); // взлетели, не досмотрев спуск
+        dockScreen.setMarket(null); // цены того места больше не наши: в следующем они свои
       }
     };
     connection.onMissions = (message) => {

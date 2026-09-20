@@ -2098,3 +2098,58 @@ body {
   font-size: 12px;
   font-weight: 400;
 }
+
+/*
+ * Снижение на планету (M15): полноэкранный кадр из кабины, который проступает и растворяется,
+ * пока за ним открывается экран поселения. Кадр нарисован пока только для земных планет —
+ * без него остаётся то же затемнение, и посадка всё равно читается как спуск, а не как стыковка.
+ */
+.landing {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  pointer-events: none;
+  background-color: #05080f;
+  background-image: var(--landing-art, none);
+  background-size: cover;
+  background-position: center;
+  opacity: 0;
+}
+
+.landing-run {
+  animation: landing-pass 1400ms ease-out forwards;
+}
+
+@keyframes landing-pass {
+  0% {
+    opacity: 0;
+    transform: scale(1.06);
+  }
+  18% {
+    opacity: 1;
+  }
+  64% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1);
+  }
+}
+
+/* Кому важнее покой, чем спуск: кадр просто мигает и уходит. */
+@media (prefers-reduced-motion: reduce) {
+  .landing-run {
+    animation: landing-quiet 500ms ease-out forwards;
+  }
+
+  @keyframes landing-quiet {
+    0% {
+      opacity: 0.9;
+    }
+    100% {
+      opacity: 0;
+    }
+  }
+}
