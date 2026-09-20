@@ -41,6 +41,16 @@ public sealed class Market
     }
 
     /// <summary>
+    /// Обрушить запас товара до доли нормы (M15.5): событие спроса должно быть видно в ценах сразу,
+    /// а не через полчаса подвоза. Норма здесь уже событийная — товар на срок события стал «скупаемым».
+    /// </summary>
+    public void Crash(MarketRules rules, string good, double share)
+    {
+        if (!rules.Any || !rules.Trades(good)) return;
+        _stock[good] = Math.Max(0, rules.Norm(good) * Math.Clamp(share, 0, 1));
+    }
+
+    /// <summary>
     /// Баланс поправили на диске. Сохраняется не абсолютный запас, а его отклонение от нормы: иначе правка
     /// baseline телепортировала бы цены посреди игры. Так же, как пилотам сохраняются доли корпуса и щита.
     /// </summary>

@@ -21,6 +21,23 @@ public sealed record MarketStation(IReadOnlyList<string>? Produces = null, IRead
     [JsonIgnore] public IReadOnlyList<string> ConsumeList => Consumes ?? [];
 }
 
+/// <summary>
+/// Спрос события (M15.5): во сколько раз здесь и сейчас дороже названные товары.
+///
+/// Множитель — уже посчитанный скаляр на момент запроса, и внутри одной сделки он не меняется:
+/// иначе клиент, считающий цену кнопками той же формулой, никогда не сошёлся бы с сервером.
+/// По мере наполнения квоты он тает, и следующая рассылка рынка привезёт новый.
+/// </summary>
+/// <param name="Goods">Что просят; остальных товаров событие не касается.</param>
+/// <param name="Mul">Во сколько раз дороже обычного — и цена, и потолок.</param>
+public sealed record MarketDemand(IReadOnlyList<string>? Goods = null, double Mul = 1)
+{
+    [JsonIgnore] public IReadOnlyList<string> GoodList => Goods ?? [];
+
+    /// <summary>Этот товар просят.</summary>
+    public bool Wants(string good) => Mul > 1 && GoodList.Contains(good);
+}
+
 /// <summary>Роль товара на этой станции — от неё и уровень цены, и размер склада.</summary>
 public enum MarketRole
 {
@@ -54,6 +71,7 @@ public enum MarketRole
 /// <param name="Places">Профили мест по ключу места (M15): «st:sol», «pl:terra».</param>
 /// <param name="Station">Рынок одного места (<see cref="Local"/>): его профиль; null — рынка здесь нет.</param>
 /// <param name="Region">Рынок одной системы: её регион — по нему смотрят, что тут вне закона.</param>
+/// <param name="Demand">Спрос события (M15.5); null — событий здесь нет, цена обычная.</param>
 public sealed record MarketRules(
     double Spread = 0.18,
     double Elasticity = 0.6,
@@ -73,7 +91,8 @@ public sealed record MarketRules(
     IReadOnlyDictionary<string, MarketGood>? Goods = null,
     IReadOnlyDictionary<string, MarketStation>? Places = null,
     MarketStation? Station = null,
-    string? Region = null)
+    string? Region = null,
+    MarketDemand? Demand = null)
 {
     public const string File = "market.json";
 
@@ -147,8 +166,11 @@ public sealed record MarketRules(
         var norm = Norm(good);
         if (!(norm > 0) || !(basePrice > 0)) return basePrice;
         var floor = Math.Max(stock, StockFloor * norm);
-        var mid = basePrice * Level(good) * Math.Pow(norm / floor, Elasticity);
-        return Math.Clamp(mid, basePrice * MinFactor, basePrice * MaxFactor);
+        // Событие спроса (M15.5) поднимает и цену, и потолок: без второго зажим в MaxFactor
+        // съел бы весь множитель — ×4.5 превратилось бы в ×2.2, и событие потеряло бы смысл.
+        var boost = Demand?.Wants(good) == true ? Demand.Mul : 1;
+        var mid = basePrice * Level(good) * Math.Pow(norm / floor, Elasticity) * boost;
+        return Math.Clamp(mid, basePrice * MinFactor, basePrice * MaxFactor * boost);
     }
 
     /// <summary>Сколько пилот платит станции за штуку.</summary>
@@ -221,6 +243,9 @@ public sealed record MarketRules(
     /// </summary>
     public MarketRules Local(string placeKey, string? region) =>
         this with { Station = Places?.GetValueOrDefault(placeKey), Region = region };
+
+    /// <summary>Тот же рынок, но со спросом события (M15.5); null — событие кончилось или оно не здесь.</summary>
+    public MarketRules With(MarketDemand? demand) => demand is null ? this : this with { Demand = demand };
 
     /// <param name="items">Груз из loot.json: каждый торгуемый товар должен быть там.</param>
     /// <param name="hasPlace">Есть ли в галактике место с таким ключом; null — галактика ещё не разобрана.</param>

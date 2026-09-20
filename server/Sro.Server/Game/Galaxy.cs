@@ -32,6 +32,9 @@ public interface IRoomHost
     /// <summary>Пилот нанёс урон пиратам вторжения id (GDD §38).</summary>
     void Contributed(Player player, int invasionId, double damage);
 
+    /// <summary>Квота события спроса выбрана (M15.5): событие пора закрывать досрочно.</summary>
+    void DemandFilled(Room room);
+
     /// <summary>
     /// Цены станций остальных систем (M12): по ним торговец в доке рассказывает, где что берут.
     /// Читается с потока тика, как и всё остальное, — комнаты живут в одном потоке.
@@ -55,6 +58,7 @@ public sealed class Galaxy : IRoomHost
     private readonly double[] _stepMs;
     private readonly PartyBook _parties = new();
     private readonly InvasionDirector _invasion;
+    private readonly DemandDirector _demand;
     private int _nextId;
     private int _lastTotal;
 
@@ -81,6 +85,7 @@ public sealed class Galaxy : IRoomHost
         }
         _stepMs = new double[_rooms.Count];
         _invasion = new InvasionDirector(log, random?.Invoke(seed++));
+        _demand = new DemandDirector(log, random?.Invoke(seed++));
     }
 
     /// <summary>Группы галактики.</summary>
@@ -88,6 +93,9 @@ public sealed class Galaxy : IRoomHost
 
     /// <summary>Вторжения пиратов.</summary>
     public InvasionDirector Invasion => _invasion;
+
+    /// <summary>События спроса (M15.5).</summary>
+    public DemandDirector Demand => _demand;
 
     public Balance Balance { get; private set; }
 
@@ -138,6 +146,7 @@ public sealed class Galaxy : IRoomHost
     {
         if (room.PlayerOf(connection) is not { } player) return;
         _invasion.SendTo(player, this);
+        _demand.SendTo(player, this);
         if (_parties.PartyOf(player.Id) is { } party) SendParty(party);
     }
 
@@ -164,6 +173,7 @@ public sealed class Galaxy : IRoomHost
             if (_departures.Count > 0) Transfer();
         }
         _invasion.Step(this, Tick);
+        _demand.Step(this, Tick);
         StepParties();
 
         // «Онлайн» в статусе — по всей галактике: вошли в одной системе — узнают и в остальных.
@@ -206,6 +216,8 @@ public sealed class Galaxy : IRoomHost
     public void Gone(Player player) => LeaveParty(player.Id, player.Name);
 
     public void Contributed(Player player, int invasionId, double damage) => _invasion.Contributed(player, invasionId, damage);
+
+    public void DemandFilled(Room room) => _demand.Filled(this, room);
 
     /// <summary>Цены мест остальных систем — торговцу в доке на слухи (M12, по местам — M15).</summary>
     public IReadOnlyList<StationPrices> MarketsExcept(string system)

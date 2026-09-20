@@ -1,5 +1,6 @@
 import type {
   BuyKind,
+  DemandQuoteDto,
   HangarMsg,
   MarketItemDto,
   MarketMsg,
@@ -190,6 +191,20 @@ export interface MarketRow {
  * Сколько штук можно купить: меньшее из склада станции, места в трюме и того, что по карману.
  * Цена растёт по ходу сделки, поэтому кошелёк считается тем же шагом, что и сама покупка.
  */
+/**
+ * Строка события спроса над рынком (M15.5); null — здесь его нет.
+ * Чистая: её и проверяют тесты — в клиенте они идут без DOM.
+ */
+export function demandLine(
+  demand: DemandQuoteDto | null | undefined,
+  name: (good: string) => string,
+): string | null {
+  if (!demand || demand.goods.length === 0) return null;
+  const goods = demand.goods.map(name).join(' и ');
+  const mul = demand.mul >= 10 ? Math.round(demand.mul) : Math.round(demand.mul * 10) / 10;
+  return `${demand.title}: берут ${goods} по ×${mul} — осталось ${demand.left} из ${demand.quota}`;
+}
+
 export function maxBuyable(
   market: MarketRules,
   loot: LootRules,
@@ -379,6 +394,21 @@ export class DockScreen {
   setMarket(market: MarketMsg | null): void {
     this.quotes = market;
     this.render();
+  }
+
+  /**
+   * Правила рынка этого места (M15.5). В welcome едет профиль главного места системы, поэтому на
+   * поселении считать по нему нельзя, а спрос события и вовсе живёт только в market-сообщении.
+   * Цену кнопки клиент считает той же формулой, что и сервер, — разойтись тут значит соврать пилоту.
+   */
+  private get local(): MarketRules {
+    const quotes = this.quotes;
+    if (!quotes?.station && !quotes?.demand) return this.market;
+    return {
+      ...this.market,
+      station: quotes.station ?? this.market.station,
+      demand: quotes.demand ? { goods: quotes.demand.goods, mul: quotes.demand.mul } : null,
+    };
   }
 
   setCargo(state: CargoState): void {
@@ -672,7 +702,7 @@ export class DockScreen {
     return ids.map((id) => {
       const quote = quotes.get(id) ?? null;
       const have = cargo.items[id] ?? 0;
-      const maxBuy = quote && this.canSellHere(quote.id) ? maxBuyable(this.market, rules, quote, credits, free) : 0;
+      const maxBuy = quote && this.canSellHere(quote.id) ? maxBuyable(this.local, rules, quote, credits, free) : 0;
       const maxSell = quote ? have : 0;
       return {
         id,
@@ -697,7 +727,8 @@ export class DockScreen {
   /** Станция продаёт этот товар: покупают у неё только то, что она делает сама. */
   private canSellHere(id: string): boolean {
     // Без правил рынка (сервер без market.json) станция ничего не продаёт — как до M12.
-    return this.market.station ? (this.market.station.produces ?? []).includes(id) : false;
+    const station = this.local.station;
+    return station ? (station.produces ?? []).includes(id) : false;
   }
 
   /** Рынок станции (M12): в одном списке и покупка, и продажа. */
@@ -705,6 +736,9 @@ export class DockScreen {
     const cargo = this.cargo;
     const rules = this.loot;
     if (!cargo || !rules) return;
+    // Событие спроса (M15.5) — первой строкой: за ним сюда и летели.
+    const demand = demandLine(this.quotes?.demand, (good) => lootItem(rules, good)?.name ?? good);
+    if (demand) body.append(el('div', 'dock-demand', demand));
     body.append(el('div', 'dock-note', `Трюм ${round(cargo.used)} / ${round(cargo.max)}`));
     if (cargo.reserved > 0) body.append(el('div', 'dock-note', `Из них груз задания — ${cargo.reserved} ед.: не продаётся`));
     if (!rules.stationUnload) {
@@ -728,7 +762,7 @@ export class DockScreen {
     if (sellable.length > 1) {
       let total = 0;
       for (const r of sellable) {
-        total += tradeCost(this.market, r.id, lootItem(rules, r.id)?.price ?? 0, r.quote!.stock, r.have, false);
+        total += tradeCost(this.local, r.id, lootItem(rules, r.id)?.price ?? 0, r.quote!.stock, r.have, false);
       }
       body.append(button(`Продать всё · ${formatCredits(total)}`, 'dock-buy dock-sell-all', () => this.handlers.onSell()));
     }
@@ -759,7 +793,7 @@ export class DockScreen {
     const actions = el('div', 'dock-market-actions');
     if (row.maxBuy > 0) {
       const count = Math.min(row.qty, row.maxBuy);
-      const cost = tradeCost(this.market, row.id, basePrice, row.quote.stock, count, true);
+      const cost = tradeCost(this.local, row.id, basePrice, row.quote.stock, count, true);
       actions.append(button(`Купить ${count} · ${formatCredits(cost)}`, 'dock-buy', () => this.handlers.onBuyGoods(row.id, count)));
     } else if (row.sells) {
       // Продают, но прямо сейчас нельзя: пусто на складе, нет места или не хватает кредитов.
@@ -767,7 +801,7 @@ export class DockScreen {
     }
     if (row.maxSell > 0) {
       const count = Math.min(row.qty, row.maxSell);
-      const gain = tradeCost(this.market, row.id, basePrice, row.quote.stock, count, false);
+      const gain = tradeCost(this.local, row.id, basePrice, row.quote.stock, count, false);
       actions.append(button(`Продать ${count} · ${formatCredits(gain)}`, 'dock-buy', () => this.handlers.onSell(row.id, count)));
     }
     if (actions.childElementCount > 0) view.append(actions);

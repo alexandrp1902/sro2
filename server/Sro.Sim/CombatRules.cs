@@ -107,12 +107,14 @@ public sealed record CombatRules(
 /// <param name="Invasion">invasion.json; null — вторжений нет.</param>
 /// <param name="Market">market.json; null — рынка товаров нет, груз сдаётся по плоской цене loot.json, как до M12.</param>
 /// <param name="Careers">careers.json; null — путей нет, и все новые пилоты одинаковы, как до M15.5.</param>
+/// <param name="Demand">demand.json; null — событий спроса нет.</param>
 public sealed record BalanceSources(
     string Hulls, string Weapons, string Rules, string Npcs, string Loot, string Meteors, string Shop,
     string? Galaxy = null, string? Missions = null, string? Modules = null, string? Party = null, string? Invasion = null,
     string? Market = null,
     string? Reputation = null,
-    string? Careers = null);
+    string? Careers = null,
+    string? Demand = null);
 
 /// <summary>
 /// Весь баланс: корпуса, пушки, правила боя, NPC, лут, метеориты, магазин станции, галактика, задания.
@@ -136,6 +138,7 @@ public sealed record BalanceSources(
 /// <param name="MarketSet">Рынок товаров (M12); null — груз сдаётся по плоской цене loot.json и не покупается.</param>
 /// <param name="ReputationSet">Репутация (M13); null — поступки не запоминаются, всё продаётся всем.</param>
 /// <param name="CareerSet">Пути пилота (M15.5); null — новый пилот получает общий стартовый набор.</param>
+/// <param name="DemandSet">События спроса (M15.5); null — их нет.</param>
 /// <param name="PlaceList">
 /// Места системы (M15): станция и поселения планет. Считается один раз в <see cref="ForSystem"/>,
 /// а не на каждый запрос. Пусто — сесть в системе негде.
@@ -162,7 +165,8 @@ public sealed record Balance(
     IReadOnlyList<PlaceDef>? PlaceList = null,
     IReadOnlyDictionary<string, ShopRules>? ShopByPlace = null,
     IReadOnlyDictionary<string, MarketRules>? MarketByPlace = null,
-    CareerRules? CareerSet = null)
+    CareerRules? CareerSet = null,
+    DemandRules? DemandSet = null)
 {
     public const string HullsFile = "hulls.json";
     public const string WeaponsFile = "weapons.json";
@@ -179,12 +183,13 @@ public sealed record Balance(
     public const string MarketFile = MarketRules.File;
     public const string ReputationFile = ReputationRules.File;
     public const string CareersFile = CareerRules.File;
+    public const string DemandFile = DemandRules.File;
 
     /// <summary>Все файлы баланса в порядке разбора.</summary>
     public static readonly string[] Files =
     [
         HullsFile, WeaponsFile, RulesFile, NpcsFile, LootFile, MeteorsFile, ShopFile, GalaxyFile, MissionsFile,
-        ModulesFile, PartyFile, InvasionFile, MarketFile, ReputationFile, CareersFile,
+        ModulesFile, PartyFile, InvasionFile, MarketFile, ReputationFile, CareersFile, DemandFile,
     ];
 
     public NpcRules Npc => Npcs ?? NpcRules.None;
@@ -209,6 +214,9 @@ public sealed record Balance(
 
     /// <summary>Пути пилота (M15.5); их нет — <see cref="CareerRules.Any"/> false, и старт один на всех, как до M15.5.</summary>
     public CareerRules Careers => CareerSet ?? CareerRules.None;
+
+    /// <summary>События спроса (M15.5); их нет — <see cref="DemandRules.Any"/> false, и рынок живёт как до M15.5.</summary>
+    public DemandRules Demand => DemandSet ?? DemandRules.None;
 
     /// <summary>
     /// Места системы (M15): станция и поселения планет. Считается в <see cref="ForSystem"/>; у баланса,
@@ -555,6 +563,16 @@ public sealed record Balance(
                 return false;
             }
             parsed = parsed with { CareerSet = careers };
+        }
+        if (sources.Demand is not null)
+        {
+            // После лута: событие называет товары поимённо, и опечатку надо ловить при разборе.
+            if (!DemandRules.TryParse(sources.Demand, parsed.Loots?.ItemMap, out var demand, out error))
+            {
+                error = $"{DemandFile}: {error}";
+                return false;
+            }
+            parsed = parsed with { DemandSet = demand };
         }
         balance = parsed;
         return true;

@@ -3,7 +3,7 @@
 import type { CombatRules, WeaponConfig } from '../sim/combat';
 import type { ModuleConfig, ShipFit } from '../sim/fitting';
 import type { LootRules } from '../sim/loot';
-import type { MarketRules } from '../sim/market';
+import type { MarketRules, MarketStation } from '../sim/market';
 import type { MeteorRules } from '../sim/meteors';
 import type { HullConfig } from '../sim/movement';
 import type { NpcRules } from '../sim/npcs';
@@ -573,6 +573,41 @@ export interface MarketMsg {
   items: MarketItemDto[];
   /** О чём судачит здешний торговец; считается на стыковке и дальше не меняется. */
   rumours?: RumourDto[];
+  /**
+   * Профиль этого места (M15.5): что оно производит и что скупает. В welcome едет профиль главного места
+   * системы, поэтому без этого поля предпросмотр цены на поселении считался бы по чужой витрине.
+   */
+  station?: MarketStation | null;
+  /** Спрос события (M15.5); нет — здесь его не происходит. */
+  demand?: DemandQuoteDto | null;
+}
+
+/** Спрос события на этом месте (M15.5): что просят, во сколько раз дороже и сколько ещё примут. */
+export interface DemandQuoteDto {
+  case: string;
+  title: string;
+  goods: string[];
+  mul: number;
+  left: number;
+  quota: number;
+}
+
+/** Событие спроса (M15.5) — на всю галактику, как вторжение. */
+export interface DemandMsg {
+  t: 'demand';
+  /** announce — объявлено, open — везите, filled — квота выбрана, over — срок вышел. */
+  state: 'announce' | 'open' | 'filled' | 'over';
+  system: string;
+  systemName: string;
+  place: string;
+  placeName: string;
+  case: string;
+  title: string;
+  goods: string[];
+  secondsLeft: number;
+  left: number;
+  quota: number;
+  mul: number;
 }
 
 /** Отношение к пилоту здесь и сейчас (M13); нет — в этой системе станции нет. */
@@ -815,4 +850,5 @@ export type ServerMessage =
   | BountyMsg
   | InvasionMsg
   | MarketMsg
+  | DemandMsg
   | RepMsg;

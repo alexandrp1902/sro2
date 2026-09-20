@@ -19,6 +19,8 @@ export interface GalaxyMapState {
   objective?: string | null;
   /** Где вторжение пиратов (GDD §38) — объявлено или идёт; null — нигде. */
   invasion?: string | null;
+  /** Где событие спроса (M15.5) — объявлено или идёт приём; null — нигде. */
+  demand?: string | null;
   /** Правила рынка (M12): по ним видно, что где производят и скупают. */
   market?: MarketRules | null;
   /** Каталог груза: названия товаров для строки «производит / покупает». */
@@ -167,6 +169,7 @@ export class GalaxyMap {
       if (system.id === this.selected) group.append(svgEl('circle', { cx: system.x, cy: system.y, r: 5.6, class: 'galaxy-selected' }));
       if (system.id === state.objective) group.append(svgEl('circle', { cx: system.x, cy: system.y, r: 7.4, class: 'galaxy-objective' }));
       if (system.id === state.invasion) group.append(svgEl('circle', { cx: system.x, cy: system.y, r: 8.6, class: 'galaxy-invasion' }));
+      if (system.id === state.demand) group.append(svgEl('circle', { cx: system.x, cy: system.y, r: 8.6, class: 'galaxy-demand' }));
       group.append(svgEl('circle', { cx: system.x, cy: system.y, r: 4, fill: color(dangerColor(system.danger)) }));
       // Отношение — кольцом вокруг узла: цвет кружка занят опасностью, а она для маршрута важнее.
       const repValue = state.rep?.[system.id];
@@ -185,7 +188,8 @@ export class GalaxyMap {
       const name = svgEl('text', { x: system.x, y: system.y + 8.2, class: 'galaxy-name' });
       name.textContent =
         `${system.name}${repMark(state, system.id)}${system.id === state.home ? ' ⌂' : ''}` +
-        `${system.id === state.objective ? ' ★' : ''}${system.id === state.invasion ? ' ⚔' : ''}`;
+        `${system.id === state.objective ? ' ★' : ''}${system.id === state.invasion ? ' ⚔' : ''}` +
+        `${system.id === state.demand ? ' ₪' : ''}`;
       group.append(name);
       // Зона тапа крупнее кружка: пальцем по кружку в 8 единиц на телефоне не попасть.
       group.append(svgEl('circle', { cx: system.x, cy: system.y, r: 9, class: 'galaxy-hit' }));
@@ -204,7 +208,7 @@ export class GalaxyMap {
         'galaxy-legend',
         `${regions ? `Регионы: ${regions}. ` : ''}Цвет — опасность, квадрат — станция, кольцо — отношение властей ` +
           `(✖ — док закрыт, ♦ — вас тут ценят), ⌂ — где вы появитесь после гибели, ★ — цель задания, ` +
-          `⚔ — вторжение пиратов. Числа — топливо на прыжок.`,
+          `⚔ — вторжение пиратов, ₪ — событие спроса. Числа — топливо на прыжок.`,
       ),
     );
     this.root.replaceChildren(card);

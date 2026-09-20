@@ -1211,6 +1211,18 @@ body {
   font-size: 13px;
 }
 
+/* Событие спроса (M15.5) над рынком: за ним сюда и летели, поэтому строка заметная. */
+.dock-demand {
+  margin-bottom: 8px;
+  padding: 8px 10px;
+  border-left: 3px solid #ffd166;
+  border-radius: 8px;
+  background: rgba(255, 209, 102, 0.12);
+  color: #ffd166;
+  font-size: 14px;
+  font-weight: 600;
+}
+
 .dock-buy,
 .dock-undock {
   padding: 8px 12px;
@@ -1730,6 +1742,23 @@ body {
   fill: none;
   stroke: #ffd166;
   stroke-width: 0.7;
+}
+
+/*
+ * Кольца событий вокруг системы: ⚔ — вторжение, ₪ — спрос (M15.5). Без fill: none круг заливается
+ * чёрным и закрывает узел — у вторжения так и было, пока не понадобилось второе кольцо.
+ */
+.galaxy-invasion {
+  fill: none;
+  stroke: #ff3b2f;
+  stroke-width: 0.7;
+}
+
+.galaxy-demand {
+  fill: none;
+  stroke: #ffd166;
+  stroke-width: 0.7;
+  stroke-dasharray: 2 1.6;
 }
 
 .galaxy-station {

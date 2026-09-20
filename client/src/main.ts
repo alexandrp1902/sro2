@@ -36,7 +36,7 @@ import { DEFAULT_SECTOR_UNIT, assessBest, cooldownTicks, evasion, longestRange }
 import { Modules, effectiveHull, fitWeapons, tierOf, type ShipFit } from './sim/fitting';
 import { describeSystem, gateIndex, gateMarkId, pvpName } from './sim/galaxy';
 import { DEFAULT_HULL, Hulls } from './sim/hulls';
-import { NO_LOOT, lootLabel, rarityColor, type GearItem, type LootRules } from './sim/loot';
+import { NO_LOOT, lootItem, lootLabel, rarityColor, type GearItem, type LootRules } from './sim/loot';
 import type { MarketRules } from './sim/market';
 import { DT, ION_SLOW, directionAngle, localVelocity, slowedHull, type MoveInput } from './sim/movement';
 import { orbitSeconds } from './sim/orbits';
@@ -56,6 +56,7 @@ import { BurgerMenu } from './ui/menu';
 import { ConfirmCard, logoutLines } from './ui/confirm';
 import { keymap } from './input/keymap';
 import { InvasionBoard, InvasionHud } from './ui/invasion';
+import { DemandBoard } from './ui/demand';
 import { Minimap } from './ui/minimap';
 import { SosBoard } from './ui/sos';
 import { ObjectiveHud } from './ui/objectiveHud';
@@ -392,6 +393,9 @@ async function main(): Promise<void> {
   const sos = new SosBoard();
   // Вторжение пиратов (GDD §38): табло справа, точка на миникарте, система на карте галактики.
   const invasion = new InvasionBoard();
+  // Событие спроса (M15.5): своё табло не заводим — вторжение и спрос делят одну строку HUD.
+  const demand = new DemandBoard();
+  const goodName = (good: string) => lootItem(lootRules, good)?.name ?? good;
   const minimap = new Minimap(el('minimap') as HTMLCanvasElement, () => galaxyMap.toggle());
   const refreshGalaxyMap = () =>
     galaxyMap.set(
@@ -404,6 +408,7 @@ async function main(): Promise<void> {
             home,
             objective: objectiveSystem(missions, system.id, galaxy),
             invasion: invasion.system(performance.now()),
+            demand: demand.system(performance.now()),
             market: marketRules,
             loot: lootRules,
             rep: repState?.systems ?? null,
@@ -886,6 +891,11 @@ async function main(): Promise<void> {
       if (line) feed.add(line.text, line.alert);
       refreshGalaxyMap();
     };
+    connection.onDemand = (message) => {
+      const line = demand.apply(message, performance.now(), system?.id ?? '', goodName);
+      if (line) feed.add(line.text, line.alert);
+      refreshGalaxyMap();
+    };
     connection.onNotice = (message) => {
       const text = describeNotice(message.code);
       if (text) feed.add(text);
@@ -969,6 +979,7 @@ async function main(): Promise<void> {
       party.clear();
       inviteCard.hide();
       invasion.clear();
+      demand.clear();
       refreshGalaxyMap();
     }
     wasOnline = online;
@@ -1048,7 +1059,8 @@ async function main(): Promise<void> {
     const goal = online ? locateObjective(objective(missions, system?.id ?? null, galaxy, docked || dead), state) : null;
     objectiveHud.update(online && !docked ? trackerLines(missions, system?.id ?? null, docked, names) : null);
     dockScreen.tick(Date.now()); // срок письма идёт и в доке (M14)
-    invasionHud.update(online ? invasion.lines(now, roster.get(me)?.name ?? '') : null);
+    // Вторжение в приоритете: там идёт бой и тикает таймер, а спрос подождёт в ленте, в доке и на карте.
+    invasionHud.update(online ? (invasion.lines(now, roster.get(me)?.name ?? '') ?? demand.lines(now, goodName)) : null);
     partyPanel.update(online && party.size > 0 ? party.rows({ id: me, system: system?.id ?? '', x: state.x, y: state.y }, sectorUnit) : null);
     inviteCard.tick(now);
 

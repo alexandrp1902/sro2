@@ -181,6 +181,7 @@ public sealed record PvpMsg(bool On) : ClientMessage;
 [JsonDerivedType(typeof(NoticeMsg), "notice")]
 [JsonDerivedType(typeof(AccountMsg), "account")]
 [JsonDerivedType(typeof(NameFreeMsg), "nameFree")]
+[JsonDerivedType(typeof(DemandMsg), "demand")]
 [JsonDerivedType(typeof(DeniedMsg), "denied")]
 [JsonDerivedType(typeof(HangarMsg), "hangar")]
 [JsonDerivedType(typeof(MissionsMsg), "missions")]
@@ -443,10 +444,49 @@ public sealed record RumourDto(
 /// Шлётся по событию: стыковка, сделка, приход торговца, возврат запасов к норме, правка баланса.
 /// </summary>
 /// <param name="Rumours">О чём судачит здешний торговец; считается на стыковке и дальше не меняется.</param>
+/// <param name="Station">
+/// Профиль этого места — что оно производит и что скупает (M15.5). В welcome едет профиль главного места
+/// системы, поэтому без этого поля клиент на поселении считал бы цену по чужой витрине.
+/// </param>
+/// <param name="Demand">Спрос события (M15.5); null — здесь его нет.</param>
 public sealed record MarketMsg(
     string System,
     IReadOnlyList<MarketItemDto> Items,
-    IReadOnlyList<RumourDto>? Rumours = null) : ServerMessage;
+    IReadOnlyList<RumourDto>? Rumours = null,
+    MarketStation? Station = null,
+    DemandQuoteDto? Demand = null) : ServerMessage;
+
+/// <summary>
+/// Спрос события на этом месте (M15.5). Множитель — уже посчитанный скаляр: клиент считает цену той же
+/// формулой, что и сервер, и внутри сделки он не меняется. Квота убывает — следующая рассылка привезёт новый.
+/// </summary>
+/// <param name="Left">Сколько единиц ещё примут.</param>
+public sealed record DemandQuoteDto(
+    string Case,
+    string Title,
+    IReadOnlyList<string> Goods,
+    double Mul,
+    int Left,
+    int Quota);
+
+/// <summary>
+/// Событие спроса (M15.5) — на всю галактику, как вторжение: объявлено, открыто, закрыто или погасло.
+/// </summary>
+/// <param name="State">announce | open | filled | over.</param>
+/// <param name="SecondsLeft">Сколько осталось до открытия приёмки или до конца срока.</param>
+public sealed record DemandMsg(
+    string State,
+    string System,
+    string SystemName,
+    string Place,
+    string PlaceName,
+    string Case,
+    string Title,
+    IReadOnlyList<string> Goods,
+    int SecondsLeft,
+    int Left,
+    int Quota,
+    double Mul) : ServerMessage;
 
 /// <summary>Отношение к пилоту здесь и сейчас (M13); null — в этой системе станции нет.</summary>
 /// <param name="Place">Ключ станции, например «st:vega».</param>
@@ -798,6 +838,12 @@ public static class Protocol
     public const string BadKeyDenied = "badKey";
     /// <summary>Такого пути нет или он ещё закрыт — например, пират (M15.5).</summary>
     public const string BadCareerDenied = "badCareer";
+
+    /// <summary>Состояния события спроса (<see cref="DemandMsg.State"/>, M15.5).</summary>
+    public const string DemandAnnounce = "announce";
+    public const string DemandOpen = "open";
+    public const string DemandFilled = "filled";
+    public const string DemandOver = "over";
 
     /// <summary>Код закрытия WebSocket после <see cref="DeniedMsg"/>: клиент не переподключается сам, а ждёт пилота.</summary>
     public const int DeniedCloseCode = 4003;

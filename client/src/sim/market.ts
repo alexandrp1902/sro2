@@ -39,6 +39,14 @@ export interface MarketRules {
   station?: MarketStation | null;
   /** Регион этой системы: по нему видно, что тут вне закона. */
   region?: string | null;
+  /** Спрос события (M15.5): что здесь просят и во сколько раз дороже. */
+  demand?: MarketDemand | null;
+}
+
+/** Спрос события на этом месте (M15.5). */
+export interface MarketDemand {
+  goods: string[];
+  mul: number;
 }
 
 /** Рынка нет: до welcome и на серверах без market.json. */
@@ -109,10 +117,20 @@ export function mid(rules: MarketRules, good: string, basePrice: number, stock: 
   const n = norm(rules, good);
   if (!(n > 0) || !(basePrice > 0)) return basePrice;
   const floor = Math.max(stock, (rules.stockFloor ?? STOCK_FLOOR) * n);
-  const value = basePrice * level(rules, good) * Math.pow(n / floor, rules.elasticity ?? ELASTICITY);
+  // Зеркало Sro.Sim/MarketRules.Mid: событие спроса (M15.5) поднимает и цену, и потолок.
+  // Разойтись тут нельзя — кнопка «Купить N · X кр» считается этой же формулой.
+  const boost = demandMul(rules, good);
+  const value = basePrice * level(rules, good) * Math.pow(n / floor, rules.elasticity ?? ELASTICITY) * boost;
   const min = basePrice * (rules.minFactor ?? MIN_FACTOR);
-  const max = basePrice * (rules.maxFactor ?? MAX_FACTOR);
+  const max = basePrice * (rules.maxFactor ?? MAX_FACTOR) * boost;
   return Math.min(Math.max(value, min), max);
+}
+
+/** Во сколько раз событие подняло цену этого товара; 1 — событие не про него или его нет. */
+export function demandMul(rules: MarketRules, good: string): number {
+  const demand = rules.demand;
+  if (!demand || !(demand.mul > 1) || !demand.goods.includes(good)) return 1;
+  return demand.mul;
 }
 
 /** Сколько пилот получает за штуку. */

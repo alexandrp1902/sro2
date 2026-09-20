@@ -20,8 +20,13 @@ public sealed partial class Room
     /// Склад места; null — такого места здесь нет. Пара «правила + склад» всегда берётся вместе:
     /// цена считается из них обоих, и перепутать склад одного места с правилами другого нельзя.
     /// </summary>
-    private (MarketRules Rules, Market Stock)? MarketAt(string? key) =>
-        key is not null && _markets.TryGetValue(key, out var stock) ? (Balance.MarketAt(key), stock) : null;
+    private (MarketRules Rules, Market Stock)? MarketAt(string? key)
+    {
+        if (key is null || !_markets.TryGetValue(key, out var stock)) return null;
+        var rules = Balance.MarketAt(key);
+        // Событие спроса (M15.5) живёт по ключу места: у станции-соседки по системе цена не шелохнётся.
+        return (_demand?.Apply(key, rules) ?? rules, stock);
+    }
 
     /// <summary>Рынок того места, где стоит пилот; null — он в космосе или там не торгуют.</summary>
     private (MarketRules Rules, Market Stock)? MarketOf(Player player) => MarketAt(PlaceOf(player)?.Key);
@@ -59,10 +64,15 @@ public sealed partial class Room
     private bool Trades(Player player, string good) => MarketOf(player) is not { } m || !m.Rules.Any || m.Rules.Trades(good);
 
     /// <summary>Снять с рынка столько штук и заплатить пилоту; склад места при этом двигается.</summary>
-    private int SellToStation(Player player, string good, int count) =>
-        MarketOf(player) is { } m && m.Rules.Any
-            ? m.Stock.Sell(m.Rules, Balance.Loot, good, count)
-            : Balance.Loot.Price(good) * count;
+    private int SellToStation(Player player, string good, int count)
+    {
+        if (MarketOf(player) is not { } m || !m.Rules.Any) return Balance.Loot.Price(good) * count;
+        var credits = m.Stock.Sell(m.Rules, Balance.Loot, good, count);
+        // Квота события убывает после сделки, а не внутри неё: множитель заморожен на сделку,
+        // иначе клиент, считающий цену той же формулой, не сошёлся бы с сервером.
+        if (CountDemand(player, good, count)) _host?.DemandFilled(this);
+        return credits;
+    }
 
     /// <summary>Запасы тянутся к норме; кто стоит в доке — видит, как цены расходятся обратно.</summary>
     private void StepMarket()
@@ -146,7 +156,18 @@ public sealed partial class Room
         var rumours = new List<RumourDto>(player.Rumours.Count);
         foreach (var r in player.Rumours)
             rumours.Add(new RumourDto(r.Kind, r.Good, r.System, r.Name, r.Hops, r.Price, r.Profit, r.Scarce));
-        player.Connection.Send(new MarketMsg(PlaceOf(player)?.Key ?? SystemId, items, rumours));
+        // Профиль места и спрос события едут сюда же: у клиента из welcome только правила главного места
+        // системы, и на поселении он без этого считал бы цену по чужой витрине.
+        var place = PlaceOf(player)?.Key;
+        var local = MarketAt(place)?.Rules;
+        player.Connection.Send(new MarketMsg(
+            place ?? SystemId,
+            items,
+            rumours,
+            local?.Station,
+            _demand is { } demand && demand.PlaceKey == place
+                ? new DemandQuoteDto(demand.Cause.Id, demand.Cause.Title, [.. demand.Cause.GoodList], Math.Round(demand.Mul, 3), demand.Left, demand.Quota)
+                : null));
     }
 
     /// <summary>
