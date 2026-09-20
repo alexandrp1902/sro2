@@ -69,23 +69,12 @@ export function shipSprite(hull: string, role: ShipRole | null = null): SpriteNa
 }
 
 /**
- * Пламя двигателей для корпусов, которым его не нарисовали (M11): берём чужое по размеру корабля.
- * Временная замена — когда придут свои flame-спрайты, строка уходит (см. art/next-art-status.md).
+ * Имя текстуры пламени; null — нарисованного кадра у этого корабля нет, и факел рисует код
+ * (render/flame.ts, M15.6). Кадр есть только у тех спрайтов, которые нарезка разделила на корпус
+ * и пламя, то есть у трёх старых корпусов: своего арта пламени не заказано и в манифесте его нет.
  */
-const FLAME_STANDINS: Record<string, SpriteName> = {
-  'ships-scout': 'ships-light',
-  'ships-interceptor': 'ships-light',
-  'ships-industrial': 'ships-medium',
-  'ships-frigate': 'ships-medium',
-  'ships-freighter': 'ships-heavy',
-  'ships-cruiser': 'ships-heavy',
-};
-
-/** Имя текстуры пламени для корпуса; null — пламени у этого корабля нет (NPC). */
 export function flameSprite(sprite: SpriteName): string | null {
-  if ('body' in meta[sprite]) return `${sprite}-flame`;
-  const standin = FLAME_STANDINS[sprite];
-  return standin ? `${standin}-flame` : null;
+  return 'body' in meta[sprite] ? `${sprite}-flame` : null;
 }
 
 /** Предметы, чья картинка на листе названа иначе: tech в loot.json — «Плазменный компонент». */

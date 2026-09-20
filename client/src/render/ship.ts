@@ -1,5 +1,6 @@
 import { Container, Graphics, Sprite, Texture } from 'pixi.js';
 import { localVelocity, wrapAngle, type HullParams, type ShipState } from '../sim/movement';
+import { flameShape } from './flame';
 import { flameSprite, shipSprite, spriteSize, texture, type SpriteName } from './sprites';
 
 /** Указатель желаемого направления (§26) — на таком расстоянии от центра, в размерах корпуса. */
@@ -8,6 +9,16 @@ const POINTER_DISTANCE = 2.6;
 const DRONE_TINT = 0xa8dca0;
 /** Пилот своей группы — чуть салатовый, в цвет группы. */
 const ALLY_TINT = 0xd8ffb8;
+
+/**
+ * Оттенок процедурного пламени по роли (M15.6): у рейнджеров холодный выхлоп, у пиратов злой красный.
+ * Ничего не стоит — тон ставится один раз при сборке факела.
+ */
+const FLAME_TINT: Partial<Record<ShipLook, number>> = {
+  ranger: 0xb8e8ff,
+  wing: 0xb8e8ff,
+  pirate: 0xff9a7a,
+};
 
 /** Чей корабль: от этого картинка (у пиратов своя) и оттенок. */
 export type ShipLook = 'own' | 'player' | 'drone' | 'pirate' | 'trader' | 'ranger' | 'convoy' | 'wing';
@@ -24,6 +35,8 @@ export class ShipView {
   readonly view = new Container();
   private readonly body = new Sprite();
   private readonly flame = new Sprite();
+  /** Пламя, нарисованное кодом (M15.6): у кого есть свой кадр, у того этот узел спрятан. */
+  private readonly torch = new Graphics();
   private readonly hull = new Container();
   private readonly pointer = new Graphics();
   private size = 0;
@@ -31,7 +44,8 @@ export class ShipView {
   private ally = false;
 
   constructor(private readonly look: ShipLook) {
-    this.hull.addChild(this.flame, this.body);
+    // Оба пламени — за корпусом; работает всегда ровно одно из них.
+    this.hull.addChild(this.torch, this.flame, this.body);
     this.view.addChild(this.pointer, this.hull);
     // С M11 у дрона, торговца и рейнджера свои корабли — оттенок только подчёркивает их роль.
     if (look === 'drone') this.body.tint = DRONE_TINT;
@@ -58,9 +72,11 @@ export class ShipView {
     this.hull.rotation = rot;
 
     // Пламя растёт из сопел назад: длина и яркость — сила тяги, чуть дрожит.
-    this.flame.visible = glow > 0;
-    this.flame.scale.set(1, (0.5 + 1.5 * glow) * (0.9 + Math.random() * 0.2));
-    this.flame.alpha = Math.min(1, 0.45 + glow);
+    // Узел один из двух: нарисованный кадр или процедурный факел (M15.6) — считаем раз, пишем в живой.
+    const fire = this.torch.visible ? this.torch : this.flame;
+    fire.visible = glow > 0;
+    fire.scale.set(1, (0.5 + 1.5 * glow) * (0.9 + Math.random() * 0.2));
+    fire.alpha = Math.min(1, 0.45 + glow);
 
     this.pointer.visible = desired !== null;
     if (desired !== null) {
@@ -79,12 +95,22 @@ export class ShipView {
     const { h, body = h } = spriteSize(sprite);
     this.body.texture = texture(sprite);
     this.body.anchor.set(0.5, body / 2 / h);
-    // У новых корпусов (M11) своего пламени нет — берём чужое по размеру, шириной по корпусу.
+    // Свой кадр пламени есть только у трёх старых корпусов; всем остальным — и шести корпусам игрока,
+    // и всем NPC — факел рисуется кодом (M15.6). Геометрия строится здесь, один раз на смену корабля.
     const flame = flameSprite(sprite);
     this.flame.texture = flame ? texture(flame) : Texture.EMPTY;
     // Пламя масштабируется от линии сопел: там его опорная точка.
     this.flame.anchor.set(0.5, body / h);
     this.flame.position.set(0, body / 2);
+    this.torch.visible = flame === null;
+    this.torch.clear();
+    if (this.torch.visible) {
+      const { w } = spriteSize(sprite);
+      for (const layer of flameShape(w, body)) this.torch.poly(layer.points).fill({ color: layer.color, alpha: layer.alpha });
+      // Та же опорная точка, что у кадра: линия сопел, и растём назад.
+      this.torch.position.set(0, body / 2);
+      this.torch.tint = FLAME_TINT[this.look] ?? 0xffffff;
+    }
     this.hull.scale.set((size * 2) / body);
   }
 }

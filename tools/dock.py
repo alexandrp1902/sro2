@@ -20,8 +20,17 @@ SCENES = [
     # Свой офис у станций рейнджеров (пачка C): «Пост рейнджеров Барнарда».
     ("ranger/station-ranger-office", "ranger-office"),
 
-    # Снижение на планету (пачка D, M15): вид из кабины. Нарисован пока только земной.
+    # Снижение на планету (пачки D и E): вид из кабины, свой на каждый вид планеты.
+    # У газового гиганта кадр зовётся orbital-platform: садятся не на планету, а на платформу над ней.
     ("landings/landing-terran", "landing-terran"),
+    ("landings/landing-barren", "landing-barren"),
+    ("landings/landing-desert", "landing-desert"),
+    ("landings/landing-ice", "landing-ice"),
+    ("landings/landing-jungle", "landing-jungle"),
+    ("landings/landing-lava", "landing-lava"),
+    ("landings/landing-ocean", "landing-ocean"),
+    ("landings/landing-orbital-platform", "landing-orbital-platform"),
+    ("landings/landing-toxic", "landing-toxic"),
 
     # Поселения на планетах (пачка D, M15): пять биомов и орбитальная платформа газового гиганта.
     # Земного набора здесь нет: земное поселение рисуют общие сцены planet-*, нарезанные раньше.

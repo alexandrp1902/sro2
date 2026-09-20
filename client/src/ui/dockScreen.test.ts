@@ -14,7 +14,6 @@ import {
   slotOffer,
   weaponLabel,
 } from './dockScreen';
-import { landingArt } from './landing';
 
 describe('offerState', () => {
   it('puts what is on the ship first, then the hangar', () => {
@@ -182,11 +181,3 @@ describe('sceneUrl', () => {
   });
 });
 
-describe('landingArt', () => {
-  it('only offers a descent frame for the biomes that were drawn', () => {
-    expect(landingArt('terran')).toBe('dock/landing-terran.webp');
-    // Остальные виды пока без кадра: чужой биом хуже, чем затемнение.
-    expect(landingArt('lava')).toBeNull();
-    expect(landingArt(null)).toBeNull();
-  });
-});
