@@ -50,6 +50,7 @@ public sealed partial class Room
         {
             MissionRules.EscortKind => StartEscort(run, player, offer),
             MissionRules.PatrolKind => StartPatrol(run, player, offer),
+            MissionRules.DefendKind => StartDefend(run, offer),
             _ => false,
         };
         if (!started)
@@ -95,6 +96,7 @@ public sealed partial class Room
                     continue;
                 }
                 if (run.Kind == MissionRules.EscortKind) StepEscort(run, player, active);
+                else if (run.Kind == MissionRules.DefendKind) StepDefend(run, player, active);
                 else StepPatrol(run, player, active);
             }
         }
@@ -329,6 +331,146 @@ public sealed partial class Room
     }
 
     /// <summary>
+    /// Налётчик, подошедший к поселению ближе этого, считается дошедшим: он бьёт по нему и уходит.
+    /// Радиус — чуть больше посадочного, чтобы удар случался на виду, а не внутри картинки планеты.
+    /// </summary>
+    private const double StrikeRange = 420;
+
+    /// <summary>Где сейчас обороняемое поселение; null — его больше нет в балансе.</summary>
+    private (double X, double Y)? DefendPoint(MissionRun run) =>
+        Balance.Place(run.Place) is { } place ? PlacePosition(place) : null;
+
+    /// <summary>
+    /// Оборона поселения (M15): волны налётчиков идут от врат к поселению. Пилот их встречает, поселение
+    /// само себя не защищает — сколько раз по нему ударят, столько у него и терпения.
+    /// </summary>
+    private bool StartDefend(MissionRun run, MissionOffer offer)
+    {
+        if (Balance.Place(offer.Destination) is not { IsPlanet: true }) return false;
+        if (Balance.Missions.AmbushList.Count == 0) return false;
+        run.Place = offer.Destination;
+        return SendRaidWave(run) > 0;
+    }
+
+    /// <summary>Очередная волна налётчиков: от врат, курсом на поселение. Волны берутся из той же ambush.</summary>
+    /// <returns>Сколько налётчиков вышло; 0 — некого посылать.</returns>
+    private int SendRaidWave(MissionRun run)
+    {
+        if (DefendPoint(run) is not { } spot) return 0;
+        var waves = Balance.Missions.AmbushList;
+        // Чем дальше волна, тем злее: как у засад на конвой. Последняя волна — самая тяжёлая.
+        var wave = waves[Math.Min(run.Wave, waves.Count - 1)];
+        var sent = SpawnWave(wave, spot, invasionId: 0, missionId: run.Id);
+        if (sent > 0) run.Wave++;
+        return sent;
+    }
+
+    private void StepDefend(MissionRun run, Player player, ActiveMission active)
+    {
+        if (DefendPoint(run) is not { } spot)
+        {
+            // Поселение убрала горячая правка: винить пилота не в чем.
+            Abandon(player);
+            SendMissions(player);
+            return;
+        }
+        var offer = active.Offer;
+
+        // Дошедший до поселения бьёт по нему и исчезает: гоняться за ним по всей системе незачем,
+        // а держать его живым — значит копить удары от одного и того же корабля.
+        var foes = 0;
+        foreach (var raider in _pirates)
+        {
+            if (raider.MissionId != run.Id || raider.IsDead || raider.Gone) continue;
+            var dx = raider.Ship.X - spot.X;
+            var dy = raider.Ship.Y - spot.Y;
+            if (dx * dx + dy * dy > StrikeRange * StrikeRange)
+            {
+                foes++;
+                continue;
+            }
+            raider.Gone = true;
+            RemoveShip(raider);
+            run.Strikes++;
+        }
+        if (run.Strikes > 0 && run.Strikes >= Strikes(offer))
+        {
+            Fail(player, Protocol.RaidFail);
+            return;
+        }
+
+        // Бросить поселение под ударом — это провал: уйти в док на нём самом тоже не выход.
+        if (player.Docked || player.IsDead)
+        {
+            Fail(player, Protocol.AwayFail);
+            return;
+        }
+        var px = player.Ship.X - spot.X;
+        var py = player.Ship.Y - spot.Y;
+        if (px * px + py * py > offer.Radius * offer.Radius)
+        {
+            if (run.AwaySince == 0)
+            {
+                run.AwaySince = Tick;
+                player.Connection?.Send(new NoticeMsg(Protocol.MissionAwayNotice));
+            }
+            else if (Tick - run.AwaySince >= Combat.SecondsToTicks(AwaySeconds(offer)))
+            {
+                Fail(player, Protocol.AwayFail);
+                return;
+            }
+        }
+        else
+        {
+            run.AwaySince = 0;
+        }
+
+        if (foes > 0)
+        {
+            run.NextWaveTick = 0;
+            return;
+        }
+        // Волна выбита. Последняя — работа сделана; иначе передышка, и следующая идёт от врат.
+        if (run.Wave >= offer.Count)
+        {
+            Complete(player);
+            return;
+        }
+        if (run.NextWaveTick == 0)
+        {
+            run.NextWaveTick = Tick + Combat.SecondsToTicks(GapSeconds(offer));
+            player.Missions.Active = active with { Progress = run.Wave };
+            SendMissions(player);
+            return;
+        }
+        if (Tick < run.NextWaveTick) return;
+        run.NextWaveTick = 0;
+        if (SendRaidWave(run) == 0)
+        {
+            Complete(player); // посылать больше некого — считаем отбитым
+            return;
+        }
+        BroadcastPlayers();
+        SendMissions(player);
+    }
+
+    /// <summary>Числа обороны берутся из шаблона: у оффера нет для них своих полей, а первый шаблон один.</summary>
+    private int Strikes(MissionOffer offer) =>
+        Balance.Missions.DefendList.FirstOrDefault(t => t.Waves == offer.Count)?.Strikes
+        ?? Balance.Missions.DefendList.FirstOrDefault()?.Strikes
+        ?? 3;
+
+    private int AwaySeconds(MissionOffer offer) =>
+        Balance.Missions.DefendList.FirstOrDefault(t => t.Waves == offer.Count)?.AwaySeconds
+        ?? Balance.Missions.DefendList.FirstOrDefault()?.AwaySeconds
+        ?? 25;
+
+    private double GapSeconds(MissionOffer offer) =>
+        Balance.Missions.DefendList.FirstOrDefault(t => t.Waves == offer.Count)?.GapSeconds
+        ?? Balance.Missions.DefendList.FirstOrDefault()?.GapSeconds
+        ?? 6;
+
+    /// <summary>
     /// Пираты на точке патруля: самая злая волна из тех, что заведены для засад. Бой на весь патруль один,
     /// и звено помогает — значит, он должен быть настоящим. Встают прямо на точке: драка начинается сразу.
     /// </summary>
@@ -461,6 +603,8 @@ public sealed partial class Room
         if (RunOf(player) is not { } run) return null;
         if (run.Kind == MissionRules.EscortKind)
             return _ships.GetValueOrDefault(run.TraderId) is Trader { IsDead: false } ? new MissionMarkDto(run.TraderId, 0, 0) : null;
+        if (run.Kind == MissionRules.DefendKind)
+            return DefendPoint(run) is { } spot ? new MissionMarkDto(0, spot.X, spot.Y) : null;
         if (run.Point >= run.Points.Count) return null;
         var (x, y) = run.Points[run.Point];
         return new MissionMarkDto(0, x, y);

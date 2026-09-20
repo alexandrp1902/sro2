@@ -80,6 +80,27 @@ public sealed record CourierTemplate(
     double Weight = 1);
 
 /// <summary>
+/// Шаблон «оборона поселения» (M15): отбить волны налётчиков, идущих к поселению с орбиты.
+/// Волны берутся из той же таблицы <see cref="MissionRules.Ambush"/>, что кормит засады эскорта и патруля,
+/// и приходят от врат: налёт прилетает извне, а не вырастает над крышами.
+/// </summary>
+/// <param name="Waves">Сколько волн отбить; они же <see cref="MissionOffer.Count"/>.</param>
+/// <param name="Strikes">Столько налётчиков могут дойти до поселения, прежде чем работа провалена.</param>
+/// <param name="PerWave">Кредитов за каждую волну сверх <paramref name="Reward"/>.</param>
+/// <param name="Radius">Дальше этого от поселения пилот считается бросившим его.</param>
+/// <param name="AwaySeconds">Сколько секунд можно быть вне радиуса, прежде чем работа провалена.</param>
+/// <param name="GapSeconds">Пауза между волнами: перевести дух и собрать лут.</param>
+public sealed record DefendTemplate(
+    int Waves,
+    int Strikes,
+    int Reward,
+    int PerWave,
+    double Radius = 1400,
+    int AwaySeconds = 25,
+    double GapSeconds = 6,
+    double Weight = 1);
+
+/// <summary>
 /// Шаблон «охота на метеориты» (M14): сбить count камней в системе, где они летают.
 /// Разбившийся о корабль не считается — у тарана нет убийцы, и лута он тоже не даёт.
 /// </summary>
@@ -163,7 +184,8 @@ public sealed record MissionRules(
     /// <summary>
     /// Засады на конвой (M14): i-я волна — i-й список. Волн в задании больше, чем списков, — берётся последний.
     /// </summary>
-    IReadOnlyList<IReadOnlyList<InvasionGroup>>? Ambush = null)
+    IReadOnlyList<IReadOnlyList<InvasionGroup>>? Ambush = null,
+    IReadOnlyList<DefendTemplate>? Defend = null)
 {
     public const string File = "missions.json";
 
@@ -174,12 +196,14 @@ public sealed record MissionRules(
     public const string PatrolKind = "patrol";
     public const string CourierKind = "courier";
     public const string HuntKind = "hunt";
+    public const string DefendKind = "defend";
 
     /// <summary>
-    /// «Живое» задание (M14): у него есть актёры в системе — конвой или звено. Живёт только в своей комнате
-    /// и только пока пилот в космосе: прыжок, гибель и обрыв связи его кончают, на диск оно не переживает.
+    /// «Живое» задание (M14): у него есть актёры в системе — конвой, звено или налётчики. Живёт только
+    /// в своей комнате и только пока пилот в космосе: прыжок, гибель и обрыв связи его кончают,
+    /// на диск оно не переживает.
     /// </summary>
-    public static bool IsLive(string? kind) => kind is EscortKind or PatrolKind;
+    public static bool IsLive(string? kind) => kind is EscortKind or PatrolKind or DefendKind;
 
     /// <summary>
     /// Задание, которое кончается вместе с кораблём (M14): письмо тонет с ним — это решение этапа,
@@ -230,6 +254,7 @@ public sealed record MissionRules(
     [JsonIgnore] public IReadOnlyList<PatrolTemplate> PatrolList => Patrol ?? [];
     [JsonIgnore] public IReadOnlyList<CourierTemplate> CourierList => Courier ?? [];
     [JsonIgnore] public IReadOnlyList<HuntTemplate> HuntList => Hunt ?? [];
+    [JsonIgnore] public IReadOnlyList<DefendTemplate> DefendList => Defend ?? [];
     [JsonIgnore] public IReadOnlyList<IReadOnlyList<InvasionGroup>> AmbushList => Ambush ?? [];
 
     /// <summary>Шаблон сопровождения, по которому выдано предложение: из него комната берёт то, чего нет в offer.</summary>
@@ -369,6 +394,19 @@ public sealed record MissionRules(
                 if (wave[j] is not { } group) return $"ambush[{i}][{j}]: is null";
                 if (group.Validate(npcs) is { } problem) return $"ambush[{i}][{j}]: {problem}";
             }
+        }
+        for (var i = 0; i < DefendList.Count; i++)
+        {
+            var t = DefendList[i];
+            if (t is null) return $"defend[{i}]: is null";
+            if (t.Waves < 1) return $"defend[{i}]: waves must be at least 1";
+            // Ноль пропусков — провал на первом же долетевшем: это не оборона, а гонка на реакцию.
+            if (t.Strikes < 1) return $"defend[{i}]: strikes must be at least 1";
+            if (t.Reward < 0 || t.PerWave < 0) return $"defend[{i}]: reward must not be negative";
+            if (!(t.Radius > 0)) return $"defend[{i}]: radius must be positive";
+            if (t.AwaySeconds < 0) return $"defend[{i}]: awaySeconds must not be negative";
+            if (!(t.GapSeconds >= 0)) return $"defend[{i}]: gapSeconds must not be negative";
+            if (AmbushList.Count == 0) return $"defend[{i}]: needs ambush waves to send";
         }
         return null;
     }
@@ -553,10 +591,23 @@ public sealed record MissionRules(
             }));
         }
 
+        // Оборона поселения (M15): только у самого поселения и только если есть кого послать.
+        // Станция такого не предлагает — её обороняют вторжения, а это работа планеты.
+        if (PlaceKey.Split(place).Kind == PlaceKey.PlanetKind && AmbushList.Count > 0)
+        {
+            foreach (var t in DefendList)
+            {
+                candidates.Add((t.Weight, (rng, id) => new MissionOffer(
+                    id, DefendKind, station, null, null, t.Waves,
+                    (int)Math.Round((t.Reward + t.PerWave * t.Waves) * bonus), place,
+                    Radius: t.Radius, Place: place)));
+            }
+        }
+
         if (candidates.Count == 0) return [];
 
-        // Сид смешан с системой: у каждой станции своя доска при том же сиде пилота.
-        var rng = new Random(unchecked(seed * 31 + StableHash(station)));
+        // Сид смешан с ключом места: у каждого места своя доска при том же сиде пилота.
+        var rng = new Random(unchecked(seed * 31 + StableHash(place)));
         var total = candidates.Sum(c => c.Weight);
         var board = new List<MissionOffer>(count);
         for (var i = 0; i < count; i++)

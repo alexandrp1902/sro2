@@ -56,6 +56,8 @@ export function offerTitle(offer: MissionOffer, names: MissionNames): string {
       return `Важное письмо: ${names.place(destination(offer))}`;
     case 'hunt':
       return `Охота: ${rocks(offer.size)} ×${offer.count} · ${names.system(offer.system ?? '')}`;
+    case 'defend':
+      return `Оборона поселения: ${offer.count} волны с орбиты`;
   }
 }
 
@@ -78,6 +80,8 @@ export function offerNote(offer: MissionOffer, names: MissionNames): string {
         : 'место в трюме не занимает';
     case 'hunt':
       return 'таран не в счёт: камень надо расстрелять';
+    case 'defend':
+      return `${names.place(destination(offer))} · держитесь рядом: пропустите троих — работа сорвана`;
   }
 }
 
@@ -103,6 +107,8 @@ export function activeLine(active: Active, names: MissionNames, now = Date.now()
       const name = rocks(offer.size);
       return `${name[0].toUpperCase()}${name.slice(1)} в ${names.system(offer.system ?? '')}: ${progress}/${offer.count}`;
     }
+    case 'defend':
+      return `Оборона ${names.place(destination(offer))}: волна ${Math.min(progress + 1, offer.count)}/${offer.count}`;
   }
 }
 
@@ -133,11 +139,14 @@ export function activeHint(active: Active, here: string | null, docked: boolean,
         : `летите в ${names.system(offer.system ?? '')}`;
     case 'hunt':
       return here === offer.system ? 'расстреливайте камни' : `летите в ${names.system(offer.system ?? '')}`;
+    case 'defend':
+      return docked ? 'вылетайте: налёт уже идёт' : 'держитесь у поселения и бейте налётчиков';
   }
 }
 
 /** Почему задание провалено — строкой для ленты (M14). */
 const FAIL_REASONS: Record<string, string> = {
+  raid: 'поселение разграблено',
   trader: 'конвой погиб',
   away: 'вы отстали от конвоя',
   wing: 'звено уничтожено',
@@ -211,7 +220,9 @@ export function objective(
     case 'hunt':
       return here === offer.system ? { kind: 'meteor', size: offer.size ?? null } : gateTo(offer.system ?? '');
     case 'escort':
-    case 'patrol': {
+    case 'patrol':
+    case 'defend': {
+      // У живых заданий цель называет сервер: конвой ходит сам, а поселение едет по орбите.
       const mark = missions.mark;
       if (!mark) return null;
       return mark.ship ? { kind: 'ship', id: mark.ship } : { kind: 'point', x: mark.x, y: mark.y };

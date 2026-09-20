@@ -755,6 +755,8 @@ public static class Protocol
     public const string DeadFail = "dead";
     public const string LeftFail = "left";
     public const string TimeFail = "time";
+    /// <summary>Налётчики добрались до поселения: оборона сорвана (M15).</summary>
+    public const string RaidFail = "raid";
 
     /// <summary>Причины отказа во входе (<see cref="DeniedMsg"/>).</summary>
     public const string BadNameDenied = "badName";

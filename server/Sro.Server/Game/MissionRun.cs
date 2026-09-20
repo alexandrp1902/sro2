@@ -8,7 +8,10 @@ namespace Sro.Server.Game;
 /// связи и перезапуск комнаты его кончают, поэтому в аккаунт он не пишется, а <see cref="MissionLog.Active"/>
 /// с таким видом при входе не восстанавливается.
 /// </summary>
-/// <param name="Kind"><see cref="MissionRules.EscortKind"/> или <see cref="MissionRules.PatrolKind"/>.</param>
+/// <param name="Kind">
+/// <see cref="MissionRules.EscortKind"/>, <see cref="MissionRules.PatrolKind"/>
+/// или <see cref="MissionRules.DefendKind"/>.
+/// </param>
 public sealed class MissionRun(int id, int playerId, string kind)
 {
     /// <summary>Номер прогона: им помечены его конвой и его звено.</summary>
@@ -42,4 +45,13 @@ public sealed class MissionRun(int id, int playerId, string kind)
 
     /// <summary>Патруль: пираты уже вызваны. Точка не засчитывается, пока их не перебьют.</summary>
     public bool Engaged;
+
+    /// <summary>Оборона: ключ места, которое защищают. Оно на орбите, и точку боя считают каждый тик.</summary>
+    public string? Place;
+
+    /// <summary>Оборона: сколько налётчиков уже дошло до поселения.</summary>
+    public int Strikes;
+
+    /// <summary>Оборона: с какого тика можно выпускать следующую волну; 0 — прямо сейчас.</summary>
+    public long NextWaveTick;
 }

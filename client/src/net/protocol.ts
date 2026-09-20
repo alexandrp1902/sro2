@@ -590,7 +590,7 @@ export interface RepMsg {
 }
 
 /** Вид задания (GDD §36; M14 добавил четыре последних). */
-export type MissionKind = 'kill' | 'collect' | 'deliver' | 'escort' | 'patrol' | 'courier' | 'hunt';
+export type MissionKind = 'kill' | 'collect' | 'deliver' | 'escort' | 'patrol' | 'courier' | 'hunt' | 'defend';
 
 /** Задание на доске или взятое. Текст собираем сами (sim/missions.ts). */
 export interface MissionOffer {

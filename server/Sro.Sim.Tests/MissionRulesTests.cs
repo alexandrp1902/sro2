@@ -35,8 +35,8 @@ public class MissionRulesTests
         // Вид, которого нет ни на одной доске, — это вырезанный блок в missions.json, а не тонкая настройка.
         Assert.Equal(
             [
-                MissionRules.CollectKind, MissionRules.CourierKind, MissionRules.DeliverKind, MissionRules.EscortKind,
-                MissionRules.HuntKind, MissionRules.KillKind, MissionRules.PatrolKind,
+                MissionRules.CollectKind, MissionRules.CourierKind, MissionRules.DefendKind, MissionRules.DeliverKind,
+                MissionRules.EscortKind, MissionRules.HuntKind, MissionRules.KillKind, MissionRules.PatrolKind,
             ],
             kinds.Order(StringComparer.Ordinal));
         Assert.NotEmpty(balance.Missions.AmbushList);
