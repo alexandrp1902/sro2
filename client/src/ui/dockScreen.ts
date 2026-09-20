@@ -113,7 +113,7 @@ interface Scene {
 }
 
 const SCENES: Record<Tab, Scene> = {
-  missions: { art: 'office', who: 'Диспетчер', line: 'Работа есть всегда. Вопрос — сколько вы готовы рискнуть.', ship: false },
+  missions: { art: 'office', who: 'Диспетчер', line: 'Работа есть всегда. Вопрос — насколько вы готовы рискнуть.', ship: false },
   cargo: { art: 'trader', who: 'Торговец', line: 'Товар берут там, где его нет. Остальное — арифметика.', ship: false },
   hulls: { art: 'shipyard', who: 'Мастер верфи', line: 'Корпус выбирают под задачу, а не под мечту.', ship: true },
   fitting: { art: 'hangar', who: '', line: '', ship: true },
