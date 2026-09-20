@@ -1127,13 +1127,17 @@ body {
 
 .dock-tab {
   flex: 1;
-  padding: 11px 0;
+  /* Пятая вкладка — «Ангар» (M15.6): на 360 px на каждую остаётся 72 px, поэтому кегль меньше,
+     перенос запрещён, и min-width не даёт flex-элементу упереться в длину своего слова. */
+  min-width: 0;
+  padding: 11px 2px;
   border: 0;
   border-bottom: 2px solid transparent;
   background: transparent;
   color: #8fb4e8;
   font: inherit;
-  font-size: 14px;
+  font-size: 13px;
+  white-space: nowrap;
   cursor: pointer;
 }
 

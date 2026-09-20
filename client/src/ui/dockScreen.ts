@@ -31,6 +31,7 @@ import {
   type Modules,
 } from '../sim/fitting';
 import { keyHint, keymap } from '../input/keymap';
+import { hops, type GalaxyDto } from '../sim/galaxy';
 import { itemSprite, moduleSprite, shipSprite, spriteUrl, weaponSprite } from '../render/sprites';
 import type { Hulls } from '../sim/hulls';
 import { activeHint, activeLine, offerNote, offerTitle, timeLeft, type MissionNames } from '../sim/missions';
@@ -47,7 +48,7 @@ import {
   repPrice,
   type ReputationRules,
 } from '../sim/reputation';
-import { NO_SHOP, formatCredits, price, repairCost, sells, sellPrice, type ShopRules } from '../sim/shop';
+import { NO_SHOP, formatCredits, price, repairCost, sells, sellPrice, transportCost, type ShopRules } from '../sim/shop';
 import type { Weapons } from '../sim/weapons';
 import { color, round, type CargoState } from './cargoHud';
 
@@ -84,13 +85,15 @@ export function offerState(
 /** Ниже этого остатка срок письма краснеет (M14). */
 const LOW_TIMER_SECONDS = 60;
 
-export type Tab = 'missions' | 'cargo' | 'hulls' | 'fitting';
+export type Tab = 'missions' | 'cargo' | 'hulls' | 'ships' | 'fitting';
 
 const TABS: { id: Tab; label: string }[] = [
   { id: 'missions', label: 'Задания' },
   // Покупка и продажа товаров — в одном списке (M12); id остался прежним, на него смотрит startTab.
   { id: 'cargo', label: 'Рынок' },
   { id: 'hulls', label: 'Корабли' },
+  // Ярлык короткий: пять вкладок с «Мой ангар» не влезают в 360 px. Полное имя стоит в теле вкладки.
+  { id: 'ships', label: 'Ангар' },
   { id: 'fitting', label: 'Оснащение' },
 ];
 
@@ -117,6 +120,7 @@ const SCENES: Record<Tab, Scene> = {
   missions: { art: 'office', who: 'Диспетчер', line: 'Работа есть всегда. Вопрос — насколько вы готовы рискнуть.', ship: false },
   cargo: { art: 'trader', who: 'Торговец', line: 'Товар берут там, где его нет. Остальное — арифметика.', ship: false },
   hulls: { art: 'shipyard', who: 'Мастер верфи', line: 'Корпус выбирают под задачу, а не под мечту.', ship: true },
+  ships: { art: 'hangar', who: 'Мастер ангара', line: 'Корабли стоят там, где вы их оставили.', ship: true },
   fitting: { art: 'hangar', who: '', line: '', ship: true },
 };
 
@@ -234,6 +238,8 @@ export interface DockHandlers {
   onBuy(kind: BuyKind, id: string, slot?: string): void;
   /** Поставить свой корпус из ангара. */
   onEquip(id: string): void;
+  /** Заказать перегон своего корпуса из другого дока сюда (M15.6). */
+  onTransport(id: string): void;
   /** Поставить в слот со склада; id = null — снять на склад. */
   onFit(slot: string, id: string | null): void;
   /** Продать со склада пушку или модуль. */
@@ -336,6 +342,10 @@ export class DockScreen {
   private scene_: string | null = null;
   /** Что сказал сервер про место, где стоит корабль (M15); null — ещё не сказал. */
   private placeDto: PlaceDto | null = null;
+  /** Карта галактики (M15.6): по ней ангар зовёт места по именам и считает прыжки до них. */
+  private galaxy: GalaxyDto | null = null;
+  /** Места галактики по ключу; null — ещё не собраны из карты. */
+  private places: Map<string, { name: string; system: string; systemName: string }> | null = null;
   /** Имя станции этой системы и её набор сцен — запасной вариант, пока места нет. */
   private systemStation: string | null = null;
   private systemScene: string | null = null;
@@ -432,6 +442,16 @@ export class DockScreen {
     // Каждый заход в док начинается с груза — или с заданий, если там ждут.
     if (hangar?.docked && !this.open) this.tab = startTab(this.missions, this.cargo?.items ?? {});
     this.hangar = hangar;
+    this.render();
+  }
+
+  /**
+   * Карта галактики (M15.6): ангару нужны имена чужих мест, их системы и число прыжков до них.
+   * Приходит в welcome и дальше не меняется.
+   */
+  setGalaxy(galaxy: GalaxyDto | null): void {
+    this.galaxy = galaxy;
+    this.places = null;
     this.render();
   }
 
@@ -552,6 +572,7 @@ export class DockScreen {
     if (this.tab === 'missions') this.renderMissions(body, hangar);
     else if (this.tab === 'cargo') this.renderCargo(body);
     else if (this.tab === 'hulls') this.renderHulls(body, hangar, credits);
+    else if (this.tab === 'ships') this.renderShips(body, hangar, credits);
     else this.renderFitting(body, hangar, credits);
     card.append(body);
 
@@ -622,11 +643,29 @@ export class DockScreen {
   }
 
   /**
+   * Места галактики по ключу: имя места, его система и имя системы (M15.6). Считается один раз
+   * на карту — она приходит в welcome и потом не меняется.
+   */
+  private placeIndex(): Map<string, { name: string; system: string; systemName: string }> {
+    if (this.places) return this.places;
+    const index = new Map<string, { name: string; system: string; systemName: string }>();
+    for (const system of this.galaxy?.systems ?? []) {
+      for (const place of system.places ?? []) {
+        index.set(place.key, { name: place.name, system: system.id, systemName: system.name });
+      }
+    }
+    this.places = index;
+    return index;
+  }
+
+  /**
    * Человеческое имя места или системы по ключу («sys:vega», «st:vega», «pl:terra»).
-   * Знаем только то, где стоим, и свою систему — остальные зовутся по id.
+   * Сначала — то, где стоим (там имя точно верное), потом карта галактики, потом своя система.
    */
   private placeName(key: string): string | null {
     if (key === this.placeKey) return this.placeLabel;
+    const known = this.placeIndex().get(key);
+    if (known) return known.name;
     const [kind, id] = [key.slice(0, key.indexOf(':')), key.slice(key.indexOf(':') + 1)];
     return kind !== 'pl' && id === this.here ? this.systemStation : null;
   }
@@ -924,6 +963,63 @@ export class DockScreen {
       body.append(this.offer(id, name, stats, state));
     }
     if (shown === 0) body.append(el('div', 'dock-empty', 'Здесь корпуса не продают — только чинят и меняют на свои.'));
+  }
+
+  /**
+   * «Мой ангар» (M15.6): все свои корпуса и где какой стоит. Список виден всюду — найти свои корабли
+   * это сведения; сесть в них и сдвинуть их можно только там, где есть верфь: это уже услуга.
+   */
+  private renderShips(body: HTMLElement, hangar: HangarMsg, credits: number): void {
+    body.append(el('div', 'dock-note', 'Мой ангар'));
+    const at = hangar.ships ?? {};
+    const here = this.placeKey;
+    const jumps = this.galaxy && this.here ? hops(this.galaxy, this.here) : null;
+    const owned = hangar.guest ? [hangar.hull] : hangar.hulls;
+    for (const id of owned) {
+      const hull = this.hulls.get(id);
+      const row = el('div', 'dock-row');
+      row.addEventListener('mouseenter', () => this.previewHull(id));
+      row.addEventListener('mouseleave', () => this.previewHull(null));
+      row.append(icon(shipSprite(id)));
+      row.append(el('div', 'dock-name', hull.role ? `${hull.name} — ${hull.role}` : hull.name));
+      const where = at[id] ?? null;
+      row.append(el('div', 'dock-stats', where === null ? 'под вами' : this.whereLine(where)));
+      row.append(this.shipAction(id, where, here, jumps, credits));
+      body.append(row);
+    }
+  }
+
+  /** «Станция Vega · система Vega» / «Поселение «Новый Порт» · система Sol». */
+  private whereLine(key: string): string {
+    const known = this.placeIndex().get(key);
+    const name = known?.name ?? this.placeName(key) ?? key.slice(key.indexOf(':') + 1);
+    const label = placeKind(key) === 'planet' ? `Поселение «${name}»` : `Станция ${name}`;
+    return known ? `${label} · система ${known.systemName}` : label;
+  }
+
+  /**
+   * Что можно сделать с этим корпусом: он под вами, он здесь, он в другом доке — или туда нет пути.
+   * @param where ключ места, где он стоит; null — он под пилотом
+   */
+  private shipAction(
+    id: string,
+    where: string | null,
+    here: string | null,
+    jumps: ReadonlyMap<string, number> | null,
+    credits: number,
+  ): HTMLElement {
+    if (where === null) return el('div', 'dock-tag', 'На корабле');
+    // Двигать корабли — работа верфи: где её нет, ангар можно только посмотреть.
+    if (!this.shipyard) return el('div', 'dock-tag', 'Нужна верфь');
+    if (where === here) return button('Сесть', 'dock-buy', () => this.handlers.onEquip(id));
+    const system = this.placeIndex().get(where)?.system;
+    const hops_ = system !== undefined ? jumps?.get(system) : undefined;
+    if (hops_ === undefined) return el('div', 'dock-tag', 'Отсюда туда нет пути');
+    const cost = transportCost(this.shop, price(this.shop.hulls, id) ?? 0, hops_);
+    if (cost === null) return el('div', 'dock-tag', 'Перевозки здесь не заказать');
+    const order = button(`Перевезти · ${formatCredits(cost)}`, 'dock-buy', () => this.handlers.onTransport(id));
+    order.disabled = cost > credits;
+    return order;
   }
 
   /**

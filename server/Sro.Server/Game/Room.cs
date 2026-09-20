@@ -303,6 +303,14 @@ public sealed partial class Room
         // и это её станция; место могло и пропасть из баланса, тогда берём главное место системы.
         var savedPlace = profile?.Place ?? path?.Place ?? (profile?.System is { } old ? PlaceKey.Station(old) : null);
         player.HomePlace = Balance.Place(savedPlace)?.Key ?? Balance.DefaultPlace?.Key;
+        // Где стоят остальные корпуса ангара (M15.6). Профиль старше M15.6 этого не знает, и место
+        // могло пропасть из баланса — тогда корабль ждёт дома: там пилот его и станет искать первым.
+        foreach (var id in player.Hulls)
+        {
+            if (id == player.HullId) continue;
+            var saved = profile?.Ships?.GetValueOrDefault(id);
+            player.HullPlaces[id] = Balance.Galaxy.HasPlace(saved) ? saved! : player.HomePlace ?? PlaceKey.Station(SystemId);
+        }
         // Обучение — только новому пилоту (GDD §54): профиль старше M8 считается прошедшим его.
         player.Missions.Tutorial = profile is null ? 0 : profile.Tutorial ?? MissionLog.Finished;
         // Живое задание в комнату не возвращается: его конвой и звено остались в прошлом вылете (M14).
@@ -599,11 +607,66 @@ public sealed partial class Room
             connection.Send(new NoticeMsg(Protocol.NoShipyardNotice));
             return;
         }
+        // Корабль стоит там, где его оставили (M15.6): сесть в него можно, только придя туда самому
+        // или заказав перевозку. У гостя ангар свой, ненастоящий, — ему это правило ни к чему.
+        if (!player.IsGuest && player.HullPlaces.TryGetValue(hullId, out var at) && at != PlaceOf(player)?.Key)
+        {
+            connection.Send(new NoticeMsg(Protocol.ShipElsewhereNotice));
+            return;
+        }
         ChangeHull(player, hullId);
         SendCargo(player); // у нового корпуса своя ёмкость; груз при этом не выбрасывается (GDD §24)
         SendHangar(player);
         Save(player);
         _log.LogInformation("Player {Id} switched to {Hull}", player.Id, hullId);
+    }
+
+    /// <summary>
+    /// Сколько стоит привезти сюда этот корпус (M15.6): 0 — он уже здесь, base — другое место этой же
+    /// системы, дальше — по числу прыжков. null — корпус не свой, он под пилотом, услуги тут нет
+    /// или пути по вратам нет вовсе.
+    /// </summary>
+    private int? TransportQuote(Player player, string hullId)
+    {
+        if (PlaceOf(player) is not { } here) return null;
+        if (!player.HullPlaces.TryGetValue(hullId, out var from)) return null;
+        if (from == here.Key) return 0;
+        if (Balance.Galaxy.SystemOfPlace(from) is not { } system) return null;
+        if (Balance.Galaxy.Jumps(SystemId, system) is not { } jumps) return null;
+        return ShopOf(player).TransportCost(ShopOf(player).HullPrice(hullId) ?? 0, jumps);
+    }
+
+    /// <summary>
+    /// Перегнать свой корпус из другого дока сюда (M15.6). Второй путь — слетать за ним самому
+    /// и пересесть на месте: он бесплатен и работает по тому же правилу, что и <see cref="SetHull"/>.
+    /// </summary>
+    public void Transport(IClientConnection connection, string? hullId)
+    {
+        if (hullId is null || !_byConnection.TryGetValue(connection.Id, out var player)) return;
+        if (player.IsGuest || !player.Docked || !player.OwnsHull(hullId) || hullId == player.HullId) return;
+        if (PlaceOf(player) is not { } here) return;
+        // Двигать корабли — работа верфи: где её нет, ангар можно только посмотреть.
+        if (!here.Shipyard)
+        {
+            connection.Send(new NoticeMsg(Protocol.NoShipyardNotice));
+            return;
+        }
+        if (TransportQuote(player, hullId) is not { } cost)
+        {
+            connection.Send(new NoticeMsg(Protocol.NoRouteNotice));
+            return;
+        }
+        if (player.Credits < cost)
+        {
+            connection.Send(new NoticeMsg(Protocol.NoCreditsNotice));
+            return;
+        }
+        player.Credits -= cost;
+        player.HullPlaces[hullId] = here.Key;
+        SendCargo(player);
+        SendHangar(player);
+        Save(player);
+        _log.LogInformation("Player {Id} had {Hull} towed to {Place} for {Credits} credits", player.Id, hullId, here.Key, cost);
     }
 
     /// <summary>
@@ -1483,6 +1546,10 @@ public sealed partial class Room
     private void ChangeHull(Player player, string hullId)
     {
         if (player.HullId == hullId) return;
+        // Единственное место, где меняется корабль под пилотом, — здесь же и бухгалтерия ангара (M15.6):
+        // тот, из которого вышли, остаётся стоять в этом месте; тот, в который сели, больше нигде не стоит.
+        if (PlaceOf(player) is { } here) player.HullPlaces[player.HullId] = here.Key;
+        player.HullPlaces.Remove(hullId);
         var from = player.Effective(Balance);
         player.HullId = hullId;
         var removed = new List<string>();
@@ -2060,7 +2127,8 @@ public sealed partial class Room
             (int)Math.Round(Fitting.Power(player.Fit, Balance.Weapons, Balance.Modules)),
             Balance.Modules is null ? 0 : (int)Math.Round(Fitting.Output(player.Fit, Balance.Modules)),
             player.IsGuest,
-            PlaceOf(player) is { } place ? new PlaceDto(place.Key, place.Kind, place.Name, place.Scene, place.Shipyard) : null));
+            PlaceOf(player) is { } place ? new PlaceDto(place.Key, place.Kind, place.Name, place.Scene, place.Shipyard) : null,
+            player.HullPlaces.Count == 0 ? null : new SortedDictionary<string, string>(player.HullPlaces, StringComparer.Ordinal)));
     }
 
     /// <summary>Кредиты пилоту за вторжение: сразу в аккаунт и клиенту.</summary>
@@ -2097,7 +2165,8 @@ public sealed partial class Room
             Reputation: SaveRep(player),
             RepAt: player.Rep.At,
             Place: player.HomePlace,
-            Career: player.Career));
+            Career: player.Career,
+            Ships: player.HullPlaces.Count == 0 ? null : new SortedDictionary<string, string>(player.HullPlaces, StringComparer.Ordinal)));
     }
 
     /// <summary>Очки в профиль: сперва догоняем их до «сейчас», иначе на диск уехало бы вчерашнее число.</summary>

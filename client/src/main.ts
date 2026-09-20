@@ -51,7 +51,7 @@ import { CargoHud, type CargoState } from './ui/cargoHud';
 import { CombatHud } from './ui/combatHud';
 import { DevOverlay } from './ui/devOverlay';
 import { DockScreen } from './ui/dockScreen';
-import { Feed, describeBlock, describeBurn, describeKill, describeNotice, describeRepChange } from './ui/feed';
+import { Feed, describeBlock, describeBurn, describeKill, describeNotice, describeRepChange, isRefusal } from './ui/feed';
 import { FlightHud } from './ui/flightHud';
 import { GalaxyMap } from './ui/galaxyMap';
 import { ControlsWindow } from './ui/controlsWindow';
@@ -325,7 +325,7 @@ async function main(): Promise<void> {
   const warnHeat = (x: number, y: number, away: boolean) => {
     const sun = system?.sun;
     const hot = !away && !!sun && Math.hypot(x, y) < sun.burnRadius;
-    if (hot && !inHeat) feed.add('Жар звезды! Уходите — сгорите');
+    if (hot && !inHeat) feed.add('Жар звезды! Уходите — сгорите', true);
     inHeat = hot;
   };
   /** Свой корабль готовит гиперпрыжок. */
@@ -357,6 +357,7 @@ async function main(): Promise<void> {
     onBuyGoods: (item, count) => send({ t: 'buyGoods', item, count }),
     onBuy: (kind, id, slot) => send({ t: 'buy', kind, id, slot }),
     onEquip: (id) => send({ t: 'hull', id }),
+    onTransport: (id) => send({ t: 'transport', hull: id }),
     onFit: (slot, id) => send({ t: 'fit', slot, id }),
     onSellItem: (id) => send({ t: 'sellItem', id }),
     onRepair: () => send({ t: 'repair' }),
@@ -469,11 +470,11 @@ async function main(): Promise<void> {
         return false;
       }
       if (!pvpOn && peaceful(current)) {
-        feed.add(`${current.name}: PvP выключен — включите его у миникарты`);
+        feed.warn(`${current.name}: PvP выключен — включите его у миникарты`);
         return false;
       }
       if (pvpOff() && 'kind' in current && current.kind === 'player') {
-        feed.add(`В системе ${system!.name} PvP нет`);
+        feed.warn(`В системе ${system!.name} PvP нет`);
         return false;
       }
       return true;
@@ -486,7 +487,7 @@ async function main(): Promise<void> {
       setTarget(id);
       return true;
     }
-    if (isOnline()) feed.add('Нет цели в радиусе огня');
+    if (isOnline()) feed.warn('Нет цели в радиусе огня');
     return false;
   };
   fire.onChange = (on) => {
@@ -526,14 +527,14 @@ async function main(): Promise<void> {
     }
     if (markId === STATION_ID) {
       if (stationDistance() <= lootRules.stationRange) send({ t: 'dock', on: true });
-      else feed.add('Подлетите ближе к станции');
+      else feed.warn('Подлетите ближе к станции');
       return true;
     }
     const planet = selectedPlanet();
     if (planet) {
       // Садятся только туда, где есть поселение (M15): дикие планеты откроются вместе с мехами.
-      if (!planet.place) feed.add(`${planet.name}: садиться некуда`);
-      else if (landingDistance(planet) > landingRange(planet)) feed.add(`Подлетите ближе к поселению «${planet.placeName}»`);
+      if (!planet.place) feed.warn(`${planet.name}: садиться некуда`);
+      else if (landingDistance(planet) > landingRange(planet)) feed.warn(`Подлетите ближе к поселению «${planet.placeName}»`);
       else send({ t: 'dock', on: true, place: planet.place });
       return true;
     }
@@ -541,7 +542,7 @@ async function main(): Promise<void> {
     if (gate && system) {
       if (jumping()) send({ t: 'jump', to: null });
       else if (Math.hypot(prediction.curr.x - gate.x, prediction.curr.y - gate.y) > system.gateRange) {
-        feed.add('Подлетите ближе к вратам');
+        feed.warn('Подлетите ближе к вратам');
       } else send({ t: 'jump', to: gate.to });
       return true;
     }
@@ -697,6 +698,7 @@ async function main(): Promise<void> {
       oldNebula.view.destroy({ children: true, texture: true, textureSource: true });
     }
     dockScreen.setStation(system?.station ? system.name : null, system?.id ?? null, system?.dockScene ?? null);
+    dockScreen.setGalaxy(galaxy); // ангару нужны имена чужих мест и прыжки до них (M15.6)
     if (was?.id !== system?.id) {
       sos.clear();
       setMark(0);
@@ -902,7 +904,7 @@ async function main(): Promise<void> {
     };
     connection.onNotice = (message) => {
       const text = describeNotice(message.code, message.n ?? 0);
-      if (text) feed.add(text);
+      if (text) isRefusal(message.code) ? feed.warn(text) : feed.add(text);
     };
     connection.onSnapshot = (message) => {
       const now = performance.now();
@@ -1040,7 +1042,7 @@ async function main(): Promise<void> {
     missiles.update(remote.renderTick, ownId());
     // Ракета в меня — одна строка в ленте, пока летит хоть одна: от неё уходят манёвром.
     const incoming = online && !dead && !docked ? missiles.incoming(ownId()) : 0;
-    if (incoming > 0 && !missileWarned) feed.add('Ракета! Уходите манёвром');
+    if (incoming > 0 && !missileWarned) feed.add('Ракета! Уходите манёвром', true);
     missileWarned = incoming > 0;
     for (const event of combat.take(remote.renderTick)) play(event, now);
 

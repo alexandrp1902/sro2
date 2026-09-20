@@ -62,6 +62,8 @@ public sealed class GalaxyHost : BackgroundService
 
     public void SetHull(IClientConnection connection, string? hullId) => With(connection, r => r.SetHull(connection, hullId));
 
+    public void Transport(IClientConnection connection, string? hullId) => With(connection, r => r.Transport(connection, hullId));
+
     public void SetWeapon(IClientConnection connection, string? weaponId) => With(connection, r => r.SetWeapon(connection, weaponId));
 
     public void SetTarget(IClientConnection connection, int targetId) => With(connection, r => r.SetTarget(connection, targetId));

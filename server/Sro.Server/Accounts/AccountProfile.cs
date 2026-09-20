@@ -26,6 +26,10 @@ namespace Sro.Server.Accounts;
 /// тогда это станция системы <paramref name="System"/>. Сама <paramref name="System"/> остаётся заполненной:
 /// по ней выбирается комната, и откат сервера на старую версию не обнулит пилоту дом.
 /// </param>
+/// <param name="Ships">
+/// Где стоят корпуса ангара (M15.6): id корпуса → ключ места. Активного корпуса здесь нет.
+/// null — профиль старше M15.6: тогда считается, что все корабли ждут дома.
+/// </param>
 /// <param name="Career">
 /// Путь, выбранный при заведении аккаунта (M15.5): «ranger», «trader». null — профиль старше M15.5 или гость,
 /// читается как рейнджер. Дальше старта путь ни на что не влияет: он остаётся ради карточки пилота,
@@ -47,4 +51,5 @@ public sealed record AccountProfile(
     IReadOnlyDictionary<string, double>? Reputation = null,
     long? RepAt = null,
     string? Place = null,
-    string? Career = null);
+    string? Career = null,
+    IReadOnlyDictionary<string, string>? Ships = null);

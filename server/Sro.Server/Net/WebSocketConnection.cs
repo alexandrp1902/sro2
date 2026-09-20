@@ -203,6 +203,9 @@ public sealed class WebSocketConnection(WebSocket socket, ILogger log) : IClient
                 case HullMsg hull when joined:
                     room.SetHull(this, hull.Id);
                     break;
+                case TransportMsg transport when joined:
+                    room.Transport(this, transport.Hull);
+                    break;
                 case WeaponMsg weapon when joined:
                     room.SetWeapon(this, weapon.Id);
                     break;

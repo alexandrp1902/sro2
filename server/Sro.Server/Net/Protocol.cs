@@ -13,6 +13,7 @@ namespace Sro.Server.Net;
 [JsonDerivedType(typeof(PingMsg), "ping")]
 [JsonDerivedType(typeof(InputMsg), "input")]
 [JsonDerivedType(typeof(HullMsg), "hull")]
+[JsonDerivedType(typeof(TransportMsg), "transport")]
 [JsonDerivedType(typeof(WeaponMsg), "weapon")]
 [JsonDerivedType(typeof(FitMsg), "fit")]
 [JsonDerivedType(typeof(SellItemMsg), "sellItem")]
@@ -78,6 +79,12 @@ public sealed record InputMsg(int Seq, double Dx, double Dy, double Th) : Client
 
 /// <summary>Поставить корпус из ангара: пилоту с аккаунтом — только свой и только в доке, гостю — любой.</summary>
 public sealed record HullMsg(string? Id) : ClientMessage;
+
+/// <summary>
+/// Перегнать свой корпус из другого дока сюда (M15.6): плата сразу, корабль здесь сразу. Второй путь —
+/// слетать за ним самому и пересесть на месте, он бесплатный.
+/// </summary>
+public sealed record TransportMsg(string? Hull) : ClientMessage;
 
 /// <summary>Поставить пушку в первый слот: пилоту с аккаунтом — только со склада и только в доке, гостю — любую.</summary>
 public sealed record WeaponMsg(string? Id) : ClientMessage;
@@ -364,6 +371,10 @@ public sealed record DeniedMsg(string Code) : ServerMessage;
 /// <param name="PowerMax">Сколько даёт генератор; 0 — энергию не считают (баланс без modules.json).</param>
 /// <param name="Guest">Гость: склада нет, ставить можно что угодно где угодно.</param>
 /// <param name="Place">Где корабль стоит (M15): ключ места; null — в космосе.</param>
+/// <param name="Ships">
+/// Где стоят остальные корпуса ангара (M15.6): id → ключ места. Активного здесь нет, у гостя пусто.
+/// Имена мест и их систем клиент уже знает из <see cref="GalaxyDto"/>, поэтому едут только ключи.
+/// </param>
 public sealed record HangarMsg(
     string Hull,
     ShipFit Fit,
@@ -376,7 +387,8 @@ public sealed record HangarMsg(
     int Power = 0,
     int PowerMax = 0,
     bool Guest = false,
-    PlaceDto? Place = null) : ServerMessage;
+    PlaceDto? Place = null,
+    IReadOnlyDictionary<string, string>? Ships = null) : ServerMessage;
 
 /// <summary>
 /// Место, где стоит корабль (M15): станция или поселение на планете. Клиент по нему выбирает фон дока,
@@ -763,6 +775,10 @@ public static class Protocol
     public const string TooFarNotice = "tooFar";
     public const string NoCreditsNotice = "noCredits";
     public const string NotSoldNotice = "notSold";
+    /// <summary>Этот корпус стоит в другом месте (M15.6): слетать за ним или заказать перевозку.</summary>
+    public const string ShipElsewhereNotice = "shipElsewhere";
+    /// <summary>Отсюда туда нет пути по вратам: перевезти корпус нельзя (M15.6).</summary>
+    public const string NoRouteNotice = "noRoute";
     /// <summary>Баки выкуплены: топливо отменено (M15.6), кредиты за них вернулись на счёт.</summary>
     public const string TanksSoldNotice = "tanksSold";
     public const string GateFarNotice = "gateFar";

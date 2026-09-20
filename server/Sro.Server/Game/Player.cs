@@ -60,6 +60,12 @@ public sealed class Player(int id, string? token, string name, string hullId, st
     /// <summary>Купленные корпуса — ангар (GDD §51). Стартовый есть всегда.</summary>
     public HashSet<string> Hulls { get; } = new(StringComparer.Ordinal) { SimConfig.DefaultHull };
 
+    /// <summary>
+    /// Где стоит каждый корпус ангара (M15.6): id корпуса → ключ места. Активного здесь нет — он под пилотом,
+    /// и вторая запись о его местоположении рано или поздно разошлась бы с первой.
+    /// </summary>
+    public Dictionary<string, string> HullPlaces { get; } = new(StringComparer.Ordinal);
+
     /// <summary>Что стоит на корабле (GDD §62): пушки по слотам и модули. Переходит с корпуса на корпус.</summary>
     public ShipFit Fit { get; set; } = Fitting.Starter.With("w0", weaponId);
 

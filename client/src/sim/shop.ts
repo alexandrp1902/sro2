@@ -1,5 +1,17 @@
 // Зеркало server/Sro.Sim/ShopRules.cs: цены станции (GDD §26, §30, §50).
 
+/**
+ * Тариф буксира (M15.6): перегон своего корпуса из другого дока сюда. Ни цены места, ни репутация на него
+ * не влияют — тариф галактический и не зависит от того, на каком конце маршрута стоит заказчик.
+ */
+export interface TransportDef {
+  /** Плата за вызов: столько стоит перегон в пределах одной системы. */
+  base: number;
+  perJump: number;
+  /** Доля цены корпуса за каждый прыжок: тащить «Титана» дороже, чем «Пчелу». */
+  hullShare: number;
+}
+
 export interface ShopRules {
   /** Кредитов у нового пилота (GDD §54). */
   startCredits: number;
@@ -13,6 +25,8 @@ export interface ShopRules {
   sellShare?: number;
   /** Доля цены корпуса за полный ремонт (M12): дорогой корабль и чинить дорого. 0 или нет поля — как до M12. */
   repairHullShare?: number;
+  /** Тариф буксира (M15.6); нет — перевозки корпусов здесь не заказать. */
+  transport?: TransportDef | null;
   /** Что продают именно здесь (M11); нет — продаётся всё, что в прайсе. */
   stock?: string[] | null;
   /** Подпись магазина станции: «Военная станция Nova». */
@@ -53,6 +67,17 @@ export function repairCost(shop: ShopRules, missingHp: number, maxHp = 0, hullPr
   const share = shop.repairHullShare ?? 0;
   const byHull = maxHp > 0 && hullPrice > 0 ? (share * hullPrice * missingHp) / maxHp : 0;
   return Math.ceil(missingHp * shop.repairPrice + byHull);
+}
+
+/**
+ * Сколько стоит привезти сюда корпус за jumps прыжков (M15.6) — как на сервере (ShopRules.TransportCost);
+ * null — услуги нет. Совпадение проверяет shared/test-vectors/shop.json: в доке показывают ровно ту сумму,
+ * которую спишет сервер.
+ */
+export function transportCost(shop: ShopRules, hullPrice: number, jumps: number): number | null {
+  const t = shop.transport;
+  if (!t || jumps < 0 || hullPrice < 0) return null;
+  return Math.ceil(t.base + jumps * (t.perJump + t.hullShare * hullPrice) - 1e-9);
 }
 
 /** «1 800 кр»: тысячи через пробел, как принято в русском тексте. */

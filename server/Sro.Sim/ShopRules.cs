@@ -27,6 +27,20 @@ public sealed record StockDef(
 }
 
 /// <summary>
+/// Тариф буксира (M15.6): во сколько обходится перегон своего корпуса из другого дока сюда.
+/// Ни множитель цен места, ни репутация к нему не применяются — тариф галактический, и он не должен
+/// зависеть от того, на каком конце маршрута стоит заказчик.
+/// </summary>
+/// <param name="Base">Плата за вызов: столько стоит перегон в пределах одной системы.</param>
+/// <param name="PerJump">За каждый прыжок маршрута.</param>
+/// <param name="HullShare">Доля цены корпуса за каждый прыжок: тащить «Титана» дороже, чем «Пчелу».</param>
+public sealed record TransportDef(int Base = 400, int PerJump = 800, double HullShare = 0.05)
+{
+    public string? Validate() =>
+        Base >= 0 && PerJump >= 0 && HullShare >= 0 ? null : "base, perJump and hullShare must not be negative";
+}
+
+/// <summary>
 /// Станция и экономика из shared/shop.json (GDD §26, §30, §50, §54): стартовые кредиты, цены корпусов, пушек и модулей,
 /// цена ремонта. Стартовый корпус (<see cref="SimConfig.DefaultHull"/>) и стартовое оснащение (<see cref="Fitting.Starter"/>)
 /// есть у каждого пилота бесплатно, что бы ни стояло в прайсе.
@@ -46,6 +60,7 @@ public sealed record StockDef(
 /// <param name="Places">Отличия отдельных мест по ключу места (M15): «st:sol», «pl:terra».</param>
 /// <param name="Stock">Магазин одного места: что здесь продают. null — всё, что в прайсе.</param>
 /// <param name="Title">Магазин одного места: его подпись.</param>
+/// <param name="Transport">Тариф буксира (M15.6); null — перевозки корпусов нет, за ними летают сами.</param>
 /// <param name="Legacy">
 /// Цены предметов, снятых с баланса (M15.6): по ним вход возвращает кредиты за то, чего больше нет в игре.
 /// Эти id нарочно не проверяются по каталогам — их там уже нет, иначе проверка падала бы по построению.
@@ -62,6 +77,7 @@ public sealed record ShopRules(
     IReadOnlyList<string>? Stock = null,
     string? Title = null,
     double RepairHullShare = 0,
+    TransportDef? Transport = null,
     IReadOnlyDictionary<string, int>? Legacy = null)
 {
     public const string File = "shop.json";
@@ -105,6 +121,17 @@ public sealed record ShopRules(
         var byHull = maxHp > 0 && hullPrice > 0 ? RepairHullShare * hullPrice * missingHp / maxHp : 0;
         return (int)Math.Ceiling(missingHp * RepairPrice + byHull);
     }
+
+    /// <summary>
+    /// Сколько стоит привезти сюда корпус за jumps прыжков (M15.6); null — услуги здесь нет.
+    /// Зеркало transportCost в client/src/sim/shop.ts: в доке показывают ровно то, что спишет сервер.
+    /// </summary>
+    /// <param name="hullPrice">Цена корпуса в прайсе; 0 — надбавки нет (стартовый корпус даром).</param>
+    /// <param name="jumps">Прыжков между системами; 0 — другое место этой же системы.</param>
+    public int? TransportCost(int hullPrice, int jumps) =>
+        Transport is not { } t || jumps < 0 || hullPrice < 0
+            ? null
+            : (int)Math.Ceiling(t.Base + jumps * (t.PerJump + t.HullShare * hullPrice) - 1e-9);
 
     /// <summary>
     /// Цена снятого с баланса предмета (и его старшего тира); null — за это не возвращают. Этими ценами вход
@@ -181,6 +208,7 @@ public sealed record ShopRules(
         if (!(RepairPrice >= 0)) return "repairPrice must not be negative";
         if (!(SellShare >= 0 && SellShare <= 1)) return "sellShare must be within 0..1";
         if (!(RepairHullShare >= 0)) return "repairHullShare must not be negative";
+        if (Transport?.Validate() is { } transport) return $"transport: {transport}";
         foreach (var (id, price) in Legacy ?? new Dictionary<string, int>())
             if (price < 0) return $"legacy.{id}: price must not be negative";
         foreach (var (id, price) in HullPrices)

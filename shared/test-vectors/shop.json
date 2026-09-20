@@ -1,0 +1,43 @@
+{
+  "shop": {"startCredits":1000,"repairPrice":0.25,"hulls":null,"items":null,"sellShare":0.5,"tiers":null,"regions":null,"places":null,"stock":null,"title":null,"repairHullShare":0.06,"transport":{"base":400,"perJump":800,"hullShare":0.05},"legacy":null},
+  "transport": [
+    {"hullPrice":0,"jumps":0,"credits":400},
+    {"hullPrice":0,"jumps":1,"credits":1200},
+    {"hullPrice":0,"jumps":2,"credits":2000},
+    {"hullPrice":0,"jumps":3,"credits":2800},
+    {"hullPrice":0,"jumps":5,"credits":4400},
+    {"hullPrice":3000,"jumps":0,"credits":400},
+    {"hullPrice":3000,"jumps":1,"credits":1350},
+    {"hullPrice":3000,"jumps":2,"credits":2300},
+    {"hullPrice":3000,"jumps":3,"credits":3250},
+    {"hullPrice":3000,"jumps":5,"credits":5150},
+    {"hullPrice":26000,"jumps":0,"credits":400},
+    {"hullPrice":26000,"jumps":1,"credits":2500},
+    {"hullPrice":26000,"jumps":2,"credits":4600},
+    {"hullPrice":26000,"jumps":3,"credits":6700},
+    {"hullPrice":26000,"jumps":5,"credits":10900},
+    {"hullPrice":60000,"jumps":0,"credits":400},
+    {"hullPrice":60000,"jumps":1,"credits":4200},
+    {"hullPrice":60000,"jumps":2,"credits":8000},
+    {"hullPrice":60000,"jumps":3,"credits":11800},
+    {"hullPrice":60000,"jumps":5,"credits":19400}
+  ],
+  "repair": [
+    {"missingHp":0,"maxHp":400,"hullPrice":0,"credits":0},
+    {"missingHp":1,"maxHp":400,"hullPrice":0,"credits":1},
+    {"missingHp":200,"maxHp":400,"hullPrice":0,"credits":50},
+    {"missingHp":400,"maxHp":400,"hullPrice":0,"credits":100},
+    {"missingHp":0,"maxHp":400,"hullPrice":3000,"credits":0},
+    {"missingHp":1,"maxHp":400,"hullPrice":3000,"credits":1},
+    {"missingHp":200,"maxHp":400,"hullPrice":3000,"credits":140},
+    {"missingHp":400,"maxHp":400,"hullPrice":3000,"credits":280},
+    {"missingHp":0,"maxHp":400,"hullPrice":26000,"credits":0},
+    {"missingHp":1,"maxHp":400,"hullPrice":26000,"credits":5},
+    {"missingHp":200,"maxHp":400,"hullPrice":26000,"credits":830},
+    {"missingHp":400,"maxHp":400,"hullPrice":26000,"credits":1660},
+    {"missingHp":0,"maxHp":400,"hullPrice":60000,"credits":0},
+    {"missingHp":1,"maxHp":400,"hullPrice":60000,"credits":10},
+    {"missingHp":200,"maxHp":400,"hullPrice":60000,"credits":1850},
+    {"missingHp":400,"maxHp":400,"hullPrice":60000,"credits":3700}
+  ]
+}

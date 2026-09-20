@@ -36,6 +36,8 @@ const NOTICES: Record<string, string> = {
   tooFar: 'Слишком далеко',
   noCredits: 'Не хватает кредитов',
   notSold: 'Здесь этого не продают — ищите в другом регионе',
+  shipElsewhere: 'Этот корабль стоит в другом доке — слетайте за ним или закажите перевозку',
+  noRoute: 'Отсюда туда нет пути по вратам',
   gateFar: 'Подлетите ближе к вратам',
   jumpCancelled: 'Прыжок сорван',
   jumpHit: 'Прыжок сбит — по вам попали',
@@ -95,6 +97,15 @@ export function describeRepChange(change: RepChangeDto, name?: string | null): s
   return `${sign}${change.delta} ${where}: ${why}`;
 }
 
+/** Коды-отказы: действие не вышло, и текст говорит, что сделать. В ленте они жёлтые (SRO Steel: sro-msg--warn). */
+const REFUSALS = new Set([
+  'cargoFull', 'tooFar', 'noCredits', 'notSold', 'gateFar', 'noPower', 'badClass', 'badSlot',
+  'noGoods', 'noStock', 'dockClosed', 'needRep', 'jumpCancelled', 'jumpHit', 'missionAway',
+  'shipElsewhere', 'noRoute',
+]);
+
+export const isRefusal = (code: string): boolean => REFUSALS.has(code);
+
 export function describeNotice(code: string, n = 0): string | null {
   return COUNTED[code]?.(n) ?? NOTICES[code] ?? null;
 }
@@ -107,16 +118,25 @@ export class Feed {
     for (const event of events) this.add(describe(event));
   }
 
-  /** alert — тревога (SOS): строка заметнее остальных. */
+  /** alert — тревога (SOS, ракета, жар звезды): строка красная и заметнее остальных. */
   add(text: string, alert = false): void {
+    this.show(text, alert ? 'alert' : text.startsWith('+') ? 'gain' : 'plain');
+  }
+
+  /** Отказ с подсказкой, что делать («Подлетите ближе к вратам»): жёлтый, не красный — никто не погибает. */
+  warn(text: string): void {
+    this.show(text, 'warn');
+  }
+
+  private show(text: string, tone: 'plain' | 'gain' | 'warn' | 'alert'): void {
     const item = document.createElement('div');
-    item.className = alert ? 'feed-item feed-alert' : 'feed-item';
+    item.className = tone === 'plain' ? 'feed-item sro-msg' : `feed-item sro-msg sro-msg--${tone}`;
     item.textContent = text;
     this.root.append(item);
     while (this.root.children.length > MAX_ITEMS) this.root.firstElementChild!.remove();
 
     window.setTimeout(() => {
-      item.classList.add('feed-out');
+      item.classList.add('sro-msg--out');
       window.setTimeout(() => item.remove(), FADE_MS);
     }, SHOW_MS);
   }

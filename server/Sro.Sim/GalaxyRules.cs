@@ -185,6 +185,34 @@ public sealed record GalaxyRules(
     public LinkDef? Link(string a, string b) =>
         LinkList.FirstOrDefault(l => (l.A == a && l.B == b) || (l.A == b && l.B == a));
 
+    /// <summary>
+    /// Сколько прыжков от from до каждой достижимой системы; сама from — 0. Недостижимых в ответе нет.
+    /// Зеркало hops() в client/src/sim/galaxy.ts: по этому числу считается тариф буксира (M15.6),
+    /// и цена в доке обязана совпасть с тем, что спишет сервер.
+    /// </summary>
+    public IReadOnlyDictionary<string, int> Hops(string from)
+    {
+        var result = new Dictionary<string, int>(StringComparer.Ordinal) { [from] = 0 };
+        var queue = new Queue<string>();
+        queue.Enqueue(from);
+        while (queue.Count > 0)
+        {
+            var id = queue.Dequeue();
+            var next = result[id] + 1;
+            foreach (var link in LinkList)
+            {
+                var other = link.A == id ? link.B : link.B == id ? link.A : null;
+                if (other is null || result.ContainsKey(other)) continue;
+                result[other] = next;
+                queue.Enqueue(other);
+            }
+        }
+        return result;
+    }
+
+    /// <summary>Прыжков между системами; null — пути по вратам нет.</summary>
+    public int? Jumps(string a, string b) => Hops(a).TryGetValue(b, out var n) ? n : null;
+
     /// <summary>Куда корабль попадает после прыжка from → to: у ответных врат, на ArrivalOffset ближе к центру.</summary>
     public (double X, double Y)? Arrival(string from, string to)
     {
