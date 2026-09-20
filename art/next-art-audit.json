@@ -1226,87 +1226,402 @@
   },
   {
     "file": "art/dock/landings/landing-desert.png",
-    "status": "missing"
+    "status": "present",
+    "width": 1448,
+    "height": 1086,
+    "expectedSize": [
+      1600,
+      1200
+    ],
+    "sizeMatches": false,
+    "alphaRequired": false,
+    "transparentPixels": 0,
+    "alphaBounds": [
+      0,
+      0,
+      1447,
+      1085
+    ]
   },
   {
     "file": "art/dock/landings/landing-ice.png",
-    "status": "missing"
+    "status": "present",
+    "width": 1448,
+    "height": 1086,
+    "expectedSize": [
+      1600,
+      1200
+    ],
+    "sizeMatches": false,
+    "alphaRequired": false,
+    "transparentPixels": 0,
+    "alphaBounds": [
+      0,
+      0,
+      1447,
+      1085
+    ]
   },
   {
     "file": "art/dock/landings/landing-lava.png",
-    "status": "missing"
+    "status": "present",
+    "width": 1448,
+    "height": 1086,
+    "expectedSize": [
+      1600,
+      1200
+    ],
+    "sizeMatches": false,
+    "alphaRequired": false,
+    "transparentPixels": 0,
+    "alphaBounds": [
+      0,
+      0,
+      1447,
+      1085
+    ]
   },
   {
     "file": "art/dock/landings/landing-jungle.png",
-    "status": "missing"
+    "status": "present",
+    "width": 1448,
+    "height": 1086,
+    "expectedSize": [
+      1600,
+      1200
+    ],
+    "sizeMatches": false,
+    "alphaRequired": false,
+    "transparentPixels": 0,
+    "alphaBounds": [
+      0,
+      0,
+      1447,
+      1085
+    ]
   },
   {
     "file": "art/dock/landings/landing-barren.png",
-    "status": "missing"
+    "status": "present",
+    "width": 1448,
+    "height": 1086,
+    "expectedSize": [
+      1600,
+      1200
+    ],
+    "sizeMatches": false,
+    "alphaRequired": false,
+    "transparentPixels": 0,
+    "alphaBounds": [
+      0,
+      0,
+      1447,
+      1085
+    ]
   },
   {
     "file": "art/dock/landings/landing-orbital-platform.png",
-    "status": "missing"
+    "status": "present",
+    "width": 1448,
+    "height": 1086,
+    "expectedSize": [
+      1600,
+      1200
+    ],
+    "sizeMatches": false,
+    "alphaRequired": false,
+    "transparentPixels": 0,
+    "alphaBounds": [
+      0,
+      0,
+      1447,
+      1085
+    ]
   },
   {
     "file": "art/dock/landings/landing-ocean.png",
-    "status": "missing"
+    "status": "present",
+    "width": 1448,
+    "height": 1086,
+    "expectedSize": [
+      1600,
+      1200
+    ],
+    "sizeMatches": false,
+    "alphaRequired": false,
+    "transparentPixels": 0,
+    "alphaBounds": [
+      0,
+      0,
+      1447,
+      1085
+    ]
   },
   {
     "file": "art/dock/landings/landing-toxic.png",
-    "status": "missing"
+    "status": "present",
+    "width": 1448,
+    "height": 1086,
+    "expectedSize": [
+      1600,
+      1200
+    ],
+    "sizeMatches": false,
+    "alphaRequired": false,
+    "transparentPixels": 0,
+    "alphaBounds": [
+      0,
+      0,
+      1447,
+      1085
+    ]
   },
   {
     "file": "art/mechs/parts/mech-body-light.png",
-    "status": "missing"
+    "status": "present",
+    "width": 1254,
+    "height": 1254,
+    "expectedSize": [
+      1024,
+      1024
+    ],
+    "sizeMatches": false,
+    "alphaRequired": true,
+    "transparentPixels": 660481,
+    "alphaBounds": [
+      65,
+      56,
+      1203,
+      1195
+    ]
   },
   {
     "file": "art/mechs/parts/mech-body-medium.png",
-    "status": "missing"
+    "status": "present",
+    "width": 1254,
+    "height": 1254,
+    "expectedSize": [
+      1024,
+      1024
+    ],
+    "sizeMatches": false,
+    "alphaRequired": true,
+    "transparentPixels": 703419,
+    "alphaBounds": [
+      75,
+      81,
+      1180,
+      1190
+    ]
   },
   {
     "file": "art/mechs/parts/mech-body-heavy.png",
-    "status": "missing"
+    "status": "present",
+    "width": 1254,
+    "height": 1254,
+    "expectedSize": [
+      1024,
+      1024
+    ],
+    "sizeMatches": false,
+    "alphaRequired": true,
+    "transparentPixels": 566916,
+    "alphaBounds": [
+      56,
+      48,
+      1220,
+      1205
+    ]
   },
   {
     "file": "art/mechs/parts/mech-body-sniper.png",
-    "status": "missing"
+    "status": "present",
+    "width": 1254,
+    "height": 1254,
+    "expectedSize": [
+      1024,
+      1024
+    ],
+    "sizeMatches": false,
+    "alphaRequired": true,
+    "transparentPixels": 1088853,
+    "alphaBounds": [
+      334,
+      35,
+      980,
+      1218
+    ]
   },
   {
     "file": "art/mechs/parts/mech-legs-light.png",
-    "status": "missing"
+    "status": "present",
+    "width": 1254,
+    "height": 1254,
+    "expectedSize": [
+      1024,
+      1024
+    ],
+    "sizeMatches": false,
+    "alphaRequired": true,
+    "transparentPixels": 1091861,
+    "alphaBounds": [
+      211,
+      33,
+      1048,
+      1222
+    ]
   },
   {
     "file": "art/mechs/parts/mech-legs-medium.png",
-    "status": "missing"
+    "status": "present",
+    "width": 1254,
+    "height": 1254,
+    "expectedSize": [
+      1024,
+      1024
+    ],
+    "sizeMatches": false,
+    "alphaRequired": true,
+    "transparentPixels": 857595,
+    "alphaBounds": [
+      108,
+      17,
+      1176,
+      1240
+    ]
   },
   {
     "file": "art/mechs/parts/mech-legs-heavy.png",
-    "status": "missing"
+    "status": "present",
+    "width": 1254,
+    "height": 1254,
+    "expectedSize": [
+      1024,
+      1024
+    ],
+    "sizeMatches": false,
+    "alphaRequired": true,
+    "transparentPixels": 967061,
+    "alphaBounds": [
+      26,
+      107,
+      1241,
+      1176
+    ]
   },
   {
     "file": "art/mechs/parts/mech-legs-tracks.png",
-    "status": "missing"
+    "status": "present",
+    "width": 1254,
+    "height": 1254,
+    "expectedSize": [
+      1024,
+      1024
+    ],
+    "sizeMatches": false,
+    "alphaRequired": true,
+    "transparentPixels": 774685,
+    "alphaBounds": [
+      19,
+      135,
+      1236,
+      1134
+    ]
   },
   {
     "file": "art/mechs/parts/mech-arm-mg.png",
-    "status": "missing"
+    "status": "present",
+    "width": 1254,
+    "height": 1254,
+    "expectedSize": [
+      1024,
+      1024
+    ],
+    "sizeMatches": false,
+    "alphaRequired": true,
+    "transparentPixels": 1069768,
+    "alphaBounds": [
+      31,
+      24,
+      1231,
+      1137
+    ]
   },
   {
     "file": "art/mechs/parts/mech-arm-cannon.png",
-    "status": "missing"
+    "status": "present",
+    "width": 1254,
+    "height": 1254,
+    "expectedSize": [
+      1024,
+      1024
+    ],
+    "sizeMatches": false,
+    "alphaRequired": true,
+    "transparentPixels": 879012,
+    "alphaBounds": [
+      51,
+      21,
+      1210,
+      1218
+    ]
   },
   {
     "file": "art/mechs/parts/mech-arm-shotgun.png",
-    "status": "missing"
+    "status": "present",
+    "width": 1254,
+    "height": 1254,
+    "expectedSize": [
+      1024,
+      1024
+    ],
+    "sizeMatches": false,
+    "alphaRequired": true,
+    "transparentPixels": 982645,
+    "alphaBounds": [
+      70,
+      35,
+      1214,
+      1169
+    ]
   },
   {
     "file": "art/mechs/parts/mech-arm-rifle.png",
-    "status": "missing"
+    "status": "present",
+    "width": 1254,
+    "height": 1254,
+    "expectedSize": [
+      1024,
+      1024
+    ],
+    "sizeMatches": false,
+    "alphaRequired": true,
+    "transparentPixels": 1183963,
+    "alphaBounds": [
+      40,
+      29,
+      1233,
+      1209
+    ]
   },
   {
     "file": "art/mechs/parts/mech-arm-rockets.png",
-    "status": "missing"
+    "status": "present",
+    "width": 1254,
+    "height": 1254,
+    "expectedSize": [
+      1024,
+      1024
+    ],
+    "sizeMatches": false,
+    "alphaRequired": true,
+    "transparentPixels": 925826,
+    "alphaBounds": [
+      56,
+      60,
+      1219,
+      1182
+    ]
   },
   {
     "file": "art/mechs/parts/mech-arm-sword.png",

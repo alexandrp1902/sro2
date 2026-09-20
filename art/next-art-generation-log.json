@@ -1,56 +1,506 @@
-﻿[
-    {
-        "value":  [
-                      {
-                          "value":  [
-                                        {
-                                            "value":  [
-                                                          {
-                                                              "value":  [
-                                                                            {
-                                                                                "value":  " ",
-                                                                                "Count":  2
-                                                                            },
-                                                                            {
-                                                                                "file":  "art/dock/planet-settlements/orbital-platform-office.png",
-                                                                                "prompt":  "Use case: stylized-concept. Single production space RPG background, 1600x1200 landscape 4:3. Detailed semi-realistic game illustration, worn gunmetal and blue-gray steel, dark navy shadows, restrained cyan practical lighting and amber details, clear midtones, matching industrial spaceship sprites. No text, logos, watermark, borders, UI. Key content inside central 60%, background fills frame. Bottom quarter quiet and dark for dialogue overlay. This is a PLANET SURFACE settlement, not an orbital station. For a gas giant: engineered platform floating in atmospheric clouds, immense gas-giant bands filling the sky. A floating atmospheric settlement, not open space. Settlement administrative dispatch office. Eye-level medium-wide view, one practical civilian dispatcher behind a low desk centered x50%, face at y34%, torso at y48%. Abstract mission board without text behind. Windows show this biome. Quiet dark lower quarter for dialogue.",
-                                                                                "tool":  "built-in image_gen",
-                                                                                "sourcePath":  "C:\\Users\\467\\.codex\\generated_images\\01a0bd15-5f8a-7ac0-b8f7-fc2e2c2b95c7\\exec-0e167021-a5b4-4f26-be99-749059deb8b5.png"
-                                                                            }
-                                                                        ],
-                                                              "Count":  2
-                                                          },
-                                                          {
-                                                              "file":  "art/dock/planet-settlements/orbital-platform-trader.png",
-                                                              "prompt":  "Use case: stylized-concept. Single production space RPG background, 1600x1200 landscape 4:3. Detailed semi-realistic game illustration, worn gunmetal and blue-gray steel, dark navy shadows, restrained cyan practical lighting and amber details, clear midtones, matching industrial spaceship sprites. No text, logos, watermark, borders, UI. Key content inside central 60%, background fills frame. Bottom quarter quiet and dark for dialogue overlay. This is a PLANET SURFACE settlement, not an orbital station. For a gas giant: engineered platform floating in atmospheric clouds, immense gas-giant bands filling the sky. A floating atmospheric settlement, not open space. Local settlement market trader behind a utilitarian counter. Eye-level medium-wide view, one merchant in practical biome-appropriate work clothes, face at x50% y34%, torso y48%. Cargo and goods at sides, settlement environment visible behind. Quiet dark counter front in bottom quarter for dialogue.",
-                                                              "tool":  "built-in image_gen",
-                                                              "sourcePath":  "C:\\Users\\467\\.codex\\generated_images\\01a0bd15-5f8a-7ac0-b8f7-fc2e2c2b95c7\\exec-c128ba92-0aa0-4fe7-930c-acb940f078aa.png"
-                                                          }
-                                                      ],
-                                            "Count":  2
-                                        },
-                                        {
-                                            "file":  "art/dock/planet-settlements/orbital-platform-shipyard.png",
-                                            "prompt":  "Use case: stylized-concept. Single production space RPG background, 1600x1200 landscape 4:3. Detailed semi-realistic game illustration, worn gunmetal and blue-gray steel, dark navy shadows, restrained cyan practical lighting and amber details, clear midtones, matching industrial spaceship sprites. No text, logos, watermark, borders, UI. Key content inside central 60%, background fills frame. Bottom quarter quiet and dark for dialogue overlay. This is a PLANET SURFACE settlement, not an orbital station. For a gas giant: engineered platform floating in atmospheric clouds, immense gas-giant bands filling the sky. A floating atmospheric settlement, not open space. STRICT 90-degree orthographic top-down view of a rectangular fabrication and repair berth with green guide lights. Exactly centered x50% y50%, longitudinal axis vertical. Central 60% width and 65% height completely EMPTY flat deck with only subdued seams. Equipment, retracted clamps, architecture and biome details along outer margins only. No ships, vehicles, people or silhouettes. No horizon, no vanishing point, no perspective tilt. Show this biome only through ground/structural materials and the area visible around the pad.",
-                                            "tool":  "built-in image_gen",
-                                            "sourcePath":  "C:\\Users\\467\\.codex\\generated_images\\01a0bd15-5f8a-7ac0-b8f7-fc2e2c2b95c7\\exec-0c116ccb-b2a1-479d-8af3-9308ecbdd63b.png"
-                                        }
-                                    ],
-                          "Count":  2
-                      },
-                      {
-                          "file":  "art/dock/planet-settlements/orbital-platform-hangar.png",
-                          "prompt":  "Use case: stylized-concept. Single production space RPG background, 1600x1200 landscape 4:3. Detailed semi-realistic game illustration, worn gunmetal and blue-gray steel, dark navy shadows, restrained cyan practical lighting and amber details, clear midtones, matching industrial spaceship sprites. No text, logos, watermark, borders, UI. Key content inside central 60%, background fills frame. Bottom quarter quiet and dark for dialogue overlay. This is a PLANET SURFACE settlement, not an orbital station. For a gas giant: engineered platform floating in atmospheric clouds, immense gas-giant bands filling the sky. A floating atmospheric settlement, not open space. STRICT 90-degree orthographic top-down view of an octagonal spaceport landing pad with cyan guide lights. Exactly centered x50% y50%, longitudinal axis vertical. Central 60% width and 65% height completely EMPTY flat deck with only subdued seams. Equipment, retracted clamps, architecture and biome details along outer margins only. No ships, vehicles, people or silhouettes. No horizon, no vanishing point, no perspective tilt. Show this biome only through ground/structural materials and the area visible around the pad.",
-                          "tool":  "built-in image_gen",
-                          "sourcePath":  "C:\\Users\\467\\.codex\\generated_images\\01a0bd15-5f8a-7ac0-b8f7-fc2e2c2b95c7\\exec-ae96ce05-02f0-47ce-86dc-a94085d3c815.png"
-                      }
-                  ],
-        "Count":  2
-    },
-    {
-        "file":  "art/dock/landings/landing-terran.png",
-        "prompt":  "Use case: stylized-concept. Single production space RPG background, 1600x1200 landscape 4:3. Detailed semi-realistic game illustration, worn gunmetal and blue-gray steel, dark navy shadows, restrained cyan practical lighting and amber details, clear midtones, matching industrial spaceship sprites. No text, logos, watermark, borders, UI. Key content inside central 60%, background fills frame. Bottom quarter quiet and dark for dialogue overlay. Cockpit view during descent toward a settlement, unobtrusive dark canopy struts at far edges, no instruments or readable UI obscuring main view. Settlement lights below and landing approach through this environment. Temperate blue-green world, broken clouds above a city and coastal spaceport. Clouds appropriate to this biome open to reveal settlement below.",
-        "tool":  "built-in image_gen",
-        "sourcePath":  "C:\\Users\\467\\.codex\\generated_images\\01a0bd15-5f8a-7ac0-b8f7-fc2e2c2b95c7\\exec-4f8de356-70fc-4392-934c-7dbfa8a1eddc.png"
-    }
+[
+  {
+    "file": "art/space/npc-ships/ships-ranger.png",
+    "prompt": "Use case: stylized-concept. Generate ONE isolated spaceship hull sprite for a top-down 2D space RPG, 1024x1024 canvas with genuinely TRANSPARENT alpha background, not a checkerboard drawing. STRICT ORTHOGRAPHIC 90-degree overhead dorsal view, nose toward exact TOP of image, engines toward bottom, no perspective or isometric tilt. Entire craft centered, all protrusions inside canvas with 8% clear padding. Detailed semi-realistic game art: worn blue-gray armor, gunmetal mechanical parts, scratched pale steel panels, subtle cyan windows and tiny amber indicators; crisp readable silhouette, coherent soft upper-left illumination, no cast shadow outside hull. No engine flames, exhaust, smoke, bloom outside silhouette, starfield, floor, text, letters, numbers, logo, frame or watermark. A finished functional industrial spacecraft, not a sketch.\n\nRanger patrol corvette of a law-enforcement fleet. Compact wedge hull with twin forward gun housings, a raised armored bridge, broad white-and-navy livery with bold light-blue chevron stripes along both wings, a small beacon light pod on the dorsal spine. Disciplined, clean, clearly official — different from any civilian or pirate craft.",
+    "tool": "built-in image_gen",
+    "sourcePath": "C:\\Users\\467\\.codex\\generated_images\\01a0bb74-f947-7c11-92ae-e52069facd3c\\exec-e77d5159-bf6a-4f0f-a65a-e0bf028bd844.png"
+  },
+  {
+    "file": "art/space/npc-ships/ships-ranger-heavy.png",
+    "prompt": "Use case: stylized-concept. Generate ONE isolated spaceship hull sprite for a top-down 2D space RPG, 1024x1024 canvas with genuinely TRANSPARENT alpha background, not a checkerboard drawing. STRICT ORTHOGRAPHIC 90-degree overhead dorsal view, nose toward exact TOP of image, engines toward bottom, no perspective or isometric tilt. Entire craft centered, all protrusions inside canvas with 8% clear padding. Detailed semi-realistic game art: worn blue-gray armor, gunmetal mechanical parts, scratched pale steel panels, subtle cyan windows and tiny amber indicators; crisp readable silhouette, coherent soft upper-left illumination, no cast shadow outside hull. No engine flames, exhaust, smoke, bloom outside silhouette, starfield, floor, text, letters, numbers, logo, frame or watermark. A finished functional industrial spacecraft, not a sketch. Ranger heavy patrol cruiser, leader of a ranger squad. Long armored hull with a broad forward shield plate, four dorsal turret housings, navy-and-white livery with light-blue chevrons like the ranger corvette, twin large engines. Larger and more imposing than the ranger corvette.",
+    "tool": "built-in image_gen",
+    "sourcePath": "C:\\Users\\467\\.codex\\generated_images\\01a0bb74-f947-7c11-92ae-e52069facd3c\\exec-f1a7366d-a36a-4f33-a245-ca89e5ae7ca3.png"
+  },
+  {
+    "file": "art/space/npc-ships/ships-trader-hauler.png",
+    "prompt": "Use case: stylized-concept. Generate ONE isolated spaceship hull sprite for a top-down 2D space RPG, 1024x1024 canvas with genuinely TRANSPARENT alpha background, not a checkerboard drawing. STRICT ORTHOGRAPHIC 90-degree overhead dorsal view, nose toward exact TOP of image, engines toward bottom, no perspective or isometric tilt. Entire craft centered, all protrusions inside canvas with 8% clear padding. Detailed semi-realistic game art: worn blue-gray armor, gunmetal mechanical parts, scratched pale steel panels, subtle cyan windows and tiny amber indicators; crisp readable silhouette, coherent soft upper-left illumination, no cast shadow outside hull. No engine flames, exhaust, smoke, bloom outside silhouette, starfield, floor, text, letters, numbers, logo, frame or watermark. A finished functional industrial spacecraft, not a sketch. Small civilian merchant hauler used by NPC traders. Stubby boxy hull with one cargo container clamped under a short spine, rounded cockpit at top, faded yellow-ochre and gray civilian paint with hazard stripes on the container, no weapons. Humble and slow looking, clearly smaller than a big freighter.",
+    "tool": "built-in image_gen",
+    "sourcePath": "C:\\Users\\467\\.codex\\generated_images\\01a0bb74-f947-7c11-92ae-e52069facd3c\\exec-299d71bc-8a90-44ae-8c8b-e6ddf6f56898.png"
+  },
+  {
+    "file": "art/space/npc-ships/ships-trader-convoy.png",
+    "prompt": "Use case: stylized-concept. Generate ONE isolated spaceship hull sprite for a top-down 2D space RPG, 1024x1024 canvas with genuinely TRANSPARENT alpha background, not a checkerboard drawing. STRICT ORTHOGRAPHIC 90-degree overhead dorsal view, nose toward exact TOP of image, engines toward bottom, no perspective or isometric tilt. Entire craft centered, all protrusions inside canvas with 8% clear padding. Detailed semi-realistic game art: worn blue-gray armor, gunmetal mechanical parts, scratched pale steel panels, subtle cyan windows and tiny amber indicators; crisp readable silhouette, coherent soft upper-left illumination, no cast shadow outside hull. No engine flames, exhaust, smoke, bloom outside silhouette, starfield, floor, text, letters, numbers, logo, frame or watermark. A finished functional industrial spacecraft, not a sketch. Large merchant convoy transport for escort missions. Long spine carrying eight stacked colorful cargo containers (muted ochre, rust red, teal), bridge tower at top, four engines at bottom, a couple of small defensive turret bumps. Must read as \"valuable cargo to protect\".",
+    "tool": "built-in image_gen",
+    "sourcePath": "C:\\Users\\467\\.codex\\generated_images\\01a0bb74-f947-7c11-92ae-e52069facd3c\\exec-74bf6c81-65c2-4bcc-9cfb-943df2b6ed78.png"
+  },
+  {
+    "file": "art/space/npc-ships/ships-pirate-raider.png",
+    "prompt": "Use case: stylized-concept. Generate ONE isolated spaceship hull sprite for a top-down 2D space RPG, 1024x1024 canvas with genuinely TRANSPARENT alpha background, not a checkerboard drawing. STRICT ORTHOGRAPHIC 90-degree overhead dorsal view, nose toward exact TOP of image, engines toward bottom, no perspective or isometric tilt. Entire craft centered, all protrusions inside canvas with 8% clear padding. Detailed semi-realistic game art: worn blue-gray armor, gunmetal mechanical parts, scratched pale steel panels, subtle cyan windows and tiny amber indicators; crisp readable silhouette, coherent soft upper-left illumination, no cast shadow outside hull. No engine flames, exhaust, smoke, bloom outside silhouette, starfield, floor, text, letters, numbers, logo, frame or watermark. A finished functional industrial spacecraft, not a sketch. Light pirate raider. Asymmetric patched-together hull built from scavenged parts, one wing longer than the other, mismatched rust-red and black armor plates, crude welded spikes on the nose, a single oversized gun bolted on one side. Aggressive and ragged.",
+    "tool": "built-in image_gen",
+    "sourcePath": "C:\\Users\\467\\.codex\\generated_images\\01a0bb74-f947-7c11-92ae-e52069facd3c\\exec-e6e137bd-3495-4e1e-8711-45709d5a5744.png"
+  },
+  {
+    "file": "art/space/npc-ships/ships-pirate-brute.png",
+    "prompt": "Use case: stylized-concept. Generate ONE isolated spaceship hull sprite for a top-down 2D space RPG, 1024x1024 canvas with genuinely TRANSPARENT alpha background, not a checkerboard drawing. STRICT ORTHOGRAPHIC 90-degree overhead dorsal view, nose toward exact TOP of image, engines toward bottom, no perspective or isometric tilt. Entire craft centered, all protrusions inside canvas with 8% clear padding. Detailed semi-realistic game art: worn blue-gray armor, gunmetal mechanical parts, scratched pale steel panels, subtle cyan windows and tiny amber indicators; crisp readable silhouette, coherent soft upper-left illumination, no cast shadow outside hull. No engine flames, exhaust, smoke, bloom outside silhouette, starfield, floor, text, letters, numbers, logo, frame or watermark. A finished functional industrial spacecraft, not a sketch. Heavy pirate gunship. Bulky rectangular hull made from a stripped cargo hauler, heavy welded armor slabs, rust red and soot black paint, skull-like pattern of vents on the prow (no text), two big mismatched turrets and a missile rack. Menacing and crude.",
+    "tool": "built-in image_gen",
+    "sourcePath": "C:\\Users\\467\\.codex\\generated_images\\01a0bb74-f947-7c11-92ae-e52069facd3c\\exec-3ce2aaad-4f67-4d64-a661-85ad9499e2ae.png"
+  },
+  {
+    "file": "art/space/npc-ships/ships-pirate-flagship.png",
+    "prompt": "Use case: stylized-concept. Generate ONE isolated spaceship hull sprite for a top-down 2D space RPG, 1024x1024 canvas with genuinely TRANSPARENT alpha background, not a checkerboard drawing. STRICT ORTHOGRAPHIC 90-degree overhead dorsal view, nose toward exact TOP of image, engines toward bottom, no perspective or isometric tilt. Entire craft centered, all protrusions inside canvas with 8% clear padding. Detailed semi-realistic game art: worn blue-gray armor, gunmetal mechanical parts, scratched pale steel panels, subtle cyan windows and tiny amber indicators; crisp readable silhouette, coherent soft upper-left illumination, no cast shadow outside hull. No engine flames, exhaust, smoke, bloom outside silhouette, starfield, floor, text, letters, numbers, logo, frame or watermark. A finished functional industrial spacecraft, not a sketch. Pirate flagship, boss of an invasion. Very large dreadnought assembled from several ships welded together, jagged prow ram, many mismatched turrets, black and blood-red plating with scorched patches, glowing orange reactor slits. Clearly the biggest and most dangerous pirate.",
+    "tool": "built-in image_gen",
+    "sourcePath": "C:\\Users\\467\\.codex\\generated_images\\01a0bb74-f947-7c11-92ae-e52069facd3c\\exec-720e7555-3654-4211-9b17-9d221dd9961c.png"
+  },
+  {
+    "file": "art/space/npc-ships/ships-drone.png",
+    "prompt": "Use case: stylized-concept. Generate ONE isolated spaceship hull sprite for a top-down 2D space RPG, 1024x1024 canvas with genuinely TRANSPARENT alpha background, not a checkerboard drawing. STRICT ORTHOGRAPHIC 90-degree overhead dorsal view, nose toward exact TOP of image, engines toward bottom, no perspective or isometric tilt. Entire craft centered, all protrusions inside canvas with 8% clear padding. Detailed semi-realistic game art: worn blue-gray armor, gunmetal mechanical parts, scratched pale steel panels, subtle cyan windows and tiny amber indicators; crisp readable silhouette, coherent soft upper-left illumination, no cast shadow outside hull. No engine flames, exhaust, smoke, bloom outside silhouette, starfield, floor, text, letters, numbers, logo, frame or watermark. A finished functional industrial spacecraft, not a sketch. Unmanned training/target drone. Small round-disc hull with four short thruster arms, bright orange-and-white safety livery, a single sensor eye in the center. Obviously robotic and harmless.",
+    "tool": "built-in image_gen",
+    "sourcePath": "C:\\Users\\467\\.codex\\generated_images\\01a0bb74-f947-7c11-92ae-e52069facd3c\\exec-c1f6787c-68fa-4d20-8005-66c33a07de11.png"
+  },
+  {
+    "file": "art/space/weapon-effects/weapon-shots-rail.png",
+    "prompt": "Use case: stylized-concept. Production top-down game VFX sprite sheet, 1536x512, exactly THREE equal square cells in ONE horizontal row. Left cell projectile moving UP with trail DOWN; center cell muzzle flash pointing UP; right cell impact. Genuine transparent alpha, each effect fully inside central 65% of its own cell, generous transparent gutters, no overlap, no grid, no labels, no weapons or scenery. Consistent detailed science-fiction effects with controlled transparent glows. Railgun slug: a very thin long white-cyan streak with a tiny bright metallic core, short sharp muzzle flash with radial shock ring, impact as small hard white spark burst with fragments.",
+    "tool": "built-in image_gen",
+    "sourcePath": "C:\\Users\\467\\.codex\\generated_images\\01a0bb74-f947-7c11-92ae-e52069facd3c\\exec-39bc2cfe-e367-4e4d-a8b0-f114ee6ee289.png"
+  },
+  {
+    "file": "art/space/weapon-effects/weapon-shots-ion.png",
+    "prompt": "Use case: stylized-concept. Production top-down game VFX sprite sheet, 1536x512, exactly THREE equal square cells in ONE horizontal row. Left cell projectile moving UP with trail DOWN; center cell muzzle flash pointing UP; right cell impact. Genuine transparent alpha, each effect fully inside central 65% of its own cell, generous transparent gutters, no overlap, no grid, no labels, no weapons or scenery. Consistent detailed science-fiction effects with controlled transparent glows. Ion bolt: a rippling teal-cyan pulse, like a small electric ring wave; muzzle flash is a teal ring; impact is a teal electric crackle spreading over a shield surface.",
+    "tool": "built-in image_gen",
+    "sourcePath": "C:\\Users\\467\\.codex\\generated_images\\01a0bb74-f947-7c11-92ae-e52069facd3c\\exec-1d8582d6-fb3c-4d1d-af52-ed5f40ab647e.png"
+  },
+  {
+    "file": "art/space/weapon-effects/weapon-shots-torpedo.png",
+    "prompt": "Use case: stylized-concept. Production top-down game VFX sprite sheet, 1536x512, exactly THREE equal square cells in ONE horizontal row. Left cell projectile moving UP with trail DOWN; center cell muzzle flash pointing UP; right cell impact. Genuine transparent alpha, each effect fully inside central 65% of its own cell, generous transparent gutters, no overlap, no grid, no labels, no weapons or scenery. Consistent detailed science-fiction effects with controlled transparent glows. Torpedo: a chunky dark-gray elongated torpedo body with red warning band and a bright orange exhaust at the tail; launch flash puff; impact a large orange-white explosion with dark smoke ring.",
+    "tool": "built-in image_gen",
+    "sourcePath": "C:\\Users\\467\\.codex\\generated_images\\01a0bb74-f947-7c11-92ae-e52069facd3c\\exec-4c633a27-b23a-4a64-98ff-0624bc2106c5.png"
+  },
+  {
+    "file": "art/space/weapon-effects/weapon-shots-flak.png",
+    "prompt": "Use case: stylized-concept. Production top-down game VFX sprite sheet, 1536x512, exactly THREE equal square cells in ONE horizontal row. Left cell projectile moving UP with trail DOWN; center cell muzzle flash pointing UP; right cell impact. Genuine transparent alpha, each effect fully inside central 65% of its own cell, generous transparent gutters, no overlap, no grid, no labels, no weapons or scenery. Consistent detailed science-fiction effects with controlled transparent glows. Point-defense tracer: short yellow tracer dashes in a tight burst; small muzzle flash; impact tiny flak puffs of gray smoke with sparks.",
+    "tool": "built-in image_gen",
+    "sourcePath": "C:\\Users\\467\\.codex\\generated_images\\01a0bb74-f947-7c11-92ae-e52069facd3c\\exec-aafb8399-af3b-4b73-898a-5759142ae149.png"
+  },
+  {
+    "file": "art/space/galaxy/planets-lava.png",
+    "prompt": "Use case: stylized-concept. ONE isolated space object sprite for a top-down 2D space RPG, 1024x1024 canvas with genuinely TRANSPARENT alpha background, not a checkerboard drawing. STRICT ORTHOGRAPHIC overhead view, object centered with 6% clear padding. Detailed semi-realistic game art matching worn blue-gray industrial spaceships, soft upper-left illumination. No starfield, text, letters, numbers, logo, frame or watermark. volcanic world, black crust with glowing orange lava rivers and cracks. Round planetary sphere with physically shaded surface; delicate limb atmosphere only if appropriate, keep entire ring system if any fully in frame.",
+    "tool": "built-in image_gen",
+    "sourcePath": "C:\\Users\\467\\.codex\\generated_images\\01a0bb74-f947-7c11-92ae-e52069facd3c\\exec-6d51d54a-ad5b-4db7-8b33-6fe1dadc934a.png"
+  },
+  {
+    "file": "art/space/galaxy/planets-toxic.png",
+    "prompt": "Use case: stylized-concept. ONE isolated space object sprite for a top-down 2D space RPG, 1024x1024 canvas with genuinely TRANSPARENT alpha background, not a checkerboard drawing. STRICT ORTHOGRAPHIC overhead view, object centered with 6% clear padding. Detailed semi-realistic game art matching worn blue-gray industrial spaceships, soft upper-left illumination. No starfield, text, letters, numbers, logo, frame or watermark. toxic world, sickly yellow-green swirling clouds with dark brown land patches. Round planetary sphere with physically shaded surface; delicate limb atmosphere only if appropriate, keep entire ring system if any fully in frame.",
+    "tool": "built-in image_gen",
+    "sourcePath": "C:\\Users\\467\\.codex\\generated_images\\01a0bb74-f947-7c11-92ae-e52069facd3c\\exec-d2f26344-7d9f-4713-b015-cc5dcadf53a8.png"
+  },
+  {
+    "file": "art/space/galaxy/planets-ocean.png",
+    "prompt": "Use case: stylized-concept. ONE isolated space object sprite for a top-down 2D space RPG, 1024x1024 canvas with genuinely TRANSPARENT alpha background, not a checkerboard drawing. STRICT ORTHOGRAPHIC overhead view, object centered with 6% clear padding. Detailed semi-realistic game art matching worn blue-gray industrial spaceships, soft upper-left illumination. No starfield, text, letters, numbers, logo, frame or watermark. ocean world, deep blue sea with scattered small islands and white cloud spirals. Round planetary sphere with physically shaded surface; delicate limb atmosphere only if appropriate, keep entire ring system if any fully in frame.",
+    "tool": "built-in image_gen",
+    "sourcePath": "C:\\Users\\467\\.codex\\generated_images\\01a0bb74-f947-7c11-92ae-e52069facd3c\\exec-b1bf170c-eeeb-4da8-a689-fab7f9ea9486.png"
+  },
+  {
+    "file": "art/space/galaxy/planets-barren.png",
+    "prompt": "Use case: stylized-concept. ONE isolated space object sprite for a top-down 2D space RPG, 1024x1024 canvas with genuinely TRANSPARENT alpha background, not a checkerboard drawing. STRICT ORTHOGRAPHIC overhead view, object centered with 6% clear padding. Detailed semi-realistic game art matching worn blue-gray industrial spaceships, soft upper-left illumination. No starfield, text, letters, numbers, logo, frame or watermark. airless gray moon-like planet with many craters, no atmosphere. Round planetary sphere with physically shaded surface; delicate limb atmosphere only if appropriate, keep entire ring system if any fully in frame.",
+    "tool": "built-in image_gen",
+    "sourcePath": "C:\\Users\\467\\.codex\\generated_images\\01a0bb74-f947-7c11-92ae-e52069facd3c\\exec-633c35aa-1424-47ad-a434-401780b8b229.png"
+  },
+  {
+    "file": "art/space/galaxy/planets-jungle.png",
+    "prompt": "Use case: stylized-concept. ONE isolated space object sprite for a top-down 2D space RPG, 1024x1024 canvas with genuinely TRANSPARENT alpha background, not a checkerboard drawing. STRICT ORTHOGRAPHIC overhead view, object centered with 6% clear padding. Detailed semi-realistic game art matching worn blue-gray industrial spaceships, soft upper-left illumination. No starfield, text, letters, numbers, logo, frame or watermark. lush jungle world, dark green continents, turquoise shallow seas, thick clouds. Round planetary sphere with physically shaded surface; delicate limb atmosphere only if appropriate, keep entire ring system if any fully in frame.",
+    "tool": "built-in image_gen",
+    "sourcePath": "C:\\Users\\467\\.codex\\generated_images\\01a0bb74-f947-7c11-92ae-e52069facd3c\\exec-dba36ae8-3476-4e3e-995d-0d90e3260ec7.png"
+  },
+  {
+    "file": "art/space/galaxy/planets-ringed.png",
+    "prompt": "Use case: stylized-concept. ONE isolated space object sprite for a top-down 2D space RPG, 1024x1024 canvas with genuinely TRANSPARENT alpha background, not a checkerboard drawing. STRICT ORTHOGRAPHIC overhead view, object centered with 6% clear padding. Detailed semi-realistic game art matching worn blue-gray industrial spaceships, soft upper-left illumination. No starfield, text, letters, numbers, logo, frame or watermark. pale beige gas giant with a wide flat ring system seen from above. Round planetary sphere with physically shaded surface; delicate limb atmosphere only if appropriate, keep entire ring system if any fully in frame.",
+    "tool": "built-in image_gen",
+    "sourcePath": "C:\\Users\\467\\.codex\\generated_images\\01a0bb74-f947-7c11-92ae-e52069facd3c\\exec-84f1d43d-f3f7-479c-af41-b6fca3894511.png"
+  },
+  {
+    "file": "art/space/galaxy/stations-pirate.png",
+    "prompt": "Use case: stylized-concept. ONE isolated space object sprite for a top-down 2D space RPG, 1024x1024 canvas with genuinely TRANSPARENT alpha background, not a checkerboard drawing. STRICT ORTHOGRAPHIC overhead view, object centered with 6% clear padding. Detailed semi-realistic game art matching worn blue-gray industrial spaceships, soft upper-left illumination. No starfield, text, letters, numbers, logo, frame or watermark. pirate hideout station built into a hollowed asteroid, scrap docking arms, red lights, patched hull.",
+    "tool": "built-in image_gen",
+    "sourcePath": "C:\\Users\\467\\.codex\\generated_images\\01a0bb74-f947-7c11-92ae-e52069facd3c\\exec-14c90291-297b-43d3-8b8e-4c6e73bfc994.png"
+  },
+  {
+    "file": "art/space/galaxy/stations-outpost.png",
+    "prompt": "Use case: stylized-concept. ONE isolated space object sprite for a top-down 2D space RPG, 1024x1024 canvas with genuinely TRANSPARENT alpha background, not a checkerboard drawing. STRICT ORTHOGRAPHIC overhead view, object centered with 6% clear padding. Detailed semi-realistic game art matching worn blue-gray industrial spaceships, soft upper-left illumination. No starfield, text, letters, numbers, logo, frame or watermark. small frontier outpost: a single cross-shaped module with two docking arms and solar panels, worn and lonely.",
+    "tool": "built-in image_gen",
+    "sourcePath": "C:\\Users\\467\\.codex\\generated_images\\01a0bb74-f947-7c11-92ae-e52069facd3c\\exec-fc3e9c18-5a6c-426a-bc3f-e4ab57829b58.png"
+  },
+  {
+    "file": "art/space/galaxy/stations-trade.png",
+    "prompt": "Use case: stylized-concept. ONE isolated space object sprite for a top-down 2D space RPG, 1024x1024 canvas with genuinely TRANSPARENT alpha background, not a checkerboard drawing. STRICT ORTHOGRAPHIC overhead view, object centered with 6% clear padding. Detailed semi-realistic game art matching worn blue-gray industrial spaceships, soft upper-left illumination. No starfield, text, letters, numbers, logo, frame or watermark. large trade hub: central hexagonal core with six long docking piers full of small container stacks.",
+    "tool": "built-in image_gen",
+    "sourcePath": "C:\\Users\\467\\.codex\\generated_images\\01a0bb74-f947-7c11-92ae-e52069facd3c\\exec-1283f6b8-feed-43f4-9c58-75dc3d1e548a.png"
+  },
+  {
+    "file": "art/space/galaxy/stations-ranger.png",
+    "prompt": "Use case: stylized-concept. ONE isolated space object sprite for a top-down 2D space RPG, 1024x1024 canvas with genuinely TRANSPARENT alpha background, not a checkerboard drawing. STRICT ORTHOGRAPHIC overhead view, object centered with 6% clear padding. Detailed semi-realistic game art matching worn blue-gray industrial spaceships, soft upper-left illumination. No starfield, text, letters, numbers, logo, frame or watermark. ranger base: star-shaped fortified station, navy-and-white livery with light-blue chevrons, landing bays, sensor dishes.",
+    "tool": "built-in image_gen",
+    "sourcePath": "C:\\Users\\467\\.codex\\generated_images\\01a0bb74-f947-7c11-92ae-e52069facd3c\\exec-6a223282-30a3-452e-b970-95d182633836.png"
+  },
+  {
+    "file": "art/space/galaxy/suns-white.png",
+    "prompt": "Use case: stylized-concept. ONE isolated space object sprite for a top-down 2D space RPG, 1024x1024 canvas with genuinely TRANSPARENT alpha background, not a checkerboard drawing. STRICT ORTHOGRAPHIC overhead view, object centered with 6% clear padding. Detailed semi-realistic game art matching worn blue-gray industrial spaceships, soft upper-left illumination. No starfield, text, letters, numbers, logo, frame or watermark. small intense white dwarf with a tight bright corona. Glowing stellar sphere with restrained corona, no cross-shaped rays, isolated on transparent alpha.",
+    "tool": "built-in image_gen",
+    "sourcePath": "C:\\Users\\467\\.codex\\generated_images\\01a0bb74-f947-7c11-92ae-e52069facd3c\\exec-cfbe9f36-2ca9-421d-b72e-a07083437719.png"
+  },
+  {
+    "file": "art/space/galaxy/suns-binary.png",
+    "prompt": "Use case: stylized-concept. ONE isolated space object sprite for a top-down 2D space RPG, 1024x1024 canvas with genuinely TRANSPARENT alpha background, not a checkerboard drawing. STRICT ORTHOGRAPHIC overhead view, object centered with 6% clear padding. Detailed semi-realistic game art matching worn blue-gray industrial spaceships, soft upper-left illumination. No starfield, text, letters, numbers, logo, frame or watermark. two stars close together: a yellow and a small red one with merging coronas. Glowing stellar sphere with restrained corona, no cross-shaped rays, isolated on transparent alpha.",
+    "tool": "built-in image_gen",
+    "sourcePath": "C:\\Users\\467\\.codex\\generated_images\\01a0bb74-f947-7c11-92ae-e52069facd3c\\exec-9d72d493-a8aa-49f8-b140-b7d00301e733.png"
+  },
+  {
+    "file": "art/space/galaxy/bg-core.png",
+    "prompt": "Use case: stylized-concept. 2048x2048 opaque seamless tileable deep space parallax background. calm dark navy space with faint blue nebula wisps. Very dark navy space so game ships remain readable. Tiny sparse stars no larger than 3 px at final resolution, no planets, no large bright stars or flares, no text. EXACT seamless periodic texture: left edge matches right, top matches bottom, uniform low brightness at all edges, no vignette, no border.",
+    "tool": "built-in image_gen",
+    "sourcePath": "C:\\Users\\467\\.codex\\generated_images\\01a0bb74-f947-7c11-92ae-e52069facd3c\\exec-4c251322-2549-40a1-b4ad-ac34bdf6e7fb.png"
+  },
+  {
+    "file": "art/space/galaxy/bg-frontier.png",
+    "prompt": "Use case: stylized-concept. 2048x2048 opaque seamless tileable deep space parallax background. dark space with faint violet and amber dust clouds. Very dark navy space so game ships remain readable. Tiny sparse stars no larger than 3 px at final resolution, no planets, no large bright stars or flares, no text. EXACT seamless periodic texture: left edge matches right, top matches bottom, uniform low brightness at all edges, no vignette, no border.",
+    "tool": "built-in image_gen",
+    "sourcePath": "C:\\Users\\467\\.codex\\generated_images\\01a0bb74-f947-7c11-92ae-e52069facd3c\\exec-270e8e55-c82d-43b5-b4ab-a7dd32986e9f.png"
+  },
+  {
+    "file": "art/space/galaxy/bg-rim.png",
+    "prompt": "Use case: stylized-concept. 2048x2048 opaque seamless tileable deep space parallax background. dark space with a faint blood-red and teal nebula, sparse cold stars. Very dark navy space so game ships remain readable. Tiny sparse stars no larger than 3 px at final resolution, no planets, no large bright stars or flares, no text. EXACT seamless periodic texture: left edge matches right, top matches bottom, uniform low brightness at all edges, no vignette, no border.",
+    "tool": "built-in image_gen",
+    "sourcePath": "C:\\Users\\467\\.codex\\generated_images\\01a0bb74-f947-7c11-92ae-e52069facd3c\\exec-eb68fa78-7153-4b0d-9aa7-b84a524c51fe.png"
+  },
+  {
+    "file": "art/space/trade-missions/goods-food.png",
+    "prompt": "Use case: stylized-concept. ONE isolated spaceship equipment inventory icon for a semi-realistic space RPG. 1024x1024 square, genuinely transparent alpha background, no painted checkerboard. Detailed industrial game asset, worn pale steel armor panels, blue-gray gunmetal structure, dark recesses, exposed bolts and hoses, restrained luminous accent. Elevated three-quarter product view showing top, front and side, crisp chunky readable silhouette at small sizes, soft studio illumination from upper left, no cast shadow outside object. Center entire item with clear padding, no cropped parts. No text, labels, letters, numbers, watermark, UI border, people, ship, room, floor or extra separate objects. This is a trade commodity container, not a weapon. sealed stackable food ration crate with green markings (symbols only, no text) and a small transparent window showing packed rations.",
+    "tool": "built-in image_gen",
+    "sourcePath": "C:/Users/467/.codex/generated_images/01a0bd15-5f8a-7ac0-b8f7-fc2e2c2b95c7/exec-e707b008-2f3b-4a70-9f7d-e8ff98a12f71.png"
+  },
+  {
+    "file": "art/space/trade-missions/goods-medicine.png",
+    "prompt": "Use case: stylized-concept. ONE isolated spaceship equipment inventory icon for a semi-realistic space RPG. 1024x1024 square, genuinely transparent alpha background, no painted checkerboard. Detailed industrial game asset, worn pale steel armor panels, blue-gray gunmetal structure, dark recesses, exposed bolts and hoses, restrained luminous accent. Elevated three-quarter product view showing top, front and side, crisp chunky readable silhouette at small sizes, soft studio illumination from upper left, no cast shadow outside object. Center entire item with clear padding, no cropped parts. No text, labels, letters, numbers, watermark, UI border, people, ship, room, floor or extra separate objects. This is a trade commodity container, not a weapon. white medical supply case with a red-free abstract medical cross symbol in cyan, cold vapor from cooling vents.",
+    "tool": "built-in image_gen",
+    "sourcePath": "C:/Users/467/.codex/generated_images/01a0bd15-5f8a-7ac0-b8f7-fc2e2c2b95c7/exec-421e6319-7580-40e3-83ab-0e58229835e9.png"
+  },
+  {
+    "file": "art/space/trade-missions/goods-machinery.png",
+    "prompt": "Use case: stylized-concept. ONE isolated spaceship equipment inventory icon for a semi-realistic space RPG. 1024x1024 square, genuinely transparent alpha background, no painted checkerboard. Detailed industrial game asset, worn pale steel armor panels, blue-gray gunmetal structure, dark recesses, exposed bolts and hoses, restrained luminous accent. Elevated three-quarter product view showing top, front and side, crisp chunky readable silhouette at small sizes, soft studio illumination from upper left, no cast shadow outside object. Center entire item with clear padding, no cropped parts. No text, labels, letters, numbers, watermark, UI border, people, ship, room, floor or extra separate objects. This is a trade commodity container, not a weapon. heavy crate with an exposed industrial gear assembly and hydraulic parts.",
+    "tool": "built-in image_gen",
+    "sourcePath": "C:/Users/467/.codex/generated_images/01a0bd15-5f8a-7ac0-b8f7-fc2e2c2b95c7/exec-21a56129-3fee-4426-9ab3-1f49f044a73e.png"
+  },
+  {
+    "file": "art/space/trade-missions/goods-luxury.png",
+    "prompt": "Use case: stylized-concept. ONE isolated spaceship equipment inventory icon for a semi-realistic space RPG. 1024x1024 square, genuinely transparent alpha background, no painted checkerboard. Detailed industrial game asset, worn pale steel armor panels, blue-gray gunmetal structure, dark recesses, exposed bolts and hoses, restrained luminous accent. Elevated three-quarter product view showing top, front and side, crisp chunky readable silhouette at small sizes, soft studio illumination from upper left, no cast shadow outside object. Center entire item with clear padding, no cropped parts. No text, labels, letters, numbers, watermark, UI border, people, ship, room, floor or extra separate objects. This is a trade commodity container, not a weapon. elegant dark case with gold trim, open lid showing glowing gems and fine fabric.",
+    "tool": "built-in image_gen",
+    "sourcePath": "C:/Users/467/.codex/generated_images/01a0bd15-5f8a-7ac0-b8f7-fc2e2c2b95c7/exec-5bae2ed8-873c-4b10-ad5a-18f1e842b91d.png"
+  },
+  {
+    "file": "art/space/trade-missions/goods-weapons.png",
+    "prompt": "Use case: stylized-concept. ONE isolated spaceship equipment inventory icon for a semi-realistic space RPG. 1024x1024 square, genuinely transparent alpha background, no painted checkerboard. Detailed industrial game asset, worn pale steel armor panels, blue-gray gunmetal structure, dark recesses, exposed bolts and hoses, restrained luminous accent. Elevated three-quarter product view showing top, front and side, crisp chunky readable silhouette at small sizes, soft studio illumination from upper left, no cast shadow outside object. Center entire item with clear padding, no cropped parts. No text, labels, letters, numbers, watermark, UI border, people, ship, room, floor or extra separate objects. This is a trade commodity container, not a weapon. military crate of stacked rifle-like weapon cases, olive and black, looks illicit.",
+    "tool": "built-in image_gen",
+    "sourcePath": "C:/Users/467/.codex/generated_images/01a0bd15-5f8a-7ac0-b8f7-fc2e2c2b95c7/exec-aed569bc-3efc-4899-9445-c4d4726fba5c.png"
+  },
+  {
+    "file": "art/space/trade-missions/goods-fuel-cells.png",
+    "prompt": "Use case: stylized-concept. ONE isolated spaceship equipment inventory icon for a semi-realistic space RPG. 1024x1024 square, genuinely transparent alpha background, no painted checkerboard. Detailed industrial game asset, worn pale steel armor panels, blue-gray gunmetal structure, dark recesses, exposed bolts and hoses, restrained luminous accent. Elevated three-quarter product view showing top, front and side, crisp chunky readable silhouette at small sizes, soft studio illumination from upper left, no cast shadow outside object. Center entire item with clear padding, no cropped parts. No text, labels, letters, numbers, watermark, UI border, people, ship, room, floor or extra separate objects. This is a trade commodity container, not a weapon. rack of four glowing cyan cylindrical fuel cells in a metal frame.",
+    "tool": "built-in image_gen",
+    "sourcePath": "C:/Users/467/.codex/generated_images/01a0bd15-5f8a-7ac0-b8f7-fc2e2c2b95c7/exec-e73c3514-0cc0-4033-a233-cd197b631ffb.png"
+  },
+  {
+    "file": "art/space/trade-missions/item-letter.png",
+    "prompt": "Use case: stylized-concept. ONE isolated spaceship equipment inventory icon for a semi-realistic space RPG. 1024x1024 square, genuinely transparent alpha background, no painted checkerboard. Detailed industrial game asset, worn pale steel armor panels, blue-gray gunmetal structure, dark recesses, exposed bolts and hoses, restrained luminous accent. Elevated three-quarter product view showing top, front and side, crisp chunky readable silhouette at small sizes, soft studio illumination from upper left, no cast shadow outside object. Center entire item with clear padding, no cropped parts. No text, labels, letters, numbers, watermark, UI border, people, ship, room, floor or extra separate objects. Sealed secure courier tube with an amber wax-like seal and a small cyan lock light; precious and official.",
+    "tool": "built-in image_gen",
+    "sourcePath": "C:/Users/467/.codex/generated_images/01a0bd15-5f8a-7ac0-b8f7-fc2e2c2b95c7/exec-0fa8a03f-40e3-4e4c-a368-8a89dcfe0936.png"
+  },
+  {
+    "file": "art/space/mission-reputation/mission-escort.png",
+    "prompt": "Use case: stylized-concept. ONE flat monochrome UI icon, 256x256 PNG, pure WHITE bold silhouette on genuinely transparent background. a protective shield overlapping a cargo box. Clean vector-like graphic, simple thick shapes and generous clear negative spaces, centered with 12% padding, readable at 24px. No color, gradients, shading, texture, shadows, border, text or labels.",
+    "tool": "built-in image_gen",
+    "sourcePath": "C:/Users/467/.codex/generated_images/01a0bd15-5f8a-7ac0-b8f7-fc2e2c2b95c7/exec-3c60cd14-8cd0-4271-841a-8b180c0f9459.png"
+  },
+  {
+    "file": "art/space/mission-reputation/mission-patrol.png",
+    "prompt": "Use case: stylized-concept. ONE flat monochrome UI icon, 256x256 PNG, pure WHITE bold silhouette on genuinely transparent background. three chevrons flying in formation. Clean vector-like graphic, simple thick shapes and generous clear negative spaces, centered with 12% padding, readable at 24px. No color, gradients, shading, texture, shadows, border, text or labels.",
+    "tool": "built-in image_gen",
+    "sourcePath": "C:/Users/467/.codex/generated_images/01a0bd15-5f8a-7ac0-b8f7-fc2e2c2b95c7/exec-5e48d401-33b7-40ab-b710-9750744e0fa6.png"
+  },
+  {
+    "file": "art/space/mission-reputation/mission-courier.png",
+    "prompt": "Use case: stylized-concept. ONE flat monochrome UI icon, 256x256 PNG, pure WHITE bold silhouette on genuinely transparent background. sealed envelope with wings. Clean vector-like graphic, simple thick shapes and generous clear negative spaces, centered with 12% padding, readable at 24px. No color, gradients, shading, texture, shadows, border, text or labels. All empty regions between wings and envelope must have alpha zero. Perfectly smooth solid geometric contours. Absolutely no distressed edges, speckles, flecks, dust, paint splatter or residual white pixels outside the intended icon silhouette.",
+    "tool": "built-in image_gen",
+    "sourcePath": "C:/Users/467/.codex/generated_images/01a0bd15-5f8a-7ac0-b8f7-fc2e2c2b95c7/exec-e3dddb16-fc1e-4a0e-8110-dba22c327971.png"
+  },
+  {
+    "file": "art/dock/ranger/station-ranger-office.png",
+    "prompt": "Use case: stylized-concept. Single production space RPG background, 1600x1200 landscape 4:3. Detailed semi-realistic game illustration, worn gunmetal and blue-gray steel, dark navy shadows, restrained cyan practical lighting and amber details, clear midtones, matching industrial spaceship sprites. No text, logos, watermark, borders, UI. Key content inside central 60%, background fills frame. Bottom quarter quiet and dark for dialogue overlay. Ranger headquarters briefing room on an orbital station. One stern female ranger commander in navy-and-white uniform with light-blue chevrons stands at a tactical holo-table showing an abstract star map; face x50% y34%. Background: large window to space with ranger corvettes docked outside.",
+    "tool": "built-in image_gen",
+    "sourcePath": "C:/Users/467/.codex/generated_images/01a0bd15-5f8a-7ac0-b8f7-fc2e2c2b95c7/exec-53514520-20c8-4bf5-915c-5f420b499183.png"
+  },
+  {
+    "file": "art/dock/planet-settlements/desert-office.png",
+    "prompt": "Use case: stylized-concept. Single production space RPG background, 1600x1200 landscape 4:3. Detailed semi-realistic game illustration, worn gunmetal and blue-gray steel, dark navy shadows, restrained cyan practical lighting and amber details, clear midtones, matching industrial spaceship sprites. No text, logos, watermark, borders, UI. Key content inside central 60%, background fills frame. Bottom quarter quiet and dark for dialogue overlay. This is a PLANET SURFACE settlement, not an orbital station. Sand-colored domes and wind-worn metal, orange dusty sky, mesa cliffs. Settlement administrative dispatch office. Eye-level medium-wide view, one practical civilian dispatcher behind a low desk centered x50%, face at y34%, torso at y48%. Abstract mission board without text behind. Windows show this biome. Quiet dark lower quarter for dialogue.",
+    "tool": "built-in image_gen",
+    "sourcePath": "C:/Users/467/.codex/generated_images/01a0bd15-5f8a-7ac0-b8f7-fc2e2c2b95c7/exec-4207e88f-31e4-4e4d-940c-b56f8fcb5378.png"
+  },
+  {
+    "file": "art/dock/planet-settlements/desert-trader.png",
+    "prompt": "Use case: stylized-concept. Single production space RPG background, 1600x1200 landscape 4:3. Detailed semi-realistic game illustration, worn gunmetal and blue-gray steel, dark navy shadows, restrained cyan practical lighting and amber details, clear midtones, matching industrial spaceship sprites. No text, logos, watermark, borders, UI. Key content inside central 60%, background fills frame. Bottom quarter quiet and dark for dialogue overlay. This is a PLANET SURFACE settlement, not an orbital station. Sand-colored domes and wind-worn metal, orange dusty sky, mesa cliffs. Local settlement market trader behind a utilitarian counter. Eye-level medium-wide view, one merchant in practical biome-appropriate work clothes, face at x50% y34%, torso y48%. Cargo and goods at sides, settlement environment visible behind. Quiet dark counter front in bottom quarter for dialogue.",
+    "tool": "built-in image_gen",
+    "sourcePath": "C:/Users/467/.codex/generated_images/01a0bd15-5f8a-7ac0-b8f7-fc2e2c2b95c7/exec-602b4969-32a7-4c8c-9323-cd300f40aa9e.png"
+  },
+  {
+    "file": "art/dock/planet-settlements/desert-shipyard.png",
+    "prompt": "Use case: stylized-concept. Single production space RPG background, 1600x1200 landscape 4:3. Detailed semi-realistic game illustration, worn gunmetal and blue-gray steel, dark navy shadows, restrained cyan practical lighting and amber details, clear midtones, matching industrial spaceship sprites. No text, logos, watermark, borders, UI. Key content inside central 60%, background fills frame. Bottom quarter quiet and dark for dialogue overlay. This is a PLANET SURFACE settlement, not an orbital station. Sand-colored domes and wind-worn metal, orange dusty sky, mesa cliffs. STRICT 90-degree orthographic top-down view of a rectangular fabrication and repair berth with green guide lights. Exactly centered x50% y50%, longitudinal axis vertical. Central 60% width and 65% height completely EMPTY flat deck with only subdued seams. Equipment, retracted clamps, architecture and biome details along outer margins only. No ships, vehicles, people or silhouettes. No horizon, no vanishing point, no perspective tilt. Show this biome only through ground/structural materials and the area visible around the pad.",
+    "tool": "built-in image_gen",
+    "sourcePath": "C:/Users/467/.codex/generated_images/01a0bd15-5f8a-7ac0-b8f7-fc2e2c2b95c7/exec-90b7e3fe-8c61-4555-ae16-9ee8edf40f52.png"
+  },
+  {
+    "file": "art/dock/planet-settlements/desert-hangar.png",
+    "prompt": "Use case: stylized-concept. Single production space RPG background, 1600x1200 landscape 4:3. Detailed semi-realistic game illustration, worn gunmetal and blue-gray steel, dark navy shadows, restrained cyan practical lighting and amber details, clear midtones, matching industrial spaceship sprites. No text, logos, watermark, borders, UI. Key content inside central 60%, background fills frame. Bottom quarter quiet and dark for dialogue overlay. This is a PLANET SURFACE settlement, not an orbital station. Sand-colored domes and wind-worn metal, orange dusty sky, mesa cliffs. STRICT 90-degree orthographic top-down view of an octagonal spaceport landing pad with cyan guide lights. Exactly centered x50% y50%, longitudinal axis vertical. Central 60% width and 65% height completely EMPTY flat deck with only subdued seams. Equipment, retracted clamps, architecture and biome details along outer margins only. No ships, vehicles, people or silhouettes. No horizon, no vanishing point, no perspective tilt. Show this biome only through ground/structural materials and the area visible around the pad.",
+    "tool": "built-in image_gen",
+    "sourcePath": "C:/Users/467/.codex/generated_images/01a0bd15-5f8a-7ac0-b8f7-fc2e2c2b95c7/exec-0bf4e617-b43f-4000-92a6-eeebf86a8522.png"
+  },
+  {
+    "file": "art/dock/planet-settlements/ice-office.png",
+    "prompt": "Use case: stylized-concept. Single production space RPG background, 1600x1200 landscape 4:3. Detailed semi-realistic game illustration, worn gunmetal and blue-gray steel, dark navy shadows, restrained cyan practical lighting and amber details, clear midtones, matching industrial spaceship sprites. No text, logos, watermark, borders, UI. Key content inside central 60%, background fills frame. Bottom quarter quiet and dark for dialogue overlay. This is a PLANET SURFACE settlement, not an orbital station. Pressurized habitats half buried in snow, pale cyan ice cliffs, aurora in the sky. Settlement administrative dispatch office. Eye-level medium-wide view, one practical civilian dispatcher behind a low desk centered x50%, face at y34%, torso at y48%. Abstract mission board without text behind. Windows show this biome. Quiet dark lower quarter for dialogue.",
+    "tool": "built-in image_gen",
+    "sourcePath": "C:/Users/467/.codex/generated_images/01a0bd15-5f8a-7ac0-b8f7-fc2e2c2b95c7/exec-8213d66d-408c-4cbb-8d31-b753d7f379a7.png"
+  },
+  {
+    "file": "art/dock/planet-settlements/ice-trader.png",
+    "prompt": "Use case: stylized-concept. Single production space RPG background, 1600x1200 landscape 4:3. Detailed semi-realistic game illustration, worn gunmetal and blue-gray steel, dark navy shadows, restrained cyan practical lighting and amber details, clear midtones, matching industrial spaceship sprites. No text, logos, watermark, borders, UI. Key content inside central 60%, background fills frame. Bottom quarter quiet and dark for dialogue overlay. This is a PLANET SURFACE settlement, not an orbital station. Pressurized habitats half buried in snow, pale cyan ice cliffs, aurora in the sky. Local settlement market trader behind a utilitarian counter. Eye-level medium-wide view, one merchant in practical biome-appropriate work clothes, face at x50% y34%, torso y48%. Cargo and goods at sides, settlement environment visible behind. Quiet dark counter front in bottom quarter for dialogue.",
+    "tool": "built-in image_gen",
+    "sourcePath": "C:/Users/467/.codex/generated_images/01a0bd15-5f8a-7ac0-b8f7-fc2e2c2b95c7/exec-4e9cd288-8506-4a55-9b96-bd0705f915b5.png"
+  },
+  {
+    "file": "art/dock/planet-settlements/ice-shipyard.png",
+    "prompt": "Use case: stylized-concept. Single production space RPG background, 1600x1200 landscape 4:3. Detailed semi-realistic game illustration, worn gunmetal and blue-gray steel, dark navy shadows, restrained cyan practical lighting and amber details, clear midtones, matching industrial spaceship sprites. No text, logos, watermark, borders, UI. Key content inside central 60%, background fills frame. Bottom quarter quiet and dark for dialogue overlay. This is a PLANET SURFACE settlement, not an orbital station. Pressurized habitats half buried in snow, pale cyan ice cliffs, aurora in the sky. STRICT 90-degree orthographic top-down view of a rectangular fabrication and repair berth with green guide lights. Exactly centered x50% y50%, longitudinal axis vertical. Central 60% width and 65% height completely EMPTY flat deck with only subdued seams. Equipment, retracted clamps, architecture and biome details along outer margins only. No ships, vehicles, people or silhouettes. No horizon, no vanishing point, no perspective tilt. Show this biome only through ground/structural materials and the area visible around the pad.",
+    "tool": "built-in image_gen",
+    "sourcePath": "C:/Users/467/.codex/generated_images/01a0bd15-5f8a-7ac0-b8f7-fc2e2c2b95c7/exec-299c5ffe-3cf3-44f2-a8ff-1f62582eb6ff.png"
+  },
+  {
+    "file": "art/dock/planet-settlements/ice-hangar.png",
+    "prompt": "Use case: stylized-concept. Single production space RPG background, 1600x1200 landscape 4:3. Detailed semi-realistic game illustration, worn gunmetal and blue-gray steel, dark navy shadows, restrained cyan practical lighting and amber details, clear midtones, matching industrial spaceship sprites. No text, logos, watermark, borders, UI. Key content inside central 60%, background fills frame. Bottom quarter quiet and dark for dialogue overlay. This is a PLANET SURFACE settlement, not an orbital station. Pressurized habitats half buried in snow, pale cyan ice cliffs, aurora in the sky. STRICT 90-degree orthographic top-down view of an octagonal spaceport landing pad with cyan guide lights. Exactly centered x50% y50%, longitudinal axis vertical. Central 60% width and 65% height completely EMPTY flat deck with only subdued seams. Equipment, retracted clamps, architecture and biome details along outer margins only. No ships, vehicles, people or silhouettes. No horizon, no vanishing point, no perspective tilt. Show this biome only through ground/structural materials and the area visible around the pad.",
+    "tool": "built-in image_gen",
+    "sourcePath": "C:/Users/467/.codex/generated_images/01a0bd15-5f8a-7ac0-b8f7-fc2e2c2b95c7/exec-66a67040-9953-4129-91a9-e2307169e899.png"
+  },
+  {
+    "file": "art/dock/planet-settlements/lava-office.png",
+    "prompt": "Use case: stylized-concept. Single production space RPG background, 1600x1200 landscape 4:3. Detailed semi-realistic game illustration, worn gunmetal and blue-gray steel, dark navy shadows, restrained cyan practical lighting and amber details, clear midtones, matching industrial spaceship sprites. No text, logos, watermark, borders, UI. Key content inside central 60%, background fills frame. Bottom quarter quiet and dark for dialogue overlay. This is a PLANET SURFACE settlement, not an orbital station. Heat-shielded black basalt bunkers, orange glow from distant lava flows, ash in the air. Settlement administrative dispatch office. Eye-level medium-wide view, one practical civilian dispatcher behind a low desk centered x50%, face at y34%, torso at y48%. Abstract mission board without text behind. Windows show this biome. Quiet dark lower quarter for dialogue.",
+    "tool": "built-in image_gen",
+    "sourcePath": "C:/Users/467/.codex/generated_images/01a0bd15-5f8a-7ac0-b8f7-fc2e2c2b95c7/exec-6b78e297-57f9-4884-9431-41afab45b03f.png"
+  },
+  {
+    "file": "art/dock/planet-settlements/lava-trader.png",
+    "prompt": "Use case: stylized-concept. Single production space RPG background, 1600x1200 landscape 4:3. Detailed semi-realistic game illustration, worn gunmetal and blue-gray steel, dark navy shadows, restrained cyan practical lighting and amber details, clear midtones, matching industrial spaceship sprites. No text, logos, watermark, borders, UI. Key content inside central 60%, background fills frame. Bottom quarter quiet and dark for dialogue overlay. This is a PLANET SURFACE settlement, not an orbital station. Heat-shielded black basalt bunkers, orange glow from distant lava flows, ash in the air. Local settlement market trader behind a utilitarian counter. Eye-level medium-wide view, one merchant in practical biome-appropriate work clothes, face at x50% y34%, torso y48%. Cargo and goods at sides, settlement environment visible behind. Quiet dark counter front in bottom quarter for dialogue.",
+    "tool": "built-in image_gen",
+    "sourcePath": "C:/Users/467/.codex/generated_images/01a0bd15-5f8a-7ac0-b8f7-fc2e2c2b95c7/exec-385c3d9a-af57-4d5c-8dea-d378fdcccbb0.png"
+  },
+  {
+    "file": "art/dock/planet-settlements/lava-shipyard.png",
+    "prompt": "Use case: stylized-concept. Single production space RPG background, 1600x1200 landscape 4:3. Detailed semi-realistic game illustration, worn gunmetal and blue-gray steel, dark navy shadows, restrained cyan practical lighting and amber details, clear midtones, matching industrial spaceship sprites. No text, logos, watermark, borders, UI. Key content inside central 60%, background fills frame. Bottom quarter quiet and dark for dialogue overlay. This is a PLANET SURFACE settlement, not an orbital station. Heat-shielded black basalt bunkers, orange glow from distant lava flows, ash in the air. STRICT 90-degree orthographic top-down view of a rectangular fabrication and repair berth with green guide lights. Exactly centered x50% y50%, longitudinal axis vertical. Central 60% width and 65% height completely EMPTY flat deck with only subdued seams. Equipment, retracted clamps, architecture and biome details along outer margins only. No ships, vehicles, people or silhouettes. No horizon, no vanishing point, no perspective tilt. Show this biome only through ground/structural materials and the area visible around the pad.",
+    "tool": "built-in image_gen",
+    "sourcePath": "C:/Users/467/.codex/generated_images/01a0bd15-5f8a-7ac0-b8f7-fc2e2c2b95c7/exec-b3a859ef-41a7-4e19-b4a0-a28ef093ea9c.png"
+  },
+  {
+    "file": "art/dock/planet-settlements/lava-hangar.png",
+    "prompt": "Use case: stylized-concept. Single production space RPG background, 1600x1200 landscape 4:3. Detailed semi-realistic game illustration, worn gunmetal and blue-gray steel, dark navy shadows, restrained cyan practical lighting and amber details, clear midtones, matching industrial spaceship sprites. No text, logos, watermark, borders, UI. Key content inside central 60%, background fills frame. Bottom quarter quiet and dark for dialogue overlay. This is a PLANET SURFACE settlement, not an orbital station. Heat-shielded black basalt bunkers, orange glow from distant lava flows, ash in the air. STRICT 90-degree orthographic top-down view of an octagonal spaceport landing pad with cyan guide lights. Exactly centered x50% y50%, longitudinal axis vertical. Central 60% width and 65% height completely EMPTY flat deck with only subdued seams. Equipment, retracted clamps, architecture and biome details along outer margins only. No ships, vehicles, people or silhouettes. No horizon, no vanishing point, no perspective tilt. Show this biome only through ground/structural materials and the area visible around the pad.",
+    "tool": "built-in image_gen",
+    "sourcePath": "C:/Users/467/.codex/generated_images/01a0bd15-5f8a-7ac0-b8f7-fc2e2c2b95c7/exec-36d83667-0001-4eb6-85f4-8d0f2bf1ff49.png"
+  },
+  {
+    "file": "art/dock/planet-settlements/jungle-office.png",
+    "prompt": "Use case: stylized-concept. Single production space RPG background, 1600x1200 landscape 4:3. Detailed semi-realistic game illustration, worn gunmetal and blue-gray steel, dark navy shadows, restrained cyan practical lighting and amber details, clear midtones, matching industrial spaceship sprites. No text, logos, watermark, borders, UI. Key content inside central 60%, background fills frame. Bottom quarter quiet and dark for dialogue overlay. This is a PLANET SURFACE settlement, not an orbital station. Elevated platforms among giant alien trees, humid mist, bioluminescent plants. Settlement administrative dispatch office. Eye-level medium-wide view, one practical civilian dispatcher behind a low desk centered x50%, face at y34%, torso at y48%. Abstract mission board without text behind. Windows show this biome. Quiet dark lower quarter for dialogue.",
+    "tool": "built-in image_gen",
+    "sourcePath": "C:/Users/467/.codex/generated_images/01a0bd15-5f8a-7ac0-b8f7-fc2e2c2b95c7/exec-9f8c8590-3dfe-44ab-b89c-7c90e6841f74.png"
+  },
+  {
+    "file": "art/dock/planet-settlements/jungle-trader.png",
+    "prompt": "Use case: stylized-concept. Single production space RPG background, 1600x1200 landscape 4:3. Detailed semi-realistic game illustration, worn gunmetal and blue-gray steel, dark navy shadows, restrained cyan practical lighting and amber details, clear midtones, matching industrial spaceship sprites. No text, logos, watermark, borders, UI. Key content inside central 60%, background fills frame. Bottom quarter quiet and dark for dialogue overlay. This is a PLANET SURFACE settlement, not an orbital station. Elevated platforms among giant alien trees, humid mist, bioluminescent plants. Local settlement market trader behind a utilitarian counter. Eye-level medium-wide view, one merchant in practical biome-appropriate work clothes, face at x50% y34%, torso y48%. Cargo and goods at sides, settlement environment visible behind. Quiet dark counter front in bottom quarter for dialogue.",
+    "tool": "built-in image_gen",
+    "sourcePath": "C:/Users/467/.codex/generated_images/01a0bd15-5f8a-7ac0-b8f7-fc2e2c2b95c7/exec-dfa03680-1c2e-4b10-8384-277474d10624.png"
+  },
+  {
+    "file": "art/dock/planet-settlements/jungle-shipyard.png",
+    "prompt": "Use case: stylized-concept. Single production space RPG background, 1600x1200 landscape 4:3. Detailed semi-realistic game illustration, worn gunmetal and blue-gray steel, dark navy shadows, restrained cyan practical lighting and amber details, clear midtones, matching industrial spaceship sprites. No text, logos, watermark, borders, UI. Key content inside central 60%, background fills frame. Bottom quarter quiet and dark for dialogue overlay. This is a PLANET SURFACE settlement, not an orbital station. Elevated platforms among giant alien trees, humid mist, bioluminescent plants. STRICT 90-degree orthographic top-down view of a rectangular fabrication and repair berth with green guide lights. Exactly centered x50% y50%, longitudinal axis vertical. Central 60% width and 65% height completely EMPTY flat deck with only subdued seams. Equipment, retracted clamps, architecture and biome details along outer margins only. No ships, vehicles, people or silhouettes. No horizon, no vanishing point, no perspective tilt. Show this biome only through ground/structural materials and the area visible around the pad.",
+    "tool": "built-in image_gen",
+    "sourcePath": "C:/Users/467/.codex/generated_images/01a0bd15-5f8a-7ac0-b8f7-fc2e2c2b95c7/exec-744a0a08-c974-45e9-91dc-83560ac60f03.png"
+  },
+  {
+    "file": "art/dock/planet-settlements/jungle-hangar.png",
+    "prompt": "Use case: stylized-concept. Single production space RPG background, 1600x1200 landscape 4:3. Detailed semi-realistic game illustration, worn gunmetal and blue-gray steel, dark navy shadows, restrained cyan practical lighting and amber details, clear midtones, matching industrial spaceship sprites. No text, logos, watermark, borders, UI. Key content inside central 60%, background fills frame. Bottom quarter quiet and dark for dialogue overlay. This is a PLANET SURFACE settlement, not an orbital station. Elevated platforms among giant alien trees, humid mist, bioluminescent plants. STRICT 90-degree orthographic top-down view of an octagonal spaceport landing pad with cyan guide lights. Exactly centered x50% y50%, longitudinal axis vertical. Central 60% width and 65% height completely EMPTY flat deck with only subdued seams. Equipment, retracted clamps, architecture and biome details along outer margins only. No ships, vehicles, people or silhouettes. No horizon, no vanishing point, no perspective tilt. Show this biome only through ground/structural materials and the area visible around the pad.",
+    "tool": "built-in image_gen",
+    "sourcePath": "C:/Users/467/.codex/generated_images/01a0bd15-5f8a-7ac0-b8f7-fc2e2c2b95c7/exec-0961d1b0-1ef7-48c6-9175-2ca269072f07.png"
+  },
+  {
+    "file": "art/dock/planet-settlements/barren-office.png",
+    "prompt": "Use case: stylized-concept. Single production space RPG background, 1600x1200 landscape 4:3. Detailed semi-realistic game illustration, worn gunmetal and blue-gray steel, dark navy shadows, restrained cyan practical lighting and amber details, clear midtones, matching industrial spaceship sprites. No text, logos, watermark, borders, UI. Key content inside central 60%, background fills frame. Bottom quarter quiet and dark for dialogue overlay. This is a PLANET SURFACE settlement, not an orbital station. Sealed dome colony on a gray cratered moon, black sky with the parent planet on the horizon. Settlement administrative dispatch office. Eye-level medium-wide view, one practical civilian dispatcher behind a low desk centered x50%, face at y34%, torso at y48%. Abstract mission board without text behind. Windows show this biome. Quiet dark lower quarter for dialogue.",
+    "tool": "built-in image_gen",
+    "sourcePath": "C:/Users/467/.codex/generated_images/01a0bd15-5f8a-7ac0-b8f7-fc2e2c2b95c7/exec-796b1f25-89c9-466a-ab35-8fe1344e8446.png"
+  },
+  {
+    "file": "art/dock/planet-settlements/barren-trader.png",
+    "prompt": "Use case: stylized-concept. Single production space RPG background, 1600x1200 landscape 4:3. Detailed semi-realistic game illustration, worn gunmetal and blue-gray steel, dark navy shadows, restrained cyan practical lighting and amber details, clear midtones, matching industrial spaceship sprites. No text, logos, watermark, borders, UI. Key content inside central 60%, background fills frame. Bottom quarter quiet and dark for dialogue overlay. This is a PLANET SURFACE settlement, not an orbital station. Sealed dome colony on a gray cratered moon, black sky with the parent planet on the horizon. Local settlement market trader behind a utilitarian counter. Eye-level medium-wide view, one merchant in practical biome-appropriate work clothes, face at x50% y34%, torso y48%. Cargo and goods at sides, settlement environment visible behind. Quiet dark counter front in bottom quarter for dialogue.",
+    "tool": "built-in image_gen",
+    "sourcePath": "C:/Users/467/.codex/generated_images/01a0bd15-5f8a-7ac0-b8f7-fc2e2c2b95c7/exec-e439e234-29d5-4cf9-a14d-ff0b61936bfd.png"
+  },
+  {
+    "file": "art/dock/planet-settlements/barren-shipyard.png",
+    "prompt": "Use case: stylized-concept. Single production space RPG background, 1600x1200 landscape 4:3. Detailed semi-realistic game illustration, worn gunmetal and blue-gray steel, dark navy shadows, restrained cyan practical lighting and amber details, clear midtones, matching industrial spaceship sprites. No text, logos, watermark, borders, UI. Key content inside central 60%, background fills frame. Bottom quarter quiet and dark for dialogue overlay. This is a PLANET SURFACE settlement, not an orbital station. Sealed dome colony on a gray cratered moon, black sky with the parent planet on the horizon. STRICT 90-degree orthographic top-down view of a rectangular fabrication and repair berth with green guide lights. Exactly centered x50% y50%, longitudinal axis vertical. Central 60% width and 65% height completely EMPTY flat deck with only subdued seams. Equipment, retracted clamps, architecture and biome details along outer margins only. No ships, vehicles, people or silhouettes. No horizon, no vanishing point, no perspective tilt. Show this biome only through ground/structural materials and the area visible around the pad.",
+    "tool": "built-in image_gen",
+    "sourcePath": "C:/Users/467/.codex/generated_images/01a0bd15-5f8a-7ac0-b8f7-fc2e2c2b95c7/exec-f939b47e-0643-4748-a0d9-5aa61ef50c86.png"
+  },
+  {
+    "file": "art/dock/planet-settlements/barren-hangar.png",
+    "prompt": "Use case: stylized-concept. Single production space RPG background, 1600x1200 landscape 4:3. Detailed semi-realistic game illustration, worn gunmetal and blue-gray steel, dark navy shadows, restrained cyan practical lighting and amber details, clear midtones, matching industrial spaceship sprites. No text, logos, watermark, borders, UI. Key content inside central 60%, background fills frame. Bottom quarter quiet and dark for dialogue overlay. This is a PLANET SURFACE settlement, not an orbital station. Sealed dome colony on a gray cratered moon, black sky with the parent planet on the horizon. STRICT 90-degree orthographic top-down view of an octagonal spaceport landing pad with cyan guide lights. Exactly centered x50% y50%, longitudinal axis vertical. Central 60% width and 65% height completely EMPTY flat deck with only subdued seams. Equipment, retracted clamps, architecture and biome details along outer margins only. No ships, vehicles, people or silhouettes. No horizon, no vanishing point, no perspective tilt. Show this biome only through ground/structural materials and the area visible around the pad.",
+    "tool": "built-in image_gen",
+    "sourcePath": "C:/Users/467/.codex/generated_images/01a0bd15-5f8a-7ac0-b8f7-fc2e2c2b95c7/exec-e9a01824-6a26-4618-bf4e-26a50327ea96.png"
+  },
+  {
+    "file": "art/dock/planet-settlements/orbital-platform-office.png",
+    "prompt": "Use case: stylized-concept. Single production space RPG background, 1600x1200 landscape 4:3. Detailed semi-realistic game illustration, worn gunmetal and blue-gray steel, dark navy shadows, restrained cyan practical lighting and amber details, clear midtones, matching industrial spaceship sprites. No text, logos, watermark, borders, UI. Key content inside central 60%, background fills frame. Bottom quarter quiet and dark for dialogue overlay. This is a PLANET SURFACE settlement, not an orbital station. For a gas giant: engineered platform floating in atmospheric clouds, immense gas-giant bands filling the sky. A floating atmospheric settlement, not open space. Settlement administrative dispatch office. Eye-level medium-wide view, one practical civilian dispatcher behind a low desk centered x50%, face at y34%, torso at y48%. Abstract mission board without text behind. Windows show this biome. Quiet dark lower quarter for dialogue.",
+    "tool": "built-in image_gen",
+    "sourcePath": "C:/Users/467/.codex/generated_images/01a0bd15-5f8a-7ac0-b8f7-fc2e2c2b95c7/exec-0e167021-a5b4-4f26-be99-749059deb8b5.png"
+  },
+  {
+    "file": "art/dock/planet-settlements/orbital-platform-trader.png",
+    "prompt": "Use case: stylized-concept. Single production space RPG background, 1600x1200 landscape 4:3. Detailed semi-realistic game illustration, worn gunmetal and blue-gray steel, dark navy shadows, restrained cyan practical lighting and amber details, clear midtones, matching industrial spaceship sprites. No text, logos, watermark, borders, UI. Key content inside central 60%, background fills frame. Bottom quarter quiet and dark for dialogue overlay. This is a PLANET SURFACE settlement, not an orbital station. For a gas giant: engineered platform floating in atmospheric clouds, immense gas-giant bands filling the sky. A floating atmospheric settlement, not open space. Local settlement market trader behind a utilitarian counter. Eye-level medium-wide view, one merchant in practical biome-appropriate work clothes, face at x50% y34%, torso y48%. Cargo and goods at sides, settlement environment visible behind. Quiet dark counter front in bottom quarter for dialogue.",
+    "tool": "built-in image_gen",
+    "sourcePath": "C:/Users/467/.codex/generated_images/01a0bd15-5f8a-7ac0-b8f7-fc2e2c2b95c7/exec-c128ba92-0aa0-4fe7-930c-acb940f078aa.png"
+  },
+  {
+    "file": "art/dock/planet-settlements/orbital-platform-shipyard.png",
+    "prompt": "Use case: stylized-concept. Single production space RPG background, 1600x1200 landscape 4:3. Detailed semi-realistic game illustration, worn gunmetal and blue-gray steel, dark navy shadows, restrained cyan practical lighting and amber details, clear midtones, matching industrial spaceship sprites. No text, logos, watermark, borders, UI. Key content inside central 60%, background fills frame. Bottom quarter quiet and dark for dialogue overlay. This is a PLANET SURFACE settlement, not an orbital station. For a gas giant: engineered platform floating in atmospheric clouds, immense gas-giant bands filling the sky. A floating atmospheric settlement, not open space. STRICT 90-degree orthographic top-down view of a rectangular fabrication and repair berth with green guide lights. Exactly centered x50% y50%, longitudinal axis vertical. Central 60% width and 65% height completely EMPTY flat deck with only subdued seams. Equipment, retracted clamps, architecture and biome details along outer margins only. No ships, vehicles, people or silhouettes. No horizon, no vanishing point, no perspective tilt. Show this biome only through ground/structural materials and the area visible around the pad.",
+    "tool": "built-in image_gen",
+    "sourcePath": "C:/Users/467/.codex/generated_images/01a0bd15-5f8a-7ac0-b8f7-fc2e2c2b95c7/exec-0c116ccb-b2a1-479d-8af3-9308ecbdd63b.png"
+  },
+  {
+    "file": "art/dock/planet-settlements/orbital-platform-hangar.png",
+    "prompt": "Use case: stylized-concept. Single production space RPG background, 1600x1200 landscape 4:3. Detailed semi-realistic game illustration, worn gunmetal and blue-gray steel, dark navy shadows, restrained cyan practical lighting and amber details, clear midtones, matching industrial spaceship sprites. No text, logos, watermark, borders, UI. Key content inside central 60%, background fills frame. Bottom quarter quiet and dark for dialogue overlay. This is a PLANET SURFACE settlement, not an orbital station. For a gas giant: engineered platform floating in atmospheric clouds, immense gas-giant bands filling the sky. A floating atmospheric settlement, not open space. STRICT 90-degree orthographic top-down view of an octagonal spaceport landing pad with cyan guide lights. Exactly centered x50% y50%, longitudinal axis vertical. Central 60% width and 65% height completely EMPTY flat deck with only subdued seams. Equipment, retracted clamps, architecture and biome details along outer margins only. No ships, vehicles, people or silhouettes. No horizon, no vanishing point, no perspective tilt. Show this biome only through ground/structural materials and the area visible around the pad.",
+    "tool": "built-in image_gen",
+    "sourcePath": "C:/Users/467/.codex/generated_images/01a0bd15-5f8a-7ac0-b8f7-fc2e2c2b95c7/exec-ae96ce05-02f0-47ce-86dc-a94085d3c815.png"
+  },
+  {
+    "file": "art/dock/landings/landing-terran.png",
+    "prompt": "Use case: stylized-concept. Single production space RPG background, 1600x1200 landscape 4:3. Detailed semi-realistic game illustration, worn gunmetal and blue-gray steel, dark navy shadows, restrained cyan practical lighting and amber details, clear midtones, matching industrial spaceship sprites. No text, logos, watermark, borders, UI. Key content inside central 60%, background fills frame. Bottom quarter quiet and dark for dialogue overlay. Cockpit view during descent toward a settlement, unobtrusive dark canopy struts at far edges, no instruments or readable UI obscuring main view. Settlement lights below and landing approach through this environment. Temperate blue-green world, broken clouds above a city and coastal spaceport. Clouds appropriate to this biome open to reveal settlement below.",
+    "tool": "built-in image_gen",
+    "sourcePath": "C:/Users/467/.codex/generated_images/01a0bd15-5f8a-7ac0-b8f7-fc2e2c2b95c7/exec-4f8de356-70fc-4392-934c-7dbfa8a1eddc.png"
+  },
+  {
+    "file": "art/dock/landings/landing-desert.png",
+    "prompt": "Use case: stylized-concept. Single production space RPG background, 1600x1200 landscape 4:3. Detailed semi-realistic game illustration, worn gunmetal and blue-gray steel, dark navy shadows, restrained cyan practical lighting and amber details, clear midtones, matching industrial spaceship sprites. No text, logos, watermark, borders, UI. Key content inside central 60%, background fills frame. Bottom quarter quiet and dark for dialogue overlay. Cockpit view during descent toward a settlement, unobtrusive dark canopy struts at far edges, no instruments or readable UI obscuring main view. Settlement lights below and landing approach through this environment. Sand-colored domes and wind-worn metal, orange dusty sky, mesa cliffs. Clouds appropriate to this biome open to reveal settlement below.",
+    "tool": "built-in image_gen",
+    "sourcePath": "C:/Users/467/.codex/generated_images/01a0bd15-5f8a-7ac0-b8f7-fc2e2c2b95c7/exec-b7dece36-11ef-48af-95e8-473ca3219970.png"
+  },
+  {
+    "file": "art/dock/landings/landing-ice.png",
+    "prompt": "Use case: stylized-concept. Single production space RPG background, 1600x1200 landscape 4:3. Detailed semi-realistic game illustration, worn gunmetal and blue-gray steel, dark navy shadows, restrained cyan practical lighting and amber details, clear midtones, matching industrial spaceship sprites. No text, logos, watermark, borders, UI. Key content inside central 60%, background fills frame. Bottom quarter quiet and dark for dialogue overlay. Cockpit view during descent toward a settlement, unobtrusive dark canopy struts at far edges, no instruments or readable UI obscuring main view. Settlement lights below and landing approach through this environment. Pressurized habitats half buried in snow, pale cyan ice cliffs, aurora in the sky. Clouds appropriate to this biome open to reveal settlement below.",
+    "tool": "built-in image_gen",
+    "sourcePath": "C:/Users/467/.codex/generated_images/01a0bd15-5f8a-7ac0-b8f7-fc2e2c2b95c7/exec-9cdf45ab-2f41-4ac3-b9fb-b8ab5f21f6bf.png"
+  },
+  {
+    "file": "art/dock/landings/landing-lava.png",
+    "prompt": "Use case: stylized-concept. Single production space RPG background, 1600x1200 landscape 4:3. Detailed semi-realistic game illustration, worn gunmetal and blue-gray steel, dark navy shadows, restrained cyan practical lighting and amber details, clear midtones, matching industrial spaceship sprites. No text, logos, watermark, borders, UI. Key content inside central 60%, background fills frame. Bottom quarter quiet and dark for dialogue overlay. Cockpit view during descent toward a settlement, unobtrusive dark canopy struts at far edges, no instruments or readable UI obscuring main view. Settlement lights below and landing approach through this environment. Heat-shielded black basalt bunkers, orange glow from distant lava flows, ash in the air. Clouds appropriate to this biome open to reveal settlement below.",
+    "tool": "built-in image_gen",
+    "sourcePath": "C:/Users/467/.codex/generated_images/01a0bd15-5f8a-7ac0-b8f7-fc2e2c2b95c7/exec-fef466ed-5caf-4529-b4c1-798a2460bbf6.png"
+  },
+  {
+    "file": "art/dock/landings/landing-jungle.png",
+    "prompt": "Use case: stylized-concept. Single production space RPG background, 1600x1200 landscape 4:3. Detailed semi-realistic game illustration, worn gunmetal and blue-gray steel, dark navy shadows, restrained cyan practical lighting and amber details, clear midtones, matching industrial spaceship sprites. No text, logos, watermark, borders, UI. Key content inside central 60%, background fills frame. Bottom quarter quiet and dark for dialogue overlay. Cockpit view during descent toward a settlement, unobtrusive dark canopy struts at far edges, no instruments or readable UI obscuring main view. Settlement lights below and landing approach through this environment. Elevated platforms among giant alien trees, humid mist, bioluminescent plants. Clouds appropriate to this biome open to reveal settlement below.",
+    "tool": "built-in image_gen",
+    "sourcePath": "C:/Users/467/.codex/generated_images/01a0bd15-5f8a-7ac0-b8f7-fc2e2c2b95c7/exec-4c1d1c59-73ce-4cd6-9cfc-124c9a93ffda.png"
+  },
+  {
+    "file": "art/dock/landings/landing-barren.png",
+    "prompt": "Use case: stylized-concept. Single production space RPG background, 1600x1200 landscape 4:3. Detailed semi-realistic game illustration, worn gunmetal and blue-gray steel, dark navy shadows, restrained cyan practical lighting and amber details, clear midtones, matching industrial spaceship sprites. No text, logos, watermark, borders, UI. Key content inside central 60%, background fills frame. Bottom quarter quiet and dark for dialogue overlay. Cockpit view during descent toward a settlement, unobtrusive dark canopy struts at far edges, no instruments or readable UI obscuring main view. Settlement lights below and landing approach through this environment. Sealed dome colony on a gray cratered moon, black sky with the parent planet on the horizon. Airless moon: NO atmospheric clouds or fog, crisp black sky and gray cratered terrain, parent planet on horizon.",
+    "tool": "built-in image_gen",
+    "sourcePath": "C:/Users/467/.codex/generated_images/01a0bd15-5f8a-7ac0-b8f7-fc2e2c2b95c7/exec-081f562d-4321-4ffd-b6ba-e9b0893b7ec1.png"
+  },
+  {
+    "file": "art/dock/landings/landing-orbital-platform.png",
+    "prompt": "Use case: stylized-concept. Single production space RPG background, 1600x1200 landscape 4:3. Detailed semi-realistic game illustration, worn gunmetal and blue-gray steel, dark navy shadows, restrained cyan practical lighting and amber details, clear midtones, matching industrial spaceship sprites. No text, logos, watermark, borders, UI. Key content inside central 60%, background fills frame. Bottom quarter quiet and dark for dialogue overlay. Cockpit view during descent toward a settlement, unobtrusive dark canopy struts at far edges, no instruments or readable UI obscuring main view. Settlement lights below and landing approach through this environment. For a gas giant: engineered platform floating in atmospheric clouds, immense gas-giant bands filling the sky. A floating atmospheric settlement, not open space. Clouds appropriate to this biome open to reveal settlement below.",
+    "tool": "built-in image_gen",
+    "sourcePath": "C:/Users/467/.codex/generated_images/01a0bd15-5f8a-7ac0-b8f7-fc2e2c2b95c7/exec-cacc7d66-034d-45e5-80fb-79c9266c8647.png"
+  },
+  {
+    "file": "art/dock/landings/landing-ocean.png",
+    "prompt": "Use case: stylized-concept. Single production space RPG background, 1600x1200 landscape 4:3. Detailed semi-realistic game illustration, worn gunmetal and blue-gray steel, dark navy shadows, restrained cyan practical lighting and amber details, clear midtones, matching industrial spaceship sprites. No text, logos, watermark, borders, UI. Key content inside central 60%, background fills frame. Bottom quarter quiet and dark for dialogue overlay. Cockpit view during descent toward a settlement, unobtrusive dark canopy struts at far edges, no instruments or readable UI obscuring main view. Settlement lights below and landing approach through this environment. Ocean planet with deep blue water, scattered small islands and a settlement on offshore platforms. Clouds appropriate to this biome open to reveal settlement below.",
+    "tool": "built-in image_gen",
+    "sourcePath": "C:/Users/467/.codex/generated_images/01a0bd15-5f8a-7ac0-b8f7-fc2e2c2b95c7/exec-408a25d3-6004-4f01-adbb-3162247ff606.png"
+  },
+  {
+    "file": "art/dock/landings/landing-toxic.png",
+    "prompt": "Use case: stylized-concept. Single production space RPG background, 1600x1200 landscape 4:3. Detailed semi-realistic game illustration, worn gunmetal and blue-gray steel, dark navy shadows, restrained cyan practical lighting and amber details, clear midtones, matching industrial spaceship sprites. No text, logos, watermark, borders, UI. Key content inside central 60%, background fills frame. Bottom quarter quiet and dark for dialogue overlay. Cockpit view during descent toward a settlement, unobtrusive dark canopy struts at far edges, no instruments or readable UI obscuring main view. Settlement lights below and landing approach through this environment. Toxic world with sickly yellow-green clouds, brown rock, sealed habitats and filtered landing lights. Clouds appropriate to this biome open to reveal settlement below.",
+    "tool": "built-in image_gen",
+    "sourcePath": "C:/Users/467/.codex/generated_images/01a0bd15-5f8a-7ac0-b8f7-fc2e2c2b95c7/exec-c0ad086a-64d0-4850-ab4b-7fa7d9c891c3.png"
+  },
+  {
+    "file": "art/mechs/parts/mech-body-light.png",
+    "prompt": "Use case: stylized-concept. ONE isolated spaceship equipment inventory icon for a semi-realistic space RPG. 1024x1024 square, genuinely transparent alpha background, no painted checkerboard. Detailed industrial game asset, worn pale steel armor panels, blue-gray gunmetal structure, dark recesses, exposed bolts and hoses, restrained luminous accent. Elevated three-quarter product view showing top, front and side, crisp chunky readable silhouette at small sizes, soft studio illumination from upper left, no cast shadow outside object. Center entire item with clear padding, no cropped parts. No text, labels, letters, numbers, watermark, UI border, people, ship, room, floor or extra separate objects. This is a walking combat mech part, not a spaceship part. Compact mech torso with a large cockpit canopy, no arms or legs.",
+    "tool": "built-in image_gen",
+    "sourcePath": "C:/Users/467/.codex/generated_images/01a0bd15-5f8a-7ac0-b8f7-fc2e2c2b95c7/exec-4e6cc488-2a79-4ed0-9ca1-209571e3f473.png"
+  },
+  {
+    "file": "art/mechs/parts/mech-body-medium.png",
+    "prompt": "Use case: stylized-concept. ONE isolated spaceship equipment inventory icon for a semi-realistic space RPG. 1024x1024 square, genuinely transparent alpha background, no painted checkerboard. Detailed industrial game asset, worn pale steel armor panels, blue-gray gunmetal structure, dark recesses, exposed bolts and hoses, restrained luminous accent. Elevated three-quarter product view showing top, front and side, crisp chunky readable silhouette at small sizes, soft studio illumination from upper left, no cast shadow outside object. Center entire item with clear padding, no cropped parts. No text, labels, letters, numbers, watermark, UI border, people, ship, room, floor or extra separate objects. This is a walking combat mech part, not a spaceship part. Balanced armored mech torso, no arms or legs.",
+    "tool": "built-in image_gen",
+    "sourcePath": "C:/Users/467/.codex/generated_images/01a0bd15-5f8a-7ac0-b8f7-fc2e2c2b95c7/exec-3bad89eb-9b22-4b78-b1dc-2b025af6cb96.png"
+  },
+  {
+    "file": "art/mechs/parts/mech-body-heavy.png",
+    "prompt": "Use case: stylized-concept. ONE isolated spaceship equipment inventory icon for a semi-realistic space RPG. 1024x1024 square, genuinely transparent alpha background, no painted checkerboard. Detailed industrial game asset, worn pale steel armor panels, blue-gray gunmetal structure, dark recesses, exposed bolts and hoses, restrained luminous accent. Elevated three-quarter product view showing top, front and side, crisp chunky readable silhouette at small sizes, soft studio illumination from upper left, no cast shadow outside object. Center entire item with clear padding, no cropped parts. No text, labels, letters, numbers, watermark, UI border, people, ship, room, floor or extra separate objects. This is a walking combat mech part, not a spaceship part. Massive bunker-like armored torso, no arms or legs.",
+    "tool": "built-in image_gen",
+    "sourcePath": "C:/Users/467/.codex/generated_images/01a0bd15-5f8a-7ac0-b8f7-fc2e2c2b95c7/exec-9810171d-c17f-413c-b9c3-6e24d64635f2.png"
+  },
+  {
+    "file": "art/mechs/parts/mech-body-sniper.png",
+    "prompt": "Use case: stylized-concept. ONE isolated spaceship equipment inventory icon for a semi-realistic space RPG. 1024x1024 square, genuinely transparent alpha background, no painted checkerboard. Detailed industrial game asset, worn pale steel armor panels, blue-gray gunmetal structure, dark recesses, exposed bolts and hoses, restrained luminous accent. Elevated three-quarter product view showing top, front and side, crisp chunky readable silhouette at small sizes, soft studio illumination from upper left, no cast shadow outside object. Center entire item with clear padding, no cropped parts. No text, labels, letters, numbers, watermark, UI border, people, ship, room, floor or extra separate objects. This is a walking combat mech part, not a spaceship part. Narrow precision mech torso with long sensor module, no arms or legs.",
+    "tool": "built-in image_gen",
+    "sourcePath": "C:/Users/467/.codex/generated_images/01a0bd15-5f8a-7ac0-b8f7-fc2e2c2b95c7/exec-db758898-6907-4e63-9a8d-0af71d5924d1.png"
+  },
+  {
+    "file": "art/mechs/parts/mech-legs-light.png",
+    "prompt": "Use case: stylized-concept. ONE isolated spaceship equipment inventory icon for a semi-realistic space RPG. 1024x1024 square, genuinely transparent alpha background, no painted checkerboard. Detailed industrial game asset, worn pale steel armor panels, blue-gray gunmetal structure, dark recesses, exposed bolts and hoses, restrained luminous accent. Elevated three-quarter product view showing top, front and side, crisp chunky readable silhouette at small sizes, soft studio illumination from upper left, no cast shadow outside object. Center entire item with clear padding, no cropped parts. No text, labels, letters, numbers, watermark, UI border, people, ship, room, floor or extra separate objects. This is a walking combat mech part, not a spaceship part. One connected chassis with two slender reverse-jointed legs, hip connector at top, no torso.",
+    "tool": "built-in image_gen",
+    "sourcePath": "C:/Users/467/.codex/generated_images/01a0bd15-5f8a-7ac0-b8f7-fc2e2c2b95c7/exec-f2c907cd-a62d-41d4-b591-7fc61e90ae72.png"
+  },
+  {
+    "file": "art/mechs/parts/mech-legs-medium.png",
+    "prompt": "Use case: stylized-concept. ONE isolated spaceship equipment inventory icon for a semi-realistic space RPG. 1024x1024 square, genuinely transparent alpha background, no painted checkerboard. Detailed industrial game asset, worn pale steel armor panels, blue-gray gunmetal structure, dark recesses, exposed bolts and hoses, restrained luminous accent. Elevated three-quarter product view showing top, front and side, crisp chunky readable silhouette at small sizes, soft studio illumination from upper left, no cast shadow outside object. Center entire item with clear padding, no cropped parts. No text, labels, letters, numbers, watermark, UI border, people, ship, room, floor or extra separate objects. This is a walking combat mech part, not a spaceship part. One connected chassis with two powerful armored legs, hip connector at top, no torso.",
+    "tool": "built-in image_gen",
+    "sourcePath": "C:/Users/467/.codex/generated_images/01a0bd15-5f8a-7ac0-b8f7-fc2e2c2b95c7/exec-4e9b1ac0-19ae-445f-9715-0411dac5c189.png"
+  },
+  {
+    "file": "art/mechs/parts/mech-legs-heavy.png",
+    "prompt": "Use case: stylized-concept. ONE isolated spaceship equipment inventory icon for a semi-realistic space RPG. 1024x1024 square, genuinely transparent alpha background, no painted checkerboard. Detailed industrial game asset, worn pale steel armor panels, blue-gray gunmetal structure, dark recesses, exposed bolts and hoses, restrained luminous accent. Elevated three-quarter product view showing top, front and side, crisp chunky readable silhouette at small sizes, soft studio illumination from upper left, no cast shadow outside object. Center entire item with clear padding, no cropped parts. No text, labels, letters, numbers, watermark, UI border, people, ship, room, floor or extra separate objects. This is a walking combat mech part, not a spaceship part. One connected four-legged spider-like chassis with four sturdy jointed legs, no torso.",
+    "tool": "built-in image_gen",
+    "sourcePath": "C:/Users/467/.codex/generated_images/01a0bd15-5f8a-7ac0-b8f7-fc2e2c2b95c7/exec-66bce381-8d8e-45c1-8c1a-39a8bd8a93be.png"
+  },
+  {
+    "file": "art/mechs/parts/mech-legs-tracks.png",
+    "prompt": "Use case: stylized-concept. ONE isolated spaceship equipment inventory icon for a semi-realistic space RPG. 1024x1024 square, genuinely transparent alpha background, no painted checkerboard. Detailed industrial game asset, worn pale steel armor panels, blue-gray gunmetal structure, dark recesses, exposed bolts and hoses, restrained luminous accent. Elevated three-quarter product view showing top, front and side, crisp chunky readable silhouette at small sizes, soft studio illumination from upper left, no cast shadow outside object. Center entire item with clear padding, no cropped parts. No text, labels, letters, numbers, watermark, UI border, people, ship, room, floor or extra separate objects. This is a walking combat mech part, not a spaceship part. One compact twin-track chassis platform with central torso mounting socket, no torso.",
+    "tool": "built-in image_gen",
+    "sourcePath": "C:/Users/467/.codex/generated_images/01a0bd15-5f8a-7ac0-b8f7-fc2e2c2b95c7/exec-010fbb06-b988-4790-8c88-c53fa815b29e.png"
+  },
+  {
+    "file": "art/mechs/parts/mech-arm-mg.png",
+    "prompt": "Use case: stylized-concept. ONE isolated spaceship equipment inventory icon for a semi-realistic space RPG. 1024x1024 square, genuinely transparent alpha background, no painted checkerboard. Detailed industrial game asset, worn pale steel armor panels, blue-gray gunmetal structure, dark recesses, exposed bolts and hoses, restrained luminous accent. Elevated three-quarter product view showing top, front and side, crisp chunky readable silhouette at small sizes, soft studio illumination from upper left, no cast shadow outside object. Center entire item with clear padding, no cropped parts. No text, labels, letters, numbers, watermark, UI border, people, ship, room, floor or extra separate objects. This is a walking combat mech part, not a spaceship part. ONE complete articulated mechanical arm with integrated light machine gun.",
+    "tool": "built-in image_gen",
+    "sourcePath": "C:/Users/467/.codex/generated_images/01a0bd15-5f8a-7ac0-b8f7-fc2e2c2b95c7/exec-28957f64-7eea-45ed-956e-293a3dac2f91.png"
+  },
+  {
+    "file": "art/mechs/parts/mech-arm-cannon.png",
+    "prompt": "Use case: stylized-concept. ONE isolated spaceship equipment inventory icon for a semi-realistic space RPG. 1024x1024 square, genuinely transparent alpha background, no painted checkerboard. Detailed industrial game asset, worn pale steel armor panels, blue-gray gunmetal structure, dark recesses, exposed bolts and hoses, restrained luminous accent. Elevated three-quarter product view showing top, front and side, crisp chunky readable silhouette at small sizes, soft studio illumination from upper left, no cast shadow outside object. Center entire item with clear padding, no cropped parts. No text, labels, letters, numbers, watermark, UI border, people, ship, room, floor or extra separate objects. This is a walking combat mech part, not a spaceship part. ONE complete reinforced mechanical arm with integrated heavy cannon.",
+    "tool": "built-in image_gen",
+    "sourcePath": "C:/Users/467/.codex/generated_images/01a0bd15-5f8a-7ac0-b8f7-fc2e2c2b95c7/exec-aa0d513d-65e4-4480-963d-1c8455430bcc.png"
+  },
+  {
+    "file": "art/mechs/parts/mech-arm-shotgun.png",
+    "prompt": "Use case: stylized-concept. ONE isolated spaceship equipment inventory icon for a semi-realistic space RPG. 1024x1024 square, genuinely transparent alpha background, no painted checkerboard. Detailed industrial game asset, worn pale steel armor panels, blue-gray gunmetal structure, dark recesses, exposed bolts and hoses, restrained luminous accent. Elevated three-quarter product view showing top, front and side, crisp chunky readable silhouette at small sizes, soft studio illumination from upper left, no cast shadow outside object. Center entire item with clear padding, no cropped parts. No text, labels, letters, numbers, watermark, UI border, people, ship, room, floor or extra separate objects. This is a walking combat mech part, not a spaceship part. ONE complete mechanical arm with short thick multi-bore shotgun.",
+    "tool": "built-in image_gen",
+    "sourcePath": "C:/Users/467/.codex/generated_images/01a0bd15-5f8a-7ac0-b8f7-fc2e2c2b95c7/exec-dc7a56ab-2332-4665-bc2e-965b29ddce91.png"
+  },
+  {
+    "file": "art/mechs/parts/mech-arm-rifle.png",
+    "prompt": "Use case: stylized-concept. ONE isolated spaceship equipment inventory icon for a semi-realistic space RPG. 1024x1024 square, genuinely transparent alpha background, no painted checkerboard. Detailed industrial game asset, worn pale steel armor panels, blue-gray gunmetal structure, dark recesses, exposed bolts and hoses, restrained luminous accent. Elevated three-quarter product view showing top, front and side, crisp chunky readable silhouette at small sizes, soft studio illumination from upper left, no cast shadow outside object. Center entire item with clear padding, no cropped parts. No text, labels, letters, numbers, watermark, UI border, people, ship, room, floor or extra separate objects. This is a walking combat mech part, not a spaceship part. ONE complete slim mechanical arm with integrated long sniper rifle and sensor scope.",
+    "tool": "built-in image_gen",
+    "sourcePath": "C:/Users/467/.codex/generated_images/01a0bd15-5f8a-7ac0-b8f7-fc2e2c2b95c7/exec-a8573070-ba4c-4505-ae56-eba7a1ee9fb4.png"
+  },
+  {
+    "file": "art/mechs/parts/mech-arm-rockets.png",
+    "prompt": "Use case: stylized-concept. ONE isolated spaceship equipment inventory icon for a semi-realistic space RPG. 1024x1024 square, genuinely transparent alpha background, no painted checkerboard. Detailed industrial game asset, worn pale steel armor panels, blue-gray gunmetal structure, dark recesses, exposed bolts and hoses, restrained luminous accent. Elevated three-quarter product view showing top, front and side, crisp chunky readable silhouette at small sizes, soft studio illumination from upper left, no cast shadow outside object. Center entire item with clear padding, no cropped parts. No text, labels, letters, numbers, watermark, UI border, people, ship, room, floor or extra separate objects. This is a walking combat mech part, not a spaceship part. ONE complete mechanical arm with rectangular multi-tube rocket pod.",
+    "tool": "built-in image_gen",
+    "sourcePath": "C:/Users/467/.codex/generated_images/01a0bd15-5f8a-7ac0-b8f7-fc2e2c2b95c7/exec-e39e0b74-19df-4f3a-8880-cb57c6d36c15.png"
+  }
 ]
