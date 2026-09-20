@@ -153,7 +153,11 @@ public sealed record ShopRules(
         };
     }
 
-    private static int Round(double price) => price >= 100 ? (int)(Math.Round(price / 10) * 10) : (int)Math.Round(price);
+    /// <summary>
+    /// Округление цены: крупные — до десятков, мелочь — до кредита. internal, потому что этим же правилом
+    /// репутация двигает цены (<see cref="ReputationRules.Price"/>) — иначе дока и сервер разошлись бы.
+    /// </summary>
+    internal static int Round(double price) => price >= 100 ? (int)(Math.Round(price / 10) * 10) : (int)Math.Round(price);
 
     /// <param name="hulls">Каждый корпус в прайсе должен быть в hulls.json.</param>
     /// <param name="weapons">Каждый предмет в прайсе должен быть в weapons.json…</param>

@@ -109,7 +109,8 @@ public sealed record CombatRules(
 public sealed record BalanceSources(
     string Hulls, string Weapons, string Rules, string Npcs, string Loot, string Meteors, string Shop,
     string? Galaxy = null, string? Missions = null, string? Modules = null, string? Party = null, string? Invasion = null,
-    string? Market = null);
+    string? Market = null,
+    string? Reputation = null);
 
 /// <summary>
 /// Весь баланс: корпуса, пушки, правила боя, NPC, лут, метеориты, магазин станции, галактика, задания.
@@ -131,6 +132,7 @@ public sealed record BalanceSources(
 /// <param name="PartySet">Группы игроков (GDD §37); null — по умолчанию.</param>
 /// <param name="InvasionSet">Вторжения пиратов (GDD §38); null — их нет.</param>
 /// <param name="MarketSet">Рынок товаров (M12); null — груз сдаётся по плоской цене loot.json и не покупается.</param>
+/// <param name="ReputationSet">Репутация (M13); null — поступки не запоминаются, всё продаётся всем.</param>
 public sealed record Balance(
     IReadOnlyDictionary<string, HullParams> Hulls,
     IReadOnlyDictionary<string, WeaponParams> Weapons,
@@ -146,7 +148,8 @@ public sealed record Balance(
     IReadOnlyDictionary<string, ModuleParams>? Modules = null,
     PartyRules? PartySet = null,
     InvasionRules? InvasionSet = null,
-    MarketRules? MarketSet = null)
+    MarketRules? MarketSet = null,
+    ReputationRules? ReputationSet = null)
 {
     public const string HullsFile = "hulls.json";
     public const string WeaponsFile = "weapons.json";
@@ -161,10 +164,14 @@ public sealed record Balance(
     public const string PartyFile = PartyRules.File;
     public const string InvasionFile = InvasionRules.File;
     public const string MarketFile = MarketRules.File;
+    public const string ReputationFile = ReputationRules.File;
 
     /// <summary>Все файлы баланса в порядке разбора.</summary>
     public static readonly string[] Files =
-        [HullsFile, WeaponsFile, RulesFile, NpcsFile, LootFile, MeteorsFile, ShopFile, GalaxyFile, MissionsFile, ModulesFile, PartyFile, InvasionFile, MarketFile];
+    [
+        HullsFile, WeaponsFile, RulesFile, NpcsFile, LootFile, MeteorsFile, ShopFile, GalaxyFile, MissionsFile,
+        ModulesFile, PartyFile, InvasionFile, MarketFile, ReputationFile,
+    ];
 
     public NpcRules Npc => Npcs ?? NpcRules.None;
 
@@ -184,6 +191,12 @@ public sealed record Balance(
 
     /// <summary>Рынок этой станции (M12); рынка нет — <see cref="MarketRules.Any"/> false, цены плоские, как до M12.</summary>
     public MarketRules Market => MarketSet ?? MarketRules.None;
+
+    /// <summary>
+    /// Репутация (M13); её нет — <see cref="ReputationRules.Any"/> false, и всё ведёт себя как до M13.
+    /// По системам не сужается, в отличие от магазина и рынка: правила одни на галактику, разные только очки пилота.
+    /// </summary>
+    public ReputationRules Reputation => ReputationSet ?? ReputationRules.None;
 
     /// <summary>Система этого вида баланса.</summary>
     public string System => SystemId ?? Galaxy.StartSystem;
@@ -438,6 +451,16 @@ public sealed record Balance(
                 return false;
             }
             parsed = parsed with { MarketSet = market };
+        }
+        if (sources.Reputation is not null)
+        {
+            // После корпусов: гейт называет корпуса поимённо, и опечатку в них надо ловить при разборе.
+            if (!ReputationRules.TryParse(sources.Reputation, parsed.Hulls, out var reputation, out error))
+            {
+                error = $"{ReputationFile}: {error}";
+                return false;
+            }
+            parsed = parsed with { ReputationSet = reputation };
         }
         balance = parsed;
         return true;

@@ -3,7 +3,7 @@ using Sro.Sim;
 namespace Sro.Server.Game;
 
 /// <summary>
-/// Баланс из shared/ (<see cref="Balance.Files"/>: корпуса, пушки, правила боя, NPC, лут, метеориты, магазин, галактика, задания, модули, группы, вторжения, рынок) с горячей перезагрузкой: файлы правят во время плейтеста,
+/// Баланс из shared/ (<see cref="Balance.Files"/>: корпуса, пушки, правила боя, NPC, лут, метеориты, магазин, галактика, задания, модули, группы, вторжения, рынок, репутация) с горячей перезагрузкой: файлы правят во время плейтеста,
 /// сервер подхватывает их без перезапуска и рассылает клиентам. Файлы разбираются вместе (правила ссылаются
 /// на корпуса); если хоть один невалиден, остаётся прежний баланс целиком.
 /// </summary>
@@ -81,13 +81,25 @@ public sealed class BalanceStore : IDisposable
         Changed?.Invoke(balance!);
     }
 
-    private static bool Parse(string[] texts, out Balance? balance, out string? error) =>
-        Balance.TryParse(
+    /// <summary>
+    /// Порядок аргументов — это порядок <see cref="Balance.Files"/>: добавили файл туда — добавьте индекс сюда.
+    /// Несовпадение длин ловится сразу, иначе новый файл молча уехал бы в чужой разбор.
+    /// </summary>
+    private static bool Parse(string[] texts, out Balance? balance, out string? error)
+    {
+        if (texts.Length != 14)
+        {
+            balance = null;
+            error = $"BalanceStore knows 14 files, Balance.Files has {texts.Length}";
+            return false;
+        }
+        return Balance.TryParse(
             new BalanceSources(
                 texts[0], texts[1], texts[2], texts[3], texts[4], texts[5], texts[6],
-                texts[7], texts[8], texts[9], texts[10], texts[11], texts[12]),
+                texts[7], texts[8], texts[9], texts[10], texts[11], texts[12], texts[13]),
             out balance,
             out error);
+    }
 
     private string? TryRead(string file)
     {

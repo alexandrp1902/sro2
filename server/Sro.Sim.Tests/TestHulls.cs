@@ -45,7 +45,7 @@ internal static class TestHulls
             Read(Balance.HullsFile), Read(Balance.WeaponsFile), Read(Balance.RulesFile),
             Read(Balance.NpcsFile), Read(Balance.LootFile), Read(Balance.MeteorsFile), Read(Balance.ShopFile), Read(Balance.GalaxyFile),
             Read(Balance.MissionsFile), Read(Balance.ModulesFile), Read(Balance.PartyFile), Read(Balance.InvasionFile),
-            Read(Balance.MarketFile));
+            Read(Balance.MarketFile), Read(Balance.ReputationFile));
     }
 
     /// <summary>Все пушки и модули всех тиров из shared/ — их роняют пираты дальних регионов (M11).</summary>
