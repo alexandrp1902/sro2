@@ -103,7 +103,8 @@ internal static class PirateBrain
             }
             pirate.Avenge = 0;
             // Пират вторжения на точке сбора не чинится: иначе его можно было бы увести на поводке и вылечить.
-            if (!pirate.IsInvader) pirate.Repair(hull);
+            // Звено задания — тоже: его дом переезжает по маршруту, и оно чинилось бы на каждой точке (M14).
+            if (pirate.HealsAtHome) pirate.Repair(hull);
             pirate.State = PirateState.Patrol;
             pirate.HasWaypoint = false;
             // Налётчик долетел до места: отсюда и идёт время его патруля.
@@ -265,11 +266,12 @@ internal static class PirateBrain
     /// <summary>
     /// У чужой фракции рядом явный перевес (<see cref="NpcRules.OutmatchRatio"/>): бой с NPC этой фракции не начинать,
     /// а начатый — бросить. Считаются NPC обеих сторон: свои — в радиусе помощи от себя, чужие — в радиусе потери цели.
-    /// Налётчик вторжения не отступает никогда; у своего логова NPC тоже держится — отступать дальше некуда.
+    /// Кто бьётся до конца — вторжение и корабли задания — не отступает никогда; у своего логова NPC тоже
+    /// держится: отступать дальше некуда.
     /// </summary>
     private static bool IsOutmatched(Pirate self, ShipEntity target, IReadOnlyList<Pirate> pirates, Balance balance)
     {
-        if (target is not Pirate || self.IsInvader) return false;
+        if (target is not Pirate || self.NeverRetreats) return false;
         var npc = balance.Npc;
         if (Distance(self.Ship.X, self.Ship.Y, self.HomeX, self.HomeY) <= npc.PatrolRadius && !self.IsRaider) return false;
         double ownHp = 0, ownDps = 0, foeHp = 0, foeDps = 0;

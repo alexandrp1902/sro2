@@ -231,7 +231,8 @@ public sealed class ReputationTests : IDisposable
     public void FriendsGetAnEliteContract()
     {
         var a = Pilot();
-        Assert.DoesNotContain(a.Last<MissionsMsg>().Offers, o => o.Elite);
+        var plain = a.Last<MissionsMsg>().Offers;
+        Assert.DoesNotContain(plain, o => o.Elite);
 
         SetRep(PlayerOf(a), Place, 40);
         Persist(a);
@@ -239,7 +240,10 @@ public sealed class ReputationTests : IDisposable
         var board = Rejoin(a).Last<MissionsMsg>().Offers;
         // Особый — последним: он читается как «лучшее, что тут есть», а не теряется в середине списка.
         Assert.True(board[^1].Elite);
-        Assert.True(board[^1].Reward > board[0].Reward);
+        // Сравниваем с той же работой на обычной доске, а не с соседней строкой: доска собирается по сиду
+        // пилота, и «дороже первого предложения» было бы правдой не при каждом сиде.
+        Assert.Equal(plain[^1] with { Reward = board[^1].Reward, Elite = true }, board[^1]);
+        Assert.Equal((int)Math.Round(plain[^1].Reward * 1.5), board[^1].Reward);
     }
 
     [Fact]

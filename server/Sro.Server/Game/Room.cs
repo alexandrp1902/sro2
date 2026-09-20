@@ -183,6 +183,9 @@ public sealed partial class Room
     /// <summary>Торговцы в системе.</summary>
     public IReadOnlyList<Trader> Traders => _traders;
 
+    /// <summary>Пираты и рейнджеры в системе: логова, налёты, вторжения и звенья заданий.</summary>
+    public IReadOnlyList<Pirate> Pirates => _pirates;
+
     /// <summary>
     /// Метеорит заданного размера в точке (x, y) со скоростью (vx, vy) — для тестов и отладки.
     /// Обычно они появляются сами, по таймеру из meteors.json.
@@ -270,7 +273,8 @@ public sealed partial class Room
         player.Home = SystemId;
         // Обучение — только новому пилоту (GDD §54): профиль старше M8 считается прошедшим его.
         player.Missions.Tutorial = profile is null ? 0 : profile.Tutorial ?? MissionLog.Finished;
-        player.Missions.Active = profile?.Mission;
+        // Живое задание в комнату не возвращается: его конвой и звено остались в прошлом вылете (M14).
+        player.Missions.Active = profile?.Mission is { } taken && !MissionRules.IsLive(taken.Offer.Kind) ? taken : null;
         player.Missions.Seed = profile?.MissionSeed ?? Random.Shared.Next();
         player.Cargo.Reserved = Reserve(player.Missions.Active);
         // Репутация тает по часам: распад за время отсутствия применяется прямо здесь, на входе.
@@ -410,6 +414,8 @@ public sealed partial class Room
     /// </summary>
     public void Release(Player player)
     {
+        // Конвой и звено остаются здесь — увезти их с собой нельзя, значит работа сорвана (M14).
+        if (RunOf(player) is not null) Fail(player, Protocol.LeftFail);
         if (!_players.Remove(player.Id)) return;
         if (player.Connection is { } connection) _byConnection.Remove(connection.Id);
         if (player.Token is not null) _byToken.Remove(player.Token);
@@ -725,10 +731,16 @@ public sealed partial class Room
         if (!raidsSame) StartRaids();
         if (TradersJson(balance) != _tradersJson)
         {
-            foreach (var trader in _traders) RemoveShip(trader);
-            _traders.Clear();
+            // Конвой задания переживает правку: он доигрывает со старыми параметрами типа, зато задание
+            // не срывается из-за того, что кто-то поправил shared/ во время плейтеста (M14).
+            foreach (var trader in _traders.Where(t => t.MissionId == 0).ToList())
+            {
+                RemoveShip(trader);
+                _traders.Remove(trader);
+            }
             StartTraders();
         }
+        ValidateRuns();
 
         if (!old.Loot.ContainerList.SequenceEqual(balance.Loot.ContainerList)) _loot.SetContainers(balance.Loot.ContainerList);
         if (_loot.DropUnknown(balance.Loot)) ClearMissingLootTargets();
@@ -1175,14 +1187,17 @@ public sealed partial class Room
     {
         _tradersJson = TradersJson(Balance);
         if (Balance.Traders is not { } traders) return;
-        for (var i = 0; i < traders.Count; i++) SpawnTrader(traders, midway: true);
+        for (var i = _traders.Count(t => t.MissionId == 0); i < traders.Count; i++) SpawnTrader(traders, midway: true);
         _nextTraderTick = Tick + traders.RespawnTicks;
     }
 
     /// <summary>Новый торговец, когда их меньше нормы и подошёл срок.</summary>
     private void StepTraders()
     {
-        if (Balance.Traders is not { } traders || Tick < _nextTraderTick || _traders.Count >= traders.Count) return;
+        // Конвой задания считается отдельно: он не должен глушить обычный трафик системы (M14).
+        if (Balance.Traders is not { } traders || Tick < _nextTraderTick ||
+            _traders.Count(t => t.MissionId == 0) >= traders.Count)
+            return;
         SpawnTrader(traders, midway: false);
         _nextTraderTick = Tick + traders.RespawnTicks;
         BroadcastPlayers();
@@ -1563,6 +1578,7 @@ public sealed partial class Room
 
     private void Remove(Player player)
     {
+        if (RunOf(player) is not null) Fail(player, Protocol.LeftFail);
         Save(player);
         _players.Remove(player.Id);
         if (player.Token is not null) _byToken.Remove(player.Token);
@@ -1701,6 +1717,8 @@ public sealed partial class Room
             MakeRumours(player); // что здесь рассказывают — услышано один раз, на входе
             SendMarket(player); // цены станции нужны сразу: с ними открывается вкладка рынка
             SendRep(player); // и отношение: от него цены на витрине и что вообще выложат
+            // Ушёл в док, бросив конвой посреди системы, — это и есть «отстал» (M14).
+            if (RunOf(player)?.Kind == MissionRules.EscortKind) Fail(player, Protocol.AwayFail);
             // Груз доставки и письмо сдаются сами, стоит пристыковаться к нужной станции.
             if (player.Missions.Active?.Offer is { Kind: MissionRules.DeliverKind or MissionRules.CourierKind } errand &&
                 errand.System == SystemId)
@@ -1718,7 +1736,9 @@ public sealed partial class Room
             _log.LogInformation("Player {Id} undocked", player.Id);
         }
         SendHangar(player);
-        if (!on) Advance(player, MissionRules.UndockStep);
+        if (on) return;
+        Advance(player, MissionRules.UndockStep);
+        StartRun(player); // конвой и звено выходят вместе с пилотом, а не ждут его в космосе (M14)
     }
 
     /// <summary>
@@ -1945,14 +1965,8 @@ public sealed partial class Room
                 break;
             }
             case Protocol.AbandonMission:
-            {
-                if (log.Active is not { } dropped) return;
-                log.Active = null;
-                player.Cargo.Reserved = 0;
-                // Бьёт по станции, выдавшей задание, а не по той, где пилот сейчас: бросил — подвёл заказчика.
-                AddRep(player, Reputation.Station(dropped.Offer.From), Balance.Reputation.Event.MissionAbandon, Protocol.RepMissionAbandon);
+                if (!Abandon(player)) return;
                 break;
-            }
             case Protocol.CompleteMission:
             {
                 if (log.Active?.Offer is not { Kind: MissionRules.CollectKind, Item: { } item } collect) return;
@@ -2037,6 +2051,7 @@ public sealed partial class Room
     private void Complete(Player player)
     {
         if (player.Missions.Active is not { } active) return;
+        EndRun(player.Id);
         player.Missions.Active = null;
         player.Missions.Seed++;
         player.Cargo.Reserved = 0;
@@ -2062,6 +2077,7 @@ public sealed partial class Room
     private void Fail(Player player, string code)
     {
         if (player.Missions.Active is not { } active) return;
+        EndRun(player.Id);
         player.Missions.Active = null;
         player.Missions.Seed++;
         player.Cargo.Reserved = 0;
@@ -2070,6 +2086,21 @@ public sealed partial class Room
         Save(player);
         AddRep(player, Reputation.Station(active.Offer.Payer), Balance.Reputation.Event.MissionFail, Protocol.RepMissionFail);
         _log.LogInformation("Player {Id} failed a {Kind} mission: {Code}", player.Id, active.Offer.Kind, code);
+    }
+
+    /// <summary>
+    /// Пилот отказался от задания. Бьёт по станции, выдавшей работу, а не по той, где пилот сейчас:
+    /// бросил — подвёл заказчика. Отказ дешевле провала: работу он вернул, а не потерял.
+    /// </summary>
+    /// <returns>false — отказываться было не от чего.</returns>
+    private bool Abandon(Player player)
+    {
+        if (player.Missions.Active is not { } dropped) return false;
+        EndRun(player.Id);
+        player.Missions.Active = null;
+        player.Cargo.Reserved = 0;
+        AddRep(player, Reputation.Station(dropped.Offer.From), Balance.Reputation.Event.MissionAbandon, Protocol.RepMissionAbandon);
+        return true;
     }
 
     /// <summary>У «собрать» прогресс — сколько такого в трюме: трюм изменился — клиенту новый счёт.</summary>
@@ -2092,7 +2123,9 @@ public sealed partial class Room
         // Доска — дело станции: ей решать, сколько работы доверить и давать ли особый контракт.
         var here = PlaceRep(player);
         return Balance.Missions.Board(
-            Balance, SystemId, player.Missions.Seed, rep.Offers(here, Balance.Missions.Offers), rep.Elite(here), rep.EliteReward);
+            Balance, SystemId, player.Missions.Seed, rep.Offers(here, Balance.Missions.Offers), rep.Elite(here), rep.EliteReward,
+            // Патруль рейнджеры доверяют не всякому — им важна система, а не станция (M14).
+            SystemRep(player));
     }
 
     /// <summary>Обучение и задания — личное дело пилота, как и трюм.</summary>
@@ -2109,7 +2142,8 @@ public sealed partial class Room
             step is null ? null : new TutorialDto(log.Tutorial, rules.Steps.Count, step.Id, step.Title, step.Hint),
             active,
             Board(player),
-            done));
+            done,
+            MarkOf(player)));
     }
 
     /// <summary>Трюм — личное дело игрока: снапшот один на всех, места для него там нет.</summary>

@@ -20,6 +20,12 @@ public sealed class Trader(int id, string typeId, NpcType type, NpcRules rules) 
 
     public MoveInput LastInput = new(0, -1, 0);
 
+    /// <summary>
+    /// Номер прогона задания «сопровождение» (M14); 0 — обычный торговец маршрута. Конвой задания не входит
+    /// в норму торговцев системы и переживает горячую правку баланса.
+    /// </summary>
+    public int MissionId;
+
     /// <summary>Куда летит: к станции (она ходит по орбите — точка берётся каждый тик) или к вратам.</summary>
     public bool ToStation;
     public double DestX;

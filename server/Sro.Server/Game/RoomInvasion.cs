@@ -114,9 +114,29 @@ public sealed partial class Room
     public int SpawnInvasion(int id, IReadOnlyList<InvasionGroup> wave, (double X, double Y) point)
     {
         InvasionId = id;
+        var count = SpawnWave(wave, point, invasionId: id, missionId: 0);
+        BroadcastPlayers();
+        return count;
+    }
+
+    /// <summary>
+    /// Волна пиратов по группам: каждая прилетает через свои случайные врата и идёт к точке; без врат —
+    /// сразу на точке. Уровень — с поправкой на опасность системы. Сама уйти волна не может: её кончает тот,
+    /// кто её выпустил. Общая для вторжений (GDD §38) и для засад на конвой (M14).
+    /// </summary>
+    /// <param name="onSite">Появиться прямо на точке, не залетая с врат: так встают засады перед конвоем.</param>
+    /// <returns>Сколько пиратов прилетело.</returns>
+    private int SpawnWave(
+        IReadOnlyList<InvasionGroup> wave,
+        (double X, double Y) point,
+        int invasionId,
+        int missionId,
+        bool onSite = false)
+    {
         var npc = Balance.Npc;
-        var gates = Balance.SystemDef.GateList;
+        var gates = onSite ? [] : Balance.SystemDef.GateList;
         var danger = Balance.SystemDef.Danger;
+        var label = invasionId != 0 ? $"Invasion {invasionId}" : $"Ambush {missionId}";
         var slot = 0;
         foreach (var group in wave)
         {
@@ -130,7 +150,8 @@ public sealed partial class Room
                 var pirate = new Pirate(_newId(), spot, slot, type, npc)
                 {
                     RaidId = raidId,
-                    InvasionId = id,
+                    InvasionId = invasionId,
+                    MissionId = missionId,
                     ExitX = gate?.X ?? point.X,
                     ExitY = gate?.Y ?? point.Y,
                     ExitIsGate = gate is not null,
@@ -153,10 +174,9 @@ public sealed partial class Room
                 _ships[pirate.Id] = pirate;
             }
             _log.LogInformation(
-                "Invasion {Id}: {Count} × {Type} Ур.{Level} {From} → ({X:0}, {Y:0})",
-                id, group.Count, group.Type, level, gate is null ? "on site" : $"from the gate to {gate.To}", point.X, point.Y);
+                "{Label}: {Count} × {Type} Ур.{Level} {From} → ({X:0}, {Y:0})",
+                label, group.Count, group.Type, level, gate is null ? "on site" : $"from the gate to {gate.To}", point.X, point.Y);
         }
-        BroadcastPlayers();
         return slot;
     }
 

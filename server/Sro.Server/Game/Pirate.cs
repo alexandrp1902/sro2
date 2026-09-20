@@ -40,14 +40,20 @@ public sealed class Pirate : ShipEntity
         Type = type;
         _rules = rules;
         Side = slot % 2 == 0 ? 1 : -1;
+        HomeX = spawn.X;
+        HomeY = spawn.Y;
     }
 
     public NpcSpawn Spawn { get; }
     public int Slot { get; }
     public NpcType Type { get; private set; }
     public int Level => Spawn.Level;
-    public double HomeX => Spawn.X;
-    public double HomeY => Spawn.Y;
+    /// <summary>
+    /// Что пират считает домом: обычно точка логова или налёта. У звена задания дом переезжает с точки
+    /// на точку маршрута — его переставляет комната (M14).
+    /// </summary>
+    public double HomeX { get; set; }
+    public double HomeY { get; set; }
 
     /// <summary>Номер налёта (<see cref="RaidRules"/>); 0 — пират из логова, живёт в системе постоянно.</summary>
     public int RaidId;
@@ -72,8 +78,23 @@ public sealed class Pirate : ShipEntity
 
     public bool IsInvader => InvasionId != 0;
 
-    /// <summary>При такой доле корпуса уходит; пираты вторжения бьются до конца.</summary>
-    public double RetreatHp => IsInvader ? 0 : Type.RetreatHp;
+    /// <summary>Номер прогона задания (M14): звено рейнджеров патруля или засада на конвой; 0 — не из задания.</summary>
+    public int MissionId;
+
+    /// <summary>
+    /// Не отступает и не считает перевес: пираты вторжения и корабли задания дерутся до конца. Звену это нужно
+    /// не для злости, а чтобы его в принципе можно было выбить, — иначе подбитый рейнджер просто уйдёт из системы.
+    /// </summary>
+    public bool NeverRetreats => IsInvader || MissionId != 0;
+
+    /// <summary>
+    /// Чинится, добравшись домой. Звено задания — нет: дом у него на каждой точке маршрута, и оно лечилось бы
+    /// по дороге до полного, а «звено уничтожено» никогда бы не наступило (M14).
+    /// </summary>
+    public bool HealsAtHome => !IsInvader && MissionId == 0;
+
+    /// <summary>При такой доле корпуса уходит; те, кто бьётся до конца, не уходят вовсе.</summary>
+    public double RetreatHp => NeverRetreats ? 0 : Type.RetreatHp;
 
     public PirateState State = PirateState.Patrol;
     public MoveInput LastInput = new(0, -1, 0);

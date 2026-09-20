@@ -22,6 +22,8 @@ public sealed class MissionTests : IDisposable
         Systems: new Dictionary<string, SystemDef>
         {
             ["home"] = new("Home", Gates: [new GateDef("wild", 3000, 0)],
+                Traders: new TraderRules(Count: 1, RespawnSeconds: 60, Type: "trader", Throttle: 0.7),
+                Spawns: [new NpcSpawn("ranger", 1, 0, 2500)],
                 Drones: [new DroneSpec("Учебный дрон", "light", 0, -600, Table: "drone")]),
             // Камни летают только у дома: иначе охота выпадала бы то сюда, то к соседям, и тест зависел бы от сида.
             ["wild"] = new("Wild", Danger: 3, Pvp: GalaxyRules.PvpFree, Station: false, Meteors: 0,
@@ -36,6 +38,9 @@ public sealed class MissionTests : IDisposable
         Types: new Dictionary<string, NpcType>
         {
             ["pirate"] = new("Пират", "light", "pulse", Hp: 300, Shield: 100, Damage: 0.45, HoldRange: 320),
+            ["trader"] = new("Торговец", "light", "pulse", Faction: NpcType.TraderFaction, Hp: 400, Shield: 100, Damage: 0.3),
+            ["ranger"] = new("Рейнджер", "light", "pulse", Faction: NpcType.RangerFaction,
+                Hp: 600, Shield: 200, Damage: 0.45, HoldRange: 360, RetreatHp: 0.3, DefendRange: 2500, LeashRange: 3500),
         });
 
     private static readonly LootRules Loot = new(
@@ -70,6 +75,19 @@ public sealed class MissionTests : IDisposable
 
     private static readonly MissionRules HuntLargeOnly = new(
         DangerBonus: 0, Tutorial: Tutorial, Hunt: [new HuntTemplate("large", 2, 2, 100)]);
+
+    /// <summary>Сопровождение с одной засадой: её хватает, чтобы увидеть и появление волны, и счётчик.</summary>
+    private static readonly MissionRules EscortOnly = new(
+        DangerBonus: 0,
+        Tutorial: Tutorial,
+        Escort: [new EscortTemplate(1, 1, 300, 200, Radius: 900, AwaySeconds: 2)],
+        Ambush: [[new InvasionGroup("pirate", 1, 1)]]);
+
+    /// <summary>Патруль из двух точек: путь короче, а правило «звено ждёт» проверяется тем же.</summary>
+    private static readonly MissionRules PatrolOnly = new(
+        DangerBonus: 0,
+        Tutorial: Tutorial,
+        Patrol: [new PatrolTemplate(2, 2, 300, 160, Wing: 2, Radius: 700)]);
 
     /// <summary>Камни для охоты: сами не появляются — тест запускает их руками, куда ему надо.</summary>
     private static readonly MeteorRules Meteors = new(
@@ -211,6 +229,35 @@ public sealed class MissionTests : IDisposable
     }
 
     private static int Credits(FakeConnection connection) => connection.Last<CargoMsg>().Credits;
+
+    /// <summary>Конвой этого задания; null — его уже нет.</summary>
+    private Trader? Convoy(FakeConnection connection) =>
+        RoomOf(connection).Traders.FirstOrDefault(t => t.MissionId != 0);
+
+    /// <summary>Живые корабли задания: звено патруля или засада на конвой — смотря какое задание идёт.</summary>
+    private List<Pirate> Wing(FakeConnection connection) =>
+        RoomOf(connection).Pirates.Where(p => p.MissionId != 0 && !p.IsDead && !p.Gone).ToList();
+
+    /// <summary>То же самое под именем по месту: у сопровождения корабли задания — это засада.</summary>
+    private List<Pirate> Ambush(FakeConnection connection) => Wing(connection);
+
+    /// <summary>Берёт живое задание и вылетает: конвой и звено появляются именно на вылете.</summary>
+    private void Launch(FakeConnection connection, string kind)
+    {
+        Dock(connection);
+        Accept(connection, kind);
+        Do(connection, r => r.Dock(connection, false));
+    }
+
+    /// <summary>Ставит пилота рядом с меткой задания — там, куда указывает трекер.</summary>
+    private void GoToMark(FakeConnection connection)
+    {
+        var mark = Missions(connection).Mark!;
+        var (x, y) = mark.Ship != 0
+            ? (RoomOf(connection).Entity(mark.Ship)!.Ship.X, RoomOf(connection).Entity(mark.Ship)!.Ship.Y)
+            : (mark.X, mark.Y);
+        Place(connection, x, y);
+    }
 
     [Fact]
     public void NewPilot_StartsDocked_AndWalksTheTutorial()
@@ -530,6 +577,202 @@ public sealed class MissionTests : IDisposable
         Steps(2 * SimConfig.TickRate);
         Assert.Null(Missions(a).Active);
         Assert.Equal(Protocol.DeadFail, Missions(a).Done?.Reason);
+    }
+
+    [Fact]
+    public void Escort_StartsOnUndock_AndMarksTheConvoy()
+    {
+        _galaxy = New(EscortOnly);
+        var a = Veteran();
+        Dock(a);
+        Accept(a, MissionRules.EscortKind);
+        var offer = Missions(a).Active!.Offer;
+        Assert.Equal(("wild", 1, 300 + 200), (offer.System, offer.Count, offer.Reward));
+        Assert.Null(Convoy(a)); // в доке конвоя ещё нет: он выходит вместе с пилотом
+
+        Do(a, r => r.Dock(a, false));
+        var convoy = Convoy(a)!;
+        Assert.Equal(convoy.Id, Missions(a).Mark?.Ship);
+        // Конвой задания не входит в норму торговцев системы: обычный трафик остаётся.
+        Assert.Contains(RoomOf(a).Traders, t => t.MissionId == 0);
+    }
+
+    [Fact]
+    public void Escort_PaysWhenTheConvoyJumpsOut()
+    {
+        _galaxy = New(EscortOnly);
+        var a = Veteran();
+        Launch(a, MissionRules.EscortKind);
+        var convoy = Convoy(a)!;
+        var credits = Credits(a);
+
+        // Конвой у самых врат — там его и встречает засада. Пока по нему стреляют, прыжок не собрать.
+        convoy.Ship = new ShipState { X = convoy.DestX, Y = convoy.DestY };
+        Place(a, convoy.DestX, convoy.DestY);
+        Steps(2 * JumpTicks);
+        Assert.NotNull(Missions(a).Active);
+
+        foreach (var raider in Ambush(a)) raider.Hp = 0;
+        Steps(2 * JumpTicks + 4);
+
+        Assert.Null(Missions(a).Active);
+        Assert.Equal(Protocol.MissionDone, Missions(a).Done?.Kind);
+        Assert.Equal(credits + 500, Credits(a));
+    }
+
+    [Fact]
+    public void Escort_FailsWhenTheConvoyDies()
+    {
+        _galaxy = New(EscortOnly, TestBalance.Reputation());
+        var a = Veteran();
+        Launch(a, MissionRules.EscortKind);
+        var credits = Credits(a);
+
+        Convoy(a)!.Hp = 0;
+        Steps(2);
+
+        Assert.Equal(Protocol.TraderFail, Missions(a).Done?.Reason);
+        Assert.Null(Missions(a).Active);
+        Assert.Equal(credits, Credits(a));
+        Assert.Equal(-8, a.Last<RepMsg>().Places[Reputation.Station("home")]);
+    }
+
+    [Fact]
+    public void Escort_FailsWhenThePilotFallsBehind()
+    {
+        _galaxy = New(EscortOnly);
+        var a = Veteran();
+        Launch(a, MissionRules.EscortKind);
+
+        Place(a, 20000, 20000);
+        Steps(2);
+        Assert.Equal(Protocol.MissionAwayNotice, a.Last<NoticeMsg>().Code);
+        Assert.NotNull(Missions(a).Active); // окно терпения ещё не вышло
+
+        Steps(2 * SimConfig.TickRate + 2);
+        Assert.Equal(Protocol.AwayFail, Missions(a).Done?.Reason);
+    }
+
+    [Fact]
+    public void Escort_FailsWhenThePilotDocksOrJumpsAway()
+    {
+        _galaxy = New(EscortOnly);
+        var a = Veteran();
+        Launch(a, MissionRules.EscortKind);
+        Dock(a);
+        Assert.Equal(Protocol.AwayFail, Missions(a).Done?.Reason);
+        Assert.Null(Convoy(a)); // конвой отпущен: он стал обычным торговцем и долетит сам
+
+        Do(a, r => r.Dock(a, false));
+        Launch(a, MissionRules.EscortKind);
+        JumpTo(a, "wild");
+        Assert.Null(Missions(a).Active);
+    }
+
+    [Fact]
+    public void Escort_SendsAnAmbushOnTheWay()
+    {
+        _galaxy = New(EscortOnly);
+        var a = Veteran();
+        Launch(a, MissionRules.EscortKind);
+        var convoy = Convoy(a)!;
+        var pirates = RoomOf(a).Pirates.Count;
+
+        // Полпути позади — по расписанию это и есть единственная засада.
+        convoy.Ship = new ShipState { X = convoy.DestX * 0.6, Y = convoy.DestY * 0.6 };
+        Place(a, convoy.Ship.X, convoy.Ship.Y);
+        Steps(2);
+
+        Assert.Equal(1, Missions(a).Active?.Progress);
+        Assert.True(RoomOf(a).Pirates.Count > pirates);
+        Assert.Equal(Protocol.AmbushNotice, a.Last<NoticeMsg>().Code);
+    }
+
+    [Fact]
+    public void LiveMission_IsNotRestoredOnLogin()
+    {
+        _galaxy = New(EscortOnly);
+        var a = Veteran();
+        Launch(a, MissionRules.EscortKind);
+        _galaxy.Disconnect(a);
+        Steps(Room.ReconnectGraceTicks + 1);
+
+        a = Pilot();
+        Assert.Null(Missions(a).Active);
+    }
+
+    [Fact]
+    public void Patrol_WaitsAtTheWaypointForThePilot()
+    {
+        _galaxy = New(PatrolOnly);
+        var a = Veteran();
+        Launch(a, MissionRules.PatrolKind);
+        Assert.Equal(2, Wing(a).Count);
+        var mark = Missions(a).Mark!;
+        Assert.Equal(0, mark.Ship);
+
+        // Пилот остался у станции: звено долетает до точки и стоит там.
+        Place(a, 0, 50);
+        Steps(30 * SimConfig.TickRate);
+        Assert.Equal(0, Missions(a).Active?.Progress);
+
+        GoToMark(a);
+        Steps(2);
+        Assert.Equal(1, Missions(a).Active?.Progress);
+        Assert.NotEqual((mark.X, mark.Y), (Missions(a).Mark!.X, Missions(a).Mark!.Y));
+    }
+
+    [Fact]
+    public void Patrol_PaysAfterTheLastWaypoint()
+    {
+        _galaxy = New(PatrolOnly);
+        var a = Veteran();
+        Launch(a, MissionRules.PatrolKind);
+        var credits = Credits(a);
+
+        for (var point = 0; point < 2; point++)
+        {
+            // Звено гоним к точке вручную: лететь ему в тесте незачем, проверяется правило, а не дорога.
+            var mark = Missions(a).Mark!;
+            foreach (var ranger in Wing(a)) ranger.Ship = new ShipState { X = mark.X, Y = mark.Y };
+            GoToMark(a);
+            Steps(2);
+        }
+
+        Assert.Null(Missions(a).Active);
+        Assert.Equal(credits + 300 + 2 * 160, Credits(a));
+        Assert.Empty(Wing(a)); // звено больше не наше — уходит из системы
+    }
+
+    [Fact]
+    public void Patrol_FailsWhenTheWingIsWipedOut()
+    {
+        _galaxy = New(PatrolOnly);
+        var a = Veteran();
+        Launch(a, MissionRules.PatrolKind);
+
+        foreach (var ranger in Wing(a)) ranger.Hp = 0;
+        Steps(2);
+
+        Assert.Equal(Protocol.WingFail, Missions(a).Done?.Reason);
+        Assert.Null(Missions(a).Active);
+    }
+
+    [Fact]
+    public void Patrol_WingDoesNotHealAtTheWaypoint()
+    {
+        _galaxy = New(PatrolOnly);
+        var a = Veteran();
+        Launch(a, MissionRules.PatrolKind);
+
+        var ranger = Wing(a)[0];
+        var mark = Missions(a).Mark!;
+        ranger.Hp = 100;
+        ranger.Ship = new ShipState { X = mark.X, Y = mark.Y };
+        Steps(SimConfig.TickRate);
+
+        // Обычный налётчик починился бы дома до полного — звену этого нельзя, иначе его не выбить.
+        Assert.Equal(100, ranger.Hp);
     }
 
     [Fact]
