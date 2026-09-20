@@ -23,7 +23,8 @@ public sealed class MissionTests : IDisposable
         {
             ["home"] = new("Home", Gates: [new GateDef("wild", 3000, 0)],
                 Drones: [new DroneSpec("Учебный дрон", "light", 0, -600, Table: "drone")]),
-            ["wild"] = new("Wild", Danger: 3, Pvp: GalaxyRules.PvpFree, Station: false,
+            // Камни летают только у дома: иначе охота выпадала бы то сюда, то к соседям, и тест зависел бы от сида.
+            ["wild"] = new("Wild", Danger: 3, Pvp: GalaxyRules.PvpFree, Station: false, Meteors: 0,
                 Gates: [new GateDef("home", -3000, 0), new GateDef("port", 0, 3000)],
                 Spawns: [new NpcSpawn("pirate", 1, 0, -2000)]),
             ["port"] = new("Port", Gates: [new GateDef("wild", 0, -3000)]),
@@ -40,7 +41,11 @@ public sealed class MissionTests : IDisposable
     private static readonly LootRules Loot = new(
         FadeSeconds: 0,
         Items: new Dictionary<string, LootItem> { ["metal"] = new("Металл", Volume: 1, Price: 10) },
-        Tables: new Dictionary<string, LootTable> { ["drone"] = new([new LootRoll("metal", 1, 2, 2)]) });
+        Tables: new Dictionary<string, LootTable>
+        {
+            ["drone"] = new([new LootRoll("metal", 1, 2, 2)]),
+            ["rock"] = new([new LootRoll("metal", 1, 1, 1)]),
+        });
 
     private static readonly IReadOnlyList<TutorialStep> Tutorial =
     [
@@ -54,6 +59,28 @@ public sealed class MissionTests : IDisposable
     private static readonly MissionRules KillOnly = new(DangerBonus: 0, Tutorial: Tutorial, Kill: [new KillTemplate(null, 2, 2, 100)]);
     private static readonly MissionRules CollectOnly = new(Tutorial: Tutorial, Collect: [new CollectTemplate("metal", 3, 3, 2)]);
     private static readonly MissionRules DeliverOnly = new(Tutorial: Tutorial, Deliver: [new DeliverTemplate(5, 5, 10, 100)]);
+
+    /// <summary>Письмо в port: 2 прыжка, и времени ровно столько, чтобы срок можно было проверить не ожиданием.</summary>
+    private static readonly MissionRules CourierOnly = new(
+        Tutorial: Tutorial,
+        Courier: [new CourierTemplate(Reward: 200, PerJump: 100, SecondsPerJump: 60, Seconds: 60)]);
+
+    private static readonly MissionRules HuntOnly = new(
+        DangerBonus: 0, Tutorial: Tutorial, Hunt: [new HuntTemplate(null, 2, 2, 50)]);
+
+    private static readonly MissionRules HuntLargeOnly = new(
+        DangerBonus: 0, Tutorial: Tutorial, Hunt: [new HuntTemplate("large", 2, 2, 100)]);
+
+    /// <summary>Камни для охоты: сами не появляются — тест запускает их руками, куда ему надо.</summary>
+    private static readonly MeteorRules Meteors = new(
+        MaxAlive: 0,
+        LifetimeSeconds: 90,
+        Gravity: 0,
+        Sizes: new Dictionary<string, MeteorSize>
+        {
+            ["small"] = new("Мелкий метеорит", 14, 60, 240, 300, 110, 1, "rock"),
+            ["large"] = new("Крупный метеорит", 34, 320, 180, 220, 300, 1, "rock"),
+        });
 
     private readonly string _dir = Path.Combine(Path.GetTempPath(), "sro-missions-" + Guid.NewGuid().ToString("N"));
     private readonly AccountStore _accounts;
@@ -72,13 +99,32 @@ public sealed class MissionTests : IDisposable
         if (Directory.Exists(_dir)) Directory.Delete(_dir, recursive: true);
     }
 
-    private Galaxy New(MissionRules missions) =>
+    private Galaxy New(MissionRules missions, ReputationRules? reputation = null) =>
         new(TestBalance.Create(new CombatRules(RespawnSeconds: 1, ProtectionSeconds: 0, SpawnJitter: 0), Npcs, Loot,
-                shop: new ShopRules(StartCredits: 1000)) with
+                Meteors, shop: new ShopRules(StartCredits: 1000), reputation: reputation) with
             {
                 GalaxySet = Rules,
                 MissionSet = missions,
             }, NullLogger.Instance, _accounts, roll: () => 0, random: seed => new Random(seed));
+
+    /// <summary>Расстрелянный камень: сбит именно пилотом, а не разбился о чей-то борт.</summary>
+    private void Shoot(FakeConnection connection, string size)
+    {
+        var room = RoomOf(connection);
+        var rock = room.LaunchMeteor(size, 1000, 1000, 0, 0)!;
+        rock.Hp = 0;
+        rock.KilledBy = IdOf(connection);
+        Steps(1);
+    }
+
+    /// <summary>Камень разбился о корабль: убийцы у него нет — охоте он не засчитывается.</summary>
+    private void Ram(FakeConnection connection, string size)
+    {
+        var rock = RoomOf(connection).LaunchMeteor(size, 1000, 1000, 0, 0)!;
+        rock.Hp = 0;
+        rock.Rammed = true;
+        Steps(1);
+    }
 
     private FakeConnection Pilot(string name = "Alice")
     {
@@ -379,6 +425,111 @@ public sealed class MissionTests : IDisposable
         Dock(a);
         Assert.Null(Missions(a).Active);
         Assert.Equal((credits + offer.Reward, 0), (Credits(a), a.Last<CargoMsg>().Reserved));
+    }
+
+    [Fact]
+    public void Hunt_CountsShotMeteors_AndPaysOnTheLast()
+    {
+        _galaxy = New(HuntOnly);
+        var a = Veteran();
+        Dock(a);
+        Accept(a, MissionRules.HuntKind);
+        var offer = Missions(a).Active!.Offer;
+        Assert.Equal(("home", 2, 2 * 50), (offer.System, offer.Count, offer.Reward));
+        Do(a, r => r.Dock(a, false));
+        var credits = Credits(a);
+
+        Shoot(a, "small");
+        Assert.Equal(1, Missions(a).Active?.Progress);
+        Shoot(a, "small");
+        Assert.Null(Missions(a).Active);
+        Assert.Equal(credits + offer.Reward, Credits(a));
+    }
+
+    [Fact]
+    public void Hunt_IgnoresRammedRocks_TheWrongSize_AndOtherSystems()
+    {
+        _galaxy = New(HuntLargeOnly);
+        var a = Veteran();
+        Dock(a);
+        Accept(a, MissionRules.HuntKind);
+        Assert.Equal("large", Missions(a).Active?.Offer.Size);
+        Do(a, r => r.Dock(a, false));
+
+        Shoot(a, "small"); // не тот размер
+        Ram(a, "large"); // разбился сам — у тарана нет убийцы
+        Assert.Equal(0, Missions(a).Active?.Progress);
+
+        JumpTo(a, "wild"); // чужая система
+        Shoot(a, "large");
+        Assert.Equal(0, Missions(a).Active?.Progress);
+
+        JumpTo(a, "home");
+        Shoot(a, "large");
+        Assert.Equal(1, Missions(a).Active?.Progress);
+    }
+
+    [Fact]
+    public void Courier_TakesNoHold_AndPaysTheReceiver()
+    {
+        _galaxy = New(CourierOnly, TestBalance.Reputation());
+        var a = Veteran();
+        Dock(a);
+        PlayerOf(a).Cargo.Add("metal", 20); // трюм под завязку — письму это не помеха
+        Accept(a, MissionRules.CourierKind);
+        var active = Missions(a).Active!;
+        Assert.Equal(("port", 200 + 2 * 100), (active.Offer.System, active.Offer.Reward));
+        Assert.Equal(60 + 2 * 60, active.Offer.Seconds);
+        Assert.True(active.Until > 0);
+        Assert.Equal(0, a.Last<CargoMsg>().Reserved);
+
+        Do(a, r => r.Dock(a, false));
+        JumpTo(a, "wild");
+        JumpTo(a, "port");
+        var credits = Credits(a);
+        Dock(a);
+        Assert.Null(Missions(a).Active);
+        Assert.Equal(credits + active.Offer.Reward, Credits(a));
+        // Спасибо говорит получатель, а не тот, кто письмо вручил.
+        var rep = a.Last<RepMsg>();
+        Assert.Equal(8, rep.Places[Reputation.Station("port")]);
+        Assert.False(rep.Places.ContainsKey(Reputation.Station("home")));
+    }
+
+    [Fact]
+    public void Courier_FailsWhenTimeRunsOut()
+    {
+        _galaxy = New(CourierOnly, TestBalance.Reputation());
+        var a = Veteran();
+        Dock(a);
+        Accept(a, MissionRules.CourierKind);
+        Do(a, r => r.Dock(a, false));
+        var credits = Credits(a);
+
+        // Срок идёт по стенным часам — тест двигает не время, а отметку.
+        PlayerOf(a).Missions.Active = Missions(a).Active! with { Until = 1 };
+        Steps(SimConfig.TickRate);
+
+        var done = Missions(a).Done!;
+        Assert.Equal((Protocol.MissionFailed, Protocol.TimeFail, 0), (done.Kind, done.Reason, done.Reward));
+        Assert.Null(Missions(a).Active);
+        Assert.Equal(credits, Credits(a));
+        // Спрос с того, кто ждал письмо.
+        Assert.Equal(-8, a.Last<RepMsg>().Places[Reputation.Station("port")]);
+    }
+
+    [Fact]
+    public void Courier_LosesTheLetterWithTheShip_ButDeliveryOutlivesIt()
+    {
+        _galaxy = New(CourierOnly);
+        var a = Veteran();
+        Dock(a);
+        Accept(a, MissionRules.CourierKind);
+        Do(a, r => r.Dock(a, false));
+        PlayerOf(a).Hp = 0;
+        Steps(2 * SimConfig.TickRate);
+        Assert.Null(Missions(a).Active);
+        Assert.Equal(Protocol.DeadFail, Missions(a).Done?.Reason);
     }
 
     [Fact]

@@ -11,6 +11,22 @@ export interface MissionNames {
 type Active = NonNullable<MissionsMsg['active']>;
 type Done = NonNullable<MissionsMsg['done']>;
 
+/** Остаток срока «м:сс»; null — срока нет или он вышел. */
+export function timeLeft(until: number | undefined, now: number): string | null {
+  if (!until) return null;
+  const left = Math.floor(until - now / 1000);
+  if (left <= 0) return null;
+  return `${Math.floor(left / 60)}:${String(left % 60).padStart(2, '0')}`;
+}
+
+/** «крупные метеориты» или просто «метеориты»: размер называем только когда он важен. */
+function rocks(size: string | null | undefined): string {
+  if (size === 'large') return 'крупные метеориты';
+  if (size === 'medium') return 'средние метеориты';
+  if (size === 'small') return 'мелкие метеориты';
+  return 'метеориты';
+}
+
 /** Строка задания на доске станции: «Уничтожить: пираты ×4 · Vega». */
 export function offerTitle(offer: MissionOffer, names: MissionNames): string {
   switch (offer.kind) {
@@ -20,6 +36,14 @@ export function offerTitle(offer: MissionOffer, names: MissionNames): string {
       return `Собрать: ${names.item(offer.item ?? '')} ×${offer.count}`;
     case 'deliver':
       return `Доставить груз в ${names.system(offer.system ?? '')} · ${offer.count} ед.`;
+    case 'escort':
+      return `Сопровождение: конвой к вратам на ${names.system(offer.system ?? '')}`;
+    case 'patrol':
+      return `Патруль с рейнджерами: ${offer.count} точки маршрута`;
+    case 'courier':
+      return `Важное письмо в ${names.system(offer.system ?? '')}`;
+    case 'hunt':
+      return `Охота: ${rocks(offer.size)} ×${offer.count} · ${names.system(offer.system ?? '')}`;
   }
 }
 
@@ -32,11 +56,21 @@ export function offerNote(offer: MissionOffer): string {
       return 'сдать на любой станции';
     case 'deliver':
       return `груз займёт ${offer.count} ед. трюма`;
+    case 'escort':
+      return `держитесь рядом; в пути засад: ${offer.count}`;
+    case 'patrol':
+      return 'звено ждёт вас на каждой точке';
+    case 'courier':
+      return offer.seconds
+        ? `срок ${Math.round(offer.seconds / 60)} мин; место в трюме не занимает`
+        : 'место в трюме не занимает';
+    case 'hunt':
+      return 'таран не в счёт: камень надо расстрелять';
   }
 }
 
 /** Главная строка трекера: «Пираты в Vega: 2/4». */
-export function activeLine(active: Active, names: MissionNames): string {
+export function activeLine(active: Active, names: MissionNames, now = Date.now()): string {
   const { offer, progress } = active;
   switch (offer.kind) {
     case 'kill':
@@ -45,6 +79,18 @@ export function activeLine(active: Active, names: MissionNames): string {
       return `${names.item(offer.item ?? '')}: ${progress}/${offer.count}`;
     case 'deliver':
       return `Груз в ${names.system(offer.system ?? '')} · ${offer.count} ед.`;
+    case 'escort':
+      return `Конвой к вратам на ${names.system(offer.system ?? '')}: засады ${progress}/${offer.count}`;
+    case 'patrol':
+      return `Патруль: точка ${Math.min(progress + 1, offer.count)}/${offer.count}`;
+    case 'courier': {
+      const left = timeLeft(active.until, now);
+      return `Письмо в ${names.system(offer.system ?? '')}${left ? ` · ${left}` : ''}`;
+    }
+    case 'hunt': {
+      const name = rocks(offer.size);
+      return `${name[0].toUpperCase()}${name.slice(1)} в ${names.system(offer.system ?? '')}: ${progress}/${offer.count}`;
+    }
   }
 }
 
@@ -59,11 +105,32 @@ export function activeHint(active: Active, here: string | null, docked: boolean,
       return docked ? 'сдайте на вкладке «Задания»' : 'сдайте на любой станции';
     case 'deliver':
       return here === offer.system ? 'пристыкуйтесь к станции' : `летите в ${names.system(offer.system ?? '')}`;
+    case 'escort':
+      return docked ? 'вылетайте: конвой ждёт' : 'держитесь рядом с конвоем';
+    case 'patrol':
+      return docked ? 'вылетайте: звено ждёт' : 'подойдите к точке маршрута';
+    case 'courier':
+      return here === offer.system ? 'пристыкуйтесь к станции' : `летите в ${names.system(offer.system ?? '')}`;
+    case 'hunt':
+      return here === offer.system ? 'расстреливайте камни' : `летите в ${names.system(offer.system ?? '')}`;
   }
 }
 
+/** Почему задание провалено — строкой для ленты (M14). */
+const FAIL_REASONS: Record<string, string> = {
+  trader: 'конвой погиб',
+  away: 'вы отстали от конвоя',
+  wing: 'звено уничтожено',
+  dead: 'вы погибли',
+  left: 'вы покинули систему',
+  time: 'срок вышел',
+};
+
 /** Строка в ленту о сделанном: «✓ Уничтожьте учебный дрон · +100 кр». */
 export function doneLines(done: Done): string[] {
+  if (done.kind === 'failed') {
+    return [`✗ Задание провалено: ${FAIL_REASONS[done.reason ?? ''] ?? 'работа сорвана'}`];
+  }
   const reward = done.reward > 0 ? ` · +${done.reward} кр` : '';
   if (done.kind === 'mission') return [`✓ Задание выполнено${reward}`];
   const lines = [`✓ ${done.title ?? 'Шаг обучения'}${reward}`];
@@ -73,6 +140,7 @@ export function doneLines(done: Done): string[] {
 
 /**
  * На что указывает маркер цели. Врата — следующего прыжка по пути (to = null — любые, ближайшие).
+ * У живых заданий M14 цель называет сервер: конвой ходит сам, а точки маршрута знает только комната.
  * null — показывать нечего: в доке, задание «добыть» ещё не собрано, заданий нет.
  */
 export type Objective =
@@ -80,7 +148,10 @@ export type Objective =
   | { kind: 'loot' }
   | { kind: 'station' }
   | { kind: 'pirate'; npc: string | null }
-  | { kind: 'gate'; to: string | null };
+  | { kind: 'gate'; to: string | null }
+  | { kind: 'ship'; id: number }
+  | { kind: 'point'; x: number; y: number }
+  | { kind: 'meteor'; size: string | null };
 
 export function objective(
   missions: MissionsMsg | null,
@@ -115,7 +186,16 @@ export function objective(
     case 'kill':
       return here === offer.system ? { kind: 'pirate', npc: offer.npc ?? null } : gateTo(offer.system ?? '');
     case 'deliver':
+    case 'courier':
       return here === offer.system ? { kind: 'station' } : gateTo(offer.system ?? '');
+    case 'hunt':
+      return here === offer.system ? { kind: 'meteor', size: offer.size ?? null } : gateTo(offer.system ?? '');
+    case 'escort':
+    case 'patrol': {
+      const mark = missions.mark;
+      if (!mark) return null;
+      return mark.ship ? { kind: 'ship', id: mark.ship } : { kind: 'point', x: mark.x, y: mark.y };
+    }
     case 'collect': {
       if (active.progress < offer.count) return null;
       const station = galaxy ? nearestStation(galaxy, here) : here;
@@ -130,6 +210,8 @@ export function objectiveSystem(missions: MissionsMsg | null, here: string | nul
   const active = missions?.tutorial ? null : missions?.active;
   if (!active || !here) return null;
   const { offer } = active;
+  // Конвой и патруль целиком укладываются в эту систему: на карте галактики им указывать не на что.
+  if (offer.kind === 'escort' || offer.kind === 'patrol') return null;
   if (offer.kind === 'collect') {
     if (active.progress < offer.count || !galaxy) return null;
     const station = nearestStation(galaxy, here);

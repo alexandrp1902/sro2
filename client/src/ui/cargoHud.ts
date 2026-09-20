@@ -75,6 +75,8 @@ export class CargoHud {
   private rules: LootRules | null = null;
   private open = false;
   private lastKey = '';
+  /** Взято ли «важное письмо» (M14): оно не предмет трюма, а состояние задания. */
+  private letter = false;
   /** Карточка перестраивается, только когда меняется выбор; дистанция — просто текст. */
   private cardKey = '';
   private distanceEl: HTMLElement | null = null;
@@ -97,6 +99,13 @@ export class CargoHud {
 
   setCargo(state: CargoState | null): void {
     this.state = state;
+    this.render();
+  }
+
+  /** Письмо курьера: места оно не занимает, но в трюме его видно — иначе о нём просто забывают (M14). */
+  setLetter(carrying: boolean): void {
+    if (this.letter === carrying) return;
+    this.letter = carrying;
     this.render();
   }
 
@@ -150,7 +159,7 @@ export class CargoHud {
       return;
     }
 
-    const key = `${state.used}|${state.max}|${state.credits}|${state.reserved}|${JSON.stringify(state.items)}`;
+    const key = `${state.used}|${state.max}|${state.credits}|${state.reserved}|${this.letter}|${JSON.stringify(state.items)}`;
     if (key === this.lastKey) return;
     this.lastKey = key;
 
@@ -192,6 +201,16 @@ export class CargoHud {
       const line = document.createElement('div');
       line.className = 'cargo-item cargo-mission';
       line.textContent = `Груз задания · ${state.reserved} ед.`;
+      list.append(line);
+    }
+    if (this.letter) {
+      const line = document.createElement('div');
+      line.className = 'cargo-item cargo-mission';
+      const icon = document.createElement('img');
+      icon.className = 'cargo-icon';
+      icon.src = spriteUrl('item-letter');
+      icon.alt = '';
+      line.append(icon, document.createTextNode('Письмо · места не занимает'));
       list.append(line);
     }
     this.root.append(list);

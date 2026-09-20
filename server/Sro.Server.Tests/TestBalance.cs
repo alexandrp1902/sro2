@@ -64,7 +64,7 @@ internal static class TestBalance
         ],
         DecayPerDay: decayPerDay,
         Events: new RepEvents(
-            MissionPlace: 8, MissionSystem: 2, MissionAbandon: -5,
+            MissionPlace: 8, MissionSystem: 2, MissionAbandon: -5, MissionFail: -8,
             PirateKill: 0.5, PirateHourly: 6, SosHelp: 2, InvasionMax: 10,
             TraderAttack: -6, TraderKill: -12, TraderPlace: -4,
             RangerAttack: -10, RangerKill: -25, PlayerKill: -15),

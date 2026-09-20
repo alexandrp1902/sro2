@@ -77,6 +77,8 @@ const LOOT_KEY_RANGE = 1200;
 const MISSILE_TARGET_SIZE = 10;
 /** Ниже этой скорости «корабль тормозит» в статусе не показываем. */
 const STOPPED_SPEED = 1;
+/** Размер точки маршрута патруля как цели: у неё нет тела, а стрелка должна во что-то упираться (M14). */
+const OBJECTIVE_POINT_SIZE = 200;
 /** Переключатель PvP на этом устройстве: '1' — включён. */
 const PVP_KEY = 'sro.pvp';
 
@@ -663,6 +665,13 @@ async function main(): Promise<void> {
         const gate = goal.to ? gates.find((g) => g.to === goal.to) : [...gates].sort((a, b) => a.cost - b.cost)[0];
         return gate ? { x: gate.x, y: gate.y, size: GATE_SIZE } : null;
       }
+      case 'meteor':
+        return closest([...meteors.visible()].filter((m) => !goal.size || m.sizeId === goal.size));
+      // Конвой и точка маршрута приходят от сервера: где конвой сейчас — знает снапшот, а не сообщение.
+      case 'ship':
+        return remote.get(goal.id) ?? null;
+      case 'point':
+        return { x: goal.x, y: goal.y, size: OBJECTIVE_POINT_SIZE };
     }
   };
 
@@ -767,6 +776,8 @@ async function main(): Promise<void> {
     connection.onMissions = (message) => {
       missions = message;
       dockScreen.setMissions(message);
+      // Письмо места в трюме не занимает, поэтому в cargo его нет — показываем по взятому заданию (M14).
+      cargoHud.setLetter(message.active?.offer.kind === 'courier');
       if (message.done) for (const line of doneLines(message.done)) feed.add(line);
       refreshGalaxyMap();
     };
@@ -871,6 +882,7 @@ async function main(): Promise<void> {
       dockScreen.setHangar(null);
       missions = null;
       dockScreen.setMissions(null);
+      cargoHud.setLetter(false);
       sos.clear();
       party.clear();
       inviteCard.hide();
@@ -953,6 +965,7 @@ async function main(): Promise<void> {
     // Цель задания или обучения: на неё указывает золотой маркер, на миникарте — кольцо.
     const goal = online ? locateObjective(objective(missions, system?.id ?? null, galaxy, docked || dead), state) : null;
     objectiveHud.update(online && !docked ? trackerLines(missions, system?.id ?? null, docked, names) : null);
+    dockScreen.tick(Date.now()); // срок письма идёт и в доке (M14)
     invasionHud.update(online ? invasion.lines(now, roster.get(me)?.name ?? '') : null);
     partyPanel.update(online && party.size > 0 ? party.rows({ id: me, system: system?.id ?? '', x: state.x, y: state.y }, sectorUnit) : null);
     inviteCard.tick(now);

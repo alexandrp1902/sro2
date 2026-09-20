@@ -841,6 +841,7 @@ public sealed partial class Room
         NoteInvasionDamage();
         foreach (var meteor in _meteors.Shatter(_loot, Balance.Loot, Tick)) RemoveShip(meteor);
         StepSos();
+        StepMissions();
         RemoveGonePirates();
         StepRaids();
         RemoveGoneTraders();
@@ -1700,7 +1701,9 @@ public sealed partial class Room
             MakeRumours(player); // что здесь рассказывают — услышано один раз, на входе
             SendMarket(player); // цены станции нужны сразу: с ними открывается вкладка рынка
             SendRep(player); // и отношение: от него цены на витрине и что вообще выложат
-            if (player.Missions.Active?.Offer is { Kind: MissionRules.DeliverKind } deliver && deliver.System == SystemId)
+            // Груз доставки и письмо сдаются сами, стоит пристыковаться к нужной станции.
+            if (player.Missions.Active?.Offer is { Kind: MissionRules.DeliverKind or MissionRules.CourierKind } errand &&
+                errand.System == SystemId)
                 Complete(player);
         }
         else
@@ -1934,7 +1937,8 @@ public sealed partial class Room
                     connection.Send(new NoticeMsg(Protocol.CargoFullNotice));
                     return;
                 }
-                log.Active = new ActiveMission(offer);
+                // Срок письма идёт по стенным часам, а не по тикам: пилот уходит из игры, а гонец ждать не станет.
+                log.Active = new ActiveMission(offer, Until: offer.Seconds > 0 ? NowSeconds + offer.Seconds : 0);
                 log.Seed++;
                 player.Cargo.Reserved = Reserve(log.Active);
                 _log.LogInformation("Player {Id} took a {Kind} mission for {Reward} credits", player.Id, offer.Kind, offer.Reward);
@@ -1997,6 +2001,23 @@ public sealed partial class Room
             Advance(player, MissionRules.DroneStep);
             return;
         }
+        // Охота на метеориты (M14). Разбившийся о корабль сюда не попадает: у тарана нет убийцы —
+        // MeteorSystem.Ram обнуляет камню прочность, но не проставляет, кто его сбил.
+        if (victim is Meteor rock)
+        {
+            if (player.Missions.Active is not { Offer.Kind: MissionRules.HuntKind } hunt) return;
+            var hunted = hunt.Offer;
+            if (hunted.System != SystemId || (hunted.Size is { } size && size != rock.SizeId)) return;
+            player.Missions.Active = hunt with { Progress = hunt.Progress + 1 };
+            if (hunt.Progress + 1 >= hunted.Count)
+            {
+                Complete(player);
+                return;
+            }
+            SendMissions(player);
+            Save(player);
+            return;
+        }
         // Рейнджеры — не пираты: за них задание не засчитывается.
         if (victim is not Pirate { Type.IsPirate: true } pirate || player.Missions.Active is not { } active) return;
         var offer = active.Offer;
@@ -2023,12 +2044,32 @@ public sealed partial class Room
         SendCargo(player);
         SendMissions(player, new MissionDoneDto(Protocol.MissionDone, active.Offer.Reward, Mission: active.Offer));
         Save(player);
-        // Станции, выдавшей задание, — много; её системе — мало: система в основном штрафная шкала.
+        // Станции, которая ждала работу, — много; её системе — мало: система в основном штрафная шкала.
+        // Ждала не всегда та, что выдала: письму платит получатель (M14).
         var events = Balance.Reputation.Event;
-        AddRep(player, Reputation.Station(active.Offer.From), events.MissionPlace, Protocol.RepMissionDone);
-        AddRep(player, Reputation.System(active.Offer.From), events.MissionSystem, Protocol.RepMissionDone);
+        AddRep(player, Reputation.Station(active.Offer.Payer), events.MissionPlace, Protocol.RepMissionDone);
+        AddRep(player, Reputation.System(active.Offer.Payer), events.MissionSystem, Protocol.RepMissionDone);
         _log.LogInformation(
             "Player {Id} completed a {Kind} mission for {Reward} credits", player.Id, active.Offer.Kind, active.Offer.Reward);
+    }
+
+    /// <summary>
+    /// Задание провалено (M14): награды нет, доска обновляется, место, которое его ждало, это запомнит.
+    /// Провал дороже честного отказа: там пилот вернул работу, здесь потерял конвой, звено или письмо.
+    /// Зовётся и тогда, когда задание проваливать нечем, — смотрит только на взятое.
+    /// </summary>
+    /// <param name="code">Причина (<see cref="Protocol.TraderFail"/> и прочие) — по ней клиент пишет строку.</param>
+    private void Fail(Player player, string code)
+    {
+        if (player.Missions.Active is not { } active) return;
+        player.Missions.Active = null;
+        player.Missions.Seed++;
+        player.Cargo.Reserved = 0;
+        SendCargo(player);
+        SendMissions(player, new MissionDoneDto(Protocol.MissionFailed, 0, Mission: active.Offer, Reason: code));
+        Save(player);
+        AddRep(player, Reputation.Station(active.Offer.Payer), Balance.Reputation.Event.MissionFail, Protocol.RepMissionFail);
+        _log.LogInformation("Player {Id} failed a {Kind} mission: {Code}", player.Id, active.Offer.Kind, code);
     }
 
     /// <summary>У «собрать» прогресс — сколько такого в трюме: трюм изменился — клиенту новый счёт.</summary>

@@ -11,7 +11,7 @@ import type { ReputationRules } from '../sim/reputation';
 import type { ShopRules } from '../sim/shop';
 
 /** Версия протокола; зеркало Protocol.Version на сервере. Сервер другой версии (или старый, без поля) — не играем. */
-export const PROTOCOL_VERSION = 18;
+export const PROTOCOL_VERSION = 19;
 
 /** Состояние ИИ пирата: патруль, бой, возврат в логово (налётчик — полёт от врат к точке), уход из системы. */
 export type AiState = 'patrol' | 'attack' | 'return' | 'leave';
@@ -546,25 +546,42 @@ export interface RepMsg {
   change?: RepChangeDto | null;
 }
 
-/** Вид задания (GDD §36). */
-export type MissionKind = 'kill' | 'collect' | 'deliver';
+/** Вид задания (GDD §36; M14 добавил четыре последних). */
+export type MissionKind = 'kill' | 'collect' | 'deliver' | 'escort' | 'patrol' | 'courier' | 'hunt';
 
 /** Задание на доске или взятое. Текст собираем сами (sim/missions.ts). */
 export interface MissionOffer {
   id: string;
   kind: MissionKind;
-  /** kill — где бить; deliver — куда везти; collect — нет: сдать можно на любой станции. */
+  /**
+   * kill и hunt — где бить; deliver и courier — куда везти; escort — за какие врата уходит конвой;
+   * patrol — своя же система; collect — нет: сдать можно на любой станции.
+   */
   system?: string | null;
-  /** kill: тип пирата из npcs.json; нет — любой. */
+  /** kill: тип пирата из npcs.json; patrol: тип звена рейнджеров; нет — любой. */
   npc?: string | null;
   /** collect: предмет из loot.json. */
   item?: string | null;
+  /** kill — пиратов, collect и deliver — единиц, hunt — камней, patrol — точек, escort — засад, courier — 1. */
   count: number;
   reward: number;
   /** Где выдали. */
   from: string;
   /** Особый контракт доски: только друзьям станции и платит больше обычного (M13). */
   elite?: boolean;
+  /** hunt: какой размер камня засчитывается; нет — любой (M14). */
+  size?: string | null;
+  /** courier: сколько секунд дали на доставку (M14). */
+  seconds?: number;
+  /** escort: в каком радиусе держаться у конвоя; patrol: как близко подойти к точке (M14). */
+  radius?: number;
+}
+
+/** Куда смотреть по живому заданию (M14): ship — идти за этим кораблём, 0 — к точке (x, y). */
+export interface MissionMarkDto {
+  ship: number;
+  x: number;
+  y: number;
 }
 
 /** Шаг обучения (GDD §54). id — что его засчитывает. */
@@ -581,18 +598,22 @@ export interface MissionsMsg {
   t: 'missions';
   tutorial: TutorialDto | null;
   /** Взятое задание; progress у kill — сколько уничтожено, у collect — сколько такого в трюме. */
-  active: { offer: MissionOffer; progress: number } | null;
+  active: { offer: MissionOffer; progress: number; until?: number } | null;
   /** Доска станции этой системы; без станции пусто. */
   offers: MissionOffer[];
   /** Что сделано этим событием — строка в ленте. */
   done?: {
-    kind: 'tutorial' | 'mission';
+    kind: 'tutorial' | 'mission' | 'failed';
     reward: number;
     title?: string | null;
     mission?: MissionOffer | null;
     /** Это был последний шаг обучения. */
     last?: boolean;
+    /** Почему провалено: trader, away, wing, dead, left, time (M14). */
+    reason?: string | null;
   } | null;
+  /** Куда смотреть по живому заданию (M14); нет — метки нет. */
+  mark?: MissionMarkDto | null;
 }
 
 /** Короткое уведомление по коду; текст подставляем у себя (ui/feed.ts). */

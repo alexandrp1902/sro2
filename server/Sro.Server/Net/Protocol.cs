@@ -428,11 +428,28 @@ public sealed record RepMsg(
 public sealed record TutorialDto(int Step, int Total, string Id, string Title, string Hint);
 
 /// <summary>Что только что сделано — для строки в ленте.</summary>
-/// <param name="Kind"><see cref="Protocol.TutorialDone"/> — шаг обучения; <see cref="Protocol.MissionDone"/> — задание.</param>
+/// <param name="Kind">
+/// <see cref="Protocol.TutorialDone"/> — шаг обучения; <see cref="Protocol.MissionDone"/> — задание сдано;
+/// <see cref="Protocol.MissionFailed"/> — провалено (M14).
+/// </param>
 /// <param name="Title">Шаг обучения — его текст.</param>
-/// <param name="Mission">Сданное задание.</param>
+/// <param name="Mission">Сданное или проваленное задание.</param>
 /// <param name="Last">Это был последний шаг обучения.</param>
-public sealed record MissionDoneDto(string Kind, int Reward, string? Title = null, MissionOffer? Mission = null, bool Last = false);
+/// <param name="Reason">Почему провалено (<see cref="Protocol.TraderFail"/> и прочие); null — не провалено (M14).</param>
+public sealed record MissionDoneDto(
+    string Kind,
+    int Reward,
+    string? Title = null,
+    MissionOffer? Mission = null,
+    bool Last = false,
+    string? Reason = null);
+
+/// <summary>
+/// Куда смотреть по «живому» заданию (M14): Ship — за этим кораблём идти (конвой), 0 — точка (X, Y),
+/// текущая цель маршрута патруля. Живёт в сообщении, а не в <see cref="ActiveMission"/>: номера кораблей —
+/// дело комнаты, в аккаунт им нельзя.
+/// </summary>
+public sealed record MissionMarkDto(int Ship, double X, double Y);
 
 /// <summary>
 /// Обучение и задания пилота — только ему. Шлётся по событию: вход, прыжок, стыковка, прогресс, правка баланса.
@@ -441,11 +458,13 @@ public sealed record MissionDoneDto(string Kind, int Reward, string? Title = nul
 /// <param name="Active">Взятое задание; null — нет.</param>
 /// <param name="Offers">Доска станции этой системы; в системе без станции пусто.</param>
 /// <param name="Done">Что сделано этим событием; null — просто обновление.</param>
+/// <param name="Mark">Куда смотреть по живому заданию (M14); null — метки нет.</param>
 public sealed record MissionsMsg(
     TutorialDto? Tutorial,
     ActiveMission? Active,
     IReadOnlyList<MissionOffer> Offers,
-    MissionDoneDto? Done = null) : ServerMessage;
+    MissionDoneDto? Done = null,
+    MissionMarkDto? Mark = null) : ServerMessage;
 
 /// <summary>Короткое уведомление игроку по коду; текст подставляет клиент (см. ui/feed.ts).</summary>
 public sealed record NoticeMsg(string Code) : ServerMessage;
@@ -602,10 +621,11 @@ public static class Protocol
     /// 10 — звезда, орбиты и налёты; 11 — задания и обучение, M8; 12 — слоты, модули, ракеты, торговцы, M9; 13 — SOS торговцев;
     /// 14 — группы, награда за голову и вторжения, M10;
     /// 15 — переключатель PvP; 16 — регионы, тиры Mk1–Mk3, utility-слоты, новое оружие и замедление, M11;
-    /// 17 — рынок товаров, покупка груза, живые цены, M12; 18 — репутация систем и станций, M13).
+    /// 17 — рынок товаров, покупка груза, живые цены, M12; 18 — репутация систем и станций, M13;
+    /// 19 — сопровождение, патруль, важное письмо, охота на метеориты и провал задания, M14).
     /// Зеркало PROTOCOL_VERSION в client/src/net/protocol.ts.
     /// </summary>
-    public const int Version = 18;
+    public const int Version = 19;
 
     public const string DroneKind = "drone";
     public const string PirateKind = "pirate";
@@ -642,10 +662,17 @@ public static class Protocol
     public const string DockClosedNotice = "dockClosed";
     /// <summary>Это продают только своим — не хватает репутации места (M13).</summary>
     public const string NeedRepNotice = "needRep";
+    /// <summary>Пилот отстал от конвоя: вернуться, пока задание не провалено (M14).</summary>
+    public const string MissionAwayNotice = "missionAway";
+    /// <summary>Впереди засада на конвой (M14).</summary>
+    public const string AmbushNotice = "ambush";
+    /// <summary>Звено рейнджеров вышло вместе с пилотом (M14).</summary>
+    public const string WingNotice = "wing";
 
     /// <summary>За что начислена или снята репутация (<see cref="RepChangeDto.Code"/>; M13).</summary>
     public const string RepMissionDone = "missionDone";
     public const string RepMissionAbandon = "missionAbandon";
+    public const string RepMissionFail = "missionFail";
     public const string RepPirate = "pirate";
     public const string RepSos = "sos";
     public const string RepInvasion = "invasion";
@@ -675,6 +702,15 @@ public static class Protocol
     /// <summary>Что сделано (<see cref="MissionDoneDto.Kind"/>).</summary>
     public const string TutorialDone = "tutorial";
     public const string MissionDone = "mission";
+    public const string MissionFailed = "failed";
+
+    /// <summary>Почему задание провалено (<see cref="MissionDoneDto.Reason"/>; M14).</summary>
+    public const string TraderFail = "trader";
+    public const string AwayFail = "away";
+    public const string WingFail = "wing";
+    public const string DeadFail = "dead";
+    public const string LeftFail = "left";
+    public const string TimeFail = "time";
 
     /// <summary>Причины отказа во входе (<see cref="DeniedMsg"/>).</summary>
     public const string BadNameDenied = "badName";

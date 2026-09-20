@@ -172,6 +172,12 @@ public sealed record MissionRules(
     /// </summary>
     public static bool IsLive(string? kind) => kind is EscortKind or PatrolKind;
 
+    /// <summary>
+    /// Задание, которое кончается вместе с кораблём (M14): письмо тонет с ним — это решение этапа,
+    /// а у живых заданий вместе с вылетом пропадают актёры. Груз доставки и счёт убитых гибель переживают.
+    /// </summary>
+    public static bool DiesWithTheShip(string? kind) => IsLive(kind) || kind == CourierKind;
+
     /// <summary>Шаги обучения: вылететь, уничтожить дрон, подобрать груз, продать, прыгнуть через врата.</summary>
     public const string UndockStep = "undock";
     public const string DroneStep = "drone";

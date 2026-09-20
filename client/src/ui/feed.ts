@@ -46,6 +46,9 @@ const NOTICES: Record<string, string> = {
   noStock: 'На складе станции столько нет',
   dockClosed: 'Док закрыт: здесь вас считают врагом',
   needRep: 'Это продают только своим — здесь вас ещё не знают',
+  missionAway: 'Вы отстаёте от конвоя — возвращайтесь!',
+  ambush: 'Засада на курсе конвоя!',
+  wing: 'Звено рейнджеров вышло с вами',
 };
 
 /** @returns текст уведомления или null, если код незнакомый (сервер новее клиента). */
@@ -53,6 +56,7 @@ const NOTICES: Record<string, string> = {
 const REP_REASONS: Record<string, string> = {
   missionDone: 'задание выполнено',
   missionAbandon: 'задание брошено',
+  missionFail: 'задание провалено',
   pirate: 'пират уничтожен',
   sos: 'помощь торговцу',
   invasion: 'вторжение отбито',

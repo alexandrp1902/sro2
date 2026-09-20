@@ -1300,6 +1300,19 @@ body {
   font-weight: 600;
 }
 
+/* Срок письма (M14): идёт, пока пилот в доке, и краснеет на последней минуте. */
+.dock-timer {
+  margin-top: 4px;
+  color: #ffd166;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+
+.dock-timer[data-low='true'] {
+  color: #ff8a70;
+  font-weight: 600;
+}
+
 .dock-mission-actions {
   display: flex;
   flex-wrap: wrap;

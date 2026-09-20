@@ -31,7 +31,7 @@ import {
 import { keyHint, keymap } from '../input/keymap';
 import { itemSprite, moduleSprite, shipSprite, spriteUrl, weaponSprite } from '../render/sprites';
 import type { Hulls } from '../sim/hulls';
-import { activeHint, activeLine, offerNote, offerTitle, type MissionNames } from '../sim/missions';
+import { activeHint, activeLine, offerNote, offerTitle, timeLeft, type MissionNames } from '../sim/missions';
 import { lootItem, rarityColor, type LootRules } from '../sim/loot';
 import { NO_MARKET, affordable, rumourLine, stockLevel, tradeCost, trend, type MarketRules } from '../sim/market';
 import {
@@ -78,6 +78,9 @@ export function offerState(
   if (locked) return 'locked';
   return cost <= credits ? 'buy' : 'poor';
 }
+
+/** Ниже этого остатка срок письма краснеет (M14). */
+const LOW_TIMER_SECONDS = 60;
 
 export type Tab = 'missions' | 'cargo' | 'hulls' | 'fitting';
 
@@ -289,6 +292,8 @@ export class DockScreen {
   private place: Place = 'station';
   private here: string | null = null;
   private missions: MissionsMsg | null = null;
+  /** Надпись обратного отсчёта у письма; null — взятого письма нет (M14). */
+  private timer: HTMLElement | null = null;
   /** Слот, для которого открыт список пушек или модулей; null — ни один. */
   private slot: string | null = null;
   /** Свой набор фонов дока у этой станции; null — общие сцены места. */
@@ -385,7 +390,20 @@ export class DockScreen {
     this.render();
   }
 
+  /**
+   * Срок письма идёт и в доке (M14). Перерисовывать ради него весь экран нельзя — он живёт событиями,
+   * а не кадрами, поэтому обновляется одна надпись. Зовётся из кадрового цикла.
+   */
+  tick(now: number): void {
+    if (!this.timer) return;
+    const until = this.missions?.active?.until ?? 0;
+    const left = timeLeft(until, now);
+    this.timer.textContent = left ? `Срок: ${left}` : 'Срок вышел';
+    this.timer.dataset.low = String(left !== null && until - now / 1000 < LOW_TIMER_SECONDS);
+  }
+
   private render(): void {
+    this.timer = null; // экран перерисовывается целиком: прежняя надпись отсчёта уже не в документе
     const hangar = this.hangar;
     if (!hangar?.docked) {
       this.root.hidden = true;
@@ -744,6 +762,12 @@ export class DockScreen {
       box.append(el('div', 'dock-mission-head', `Задание · награда ${formatCredits(active.offer.reward)}`));
       box.append(el('div', 'dock-name', activeLine(active, this.names)));
       box.append(el('div', 'dock-stats', activeHint(active, this.here, hangar.docked, this.names)));
+      if (active.until) {
+        // Срок идёт, пока пилот торгуется на станции: цифра живая, её двигает tick().
+        this.timer = el('div', 'dock-timer');
+        box.append(this.timer);
+        this.tick(Date.now());
+      }
       const actions = el('div', 'dock-mission-actions');
       if (active.offer.kind === 'collect') {
         const give = button('Сдать', 'dock-buy', () => this.handlers.onComplete());
