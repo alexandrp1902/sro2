@@ -34,6 +34,36 @@ public class TiersTests
     }
 
     [Fact]
+    public void Tiers_KeepCountableStatsWhole()
+    {
+        var weapons = Tiers.Expand(Weapons, Two);
+        var modules = Tiers.Expand(Modules, Two);
+
+        // Множители энергии (1.15, 1.3) в двоичной дроби не ложатся ровно: без округления щит Mk2 просил бы
+        // «22.999999999999996 энергии», а радар Mk2 — «13.799999999999999». Игрок видит эти числа как есть.
+        static void Whole(double value, string what) => Assert.True(value == Math.Round(value), $"{what} = {value:R}");
+
+        foreach (var (id, w) in weapons) Whole(w.Power, $"{id}.power");
+        foreach (var (id, m) in modules)
+        {
+            Whole(m.Power, $"{id}.power");
+            Whole(m.Shield, $"{id}.shield");
+            Whole(m.ShieldRegen, $"{id}.shieldRegen");
+            Whole(m.Radar, $"{id}.radar");
+            Whole(m.Fuel, $"{id}.fuel");
+            Whole(m.Output, $"{id}.output");
+            Whole(m.Repair, $"{id}.repair");
+            Whole(m.Cargo, $"{id}.cargo");
+        }
+
+        Assert.Equal(12, modules["shieldS_mk2"].Power);   // 10 × 1.15 = 11.5 → 12
+        Assert.Equal(14, modules["cooling_mk2"].Power);   // 12 × 1.15 = 13.8 → 14
+        // Дробные по смыслу — без хвоста: 1 + 0.1 × 1.5 = 1.15, а не 1.1500000000000001.
+        Assert.Equal(1.15, modules["engineM_mk2"].Speed);
+        Assert.Equal(0.125, modules["cooling_mk2"].Cooling);
+    }
+
+    [Fact]
     public void Name_ReplacesMk1OrAppendsTheTier()
     {
         Assert.Equal("Лазер Mk2", Tiers.Name("Лазер Mk1", 2));

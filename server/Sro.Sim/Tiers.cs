@@ -66,7 +66,13 @@ public static class Tiers
             {
                 var tier = i + 2;
                 var t = tiers[i];
-                result[Id(id, tier)] = w with { Name = Name(w.Name, tier), Damage = w.Damage * t.Stat, Power = w.Power * t.Power, Tier = tier };
+                result[Id(id, tier)] = w with
+                {
+                    Name = Name(w.Name, tier),
+                    Damage = Fine(w.Damage * t.Stat),
+                    Power = Whole(w.Power * t.Power),
+                    Tier = tier,
+                };
             }
         }
         return result;
@@ -86,17 +92,17 @@ public static class Tiers
                 result[Id(id, tier)] = m with
                 {
                     Name = Name(m.Name, tier),
-                    Power = m.Power * t.Power,
-                    Speed = Boost(m.Speed, t.Engine),
-                    Accel = Boost(m.Accel, t.Engine),
-                    Shield = m.Shield * t.Stat,
-                    ShieldRegen = m.ShieldRegen * t.Stat,
-                    Radar = m.Radar * t.Radar,
-                    Fuel = Math.Round(m.Fuel * t.Stat),
-                    Output = m.Output * t.Stat,
-                    Repair = m.Repair * t.Stat,
-                    Cooling = Math.Min(Fitting.MaxCooling, m.Cooling * t.Stat),
-                    Cargo = Math.Round(m.Cargo * t.Stat),
+                    Power = Whole(m.Power * t.Power),
+                    Speed = Fine(Boost(m.Speed, t.Engine)),
+                    Accel = Fine(Boost(m.Accel, t.Engine)),
+                    Shield = Whole(m.Shield * t.Stat),
+                    ShieldRegen = Whole(m.ShieldRegen * t.Stat),
+                    Radar = Whole(m.Radar * t.Radar),
+                    Fuel = Whole(m.Fuel * t.Stat),
+                    Output = Whole(m.Output * t.Stat),
+                    Repair = Whole(m.Repair * t.Stat),
+                    Cooling = Math.Min(Fitting.MaxCooling, Fine(m.Cooling * t.Stat)),
+                    Cargo = Whole(m.Cargo * t.Stat),
                     Tier = tier,
                 };
             }
@@ -106,6 +112,19 @@ public static class Tiers
 
     /// <summary>Множитель двигателя: прибавка сверх ×1 растёт, ухудшение (форсаж хуже разгоняется) остаётся как есть.</summary>
     private static double Boost(double value, double k) => value > 1 ? 1 + (value - 1) * k : value;
+
+    /// <summary>
+    /// Целое: энергия, щит, радар, бак, выход генератора, ремонт и трюм — счётные величины, и игрок видит их
+    /// как есть. Множители вроде 1.15 в двоичной дроби не ложатся ровно, и без округления щит Mk2 просил бы
+    /// «22.999999999999996 энергии».
+    /// </summary>
+    private static double Whole(double value) => Math.Round(value, MidpointRounding.AwayFromZero);
+
+    /// <summary>
+    /// Дробное, но без мусора: множители двигателя, охлаждение и урон бывают нецелыми по смыслу,
+    /// а «×1.1500000000000001» на карточке — нет.
+    /// </summary>
+    private static double Fine(double value) => Math.Round(value, 3, MidpointRounding.AwayFromZero);
 
     /// <summary>Цена тира: цена Mk1 × множитель, округлённая до десятков.</summary>
     public static int Price(int basePrice, int tier, IReadOnlyList<TierDef>? tiers)
