@@ -350,10 +350,32 @@ public sealed record CargoMsg(
 public sealed record MarketItemDto(string Id, int Buy, int Sell, int Stock, int Norm);
 
 /// <summary>
+/// Слух торговца (M12): куда везти товар или где его дёшево взять. Текст собирает клиент — здесь только
+/// факты, как у <see cref="MissionOffer"/>. Берутся из настоящих цен соседних станций.
+/// </summary>
+/// <param name="Kind"><see cref="Rumours.RouteKind"/> — брать здесь и везти туда; <see cref="Rumours.GlutKind"/> — там этого навалом.</param>
+/// <param name="Name">Название той системы: на экране дока клиенту его больше неоткуда взять.</param>
+/// <param name="Price">Цена штуки там; <paramref name="Profit"/> — сколько выходит с штуки.</param>
+/// <param name="Scarce">Там этого сейчас мало — отсюда разговоры про эпидемию и голод.</param>
+public sealed record RumourDto(
+    string Kind,
+    string Good,
+    string System,
+    string Name,
+    int Hops,
+    int Price,
+    int Profit = 0,
+    bool Scarce = false);
+
+/// <summary>
 /// Живые цены станции (M12) — только тому, кто в доке: у каждой станции рынок свой, а в космосе он не нужен.
 /// Шлётся по событию: стыковка, сделка, приход торговца, возврат запасов к норме, правка баланса.
 /// </summary>
-public sealed record MarketMsg(string System, IReadOnlyList<MarketItemDto> Items) : ServerMessage;
+/// <param name="Rumours">О чём судачит здешний торговец; считается на стыковке и дальше не меняется.</param>
+public sealed record MarketMsg(
+    string System,
+    IReadOnlyList<MarketItemDto> Items,
+    IReadOnlyList<RumourDto>? Rumours = null) : ServerMessage;
 
 /// <summary>Текущий шаг обучения (GDD §54).</summary>
 /// <param name="Step">Номер шага с нуля.</param>

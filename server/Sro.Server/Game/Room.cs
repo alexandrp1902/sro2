@@ -1647,6 +1647,7 @@ public sealed partial class Room
             Save(player);
             _log.LogInformation("Player {Id} docked in {System}", player.Id, SystemId);
             // Груз доставки сдаётся сам, стоит пристыковаться к нужной станции.
+            MakeRumours(player); // что здесь рассказывают — услышано один раз, на входе
             SendMarket(player); // цены станции нужны сразу: с ними открывается вкладка рынка
             if (player.Missions.Active?.Offer is { Kind: MissionRules.DeliverKind } deliver && deliver.System == SystemId)
                 Complete(player);
@@ -1654,6 +1655,7 @@ public sealed partial class Room
         else
         {
             player.Docked = false;
+            player.Rumours = []; // услышанное осталось на той станции
             // Станция ушла по орбите, пока пилот был в доке, — вылет с той же её стороны.
             (player.Ship.X, player.Ship.Y) = Balance.StationPath.ToWorld(OrbitSeconds, player.DockOffset.X, player.DockOffset.Y);
             player.ResetInputs();

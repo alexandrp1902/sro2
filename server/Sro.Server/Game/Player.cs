@@ -23,6 +23,9 @@ public sealed class Player(int id, string? token, string name, string hullId, st
 
     public bool IsGuest => AccountId is null;
 
+    /// <summary>О чём судачил торговец на этой станции (M12); пусто — вне дока и там, где рынка нет.</summary>
+    public IReadOnlyList<Rumour> Rumours = [];
+
     /// <summary>null — связи нет: корабль висит в космосе и тормозит, пока игрок не вернётся.</summary>
     public IClientConnection? Connection { get; private set; }
     public long LostAtTick { get; private set; }

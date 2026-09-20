@@ -155,6 +155,20 @@ async function main() {
   check(`docking brings the prices: ${rows.length} goods`, rows.length > 0);
   check('the station never buys higher than it sells', rows.every((i) => i.buy > i.sell));
 
+  // Слухи — подсказки из настоящих цен соседей: маршрут обязан быть выгодным, иначе это враньё.
+  const rumours = a.market.rumours ?? [];
+  for (const r of rumours) console.log(`     слух: ${r.kind} ${r.good} → ${r.name} (${r.hops} прыжка), ${r.price} кр`);
+  check(`the trader has something to say: ${rumours.length} rumours`, rumours.length > 0);
+  check(
+    'every rumour points somewhere else, within reach',
+    rumours.every((r) => r.system !== a.welcome.system.id && r.hops > 0 && r.hops <= 5),
+  );
+  const routes = rumours.filter((r) => r.kind === 'route');
+  check(
+    `routes are actually profitable: ${routes.map((r) => `${r.good} +${r.profit}`).join(', ') || '—'}`,
+    routes.every((r) => r.profit > 0 && produces.includes(r.good)),
+  );
+
   // Покупаем то, что станция делает сама: чужой товар она скупает, но не перепродаёт.
   const good = produces.find((id) => a.quote(id)?.stock > 0);
   check(`something produced here is in stock: ${good ?? 'nothing'}`, !!good);

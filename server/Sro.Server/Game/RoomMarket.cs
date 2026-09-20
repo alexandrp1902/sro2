@@ -48,6 +48,35 @@ public sealed partial class Room
         BroadcastMarket();
     }
 
+    /// <summary>
+    /// Цены этой станции для соседей (M12): по ним торговцы в других доках рассказывают, где что берут.
+    /// Пусто — станции или рынка здесь нет.
+    /// </summary>
+    public IReadOnlyList<MarketPrice> Prices()
+    {
+        var market = MarketRules;
+        if (!market.Any) return [];
+        var loot = Balance.Loot;
+        var list = new List<MarketPrice>();
+        foreach (var q in _market.Quotes(market, loot))
+            list.Add(new MarketPrice(q.Id, q.Buy, q.Sell, q.Stock, q.Norm, market.Sells(q.Id)));
+        return list;
+    }
+
+    /// <summary>
+    /// О чём здесь судачат. Считается один раз, на стыковке: слух — это то, что пилот услышал,
+    /// а не строка, которая переписывается после каждой его же сделки.
+    /// </summary>
+    private void MakeRumours(Player player)
+    {
+        player.Rumours = [];
+        var market = MarketRules;
+        if (!market.Any || _host is null) return;
+        var here = new StationPrices(SystemId, Balance.SystemDef.Name, 0, Prices());
+        if (here.Prices.Count == 0) return;
+        player.Rumours = Rumours.Pick(here, _host.MarketsExcept(SystemId));
+    }
+
     /// <summary>Цены изменились — обновить их у всех, кто сейчас в доке. В космосе рынок не нужен.</summary>
     private void BroadcastMarket()
     {
@@ -61,7 +90,10 @@ public sealed partial class Room
         var quotes = _market.Quotes(MarketRules, Balance.Loot);
         var items = new List<MarketItemDto>(quotes.Count);
         foreach (var q in quotes) items.Add(new MarketItemDto(q.Id, q.Buy, q.Sell, q.Stock, q.Norm));
-        player.Connection.Send(new MarketMsg(SystemId, items));
+        var rumours = new List<RumourDto>(player.Rumours.Count);
+        foreach (var r in player.Rumours)
+            rumours.Add(new RumourDto(r.Kind, r.Good, r.System, r.Name, r.Hops, r.Price, r.Profit, r.Scarce));
+        player.Connection.Send(new MarketMsg(SystemId, items, rumours));
     }
 
     /// <summary>

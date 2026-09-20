@@ -31,6 +31,12 @@ public interface IRoomHost
 
     /// <summary>Пилот нанёс урон пиратам вторжения id (GDD §38).</summary>
     void Contributed(Player player, int invasionId, double damage);
+
+    /// <summary>
+    /// Цены станций остальных систем (M12): по ним торговец в доке рассказывает, где что берут.
+    /// Читается с потока тика, как и всё остальное, — комнаты живут в одном потоке.
+    /// </summary>
+    IReadOnlyList<StationPrices> MarketsExcept(string system);
 }
 
 /// <summary>
@@ -196,6 +202,21 @@ public sealed class Galaxy : IRoomHost
     public void Gone(Player player) => LeaveParty(player.Id, player.Name);
 
     public void Contributed(Player player, int invasionId, double damage) => _invasion.Contributed(player, invasionId, damage);
+
+    /// <summary>Цены станций остальных систем — торговцу в доке на слухи (M12).</summary>
+    public IReadOnlyList<StationPrices> MarketsExcept(string system)
+    {
+        var galaxy = Balance.Galaxy;
+        var list = new List<StationPrices>();
+        foreach (var (id, room) in _rooms)
+        {
+            if (id == system || room.Prices() is not { Count: > 0 } prices) continue;
+            var hops = MissionRules.Hops(galaxy, system, id);
+            if (hops is not { } jumps) continue; // отрезанная система: туда и не долететь
+            list.Add(new StationPrices(id, galaxy.System(id)?.Name ?? id, jumps, prices));
+        }
+        return list;
+    }
 
     /// <summary>
     /// Команда группы (GDD §37): позвать, принять или отклонить приглашение, выйти. Позвать можно пилота где угодно,

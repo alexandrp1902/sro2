@@ -2,6 +2,8 @@
 // Цена шагает по единицам, поэтому предпросмотр «Купить 10 · 1 240 кр» считается тем же циклом,
 // что и сделка на сервере, — иначе кнопка обещала бы одно, а списывалось бы другое.
 
+import type { RumourDto } from '../net/protocol';
+
 /** Профиль станции: что она делает и что скупает. */
 export interface MarketStation {
   produces?: string[] | null;
@@ -187,4 +189,48 @@ export function stockLevel(stock: number, normStock: number): StockLevel {
   if (stock < normStock * 0.5) return 'low';
   if (stock > normStock * 1.5) return 'high';
   return 'normal';
+}
+
+/**
+ * Слухи торговца (M12): он же и подсказка, что взять и куда везти. Сервер присылает факты,
+ * текст собираем здесь — как у заданий (sim/missions.ts).
+ */
+
+/** Чем объясняют нехватку: у каждого товара своя беда, и от этого слух звучит по-человечески. */
+const SCARCITY: Record<string, string> = {
+  medicine: 'там эпидемия',
+  food: 'там голодают',
+  fuelCells: 'там сидят без энергии',
+  machinery: 'у них всё сломалось и чинить нечем',
+  arms: 'к ним ходят пираты',
+  luxury: 'их начальство скучает',
+  metal: 'у них встала стройка',
+  ore: 'их рудники выдохлись',
+  titanium: 'верфь стоит без титана',
+  crystals: 'их реакторы на последнем кристалле',
+  rareMetal: 'им нечем чинить технику',
+  energy: 'у них садятся батареи',
+  tech: 'их плазменные узлы на ладан дышат',
+};
+
+const JUMPS = ['здесь же', 'в одном прыжке', 'в двух прыжках', 'в трёх прыжках', 'в четырёх прыжках', 'в пяти прыжках'];
+
+function jumps(hops: number): string {
+  return JUMPS[hops] ?? `в ${hops} прыжках`;
+}
+
+/**
+ * Что говорит торговец. Слух — это подсказка: «возьмите здесь X и везите в Y».
+ * @param good название товара из loot.json
+ */
+export function rumourLine(rumour: RumourDto, good: string): string {
+  const where = `${rumour.name} (${jumps(rumour.hops)})`;
+  if (rumour.kind === 'glut') {
+    return `В ${where} завал: ${good.toLowerCase()} отдают по ${rumour.price} кр. Сходить бы туда порожняком.`;
+  }
+  const why = rumour.scarce ? SCARCITY[rumour.good] : null;
+  const profit = rumour.profit ? `, это ${rumour.profit} кр с штуки` : '';
+  return why
+    ? `Говорят, ${why}: в ${where} за ${good.toLowerCase()} дают ${rumour.price} кр${profit}. Берите здесь и везите.`
+    : `В ${where} за ${good.toLowerCase()} дают ${rumour.price} кр${profit} — берите здесь и везите туда.`;
 }

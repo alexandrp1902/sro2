@@ -1109,6 +1109,28 @@ body {
   font-weight: 600;
 }
 
+/* Слухи торговца (M12): подсказки, что взять и куда везти. */
+.dock-rumours {
+  margin: 2px 0 10px;
+  padding: 8px 10px;
+  border-left: 3px solid #4a9be0;
+  border-radius: 8px;
+  background: rgba(74, 155, 224, 0.08);
+}
+
+.dock-rumours-head {
+  margin-bottom: 3px;
+  color: #7f97b8;
+  font-size: 12px;
+}
+
+.dock-rumour {
+  margin: 3px 0;
+  color: #cfe0f5;
+  font-size: 13px;
+  line-height: 1.4;
+}
+
 /* Вкладка «Рынок» (M12): цена, склад станции, счётчик и две кнопки в одной строке. */
 .dock-market-row {
   grid-template-columns: auto 1fr;

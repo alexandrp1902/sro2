@@ -24,7 +24,7 @@ import { itemSprite, moduleSprite, shipSprite, spriteUrl, weaponSprite } from '.
 import type { Hulls } from '../sim/hulls';
 import { activeHint, activeLine, offerNote, offerTitle, type MissionNames } from '../sim/missions';
 import { lootItem, rarityColor, type LootRules } from '../sim/loot';
-import { NO_MARKET, affordable, stockLevel, tradeCost, trend, type MarketRules } from '../sim/market';
+import { NO_MARKET, affordable, rumourLine, stockLevel, tradeCost, trend, type MarketRules } from '../sim/market';
 import { NO_SHOP, formatCredits, fuelCost, price, repairCost, sells, sellPrice, type ShopRules } from '../sim/shop';
 import type { Weapons } from '../sim/weapons';
 import { color, round, type CargoState } from './cargoHud';
@@ -357,7 +357,9 @@ export class DockScreen {
     }
     if (scene.who) {
       const caption = el('div', 'dock-scene-caption');
-      caption.append(el('div', 'dock-scene-who', scene.who), el('div', 'dock-scene-line', scene.line));
+      // Торговец вместо приветствия рассказывает, что слышал: подсказка ценнее вежливости.
+      const line = this.tab === 'cargo' ? (this.rumours()[0] ?? scene.line) : scene.line;
+      caption.append(el('div', 'dock-scene-who', scene.who), el('div', 'dock-scene-line', line));
       view.append(caption);
     }
     return view;
@@ -434,6 +436,13 @@ export class DockScreen {
     });
   }
 
+  /** Что рассказывает здешний торговец — готовыми строками. */
+  private rumours(): string[] {
+    const rules = this.loot;
+    if (!rules) return [];
+    return (this.quotes?.rumours ?? []).map((r) => rumourLine(r, lootItem(rules, r.good)?.name ?? r.good));
+  }
+
   /** Станция продаёт этот товар: покупают у неё только то, что она делает сама. */
   private canSellHere(id: string): boolean {
     // Без правил рынка (сервер без market.json) станция ничего не продаёт — как до M12.
@@ -457,6 +466,16 @@ export class DockScreen {
       body.append(el('div', 'dock-empty', 'Трюм пуст, и торговать здесь нечем. Груз добывают с пиратов, метеоритов и из контейнеров.'));
       return;
     }
+    // Слухи торговца: подсказка, что взять и куда везти. Сцену на телефоне прячет CSS, поэтому
+    // здесь они тоже нужны — иначе на телефоне подсказок не будет совсем.
+    const rumours = this.rumours();
+    if (rumours.length > 0) {
+      const box = el('div', 'dock-rumours');
+      box.append(el('div', 'dock-rumours-head', 'Торговец рассказывает'));
+      for (const line of rumours) box.append(el('div', 'dock-rumour', line));
+      body.append(box);
+    }
+
     // «Продать всё» — первым делом: с полным трюмом в док заходят чаще, чем за покупками.
     // Считает по здешним ценам и не трогает то, чего тут не берут.
     const sellable = rows.filter((r) => r.maxSell > 0 && r.quote);

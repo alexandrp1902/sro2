@@ -11,6 +11,7 @@ import {
   NO_MARKET,
   sellPrice,
   sells,
+  rumourLine,
   stockLevel,
   tradeCost,
   trades,
@@ -146,5 +147,53 @@ describe('эталоны рынка совпадают с сервером', () 
       const count = affordable(stations[c.station], c.good, c.base, c.stock, c.max, c.credits);
       expect([c.station, c.good, c.credits, count]).toEqual([c.station, c.good, c.credits, c.count]);
     }
+  });
+});
+
+describe('слухи торговца', () => {
+  it('маршрут: куда везти и сколько с этого', () => {
+    const line = rumourLine(
+      { kind: 'route', good: 'food', system: 'aldebaran', name: 'Альдебаран', hops: 3, price: 64, profit: 41 },
+      'Продовольствие',
+    );
+    expect(line).toContain('Альдебаран');
+    expect(line).toContain('в трёх прыжках');
+    expect(line).toContain('64 кр');
+    expect(line).toContain('41 кр с штуки');
+  });
+
+  it('дефицит объясняется по-человечески, а не числом', () => {
+    const epidemic = rumourLine(
+      { kind: 'route', good: 'medicine', system: 'epsilon', name: 'Эпсилон', hops: 2, price: 120, scarce: true },
+      'Медикаменты',
+    );
+    const famine = rumourLine(
+      { kind: 'route', good: 'food', system: 'epsilon', name: 'Эпсилон', hops: 2, price: 70, scarce: true },
+      'Продовольствие',
+    );
+    expect(epidemic).toContain('эпидемия');
+    expect(famine).toContain('голодают');
+  });
+
+  it('без дефицита обходится без выдумок про эпидемию', () => {
+    const line = rumourLine(
+      { kind: 'route', good: 'medicine', system: 'nova', name: 'Nova', hops: 1, price: 90 },
+      'Медикаменты',
+    );
+    expect(line).not.toContain('эпидемия');
+    expect(line).toContain('Nova');
+  });
+
+  it('завал: где взять дёшево', () => {
+    const line = rumourLine({ kind: 'glut', good: 'ore', system: 'castor', name: 'Кастор', hops: 2, price: 5 }, 'Руда');
+    expect(line).toContain('завал');
+    expect(line).toContain('Кастор');
+    expect(line).toContain('5 кр');
+  });
+
+  it('незнакомый товар не ломает строку', () => {
+    const line = rumourLine({ kind: 'route', good: 'ghost', system: 'x', name: 'X', hops: 7, price: 10, scarce: true }, 'Нечто');
+    expect(line).toContain('в 7 прыжках');
+    expect(line).toContain('Нечто'.toLowerCase());
   });
 });
