@@ -41,6 +41,7 @@ import type { MarketRules } from './sim/market';
 import { DT, ION_SLOW, directionAngle, localVelocity, slowedHull, type MoveInput } from './sim/movement';
 import { orbitSeconds } from './sim/orbits';
 import { objective, objectiveSystem, trackerLines, doneLines, type MissionNames, type Objective } from './sim/missions';
+import { AutoTarget } from './sim/autoTarget';
 import type { NpcRules } from './sim/npcs';
 import { DEFAULT_WEAPON, Weapons } from './sim/weapons';
 import { CargoHud, type CargoState } from './ui/cargoHud';
@@ -203,9 +204,12 @@ async function main(): Promise<void> {
 
   // Цель (GDD §9) выбирает клиент, сервер помнит последнюю присланную.
   let targetId = 0;
+  /** Захват стрелка: когда можно навестись самим и когда игрок просил этого не делать. */
+  const autoAim = new AutoTarget();
   const fire = new FireControl(el('fire'), el('combat-pad'));
-  const setTarget = (id: number) => {
+  const setTarget = (id: number, auto = false) => {
     if (id === targetId) return;
+    autoAim.changed(auto, Date.now());
     targetId = id;
     if (isOnline()) connection!.send({ t: 'target', id });
     if (id !== 0) {
@@ -214,12 +218,25 @@ async function main(): Promise<void> {
       setMark(0);
     }
     // Новая цель — огонь заново только новым нажатием: автоогонь не переносится на то, что выбрали для другого.
-    fire.release();
+    // Захват стрелка — исключение: он ничего не выбирал, и гасить ему удержанный огонь не за что.
+    // Так автозахват не меняет состояние огня ни в одну сторону: держал — стреляет в ответ, не держал — молчит.
+    if (!auto) fire.release();
   };
   // Группа (GDD §37): свои — другим цветом, не цели для огня; позвать — с карточки цели.
   const party = new PartyBoard();
   remote.party = party.ids;
   const isAlly = (id: number) => party.isMember(id, ownId());
+  /**
+   * По нам выстрелили — наводимся на стрелка сами, но только если прицел свободен: свой выбор игрока
+   * не трогаем никогда. Пять секунд после того, как он отменил наш выбор, тоже молчим.
+   */
+  const autoTarget = (shooter: number, now: number): void => {
+    if (targetId !== 0 || docked || prediction.isDead || shooter <= 0 || shooter === ownId()) return;
+    if (!autoAim.allows(now) || isAlly(shooter)) return;
+    // Стрелок должен быть видимым кораблём: по метеориту и по тому, кого уже нет, целиться нечем.
+    if (!remote.get(shooter)) return;
+    setTarget(shooter, true);
+  };
   const combatHud = new CombatHud(
     el('ship'),
     el('target'),
@@ -848,6 +865,7 @@ async function main(): Promise<void> {
       missiles.push(message);
       for (const event of combat.push(message, own)) play(event, now);
       for (const shot of message.shots ?? []) {
+        if (shot.to === own) autoTarget(shot.from, now);
         if (shot.from !== own) continue;
         fireStats.shots++;
         if (shot.hit) fireStats.hits++;
