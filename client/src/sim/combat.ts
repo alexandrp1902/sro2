@@ -33,6 +33,21 @@ export interface WeaponParams {
   power?: number;
   /** Ракетница (боевой документ §37): вместо броска на попадание — самонаводящаяся ракета. */
   missile?: MissileParams | null;
+  /** Вид урона (M15.6): от него зависит, какая защита цели может попадание отбить. Нет — кинетика. */
+  damageType?: string;
+}
+
+/**
+ * Виды урона (M15.6). Ракетный не пишут в weapons.json: он следует из блока missile, и ракету
+ * не блокируют вовсе — её сбивают.
+ */
+export const DAMAGE_KINETIC = 'kinetic';
+export const DAMAGE_ENERGY = 'energy';
+export const DAMAGE_MISSILE = 'missile';
+
+/** Чем пушка бьёт на самом деле — зеркало WeaponParams.Hits на сервере. */
+export function damageType(weapon: WeaponParams): string {
+  return weapon.missile ? DAMAGE_MISSILE : (weapon.damageType ?? DAMAGE_KINETIC);
 }
 
 /** Самонаводящаяся ракета: скорость, доворот (°/с), время жизни (с), радиус попадания. */

@@ -673,7 +673,11 @@ public sealed record ShipDto(
 /// <param name="Dmg">Урон всего (0 при промахе).</param>
 /// <param name="Sh">Из него пришлось на щит.</param>
 /// <param name="Ch">Шанс попадания, %, по которому бросал сервер.</param>
-public sealed record ShotDto(int From, int To, string W, bool Hit, int Dmg, int Sh, double Ch);
+/// <param name="Blk">
+/// Попадание отбито защитой цели (M15.6): трасса дошла, урона нет. Отдельное поле, а не Hit=false, потому
+/// что клиенту это надо нарисовать и назвать иначе, чем промах, — промахнулся стрелок, а отбила броня.
+/// </param>
+public sealed record ShotDto(int From, int To, string W, bool Hit, int Dmg, int Sh, double Ch, bool Blk = false);
 
 /// <param name="By">Кто нанёс смертельный удар.</param>
 public sealed record KillDto(int Id, int By);

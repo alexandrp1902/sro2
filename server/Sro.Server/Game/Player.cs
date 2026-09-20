@@ -97,6 +97,10 @@ public sealed class Player(int id, string? token, string name, string hullId, st
 
     public override double CooldownScale(Balance balance) => Fitting.CooldownScale(Fit, balance.Modules);
 
+    public override double Block(Balance balance, string damageType) => Fitting.Block(Fit, balance.Modules, damageType);
+
+    public override InterceptParams? Guard(Balance balance) => Fitting.Guard(Fit, balance.Modules);
+
     /// <summary>Положить на склад.</summary>
     public void Store(string id, int count = 1) => Storage[id] = Storage.GetValueOrDefault(id) + count;
 

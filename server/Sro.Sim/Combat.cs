@@ -31,6 +31,10 @@ namespace Sro.Sim;
 /// </param>
 /// <param name="BlastShare">Доля урона пушки, которую получает сосед в самом эпицентре.</param>
 /// <param name="BlastFalloff">Показатель спада к краю: 1 — линейный, больше — круче.</param>
+/// <param name="DamageType">
+/// Чем бьёт (M15.6) — от этого зависит, какая защита цели может попадание отбить: <see cref="DamageTypes"/>.
+/// У ракетницы не задаётся: её вид урона следует из самого наличия ракеты, и блокировать её нельзя — сбивают.
+/// </param>
 /// <param name="Tier">Тир Mk1–Mk3 (<see cref="Tiers"/>): в файле всегда 1, старшие тиры раскрываются при разборе.</param>
 public sealed record WeaponParams(
     string Name,
@@ -56,9 +60,17 @@ public sealed record WeaponParams(
     double BlastRadius = 0,
     double BlastShare = 0,
     double BlastFalloff = 1.5,
+    string DamageType = DamageTypes.Kinetic,
     int Tier = 1)
 {
     [System.Text.Json.Serialization.JsonIgnore] public int SlowTicks => Combat.SecondsToTicks(SlowSeconds);
+
+    /// <summary>
+    /// Вид урона на самом деле: у ракетницы он следует из ракеты, поэтому в файле его не пишут.
+    /// Защита смотрит именно сюда, а не в <see cref="DamageType"/>.
+    /// </summary>
+    [System.Text.Json.Serialization.JsonIgnore]
+    public string Hits => Missile is not null ? DamageTypes.Missile : DamageType;
 
     public const string MissileKind = "missile";
 
@@ -88,8 +100,28 @@ public sealed record WeaponParams(
         if (!(BlastShare >= 0 && BlastShare <= 1)) return "blastShare must be within 0..1";
         if (!(BlastFalloff >= 0.5 && BlastFalloff <= 4)) return "blastFalloff must be within 0.5..4";
         if (BlastRadius > 0 && !(BlastShare > 0)) return "blastRadius without blastShare does nothing";
+        if (!DamageTypes.IsValid(DamageType)) return $"damageType must be one of {DamageTypes.All}";
+        // Вид «ракета» в файле не пишут: одна правда — сам блок missile. Иначе можно было бы описать
+        // ракетницу, которую отбивает броня, и такую же ракету, которую нет.
+        if (DamageType == DamageTypes.Missile) return "damageType 'missile' is implied by the missile block, not written";
         return null;
     }
+}
+
+/// <summary>
+/// Виды урона (M15.6): от вида зависит, чем от него защищаются. Кинетику держит динамическая защита,
+/// энергию рассеивает аэрозольная завеса, а ракету не блокируют вовсе — её сбивают на подлёте
+/// (<see cref="InterceptParams"/>).
+/// </summary>
+public static class DamageTypes
+{
+    public const string Kinetic = "kinetic";
+    public const string Energy = "energy";
+    public const string Missile = "missile";
+
+    public const string All = "kinetic, energy";
+
+    public static bool IsValid(string? type) => type is Kinetic or Energy or Missile;
 }
 
 /// <summary>Сколько урона пришлось на щит и сколько на корпус.</summary>
@@ -112,6 +144,12 @@ public static class Combat
     /// и он позволяет не ломать семиполевой ShotDto и его бинарный кодек.
     /// </summary>
     public const string SplashWeapon = "splash";
+
+    /// <summary>
+    /// Псевдо-пушка противоракетного комплекса (M15.6): он не занимает оружейного слота, и его выстрел
+    /// нечем назвать. Третий такой после <see cref="SplashWeapon"/> и <see cref="MeteorRules.RamWeapon"/>.
+    /// </summary>
+    public const string GuardWeapon = "guard";
 
     /// <summary>Уклонение цели, % (§39–40): базовое плюс добавка, растущая со скоростью.</summary>
     public static double Evasion(HullParams hull, double speed) =>
@@ -198,15 +236,25 @@ public static class Combat
     public static int SecondsToTicks(double seconds) => (int)Math.Round(seconds * SimConfig.TickRate);
 }
 
-/// <summary>Зенитка (M11): сбивает ракеты и торпеды в радиусе.</summary>
+/// <summary>Зенитка (M11) и противоракетный комплекс (M15.6): сбивают ракеты и торпеды в радиусе.</summary>
 /// <param name="Range">Ракета ближе этого к кораблю — под огнём.</param>
 /// <param name="Chance">Шанс попасть по ракете, %.</param>
-public sealed record InterceptParams(double Range = 350, double Chance = 60)
+/// <param name="Cooldown">
+/// Своя перезарядка, секунды. 0 — брать у пушки-хозяина: так работает зенитка, которая стоит в оружейном
+/// слоте. Модулю занять её не у кого, поэтому у него это поле обязательно.
+/// </param>
+/// <param name="Damage">Урон по ракете. 0 — брать у пушки-хозяина, по той же причине.</param>
+public sealed record InterceptParams(double Range = 350, double Chance = 60, double Cooldown = 0, double Damage = 0)
 {
     public string? Validate()
     {
         if (!(Range > 0)) return "range must be positive";
         if (!(Chance > 0 && Chance <= 100)) return "chance must be within 0..100";
+        if (!(Cooldown >= 0) || !(Damage >= 0)) return "cooldown and damage must not be negative";
         return null;
     }
+
+    /// <summary>Комплекс сам по себе, без пушки-хозяина: перезарядка и урон должны быть свои.</summary>
+    public string? ValidateStandalone() =>
+        Validate() ?? (!(Cooldown > 0) || !(Damage > 0) ? "a module needs its own cooldown and damage" : null);
 }

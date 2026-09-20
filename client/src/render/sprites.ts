@@ -111,13 +111,17 @@ export function weaponSprite(weapon: string): SpriteName | null {
   return name in meta ? (name as SpriteName) : null;
 }
 
-/** Картинки модулей: у некоторых своя (M11), у остальных — по слоту. */
+/**
+ * Картинки модулей: у некоторых своя (M11), у остальных — по слоту.
+ * У вспомогательных картинки по слоту нарочно нет: она была бы иконкой грузового контейнера, и её надел бы
+ * каждый новый utility-модуль — а защита (M15.6) не контейнер. Свои иконки у них — в MODULE_ITEM_SPRITES,
+ * остальные пока идут без иконки; заявки лежат в art/next-art-requests.md.
+ */
 const MODULE_SPRITES: Record<string, string> = {
   engine: 'modules-engine',
   shield: 'modules-shield',
   radar: 'modules-scanner',
   generator: 'modules-reactor',
-  utility: 'modules-cargo',
 };
 
 const MODULE_ITEM_SPRITES: Record<string, string> = {

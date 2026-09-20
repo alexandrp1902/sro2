@@ -260,7 +260,7 @@ public static class SnapshotCodec
             w.WriteArrayHeader(_shots.Count);
             foreach (var shot in _shots)
             {
-                w.WriteArrayHeader(7);
+                w.WriteArrayHeader(8);
                 w.Write(shot.From);
                 w.Write(shot.To);
                 w.Write(shot.W);
@@ -268,6 +268,7 @@ public static class SnapshotCodec
                 w.Write(shot.Dmg);
                 w.Write(shot.Sh);
                 w.Write(shot.Ch);
+                w.Write(shot.Blk);
             }
             // Второй участник видимого выстрела — тоже в деле: камень, разбившийся о свой корабль в тот же тик,
             // когда появился, в радаре не бывал, но его гибель игроку нужна.
@@ -404,7 +405,9 @@ public static class SnapshotCodec
                 for (var i = 0; i < n; i++)
                 {
                     r.ReadArrayHeader();
-                    shots.Add(new ShotDto(r.ReadInt32(), r.ReadInt32(), r.ReadString()!, r.ReadBoolean(), r.ReadInt32(), r.ReadInt32(), r.ReadDouble()));
+                    shots.Add(new ShotDto(
+                        r.ReadInt32(), r.ReadInt32(), r.ReadString()!, r.ReadBoolean(),
+                        r.ReadInt32(), r.ReadInt32(), r.ReadDouble(), r.ReadBoolean()));
                 }
             }
             List<KillDto>? kills = null;

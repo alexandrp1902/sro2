@@ -43,6 +43,16 @@ public static class EquipClass
 /// <param name="Repair">Utility: чинит корпус, единиц в секунду, если давно не было урона (<see cref="CombatRules.RepairDelay"/>).</param>
 /// <param name="Cooling">Utility: доля, на которую короче перезарядка всех пушек (0.1 — на 10 %).</param>
 /// <param name="Cargo">Utility: прибавка к трюму корпуса.</param>
+/// <param name="Evasion">Utility (M15.6): прибавка к уклонению корпуса, % — по кораблю просто хуже попадают.</param>
+/// <param name="BlockKinetic">
+/// Utility (M15.6): шанс отбить кинетическое попадание, %. Бросок делается только по выстрелу, который иначе
+/// попал бы, и отбитый выстрел не наносит урона вовсе — ни по щиту, ни по корпусу.
+/// </param>
+/// <param name="BlockEnergy">Utility (M15.6): то же для энергетического попадания — завеса рассеивает луч.</param>
+/// <param name="Intercept">
+/// Utility (M15.6): противоракетный комплекс. Сбивает ракеты и торпеды, как зенитка, но оружейного слота
+/// не занимает — поэтому перезарядка и урон у него свои, а не от пушки-хозяина.
+/// </param>
 /// <param name="Tier">Тир Mk1–Mk3 (<see cref="Tiers"/>): в файле всегда 1, старшие тиры раскрываются при разборе.</param>
 public sealed record ModuleParams(
     string Name,
@@ -58,6 +68,10 @@ public sealed record ModuleParams(
     double Repair = 0,
     double Cooling = 0,
     double Cargo = 0,
+    double Evasion = 0,
+    double BlockKinetic = 0,
+    double BlockEnergy = 0,
+    InterceptParams? Intercept = null,
     int Tier = 1)
 {
     public string? Validate()
@@ -67,6 +81,11 @@ public sealed record ModuleParams(
             return $"slot must be one of {string.Join(", ", Fitting.ModuleSlots)}, {Fitting.UtilityKind}";
         if (!EquipClass.IsValid(Class)) return "class must be S, M or L";
         if (!(Power >= 0)) return "power must not be negative";
+        // Защита и маневренность — только вспомогательные модули (M15.6): у двигателя и щита свои роли,
+        // и смешивать их значило бы делать один слот вдвое важнее остальных.
+        if (Slot != Fitting.UtilityKind && (Evasion > 0 || BlockKinetic > 0 || BlockEnergy > 0 || Intercept is not null))
+            return "evasion, block and intercept belong to a utility module";
+        if (Intercept?.ValidateStandalone() is { } intercept) return $"intercept: {intercept}";
         return Slot switch
         {
             Fitting.EngineSlot when !(Speed > 0) || !(Accel > 0) => "speed and accel must be positive",
@@ -75,7 +94,12 @@ public sealed record ModuleParams(
             Fitting.GeneratorSlot when !(Output > 0) => "output must be positive",
             Fitting.UtilityKind when !(Repair >= 0) || !(Cargo >= 0) || !(Cooling >= 0 && Cooling <= Fitting.MaxCooling) =>
                 $"repair and cargo must not be negative, cooling must be within 0..{Fitting.MaxCooling}",
-            Fitting.UtilityKind when !(Repair > 0 || Cooling > 0 || Cargo > 0) => "a utility module must repair, cool or add cargo",
+            Fitting.UtilityKind when !(Evasion >= 0 && Evasion <= Fitting.MaxEvasionBonus) =>
+                $"evasion must be within 0..{Fitting.MaxEvasionBonus}",
+            Fitting.UtilityKind when !(BlockKinetic >= 0 && BlockKinetic <= Fitting.MaxBlock) || !(BlockEnergy >= 0 && BlockEnergy <= Fitting.MaxBlock) =>
+                $"blockKinetic and blockEnergy must be within 0..{Fitting.MaxBlock}",
+            Fitting.UtilityKind when !(Repair > 0 || Cooling > 0 || Cargo > 0 || Evasion > 0 || BlockKinetic > 0 || BlockEnergy > 0 || Intercept is not null) =>
+                "a utility module must repair, cool, add cargo, evade, block or intercept",
             _ => null,
         };
     }
@@ -192,6 +216,18 @@ public static class Fitting
     /// <summary>Охлаждение не укорачивает перезарядку больше чем наполовину, сколько модулей ни ставь.</summary>
     public const double MaxCooling = 0.5;
 
+    /// <summary>
+    /// Больше этого модули к уклонению не добавляют, % (M15.6). Потолок нужен из-за тиров: три Mk3-дюзы
+    /// в трёх utility-слотах дали бы +27 сверх корпуса, и перехватчик стало бы не во что попасть.
+    /// </summary>
+    public const double MaxEvasionBonus = 12;
+
+    /// <summary>
+    /// Больше этого один вид урона не блокируется, % (M15.6). По той же причине: неуязвимость — не цель,
+    /// а защита должна менять исход боя, не отменяя его.
+    /// </summary>
+    public const double MaxBlock = 40;
+
     /// <summary>Вид вспомогательного модуля: встаёт в любой utility-слот u0…u2.</summary>
     public const string UtilityKind = "utility";
 
@@ -262,6 +298,9 @@ public static class Fitting
             Shield = shield?.Shield ?? 0,
             ShieldRegen = shield?.ShieldRegen ?? 0,
             Radar = radar?.Radar ?? hull.Radar,
+            // Уклонение от дюз — прямо в корпус: дальше оно само течёт в Combat.Evasion и HitChance,
+            // одинаково на сервере и на клиенте, и попадает в карточку цели без правок UI.
+            Evasion = hull.Evasion + EvasionBonus(fit, modules),
             Cargo = hull.Cargo + Utilities(fit, modules).Sum(m => m.Cargo),
         };
     }
@@ -276,6 +315,28 @@ public static class Fitting
     /// <summary>Ремонт корпуса в секунду от ремонтных блоков (M11).</summary>
     public static double Repair(ShipFit fit, IReadOnlyDictionary<string, ModuleParams>? modules) =>
         Utilities(fit, modules).Sum(m => m.Repair);
+
+    /// <summary>Прибавка к уклонению от маневровых дюз, % (M15.6); не выше <see cref="MaxEvasionBonus"/>.</summary>
+    public static double EvasionBonus(ShipFit fit, IReadOnlyDictionary<string, ModuleParams>? modules) =>
+        Math.Min(MaxEvasionBonus, Utilities(fit, modules).Sum(m => m.Evasion));
+
+    /// <summary>
+    /// Шанс отбить попадание этого вида урона, % (M15.6); не выше <see cref="MaxBlock"/>.
+    /// У ракеты — всегда 0: её не блокируют, её сбивают (<see cref="Guard"/>).
+    /// </summary>
+    public static double Block(ShipFit fit, IReadOnlyDictionary<string, ModuleParams>? modules, string damageType) => damageType switch
+    {
+        DamageTypes.Kinetic => Math.Min(MaxBlock, Utilities(fit, modules).Sum(m => m.BlockKinetic)),
+        DamageTypes.Energy => Math.Min(MaxBlock, Utilities(fit, modules).Sum(m => m.BlockEnergy)),
+        _ => 0,
+    };
+
+    /// <summary>
+    /// Противоракетный комплекс корабля (M15.6): лучший по шансу из стоящих; null — его нет.
+    /// Работает только один, сколько бы их ни стояло, — это и есть потолок для этой защиты.
+    /// </summary>
+    public static InterceptParams? Guard(ShipFit fit, IReadOnlyDictionary<string, ModuleParams>? modules) =>
+        Utilities(fit, modules).Select(m => m.Intercept).Where(i => i is not null).MaxBy(i => i!.Chance);
 
     /// <summary>Множитель перезарядки от охлаждения: 1 — без него, не меньше 1 − <see cref="MaxCooling"/>.</summary>
     public static double CooldownScale(ShipFit fit, IReadOnlyDictionary<string, ModuleParams>? modules) =>

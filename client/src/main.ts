@@ -32,7 +32,7 @@ import { Starfield } from './render/starfield';
 import { WeaponArc } from './render/weaponArc';
 import { GATE_SIZE, SystemView, type PlanetInfo } from './render/world';
 import { Landing } from './ui/landing';
-import { DEFAULT_SECTOR_UNIT, assessBest, cooldownTicks, evasion, longestRange } from './sim/combat';
+import { DEFAULT_SECTOR_UNIT, assessBest, cooldownTicks, damageType, evasion, longestRange } from './sim/combat';
 import { Modules, effectiveHull, fitWeapons, tierOf, type ShipFit } from './sim/fitting';
 import { describeSystem, gateIndex, gateMarkId, pvpName } from './sim/galaxy';
 import { DEFAULT_HULL, Hulls } from './sim/hulls';
@@ -48,7 +48,7 @@ import { CargoHud, type CargoState } from './ui/cargoHud';
 import { CombatHud } from './ui/combatHud';
 import { DevOverlay } from './ui/devOverlay';
 import { DockScreen } from './ui/dockScreen';
-import { Feed, describeBurn, describeKill, describeNotice, describeRepChange } from './ui/feed';
+import { Feed, describeBlock, describeBurn, describeKill, describeNotice, describeRepChange } from './ui/feed';
 import { FlightHud } from './ui/flightHud';
 import { GalaxyMap } from './ui/galaxyMap';
 import { ControlsWindow } from './ui/controlsWindow';
@@ -624,6 +624,9 @@ async function main(): Promise<void> {
   const fireStats = { shots: 0, hits: 0, chanceSum: 0 };
   let ownDto: ShipDto | null = null;
   let killedBy = '';
+  /** Реже этого строка о сработавшей защите в ленте не повторяется (M15.6). */
+  const BLOCK_FEED_MS = 2000;
+  let lastBlockFeed = 0;
   let ownAnchor: FxAnchor = { x: SPAWN.x, y: SPAWN.y, size: hulls.get(prediction.hullId).size };
   const locate = (id: number): FxAnchor | null => {
     if (id === ownId()) return ownAnchor;
@@ -906,6 +909,15 @@ async function main(): Promise<void> {
       for (const event of combat.push(message, own)) play(event, now);
       for (const shot of message.shots ?? []) {
         if (shot.to === own) autoTarget(shot.from, now);
+        // Своя защита сработала (M15.6): сказать словами, чем именно, но не чаще раза в BLOCK_FEED_MS —
+        // под залпом иначе лента забьётся одной строкой.
+        if (shot.to === own && shot.blk && now - lastBlockFeed > BLOCK_FEED_MS && !isPseudoWeapon(shot.w)) {
+          const line = describeBlock(damageType(weapons.get(shot.w)));
+          if (line) {
+            feed.add(line);
+            lastBlockFeed = now;
+          }
+        }
         if (shot.from !== own) continue;
         fireStats.shots++;
         if (shot.hit) fireStats.hits++;

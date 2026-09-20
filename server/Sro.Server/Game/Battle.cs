@@ -132,6 +132,15 @@ internal sealed class Battle(Func<double> roll, ILogger log)
         target.LastAttackerId = shooter.Id; // и промах — нападение: пират ответит
 
         var hit = Combat.IsHit(chance, roll());
+        // Защита цели (M15.6): бросок делается только по выстрелу, который иначе попал бы, — промах
+        // отбивать нечего. Отбитый выстрел не наносит урона, не замедляет и не рвётся осколками:
+        // трасса дошла, но дальше брони не прошла.
+        var blocked = false;
+        if (hit && target.Block(balance, weapon.Hits) is var block && block > 0 && Combat.IsHit(block, roll()))
+        {
+            hit = false;
+            blocked = true;
+        }
         var damage = default(DamageResult);
         if (hit)
         {
@@ -148,7 +157,8 @@ internal sealed class Battle(Func<double> roll, ILogger log)
             hit,
             (int)Math.Round(damage.Shield + damage.Hull),
             (int)Math.Round(damage.Shield),
-            Math.Round(chance, 2)));
+            Math.Round(chance, 2),
+            blocked));
         // Площадь считается от попадания по цели (M15.5): промахом мимо кучи по ней не ударишь.
         if (hit) Blast.Apply(tick, shooter, target, weapon, ships, balance, shots, canSplash);
     }
@@ -180,7 +190,30 @@ internal sealed class Battle(Func<double> roll, ILogger log)
                 if (hit) missiles.Hit(missile, weapon.Damage);
                 shots.Add(new ShotDto(ship.Id, missile.Id, ship.WeaponIds[slot] ?? "", hit, hit ? (int)Math.Round(weapon.Damage) : 0, 0, intercept.Chance));
             }
+            Guard(tick, ship, ships, balance, missiles, shots, canAttack);
         }
+    }
+
+    /// <summary>
+    /// Противоракетный комплекс (M15.6): та же работа, что у зенитки, но без оружейного слота — поэтому
+    /// и перезарядка своя, и на корабле он ровно один. Выстрел уходит псевдо-пушкой «guard».
+    /// </summary>
+    private void Guard(
+        long tick,
+        ShipEntity ship,
+        Dictionary<int, ShipEntity> ships,
+        Balance balance,
+        MissileSystem missiles,
+        List<ShotDto> shots,
+        Func<ShipEntity, ShipEntity, bool>? canAttack)
+    {
+        if (tick < ship.NextGuardTick || ship.Guard(balance) is not { } guard) return;
+        var missile = missiles.Nearest(ship.Ship.X, ship.Ship.Y, guard.Range, m => Threat(m, ship, ships, canAttack));
+        if (missile is null) return;
+        ship.NextGuardTick = tick + Math.Max(1, Combat.SecondsToTicks(guard.Cooldown * ship.CooldownScale(balance)));
+        var hit = Combat.IsHit(guard.Chance, roll());
+        if (hit) missiles.Hit(missile, guard.Damage);
+        shots.Add(new ShotDto(ship.Id, missile.Id, Combat.GuardWeapon, hit, hit ? (int)Math.Round(guard.Damage) : 0, 0, guard.Chance));
     }
 
     private static bool Threat(MissileSystem.Missile missile, ShipEntity ship, Dictionary<int, ShipEntity> ships, Func<ShipEntity, ShipEntity, bool>? canAttack)

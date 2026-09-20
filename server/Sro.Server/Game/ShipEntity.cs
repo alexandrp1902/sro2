@@ -74,6 +74,18 @@ public abstract class ShipEntity(int id, string name, string hullId, IReadOnlyLi
     /// <summary>Множитель перезарядки пушек (охлаждение, M11); 1 — без него.</summary>
     public virtual double CooldownScale(Balance balance) => 1;
 
+    /// <summary>Шанс отбить попадание этого вида урона, % (M15.6); 0 — нечем. У NPC модулей нет.</summary>
+    public virtual double Block(Balance balance, string damageType) => 0;
+
+    /// <summary>Противоракетный комплекс (M15.6); null — его нет.</summary>
+    public virtual InterceptParams? Guard(Balance balance) => null;
+
+    /// <summary>
+    /// Тик, когда противоракетный комплекс снова готов. Одно поле, а не массив по слотам: комплекс
+    /// оружейного слота не занимает, и работает на корабле только один.
+    /// </summary>
+    public long NextGuardTick;
+
     public bool IsProtected(long tick) => tick < ProtectedUntilTick;
 
     public virtual double MaxHp(HullParams hull) => hull.Hp;

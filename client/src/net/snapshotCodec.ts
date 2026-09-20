@@ -163,6 +163,6 @@ export class SnapshotDecoder {
 }
 
 function readShot(row: Row): ShotDto {
-  const [from, to, w, hit, dmg, sh, ch] = row as [number, number, string, boolean, number, number, number];
-  return { from, to, w, hit, dmg, sh, ch };
+  const [from, to, w, hit, dmg, sh, ch, blk] = row as [number, number, string, boolean, number, number, number, boolean];
+  return { from, to, w, hit, dmg, sh, ch, blk };
 }

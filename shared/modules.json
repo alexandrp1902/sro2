@@ -19,5 +19,13 @@
 
   "repair": { "name": "Ремонтный блок", "slot": "utility", "class": "S", "power": 10, "repair": 8 },
   "cooling": { "name": "Система охлаждения", "slot": "utility", "class": "S", "power": 12, "cooling": 0.1 },
-  "cargoPod": { "name": "Грузовой расширитель", "slot": "utility", "class": "S", "power": 4, "cargo": 10 }
+  "cargoPod": { "name": "Грузовой расширитель", "slot": "utility", "class": "S", "power": 4, "cargo": 10 },
+
+  "thrusters": { "name": "Маневровые дюзы", "slot": "utility", "class": "S", "power": 6, "evasion": 6 },
+  "dustCloud": { "name": "Аэрозольная завеса", "slot": "utility", "class": "S", "power": 8, "blockEnergy": 20 },
+  "reactiveArmor": { "name": "Динамическая защита", "slot": "utility", "class": "S", "power": 10, "blockKinetic": 20 },
+  "antiMissile": {
+    "name": "Противоракетный комплекс", "slot": "utility", "class": "S", "power": 14,
+    "intercept": { "range": 500, "chance": 45, "cooldown": 1.2, "damage": 60 }
+  }
 }

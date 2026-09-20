@@ -106,6 +106,12 @@ public static class Tiers
                     Repair = Whole(m.Repair * t.Stat),
                     Cooling = Math.Min(Fitting.MaxCooling, Fine(m.Cooling * t.Stat)),
                     Cargo = Whole(m.Cargo * t.Stat),
+                    // Защита растёт в силе, но не в роли (M15.6) — как blastRadius у пушек: шанс выше,
+                    // дальность и перезарядка те же. Потолки те же, что у модулей Mk1.
+                    Evasion = Math.Min(Fitting.MaxEvasionBonus, Whole(m.Evasion * t.Stat)),
+                    BlockKinetic = Math.Min(Fitting.MaxBlock, Whole(m.BlockKinetic * t.Stat)),
+                    BlockEnergy = Math.Min(Fitting.MaxBlock, Whole(m.BlockEnergy * t.Stat)),
+                    Intercept = m.Intercept is null ? null : m.Intercept with { Chance = Math.Min(100, Whole(m.Intercept.Chance * t.Stat)) },
                     Tier = tier,
                 };
             }

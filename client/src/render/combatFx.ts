@@ -17,20 +17,23 @@ export type Locate = (id: number) => FxAnchor | null;
 export const RAM_WEAPON = 'ram';
 /** Псевдо-пушка осколков взрыва в ShotDto (Combat.SplashWeapon на сервере, M15.5). */
 export const SPLASH_WEAPON = 'splash';
+/** Псевдо-пушка противоракетного комплекса (Combat.GuardWeapon на сервере, M15.6). */
+export const GUARD_WEAPON = 'guard';
 
 /** Как рисовать выстрел. */
-export type ShotStyle = 'ram' | 'splash' | 'missile' | 'tracer';
+export type ShotStyle = 'ram' | 'splash' | 'guard' | 'missile' | 'tracer';
 
 /**
- * У тарана и у осколков пушки в каталоге нет: weapons.get на них молча вернёт импульсную,
+ * У тарана, осколков и противоракеты пушки в каталоге нет: weapons.get на них молча вернёт импульсную,
  * а с ней — и трассер, которого быть не должно.
  */
-export const isPseudoWeapon = (w: string): boolean => w === RAM_WEAPON || w === SPLASH_WEAPON;
+export const isPseudoWeapon = (w: string): boolean => w === RAM_WEAPON || w === SPLASH_WEAPON || w === GUARD_WEAPON;
 
 /** Чем рисовать выстрел; чистая — её и проверяют тесты, PixiJS для этого не нужен. */
 export function shotStyle(w: string, missile: boolean): ShotStyle {
   if (w === RAM_WEAPON) return 'ram';
   if (w === SPLASH_WEAPON) return 'splash';
+  if (w === GUARD_WEAPON) return 'guard';
   return missile ? 'missile' : 'tracer';
 }
 /** Время полёта снаряда до цели, мс; луч — мгновенный. */
@@ -61,6 +64,8 @@ const NUMBER_RISE_PX = 34;
 const SHIELD_COLOR = 0x7fc8ff;
 const HULL_COLOR = 0xffb45a;
 const MISS_COLOR = 0x9aa4b4;
+/** Отбитый выстрел: холоднее щита, чтобы не спутать с уроном по щиту. */
+const BLOCK_COLOR = 0x86b8d6;
 const FLASH_MS = 260;
 const SPARK_MS = 220;
 const EXPLOSION_MS = 950;
@@ -101,6 +106,15 @@ export class CombatFx {
       if (to) {
         this.impact(shot, null, to, now);
         this.add(new Explosion(this.view, to.x, to.y, to.size * MISSILE_BLAST, now));
+      }
+      return;
+    }
+    // Противоракета (M15.6): комплекс оружейного слота не занимает, и пушки у него в каталоге нет —
+    // рисуем короткую зенитную трассу от корабля к ракете, как у зенитки, но своим цветом.
+    if (style === 'guard') {
+      if (from && to) {
+        this.add(new SpriteFlash(this.view, 'weapon-shots-flak-flash', shot.from, from, to, MUZZLE_SIZE, MUZZLE_MS, now, 0.12));
+        this.add(new Tracer(this.view, shot, 'flak', now, from, to, (at, time) => this.impact(shot, 'flak', at, time)));
       }
       return;
     }
@@ -146,6 +160,13 @@ export class CombatFx {
   /** @param kind вид выстрела для вспышки попадания; null — таран, вспышки нет */
   private impact(shot: ShotDto, kind: ShotKind | null, at: FxAnchor, now: number): void {
     const hullDamage = shot.dmg - shot.sh;
+    // Отбито защитой (M15.6): трасса дошла, но брони не прошла. Не «промах» — стрелок попал,
+    // поэтому и слово другое, и вспышка щита вместо искр на корпусе.
+    if (shot.blk) {
+      this.add(new ShieldFlash(this.view, shot.to, at, now));
+      this.add(new FloatingText(this.view, 'блок', BLOCK_COLOR, at, now));
+      return;
+    }
     if (!shot.hit) {
       this.add(new FloatingText(this.view, 'промах', MISS_COLOR, at, now));
       return;
@@ -198,7 +219,7 @@ class Tracer implements Effect {
     this.from = copy(locate(this.shot.from)) ?? this.from;
     this.to = copy(locate(this.shot.to)) ?? this.to;
     const { from, to, sprite } = this;
-    const end = this.shot.hit ? to : missPoint(from, to, this.side);
+    const end = this.shot.hit || this.shot.blk ? to : missPoint(from, to, this.side);
     const elapsed = now - this.start;
     sprite.visible = true;
     sprite.rotation = Math.atan2(end.y - from.y, end.x - from.x);
@@ -215,7 +236,8 @@ class Tracer implements Effect {
 
     const flight = FLIGHT_MS[this.kind] ?? FLIGHT_MS.bolt;
     // Промах пролетает мимо цели на пути к точке дальше неё — «промах» всплывает, когда снаряд поравнялся с целью.
-    const total = this.shot.hit ? flight : flight * MISS_OVERSHOOT;
+    // Отбитый выстрел (M15.6) до цели доходит: мимо пролетел бы промах, а этот погасила броня.
+    const total = this.shot.hit || this.shot.blk ? flight : flight * MISS_OVERSHOOT;
     const p = Math.min(1, elapsed / total);
     if (!this.impacted && elapsed >= flight) this.hit(this.start + flight);
     sprite.position.set(from.x + (end.x - from.x) * p, from.y + (end.y - from.y) * p);

@@ -159,6 +159,119 @@ public class FittingTests
         Assert.DoesNotContain("tank", System.Text.Json.JsonSerializer.Serialize(new ShipFit(["pulse"]), json));
     }
 
+    /// <summary>Защита (M15.6): дюзы, завеса, динамическая защита и противоракетный комплекс.</summary>
+    private static readonly IReadOnlyDictionary<string, ModuleParams> Defence = new Dictionary<string, ModuleParams>(Modules)
+    {
+        ["thrusters"] = new("Дюзы", Fitting.UtilityKind, Power: 6, Evasion: 6),
+        ["thrustersBig"] = new("Дюзы L", Fitting.UtilityKind, Power: 6, Evasion: 9),
+        ["dustCloud"] = new("Завеса", Fitting.UtilityKind, Power: 8, BlockEnergy: 20),
+        ["reactiveArmor"] = new("Броня", Fitting.UtilityKind, Power: 10, BlockKinetic: 20),
+        ["reactiveArmorBig"] = new("Броня Mk3", Fitting.UtilityKind, Power: 10, BlockKinetic: 30),
+        ["guardWeak"] = new("Комплекс", Fitting.UtilityKind, Power: 14, Intercept: new(500, 45, 1.2, 60)),
+        ["guardStrong"] = new("Комплекс Mk3", Fitting.UtilityKind, Power: 14, Intercept: new(500, 68, 1.2, 60)),
+    };
+
+    private static ShipFit Fitted(params string?[] utility) => Fitting.Starter with { Utility = utility };
+
+    [Fact]
+    public void EvasionBonus_AddsUpIntoTheHull_ButNotAboveTheCap()
+    {
+        Assert.Equal(6, Fitting.EvasionBonus(Fitted("thrusters"), Defence));
+        Assert.Equal(12, Fitting.EvasionBonus(Fitted("thrusters", "thrusters"), Defence));
+        // Три Mk3-дюзы дали бы +27 — потолок держит уклонение в пределах, где по кораблю ещё попадают.
+        Assert.Equal(Fitting.MaxEvasionBonus, Fitting.EvasionBonus(Fitted("thrustersBig", "thrustersBig", "thrustersBig"), Defence));
+
+        // Прибавка живёт в корпусе, поэтому её видят и Combat.Evasion, и шанс попадания.
+        var hull = Fitting.Effective(Light, Fitted("thrusters"), Defence);
+        Assert.Equal(Light.Evasion + 6, hull.Evasion);
+        var chance = Combat.HitChance(Weapons["pulse"], 0, hull, 0);
+        Assert.Equal(Combat.HitChance(Weapons["pulse"], 0, Light, 0) - 6, chance);
+    }
+
+    [Fact]
+    public void Block_CountsOnlyItsOwnDamageType_AndNeverTouchesMissiles()
+    {
+        var fit = Fitted("reactiveArmor", "dustCloud");
+        Assert.Equal(20, Fitting.Block(fit, Defence, DamageTypes.Kinetic));
+        Assert.Equal(20, Fitting.Block(fit, Defence, DamageTypes.Energy));
+        // Ракету не блокируют — её сбивают, и сколько бы брони ни стояло, на неё это не влияет.
+        Assert.Equal(0, Fitting.Block(fit, Defence, DamageTypes.Missile));
+        Assert.Equal(0, Fitting.Block(Fitting.Starter, Defence, DamageTypes.Kinetic));
+    }
+
+    [Fact]
+    public void Block_DoesNotStackAboveTheCap()
+    {
+        var three = Fitted("reactiveArmorBig", "reactiveArmorBig", "reactiveArmorBig");
+        Assert.Equal(Fitting.MaxBlock, Fitting.Block(three, Defence, DamageTypes.Kinetic));
+    }
+
+    [Fact]
+    public void Guard_TakesTheBestOne_AndOnlyOne()
+    {
+        Assert.Null(Fitting.Guard(Fitting.Starter, Defence));
+        Assert.Equal(45, Fitting.Guard(Fitted("guardWeak"), Defence)!.Chance);
+        // Два комплекса не складываются и не работают по очереди: берётся лучший, работает он один.
+        Assert.Equal(68, Fitting.Guard(Fitted("guardWeak", "guardStrong"), Defence)!.Chance);
+        Assert.Equal(68, Fitting.Guard(Fitted("guardStrong", "guardWeak"), Defence)!.Chance);
+    }
+
+    [Fact]
+    public void Validate_KeepsDefenceOutOfTheOtherSlots_AndDemandsAWholeInterceptor()
+    {
+        // Щит с блоком сделал бы один слот вдвое важнее остальных.
+        Assert.Equal(
+            "evasion, block and intercept belong to a utility module",
+            new ModuleParams("Щит", Fitting.ShieldSlot, Shield: 150, BlockKinetic: 20).Validate());
+        Assert.Equal(
+            "evasion, block and intercept belong to a utility module",
+            new ModuleParams("Двигатель", Fitting.EngineSlot, Evasion: 6).Validate());
+        // У модуля нет пушки-хозяина, чтобы занять у неё перезарядку и урон по ракете.
+        Assert.Equal(
+            "intercept: a module needs its own cooldown and damage",
+            new ModuleParams("Комплекс", Fitting.UtilityKind, Intercept: new(500, 45)).Validate());
+        Assert.Null(new ModuleParams("Комплекс", Fitting.UtilityKind, Intercept: new(500, 45, 1.2, 60)).Validate());
+        // Выше потолка отдельный модуль не заявляет: иначе потолок прятал бы ошибку баланса.
+        Assert.Contains("blockKinetic and blockEnergy must be within", new ModuleParams("Броня", Fitting.UtilityKind, BlockKinetic: 90).Validate());
+        Assert.Contains("evasion must be within", new ModuleParams("Дюзы", Fitting.UtilityKind, Evasion: 40).Validate());
+        // Пустой вспомогательный модуль — по-прежнему ошибка, и защита в этот список добавлена.
+        Assert.Equal(
+            "a utility module must repair, cool, add cargo, evade, block or intercept",
+            new ModuleParams("Пустышка", Fitting.UtilityKind, Power: 5).Validate());
+    }
+
+    [Fact]
+    public void SharedWeapons_NameTheirDamageType_AndMissilesKeepQuiet()
+    {
+        Assert.True(Balance.TryParse(TestHulls.SharedSources(), out var balance, out var error), error);
+
+        foreach (var (id, weapon) in balance!.Weapons)
+        {
+            if (weapon.Missile is not null)
+            {
+                // Вид урона ракетницы следует из блока missile: одна правда, и блокируемой ракетницы не бывает.
+                Assert.Equal(DamageTypes.Kinetic, weapon.DamageType);
+                Assert.Equal(DamageTypes.Missile, weapon.Hits);
+            }
+            else
+            {
+                Assert.True(weapon.Hits is DamageTypes.Kinetic or DamageTypes.Energy, $"{id}: {weapon.Hits}");
+            }
+        }
+        // Оба блокируемых вида в игре есть: иначе один из двух модулей защиты был бы бесполезен.
+        Assert.Contains(balance.Weapons.Values, w => w.Hits == DamageTypes.Kinetic);
+        Assert.Contains(balance.Weapons.Values, w => w.Hits == DamageTypes.Energy);
+    }
+
+    [Fact]
+    public void Validate_RejectsAWrittenMissileDamageType()
+    {
+        Assert.Equal(
+            "damageType 'missile' is implied by the missile block, not written",
+            (TestWeapons.Pulse with { DamageType = DamageTypes.Missile }).Validate());
+        Assert.Contains("damageType must be one of", (TestWeapons.Pulse with { DamageType = "plasma" }).Validate());
+    }
+
     [Theory]
     [InlineData("w0", 0)]
     [InlineData("w5", 5)]
@@ -178,8 +291,16 @@ public class FittingTests
             var classes = modules.Values.Where(m => m.Slot == slot && m.Tier == 1).Select(m => m.Class).Distinct().OrderBy(EquipClass.Rank);
             Assert.Equal([EquipClass.S, EquipClass.M, EquipClass.L], classes);
         }
-        // Вспомогательные модули (M11): ремонт, охлаждение, трюм.
-        Assert.Equal(3, modules.Values.Count(m => m.Slot == Fitting.UtilityKind && m.Tier == 1));
+        // Вспомогательные модули: ремонт, охлаждение, трюм (M11) и четыре защитных (M15.6).
+        var utility = modules.Values.Where(m => m.Slot == Fitting.UtilityKind && m.Tier == 1).ToList();
+        Assert.Equal(7, utility.Count);
+        // Все класса S: utility-слот есть у каждого корпуса, и защита должна вставать даже в «Пчелу».
+        Assert.All(utility, m => Assert.Equal(EquipClass.S, m.Class));
+        // Каждый вид урона, кроме ракеты, кто-то блокирует, а ракету кто-то сбивает: дыр в защите нет.
+        Assert.Contains(utility, m => m.BlockKinetic > 0);
+        Assert.Contains(utility, m => m.BlockEnergy > 0);
+        Assert.Contains(utility, m => m.Intercept is not null);
+        Assert.Contains(utility, m => m.Evasion > 0);
         // Десять пушек Mk1 (M11), каждая — ещё в Mk2 и Mk3.
         Assert.Equal(10, balance.Weapons.Values.Count(w => w.Tier == 1));
         Assert.Equal(30, balance.Weapons.Count);

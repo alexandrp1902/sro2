@@ -49,7 +49,11 @@
     "generatorL": 4000,
     "repair": 1200,
     "cooling": 1500,
-    "cargoPod": 800
+    "cargoPod": 800,
+    "thrusters": 1400,
+    "dustCloud": 1600,
+    "reactiveArmor": 1800,
+    "antiMissile": 2600
   },
 
   // Цены снятого с баланса: по ним вход выкупает у пилота то, чего в игре больше нет (M15.6 — баки,
@@ -69,7 +73,7 @@
       "items": [
         "pulse", "laser", "cannon", "missiles",
         "engineS", "engineM", "shieldS", "shieldM", "radarS", "radarM",
-        "generatorS", "generatorM", "cargoPod", "repair"
+        "generatorS", "generatorM", "cargoPod", "repair", "thrusters"
       ]
     },
     "frontier": {
@@ -78,7 +82,8 @@
       "items": [
         "pulse", "laser", "cannon", "plasma", "missiles", "heavyLaser", "ion", "pointDefense",
         "engineM", "engineL", "afterburnerM", "shieldM", "shieldL", "radarM", "radarL",
-        "generatorM", "generatorL", "cargoPod", "repair", "cooling"
+        "generatorM", "generatorL", "cargoPod", "repair", "cooling",
+        "thrusters", "dustCloud", "antiMissile"
       ]
     },
     "rim": {
@@ -87,7 +92,8 @@
       "items": [
         "plasma", "heavyLaser", "missiles", "ion", "pointDefense", "railgun", "torpedoes",
         "engineL", "afterburnerL", "shieldL", "radarL", "generatorL",
-        "cargoPod", "repair", "cooling"
+        "cargoPod", "repair", "cooling",
+        "dustCloud", "reactiveArmor", "antiMissile"
       ]
     }
   },
@@ -99,8 +105,8 @@
     "st:vega": { "title": "Верфь Веги", "items": ["heavyLaser"], "price": 1.05 },
     "st:alphaCen": { "title": "Причал Альфы", "remove": ["cannon"], "price": 0.92 },
     "st:castor": { "title": "Шахтёрский склад Кастора", "hulls": ["freighter"], "items": ["cargoPod"], "price": 0.95 },
-    "st:nova": { "title": "Военная станция Nova", "items": ["railgun"], "price": 1.1 },
-    "st:barnard": { "title": "Пост рейнджеров Барнарда", "items": ["pointDefense", "ion", "repair"], "price": 1.05 },
+    "st:nova": { "title": "Военная станция Nova", "items": ["railgun", "reactiveArmor"], "price": 1.1 },
+    "st:barnard": { "title": "Пост рейнджеров Барнарда", "items": ["pointDefense", "ion", "repair", "antiMissile"], "price": 1.05 },
     "st:aldebaran": { "title": "Крепость Альдебарана", "items": ["torpedoes"], "price": 1.12 },
     "st:epsilon": { "title": "Вольная гавань Эпсилона", "hulls": ["cruiser"], "price": 1.15 },
 
@@ -114,7 +120,7 @@
     "pl:castorOre": { "title": "Контора Рудника", "items": ["cargoPod"], "price": 0.92 },
     "pl:barnardGarden": { "title": "Лавка Оранжереи", "items": ["repair"], "price": 1.0 },
     "pl:sigmaIce": { "title": "Верфь Мороза", "hulls": ["freighter"], "items": ["cooling"], "price": 1.05 },
-    "pl:aldPyre": { "title": "Плавильня", "items": ["railgun"], "price": 1.08 },
+    "pl:aldPyre": { "title": "Плавильня", "items": ["railgun", "reactiveArmor"], "price": 1.08 },
     "pl:edgeAsh": { "title": "Верфь Пепельного Приюта", "hulls": ["frigate"], "items": ["torpedoes"], "price": 1.1 }
   }
 }

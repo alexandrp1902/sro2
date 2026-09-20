@@ -3,7 +3,7 @@
 // Предсказание движения летит на корпусе с модулями — иначе разошлось бы с сервером.
 
 import defaults from '../../../shared/modules.json';
-import type { WeaponConfig, WeaponParams } from './combat';
+import { DAMAGE_ENERGY, DAMAGE_KINETIC, type WeaponConfig, type WeaponParams } from './combat';
 import type { HullParams } from './movement';
 
 export type EquipClass = 'S' | 'M' | 'L';
@@ -17,6 +17,10 @@ export type Slot = `w${number}` | `u${number}` | ModuleSlot;
 export const MAX_UTILITY_SLOTS = 3;
 /** Охлаждение не укорачивает перезарядку больше чем наполовину. */
 export const MAX_COOLING = 0.5;
+/** Больше этого модули к уклонению не добавляют, % (M15.6). Зеркало Fitting.MaxEvasionBonus. */
+export const MAX_EVASION_BONUS = 12;
+/** Больше этого один вид урона не блокируется, % (M15.6). Зеркало Fitting.MaxBlock. */
+export const MAX_BLOCK = 40;
 
 /** Поля, которых нет в файле, — по умолчанию, как на сервере: множители 1, остальное 0. */
 export interface ModuleParams {
@@ -41,8 +45,23 @@ export interface ModuleParams {
   cooling?: number;
   /** Вспомогательный: прибавка к трюму. */
   cargo?: number;
+  /** Вспомогательный (M15.6): прибавка к уклонению корпуса, %. */
+  evasion?: number;
+  /** Вспомогательный (M15.6): шанс отбить кинетическое и энергетическое попадание, %. */
+  blockKinetic?: number;
+  blockEnergy?: number;
+  /** Вспомогательный (M15.6): противоракетный комплекс — сбивает ракеты, оружейного слота не занимая. */
+  intercept?: InterceptParams | null;
   /** Тир Mk1–Mk3 (M11). */
   tier?: number;
+}
+
+/** Противоракетный комплекс и зенитка: радиус, шанс, своя перезарядка и урон по ракете. */
+export interface InterceptParams {
+  range: number;
+  chance: number;
+  cooldown?: number;
+  damage?: number;
 }
 
 export type ModuleConfig = Record<string, ModuleParams>;
@@ -176,6 +195,30 @@ export function fitCooldown(fit: ShipFit, modules: ModuleConfig | null): number 
   return 1 - Math.min(MAX_COOLING, utilities(fit, modules).reduce((sum, m) => sum + (m.cooling ?? 0), 0));
 }
 
+/** Прибавка к уклонению от маневровых дюз, % (M15.6); не выше MAX_EVASION_BONUS. */
+export function fitEvasion(fit: ShipFit, modules: ModuleConfig | null): number {
+  return Math.min(MAX_EVASION_BONUS, utilities(fit, modules).reduce((sum, m) => sum + (m.evasion ?? 0), 0));
+}
+
+/**
+ * Шанс отбить попадание этого вида урона, % (M15.6); не выше MAX_BLOCK.
+ * У ракеты — 0: её не блокируют, её сбивают (fitGuard).
+ */
+export function fitBlock(fit: ShipFit, modules: ModuleConfig | null, type: string): number {
+  const field = type === DAMAGE_KINETIC ? 'blockKinetic' : type === DAMAGE_ENERGY ? 'blockEnergy' : null;
+  if (!field) return 0;
+  return Math.min(MAX_BLOCK, utilities(fit, modules).reduce((sum, m) => sum + (m[field] ?? 0), 0));
+}
+
+/** Лучший противоракетный комплекс на корабле; null — его нет. Работает только один. */
+export function fitGuard(fit: ShipFit, modules: ModuleConfig | null): InterceptParams | null {
+  let best: InterceptParams | null = null;
+  for (const m of utilities(fit, modules)) {
+    if (m.intercept && (!best || m.intercept.chance > best.chance)) best = m.intercept;
+  }
+  return best;
+}
+
 /** Сколько вспомогательных слотов у корпуса. */
 export function hullUtilitySlots(hull: HullParams): number {
   return Math.min(MAX_UTILITY_SLOTS, hull.utilitySlots ?? 0);
@@ -187,7 +230,8 @@ function module(modules: ModuleConfig, id: string | null | undefined, slot: Modu
 }
 
 /**
- * Корпус с учётом модулей: двигатель умножает скорость, разгон и торможение; щит, радар и бак — из модулей.
+ * Корпус с учётом модулей: двигатель умножает скорость, разгон и торможение; щит и радар — из модулей,
+ * маневровые дюзы прибавляют уклонение (M15.6).
  * Без каталога модулей (старый сервер) или без оснащения — корпус как есть.
  */
 export function effectiveHull(hull: HullParams, fit: ShipFit | null, modules: ModuleConfig | null): HullParams {
@@ -205,6 +249,7 @@ export function effectiveHull(hull: HullParams, fit: ShipFit | null, modules: Mo
     shield: shield?.shield ?? 0,
     shieldRegen: shield?.shieldRegen ?? 0,
     radar: radar?.radar ?? hull.radar,
+    evasion: hull.evasion + fitEvasion(fit, modules),
     cargo: hull.cargo + utilities(fit, modules).reduce((sum, m) => sum + (m.cargo ?? 0), 0),
   };
 }
@@ -289,6 +334,10 @@ export function moduleLabel(m: ModuleParams): string {
       if (m.repair) parts.push(`ремонт ${m.repair}/с вне боя`);
       if (m.cooling) parts.push(`перезарядка −${Math.round(m.cooling * 100)} %`);
       if (m.cargo) parts.push(`трюм +${m.cargo}`);
+      if (m.evasion) parts.push(`уклонение +${m.evasion} %`);
+      if (m.blockKinetic) parts.push(`блок кинетики ${m.blockKinetic} %`);
+      if (m.blockEnergy) parts.push(`блок энергии ${m.blockEnergy} %`);
+      if (m.intercept) parts.push(`сбивает ракеты ${m.intercept.chance} % в радиусе ${m.intercept.range}`);
       return parts.join(' · ') + power;
     }
   }

@@ -74,6 +74,7 @@
       "blastRadius": 0,
       "blastShare": 0,
       "blastFalloff": 1.5,
+      "damageType": "kinetic",
       "tier": 1
     },
     "plasma": {
@@ -100,6 +101,7 @@
       "blastRadius": 0,
       "blastShare": 0,
       "blastFalloff": 1.5,
+      "damageType": "kinetic",
       "tier": 1
     },
     "big": {
@@ -126,6 +128,7 @@
       "blastRadius": 0,
       "blastShare": 0,
       "blastFalloff": 1.5,
+      "damageType": "kinetic",
       "tier": 1
     }
   },
@@ -144,6 +147,10 @@
       "repair": 0,
       "cooling": 0,
       "cargo": 0,
+      "evasion": 0,
+      "blockKinetic": 0,
+      "blockEnergy": 0,
+      "intercept": null,
       "tier": 1
     },
     "engineL": {
@@ -160,6 +167,10 @@
       "repair": 0,
       "cooling": 0,
       "cargo": 0,
+      "evasion": 0,
+      "blockKinetic": 0,
+      "blockEnergy": 0,
+      "intercept": null,
       "tier": 1
     },
     "shieldS": {
@@ -176,6 +187,10 @@
       "repair": 0,
       "cooling": 0,
       "cargo": 0,
+      "evasion": 0,
+      "blockKinetic": 0,
+      "blockEnergy": 0,
+      "intercept": null,
       "tier": 1
     },
     "radarS": {
@@ -192,6 +207,10 @@
       "repair": 0,
       "cooling": 0,
       "cargo": 0,
+      "evasion": 0,
+      "blockKinetic": 0,
+      "blockEnergy": 0,
+      "intercept": null,
       "tier": 1
     },
     "generatorS": {
@@ -208,6 +227,10 @@
       "repair": 0,
       "cooling": 0,
       "cargo": 0,
+      "evasion": 0,
+      "blockKinetic": 0,
+      "blockEnergy": 0,
+      "intercept": null,
       "tier": 1
     },
     "generatorL": {
@@ -224,6 +247,10 @@
       "repair": 0,
       "cooling": 0,
       "cargo": 0,
+      "evasion": 0,
+      "blockKinetic": 0,
+      "blockEnergy": 0,
+      "intercept": null,
       "tier": 1
     }
   },

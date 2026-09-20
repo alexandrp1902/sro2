@@ -52,6 +52,17 @@ const NOTICES: Record<string, string> = {
   wing: 'Звено рейнджеров вышло с вами',
 };
 
+/** Чем именно защита отбила попадание — по виду урона пушки (M15.6). */
+const BLOCKED: Record<string, string> = {
+  kinetic: 'Динамическая защита отбила попадание',
+  energy: 'Аэрозольная завеса рассеяла выстрел',
+};
+
+/** Строка о сработавшей защите; null — такой вид урона не блокируют (ракету сбивают, а не блокируют). */
+export function describeBlock(damageType: string): string | null {
+  return BLOCKED[damageType] ?? null;
+}
+
 /** Уведомления с числом: сервер присылает его в notice.n (M15.6). */
 const COUNTED: Record<string, (n: number) => string> = {
   tanksSold: (n) => `Топливо отменено — баки выкуплены, вернулось ${formatCredits(n)}`,

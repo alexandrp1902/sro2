@@ -169,3 +169,16 @@ Distant deep-space parallax background, seamless tileable, very dark so ships re
 ### Эффекты и сцены
 - **mech-fx-hit**, **mech-fx-explosion**, **mech-fx-shield-block** — лист из 6–8 кадров, как `explosions.png`.
 - **dock-mech-hangar** (STYLE-SCENE) — ангар мехов на поселении: два пустых ремонтных стенда, краны, инструменты, без мехов и людей в центре (мех рисуется поверх).
+
+---
+
+## Пачка F — защитные модули (к M15.6)
+
+Четыре вспомогательных модуля из `shared/modules.json`. Сейчас идут в доке без иконки вовсе: иконка по
+слоту убрана нарочно — она была картинкой грузового контейнера, и её надевал бы каждый новый utility-модуль.
+
+### Иконки (STYLE-ICON)
+- **modules-thrusters** — cluster of four small vectoring manoeuvring nozzles on a short mounting block, thin hydraulic actuators, faint cyan vapour at the nozzle mouths; reads as agility, not as a main engine.
+- **modules-dust-cloud** — squat aerosol dispenser canister with a wide flared spray head and a ring of small charge tubes, pale particulate haze escaping the head.
+- **modules-reactive-armor** — rectangular slab of bolted-on explosive reactive armour tiles, angled plates with visible seams and warning chevrons (symbols only, no text), one tile slightly scorched.
+- **modules-anti-missile** — compact turret with a short twin autocannon and a small radar dish folded beside it, belt feed visible; clearly a point-defence mount, not a ship weapon.
