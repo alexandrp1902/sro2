@@ -222,7 +222,8 @@ export class GalaxyMap {
     if (region) facts.unshift(region);
     box.append(el('div', 'galaxy-info-facts', facts.join(' · ')));
     // Чем здесь торгуют (M12): «производит» — где это дёшево купить, «покупает» — куда везти.
-    const profile = state.market?.stations?.[system.id];
+    // Ключ места, а не системы (M15): на карте показываем станцию — поселения видно уже на месте.
+    const profile = state.market?.places?.[`st:${system.id}`];
     if (profile && state.loot) {
       const names = (ids: string[] | null | undefined): string =>
         (ids ?? []).map((id) => lootItem(state.loot!, id)?.name ?? id).join(', ');

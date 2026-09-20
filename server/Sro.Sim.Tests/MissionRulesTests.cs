@@ -80,7 +80,7 @@ public class MissionRulesTests
                         case MissionRules.CollectKind:
                             Assert.True(balance.Loot.ItemMap.ContainsKey(offer.Item!));
                             // Купить это здесь же и тут же сдать нельзя: станция такого не продаёт (M12).
-                            Assert.False(balance.ForSystem(station).Market.Sells(offer.Item!), offer.Item);
+                            Assert.False(balance.ForSystem(station).MainMarket.Sells(offer.Item!), offer.Item);
                             break;
                         case MissionRules.EscortKind:
                             // Конвой идёт к вратам своей системы, и вести его есть кому.

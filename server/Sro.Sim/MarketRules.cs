@@ -51,8 +51,8 @@ public enum MarketRole
 /// <param name="TraderUnits">Сколько единиц товара двигает один NPC-торговец.</param>
 /// <param name="Baseline">Норма запаса по умолчанию, если у товара своя не указана.</param>
 /// <param name="Goods">Что вообще торгуется; каждый id должен быть грузом из loot.json.</param>
-/// <param name="Stations">Профили станций по id системы. Системы без станции рынка не имеют.</param>
-/// <param name="Station">Рынок одной системы (<see cref="Local"/>): профиль этой станции; null — рынка здесь нет.</param>
+/// <param name="Places">Профили мест по ключу места (M15): «st:sol», «pl:terra».</param>
+/// <param name="Station">Рынок одного места (<see cref="Local"/>): его профиль; null — рынка здесь нет.</param>
 /// <param name="Region">Рынок одной системы: её регион — по нему смотрят, что тут вне закона.</param>
 public sealed record MarketRules(
     double Spread = 0.18,
@@ -71,7 +71,7 @@ public sealed record MarketRules(
     int TraderUnits = 8,
     double Baseline = 100,
     IReadOnlyDictionary<string, MarketGood>? Goods = null,
-    IReadOnlyDictionary<string, MarketStation>? Stations = null,
+    IReadOnlyDictionary<string, MarketStation>? Places = null,
     MarketStation? Station = null,
     string? Region = null)
 {
@@ -219,15 +219,15 @@ public sealed record MarketRules(
     /// не торгуют (её может и не быть вовсе).
     /// Блок stations остаётся: по нему карта галактики показывает, что где производят и скупают.
     /// </summary>
-    public MarketRules Local(string systemId, string? region) =>
-        this with { Station = Stations?.GetValueOrDefault(systemId), Region = region };
+    public MarketRules Local(string placeKey, string? region) =>
+        this with { Station = Places?.GetValueOrDefault(placeKey), Region = region };
 
     /// <param name="items">Груз из loot.json: каждый торгуемый товар должен быть там.</param>
-    /// <param name="hasStation">Есть ли станция в системе с таким id; null — галактика ещё не разобрана.</param>
+    /// <param name="hasPlace">Есть ли в галактике место с таким ключом; null — галактика ещё не разобрана.</param>
     /// <param name="regions">Регионы галактики; null — не проверяем.</param>
     public string? Validate(
         IReadOnlyDictionary<string, LootItem> items,
-        Func<string, bool>? hasStation = null,
+        Func<string, bool>? hasPlace = null,
         IReadOnlySet<string>? regions = null)
     {
         if (!(Spread >= 0 && Spread < 2)) return "spread must be within 0..2";
@@ -256,18 +256,18 @@ public sealed record MarketRules(
                 if (regions is not null && !regions.Contains(region)) return $"goods.{id}: unknown region '{region}'";
             }
         }
-        foreach (var (id, def) in Stations ?? new Dictionary<string, MarketStation>())
+        foreach (var (id, def) in Places ?? new Dictionary<string, MarketStation>())
         {
-            if (def is null) return $"stations.{id}: is null";
-            if (hasStation is not null && !hasStation(id)) return $"stations.{id}: no station in that system";
+            if (def is null) return $"places.{id}: is null";
+            if (hasPlace is not null && !hasPlace(id)) return $"places.{id}: no such place in {GalaxyRules.File}";
             foreach (var good in def.ProduceList.Concat(def.ConsumeList))
             {
-                if (!GoodMap.ContainsKey(good)) return $"stations.{id}: '{good}' is not traded, add it to goods";
+                if (!GoodMap.ContainsKey(good)) return $"places.{id}: '{good}' is not traded, add it to goods";
             }
             // Производить и скупать одно и то же — почти наверняка опечатка, а цена от этого ведёт себя загадочно.
             foreach (var good in def.ProduceList)
             {
-                if (def.ConsumeList.Contains(good)) return $"stations.{id}: '{good}' is both produced and consumed";
+                if (def.ConsumeList.Contains(good)) return $"places.{id}: '{good}' is both produced and consumed";
             }
         }
         return null;
@@ -278,7 +278,7 @@ public sealed record MarketRules(
         IReadOnlyDictionary<string, LootItem> items,
         out MarketRules rules,
         out string? error,
-        Func<string, bool>? hasStation = null,
+        Func<string, bool>? hasPlace = null,
         IReadOnlySet<string>? regions = null)
     {
         rules = None;
@@ -297,7 +297,7 @@ public sealed record MarketRules(
             error = "no rules";
             return false;
         }
-        error = parsed.Validate(items, hasStation, regions);
+        error = parsed.Validate(items, hasPlace, regions);
         if (error is not null) return false;
         rules = parsed;
         return true;

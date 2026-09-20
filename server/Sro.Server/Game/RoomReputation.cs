@@ -4,13 +4,21 @@ using Sro.Sim;
 namespace Sro.Server.Game;
 
 /// <summary>
-/// Комната и репутация (M13): что двигает отношение системы и станции и как об этом узнаёт пилот.
+/// Комната и репутация (M13): что двигает отношение системы и места и как об этом узнаёт пилот.
 /// Все начисления идут через <see cref="AddRep"/> — там же и сохранение, и строка в журнал.
+/// С M15 мест в системе несколько: у станции и у каждого поселения своя память о пилоте.
 /// </summary>
 public sealed partial class Room
 {
-    /// <summary>Очки станции этой системы.</summary>
-    private double PlaceRep(Player player) => player.Rep.Value(Reputation.Station(SystemId), NowSeconds, Balance.Reputation);
+    /// <summary>
+    /// Ключ места, чья репутация сейчас в ходу: где пилот стоит, а в космосе — главное место системы.
+    /// Летящий мимо пилот всё ещё имеет дело с властями системы, и витрину ему считать не по чему.
+    /// </summary>
+    private string? PlaceKeyOf(Player player) => PlaceOf(player)?.Key ?? Balance.DefaultPlace?.Key;
+
+    /// <summary>Очки того места, где стоит пилот.</summary>
+    private double PlaceRep(Player player) =>
+        PlaceKeyOf(player) is { } key ? player.Rep.Value(key, NowSeconds, Balance.Reputation) : 0;
 
     /// <summary>Очки властей системы: по ним закрывается док и звереют рейнджеры.</summary>
     private double SystemRep(Player player) => player.Rep.Value(Reputation.System(SystemId), NowSeconds, Balance.Reputation);
@@ -87,12 +95,12 @@ public sealed partial class Room
         }
 
         RepHereDto? here = null;
-        if (Balance.HasStation && rules.Any)
+        if (PlaceKeyOf(player) is { } hereKey && rules.Any)
         {
             var system = SystemRep(player);
             var place = PlaceRep(player);
             here = new RepHereDto(
-                Reputation.Station(SystemId),
+                hereKey,
                 Round(place),
                 rules.Level(place).Id,
                 rules.Level(GateRep(player)).Id,

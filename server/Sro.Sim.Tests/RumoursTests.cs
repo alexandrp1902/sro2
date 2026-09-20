@@ -125,7 +125,7 @@ public class RumoursTests
         foreach (var (id, def) in balance!.Galaxy.SystemMap)
         {
             if (!def.Station) continue;
-            var market = balance.ForSystem(id).Market;
+            var market = balance.ForSystem(id).MainMarket;
             var prices = market.Sold
                 .Select(g => new MarketPrice(
                     g,

@@ -33,9 +33,9 @@ export interface MarketRules {
   consumeStock?: number;
   baseline?: number;
   goods?: Record<string, MarketGood> | null;
-  /** Профили всех станций: по ним карта галактики показывает, что где производят. */
-  stations?: Record<string, MarketStation> | null;
-  /** Профиль этой станции; нет — здесь не торгуют. */
+  /** Профили всех мест по ключу места («st:sol», «pl:terra»): по ним карта галактики показывает, что где производят. */
+  places?: Record<string, MarketStation> | null;
+  /** Профиль этого места; нет — здесь не торгуют. */
   station?: MarketStation | null;
   /** Регион этой системы: по нему видно, что тут вне закона. */
   region?: string | null;

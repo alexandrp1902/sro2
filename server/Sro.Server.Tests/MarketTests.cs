@@ -37,7 +37,7 @@ public sealed class MarketTests
             [Ore] = new(Baseline: 100),
             [Contraband] = new(Baseline: 50, Illegal: ["core"]),
         },
-        Stations: new Dictionary<string, MarketStation>
+        Places: new Dictionary<string, MarketStation>
         {
             [GalaxyRules.DefaultSystem] = new(Produces: [Food, Contraband], Consumes: [Ore]),
         })
@@ -348,7 +348,7 @@ public sealed class MarketTests
                 [Ore] = new(Baseline: 200),
                 [Contraband] = new(Baseline: 100, Illegal: ["core"]),
             },
-            Stations: new Dictionary<string, MarketStation>
+            Places: new Dictionary<string, MarketStation>
             {
                 [GalaxyRules.DefaultSystem] = new(Produces: [Food], Consumes: [Ore]),
             })
@@ -366,7 +366,7 @@ public sealed class MarketTests
 
         var shrunk = new MarketRules(
             Goods: new Dictionary<string, MarketGood> { [Food] = new(Baseline: 100) },
-            Stations: new Dictionary<string, MarketStation> { [GalaxyRules.DefaultSystem] = new(Produces: [Food]) })
+            Places: new Dictionary<string, MarketStation> { [GalaxyRules.DefaultSystem] = new(Produces: [Food]) })
             .Local(GalaxyRules.DefaultSystem, "core");
         room.ApplyBalance(TestBalance.Create(new CombatRules(SpawnJitter: 0), loot: Loot, shop: Shop, market: shrunk));
 

@@ -8,9 +8,12 @@ namespace Sro.Sim;
 /// <param name="Sells">Станция продаёт этот товар (то есть делает его сама), а не только скупает.</param>
 public readonly record struct MarketPrice(string Good, int Buy, int Sell, double Stock, double Norm, bool Sells);
 
-/// <summary>Станция глазами соседей: где она, как далеко и почём там товары.</summary>
-/// <param name="Hops">Сколько прыжков отсюда; 0 — это и есть здешняя станция.</param>
-public sealed record StationPrices(string System, string Name, int Hops, IReadOnlyList<MarketPrice> Prices);
+/// <summary>Место глазами соседей: где оно, как далеко и почём там товары.</summary>
+/// <param name="System">Система места — по ней считается, сколько туда прыжков.</param>
+/// <param name="Name">Как место зовут: станция системы или поселение на планете (M15).</param>
+/// <param name="Hops">Сколько прыжков отсюда; 0 — это здешняя система.</param>
+/// <param name="Place">Ключ места (M15); null — баланс без мест, как до M15.</param>
+public sealed record StationPrices(string System, string Name, int Hops, IReadOnlyList<MarketPrice> Prices, string? Place = null);
 
 /// <summary>
 /// Слух торговца (M12): подсказка, куда везти товар или где его дёшево взять. Текст собирает клиент —

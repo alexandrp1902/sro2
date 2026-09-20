@@ -113,7 +113,7 @@ public class TiersTests
             ["core"] = new(Hulls: ["light"], Items: ["pulse"], Tiers: [1]),
             ["rim"] = new(Hulls: ["cruiser"], Items: ["pulse", "railgun"], Tiers: [2, 3]),
         },
-        Stations: new Dictionary<string, StockDef>
+        Places: new Dictionary<string, StockDef>
         {
             ["epsilon"] = new(Items: ["railgun"], Remove: ["pulse"], Price: 1.2),
         });
@@ -159,9 +159,9 @@ public class TiersTests
     public void SharedShop_GivesEachRegionItsOwnStock()
     {
         Assert.True(Balance.TryParse(TestHulls.SharedSources(), out var balance, out var error), error);
-        var core = balance!.ForSystem("sol").Shop;
-        var frontier = balance.ForSystem("nova").Shop;
-        var rim = balance.ForSystem("epsilon").Shop;
+        var core = balance!.ForSystem("sol").MainShop;
+        var frontier = balance.ForSystem("nova").MainShop;
+        var rim = balance.ForSystem("epsilon").MainShop;
 
         Assert.True(core.SellsHull("light"));
         Assert.False(core.SellsHull("cruiser"));

@@ -203,17 +203,19 @@ public sealed class Galaxy : IRoomHost
 
     public void Contributed(Player player, int invasionId, double damage) => _invasion.Contributed(player, invasionId, damage);
 
-    /// <summary>Цены станций остальных систем — торговцу в доке на слухи (M12).</summary>
+    /// <summary>Цены мест остальных систем — торговцу в доке на слухи (M12, по местам — M15).</summary>
     public IReadOnlyList<StationPrices> MarketsExcept(string system)
     {
         var galaxy = Balance.Galaxy;
         var list = new List<StationPrices>();
         foreach (var (id, room) in _rooms)
         {
-            if (id == system || room.Prices() is not { Count: > 0 } prices) continue;
+            if (id == system) continue;
+            var places = room.Prices();
+            if (places.Count == 0) continue;
             var hops = MissionRules.Hops(galaxy, system, id);
             if (hops is not { } jumps) continue; // отрезанная система: туда и не долететь
-            list.Add(new StationPrices(id, galaxy.System(id)?.Name ?? id, jumps, prices));
+            foreach (var place in places) list.Add(place with { Hops = jumps });
         }
         return list;
     }

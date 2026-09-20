@@ -133,6 +133,12 @@ public sealed record BalanceSources(
 /// <param name="InvasionSet">Вторжения пиратов (GDD §38); null — их нет.</param>
 /// <param name="MarketSet">Рынок товаров (M12); null — груз сдаётся по плоской цене loot.json и не покупается.</param>
 /// <param name="ReputationSet">Репутация (M13); null — поступки не запоминаются, всё продаётся всем.</param>
+/// <param name="PlaceList">
+/// Места системы (M15): станция и поселения планет. Считается один раз в <see cref="ForSystem"/>,
+/// а не на каждый запрос. Пусто — сесть в системе негде.
+/// </param>
+/// <param name="ShopByPlace">Магазин каждого места (M15); null — мест нет.</param>
+/// <param name="MarketByPlace">Рынок каждого места (M15); null — рынка нет нигде.</param>
 public sealed record Balance(
     IReadOnlyDictionary<string, HullParams> Hulls,
     IReadOnlyDictionary<string, WeaponParams> Weapons,
@@ -149,7 +155,10 @@ public sealed record Balance(
     PartyRules? PartySet = null,
     InvasionRules? InvasionSet = null,
     MarketRules? MarketSet = null,
-    ReputationRules? ReputationSet = null)
+    ReputationRules? ReputationSet = null,
+    IReadOnlyList<PlaceDef>? PlaceList = null,
+    IReadOnlyDictionary<string, ShopRules>? ShopByPlace = null,
+    IReadOnlyDictionary<string, MarketRules>? MarketByPlace = null)
 {
     public const string HullsFile = "hulls.json";
     public const string WeaponsFile = "weapons.json";
@@ -179,7 +188,11 @@ public sealed record Balance(
 
     public MeteorRules Meteors => MeteorSet ?? MeteorRules.None;
 
-    public ShopRules Shop => ShopSet ?? ShopRules.None;
+    /// <summary>
+    /// Общее в магазине, одинаковое во всех местах: стартовые кредиты, доля выкупа, цена ремонта, тиры.
+    /// За ценами и ассортиментом конкретного места — в <see cref="ShopAt"/>: с M15 их в системе несколько.
+    /// </summary>
+    public ShopRules Economy => ShopSet ?? ShopRules.None;
 
     public GalaxyRules Galaxy => GalaxySet ?? GalaxyRules.Single;
 
@@ -189,8 +202,53 @@ public sealed record Balance(
 
     public InvasionRules Invasion => InvasionSet ?? InvasionRules.None;
 
-    /// <summary>Рынок этой станции (M12); рынка нет — <see cref="MarketRules.Any"/> false, цены плоские, как до M12.</summary>
-    public MarketRules Market => MarketSet ?? MarketRules.None;
+    /// <summary>
+    /// Места системы (M15): станция и поселения планет. Считается в <see cref="ForSystem"/>; у баланса,
+    /// собранного руками (тесты, система без galaxy.json), выводится из <see cref="SystemDef"/> —
+    /// там это ровно одна станция в центре, как было до M15.
+    /// </summary>
+    public IReadOnlyList<PlaceDef> Places => PlaceList ?? SystemDef.Places(System, Loot.StationRange);
+
+    /// <summary>В системе есть куда сесть. Не то же, что <see cref="HasStation"/>: у планеты свой док.</summary>
+    public bool HasDock => Places.Count > 0;
+
+    /// <summary>Место по ключу; null — такого здесь нет (например, его убрала горячая правка).</summary>
+    public PlaceDef? Place(string? key) => key is null ? null : Places.FirstOrDefault(p => p.Key == key);
+
+    /// <summary>
+    /// Место системы по умолчанию: станция, а если её нет — первое поселение. Сюда попадает тот,
+    /// у кого места ещё нет: новый пилот, гость и профиль старше M15.
+    /// </summary>
+    public PlaceDef? DefaultPlace => Places.Count > 0 ? Places[0] : null;
+
+    /// <summary>
+    /// Магазин места (M11, по местам — M15). У баланса без галактики мест нет — тогда это общий магазин,
+    /// как было до M15; там, где места есть, незнакомый ключ не торгует ничем.
+    /// </summary>
+    public ShopRules ShopAt(string? key)
+    {
+        if (ShopByPlace is not { Count: > 0 } byPlace) return Economy;
+        return key is not null && byPlace.TryGetValue(key, out var shop) ? shop : Economy with { Stock = [] };
+    }
+
+    /// <summary>
+    /// Рынок места (M12, по местам — M15); рынка нет — <see cref="MarketRules.Any"/> false, цены плоские.
+    /// Без галактики мест нет, и это общий рынок, как было до M15.
+    /// </summary>
+    public MarketRules MarketAt(string? key)
+    {
+        if (MarketByPlace is not { Count: > 0 } byPlace) return MarketSet ?? MarketRules.None;
+        return key is not null && byPlace.TryGetValue(key, out var market) ? market : MarketRules.None;
+    }
+
+    /// <summary>
+    /// Витрина главного места системы — то, что показывают по умолчанию. Комнате нужна не она,
+    /// а витрина того места, где стоит пилот: см. <see cref="ShopAt"/>.
+    /// </summary>
+    public ShopRules MainShop => ShopAt(DefaultPlace?.Key);
+
+    /// <summary>Рынок главного места системы; для пилота в доке — <see cref="MarketAt"/> его места.</summary>
+    public MarketRules MainMarket => MarketAt(DefaultPlace?.Key);
 
     /// <summary>
     /// Репутация (M13); её нет — <see cref="ReputationRules.Any"/> false, и всё ведёт себя как до M13.
@@ -263,6 +321,17 @@ public sealed record Balance(
                     MaxAlive = Math.Max(1, (int)Math.Round(meteors.MaxAlive * system.Meteors)),
                 };
         }
+        // Места системы и их магазины считаются здесь, один раз на систему, а не при каждой покупке.
+        var places = system.Places(id, loot.StationRange);
+        var itemIds = b.ItemIds.ToList();
+        var shops = new Dictionary<string, ShopRules>(StringComparer.Ordinal);
+        var markets = new Dictionary<string, MarketRules>(StringComparer.Ordinal);
+        foreach (var place in places)
+        {
+            if (b.ShopSet?.Local(place.Key, system.Region, itemIds) is { } shop) shops[place.Key] = shop;
+            if (b.MarketSet?.Local(place.Key, system.Region) is { } market) markets[place.Key] = market;
+        }
+        var main = places.Count > 0 ? places[0].Key : null;
         return b with
         {
             Rules = b.Rules with { Drones = system.DroneList },
@@ -270,9 +339,12 @@ public sealed record Balance(
             Loots = loot,
             MeteorSet = meteors,
             CoreRadius = npc.StationSafeRadius,
-            ShopSet = b.ShopSet?.Local(id, system.Region, b.ItemIds),
-            // Рынок есть только там, где есть станция: торговать в пустой системе не с кем (планеты — M15).
-            MarketSet = system.Station ? b.MarketSet?.Local(id, system.Region) : null,
+            PlaceList = places,
+            ShopByPlace = shops,
+            MarketByPlace = markets,
+            // ShopSet и MarketSet остаются видом главного места: по ним едут общие правила и витрина в welcome.
+            ShopSet = main is not null && shops.TryGetValue(main, out var mainShop) ? mainShop : b.ShopSet?.Local(id, system.Region, itemIds),
+            MarketSet = main is not null ? markets.GetValueOrDefault(main) : null,
         };
     }
 
@@ -402,11 +474,11 @@ public sealed record Balance(
                     return false;
                 }
             }
-            foreach (var station in shop.Stations?.Keys ?? [])
+            foreach (var place in shop.Places?.Keys ?? [])
             {
-                if (galaxy.System(station) is not { Station: true })
+                if (!galaxy.HasPlace(place))
                 {
-                    error = $"{ShopFile}: stations.{station}: no station in that system";
+                    error = $"{ShopFile}: places.{place}: no such place in {GalaxyFile}";
                     return false;
                 }
             }
@@ -444,7 +516,7 @@ public sealed record Balance(
         {
             // Последним: рынку нужны и товары из loot.json, и станции с регионами из galaxy.json.
             var galaxySet = parsed.GalaxySet;
-            var hasStation = galaxySet is null ? null : (Func<string, bool>)(id => galaxySet.System(id) is { Station: true });
+            var hasStation = galaxySet is null ? null : (Func<string, bool>)(key => galaxySet.HasPlace(key));
             var regions = galaxySet is null ? null : galaxySet.RegionMap.Keys.ToHashSet(StringComparer.Ordinal);
             if (!MarketRules.TryParse(sources.Market, loot.ItemMap, out var market, out error, hasStation, regions))
             {

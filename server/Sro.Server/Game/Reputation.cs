@@ -14,17 +14,16 @@ namespace Sro.Server.Game;
 public sealed class Reputation
 {
     /// <summary>Ключ отношения властей системы.</summary>
-    public static string System(string id) => $"sys:{id}";
+    public static string System(string id) => PlaceKey.System(id);
 
-    /// <summary>Ключ отдельной станции. С M15 рядом встанет «pl:» — планета как такое же «место».</summary>
-    public static string Station(string id) => $"st:{id}";
+    /// <summary>Ключ отдельной станции.</summary>
+    public static string Station(string id) => PlaceKey.Station(id);
+
+    /// <summary>Ключ поселения на планете (M15) — такое же «место», как станция.</summary>
+    public static string Planet(string id) => PlaceKey.Planet(id);
 
     /// <summary>Разбор ключа: («sys», «vega»). Чужой ключ — («», ключ целиком).</summary>
-    public static (string Kind, string Id) Split(string key)
-    {
-        var colon = key.IndexOf(':');
-        return colon < 0 ? ("", key) : (key[..colon], key[(colon + 1)..]);
-    }
+    public static (string Kind, string Id) Split(string key) => PlaceKey.Split(key);
 
     private const int SecondsPerDay = 24 * 60 * 60;
 
@@ -141,15 +140,23 @@ public sealed class Reputation
         return after - before;
     }
 
-    /// <summary>Система пропала из баланса — её очки больше ни к чему не относятся.</summary>
+    /// <summary>Место пропало из баланса — его очки больше ни к чему не относятся.</summary>
     public void Scrub(GalaxyRules galaxy)
     {
         if (_values.Count == 0) return;
         _empty.Clear();
+        // Планеты живут не по id системы, поэтому «такое поселение ещё есть» — отдельный вопрос (M15).
+        var planets = galaxy.SystemMap.Values.SelectMany(s => s.Settled).Select(p => p.Id!).ToHashSet(StringComparer.Ordinal);
         foreach (var key in _values.Keys)
         {
             var (kind, id) = Split(key);
-            if (kind is "sys" or "st" && galaxy.System(id) is null) _empty.Add(key);
+            var gone = kind switch
+            {
+                PlaceKey.SystemKind or PlaceKey.StationKind => galaxy.System(id) is null,
+                PlaceKey.PlanetKind => !planets.Contains(id),
+                _ => false,
+            };
+            if (gone) _empty.Add(key);
         }
         foreach (var key in _empty) _values.Remove(key);
     }

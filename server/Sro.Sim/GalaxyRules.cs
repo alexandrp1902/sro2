@@ -60,6 +60,30 @@ public sealed record SystemDef(
 {
     [JsonIgnore] public OrbitDef StationPath => StationOrbit ?? OrbitDef.Center;
     [JsonIgnore] public IReadOnlyList<PlanetDef> PlanetList => Planets ?? [];
+
+    /// <summary>Планеты, на которые можно сесть (M15): те, у кого есть поселение.</summary>
+    [JsonIgnore] public IEnumerable<PlanetDef> Settled => PlanetList.Where(p => p is { Settlement: not null, Id: not null });
+
+    /// <summary>
+    /// Места системы (M15): станция, если есть, и поселения планет — в этом порядке, чтобы «ближайшее место»
+    /// при равном расстоянии предпочитало станцию, как было до планет.
+    /// </summary>
+    /// <param name="id">Id системы: им зовётся её станция.</param>
+    /// <param name="range">Радиус подлёта к станции (<see cref="LootRules.StationRange"/>).</param>
+    public IReadOnlyList<PlaceDef> Places(string id, double range)
+    {
+        var places = new List<PlaceDef>();
+        if (Station)
+            places.Add(new PlaceDef(PlaceKey.Station(id), PlaceKey.StationKind, id, id, Name, StationPath, range, DockScene));
+        foreach (var planet in Settled)
+        {
+            // К планете подлетают снаружи: её радиус — часть дистанции, иначе садиться пришлось бы внутрь картинки.
+            places.Add(new PlaceDef(
+                PlaceKey.Planet(planet.Id!), PlaceKey.PlanetKind, planet.Id!, id, planet.PlaceName,
+                planet.Orbit, range + planet.Size, planet.Settlement!.Scene, planet.Settlement.Shipyard));
+        }
+        return places;
+    }
     [JsonIgnore] public IReadOnlyList<DroneSpec> DroneList => Drones ?? [];
     [JsonIgnore] public IReadOnlyList<NpcSpawn> SpawnList => Spawns ?? [];
     [JsonIgnore] public IReadOnlyList<LootContainer> ContainerList => Containers ?? [];
@@ -107,6 +131,12 @@ public sealed record GalaxyRules(
     /// <summary>Орбита станции — не ближе этого к краю жара: у дока и в точке появления не жжёт.</summary>
     public const double StationClearance = 400;
 
+    /// <summary>Газовый гигант: сесть на него нельзя, поселение над ним — орбитальная платформа (M15).</summary>
+    public const string GasKind = "gas";
+
+    /// <summary>Набор сцен платформы в облаках — единственный, который разрешён газовому гиганту.</summary>
+    public const string PlatformScene = "orbital-platform";
+
     /// <summary>
     /// Одна система со станцией и PvP, как до M7: раскладка тогда берётся из npcs.json, loot.json и combat.json.
     /// </summary>
@@ -121,6 +151,37 @@ public sealed record GalaxyRules(
     [JsonIgnore] public int JumpTicks => Math.Max(1, Combat.SecondsToTicks(JumpSeconds));
 
     public SystemDef? System(string? id) => id is not null ? SystemMap.GetValueOrDefault(id) : null;
+
+    /// <summary>Все ключи мест галактики (M15): станции систем и поселения планет.</summary>
+    [JsonIgnore]
+    public IEnumerable<string> PlaceKeys =>
+        SystemMap.Where(kv => kv.Value.Station).Select(kv => PlaceKey.Station(kv.Key))
+            .Concat(SystemMap.Values.SelectMany(s => s.Settled).Select(p => PlaceKey.Planet(p.Id!)));
+
+    /// <summary>Есть ли в галактике такое место. По нему ключуются магазин, рынок и задания (M15).</summary>
+    public bool HasPlace(string? key)
+    {
+        if (key is null) return false;
+        var (kind, id) = PlaceKey.Split(key);
+        return kind switch
+        {
+            PlaceKey.StationKind => System(id) is { Station: true },
+            PlaceKey.PlanetKind => SystemMap.Values.Any(s => s.Settled.Any(p => p.Id == id)),
+            _ => false,
+        };
+    }
+
+    /// <summary>Система, в которой стоит место; null — такого места нет.</summary>
+    public string? SystemOfPlace(string? key)
+    {
+        if (key is null) return null;
+        var (kind, id) = PlaceKey.Split(key);
+        if (kind == PlaceKey.StationKind) return System(id) is { Station: true } ? id : null;
+        if (kind != PlaceKey.PlanetKind) return null;
+        foreach (var (systemId, system) in SystemMap)
+            if (system.Settled.Any(p => p.Id == id)) return systemId;
+        return null;
+    }
 
     /// <summary>Маршрут между a и b в любую сторону; null — прямого нет.</summary>
     public LinkDef? Link(string a, string b) =>
@@ -160,6 +221,19 @@ public sealed record GalaxyRules(
         {
             var problem = system is null ? "is null" : CheckSystem(id, system) ?? validateSystem(id, system);
             if (problem is not null) return $"systems.{id}: {problem}";
+        }
+
+        // Id планет — ключи мест на всю галактику: двух «terra» быть не может, иначе магазин и репутация
+        // одного поселения достанутся другому.
+        var planetIds = new Dictionary<string, string>(StringComparer.Ordinal);
+        foreach (var (id, system) in SystemMap)
+        {
+            foreach (var planet in system.PlanetList)
+            {
+                if (planet?.Id is not { } planetId) continue;
+                if (planetIds.TryGetValue(planetId, out var owner)) return $"systems.{id}: planet id '{planetId}' is already used in '{owner}'";
+                planetIds[planetId] = id;
+            }
         }
 
         for (var i = 0; i < LinkList.Count; i++)
@@ -207,7 +281,17 @@ public sealed record GalaxyRules(
             return $"stationOrbit: radius must be at least {burn + StationClearance} (sun burnRadius + {StationClearance}): docking must not burn";
         for (var i = 0; i < system.PlanetList.Count; i++)
         {
-            var problem = system.PlanetList[i] is null ? "is null" : system.PlanetList[i].Validate();
+            var planet = system.PlanetList[i];
+            var problem = planet is null ? "is null" : planet.Validate();
+            if (problem is null && planet!.Settlement is not null)
+            {
+                // Садиться в жаре звезды нельзя — та же мерка, что у орбиты станции, плюс радиус самой планеты.
+                if (planet.Orbit.Radius - planet.Size < burn + StationClearance)
+                    problem = $"settlement: orbit radius minus size must be at least {burn + StationClearance} (sun burnRadius + {StationClearance}): landing must not burn";
+                // На газовый гигант не садятся: там поселение — орбитальная платформа, и рисуется она своим набором сцен.
+                else if (planet.Kind == GasKind && planet.Settlement.Scene != PlatformScene)
+                    problem = $"settlement: a {GasKind} giant can only hold an orbital platform: scene must be '{PlatformScene}'";
+            }
             if (problem is not null) return $"planets[{i}]: {problem}";
         }
         // Звезда жжёт — ничего, к чему надо подлетать, в её жаре стоять не должно.

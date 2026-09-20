@@ -11,7 +11,7 @@ public class ShopRulesTests
     {
         Assert.True(Balance.TryParse(TestHulls.SharedSources(), out var balance, out var error), error);
 
-        var shop = balance!.Shop;
+        var shop = balance!.MainShop;
         Assert.Equal(1000, shop.StartCredits); // GDD §54
         Assert.Equal(0, shop.HullPrice(SimConfig.DefaultHull)); // стартовый корабль бесплатно (§30)
         // Всё оснащение продаётся: иначе второй слот нечем занять.
@@ -65,8 +65,8 @@ public class ShopRulesTests
     {
         Assert.True(Balance.TryParse(TestHulls.SharedSources(), out var balance, out var error), error);
 
-        var core = balance!.ForSystem("sol").Shop.FuelCost(100);
-        var rim = balance.ForSystem("epsilon").Shop.FuelCost(100);
+        var core = balance!.ForSystem("sol").MainShop.FuelCost(100);
+        var rim = balance.ForSystem("epsilon").MainShop.FuelCost(100);
         Assert.True(rim > core, $"rim {rim} must cost more than core {core}");
     }
 

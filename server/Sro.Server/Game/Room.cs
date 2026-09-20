@@ -224,7 +224,7 @@ public sealed partial class Room
             hullId ?? SimConfig.DefaultHull,
             weaponId ?? SimConfig.DefaultWeapon)
         {
-            Credits = Balance.Shop.StartCredits,
+            Credits = Balance.Economy.StartCredits,
             Home = SystemId,
         };
         Refit(player, player.Fit);
@@ -251,7 +251,7 @@ public sealed partial class Room
         player = new Player(_newId(), accountId, UniqueName(SanitizeName(name), null), SimConfig.DefaultHull, SimConfig.DefaultWeapon, accountId);
         if (profile is null)
         {
-            player.Credits = Balance.Shop.StartCredits; // GDD §54: новый пилот получает стартовый капитал
+            player.Credits = Balance.Economy.StartCredits; // GDD §54: новый пилот получает стартовый капитал
         }
         else
         {
@@ -459,7 +459,7 @@ public sealed partial class Room
         if (!_byConnection.TryGetValue(connection.Id, out var player) || !player.Docked) return;
         var missing = Tank(player) - player.Fuel;
         if (missing <= 0) return;
-        var cost = Balance.Shop.FuelCost(missing);
+        var cost = ShopOf(player).FuelCost(missing);
         if (player.Credits < cost)
         {
             connection.Send(new NoticeMsg(Protocol.NoCreditsNotice));
@@ -636,7 +636,7 @@ public sealed partial class Room
     {
         if (id is null || !_byConnection.TryGetValue(connection.Id, out var player) || player.IsGuest || !player.Docked) return;
         if (!player.Unstore(id)) return;
-        var credits = Balance.Shop.SellPrice(id);
+        var credits = ShopOf(player).SellPrice(id);
         player.Credits += credits;
         SendCargo(player);
         SendHangar(player);
@@ -744,11 +744,11 @@ public sealed partial class Room
 
         if (!old.Loot.ContainerList.SequenceEqual(balance.Loot.ContainerList)) _loot.SetContainers(balance.Loot.ContainerList);
         if (_loot.DropUnknown(balance.Loot)) ClearMissingLootTargets();
-        // Склад станции переживает правку market.json: сохраняется не запас, а его отклонение от нормы.
-        _market.Rebase(old.Market, balance.Market);
+        // Склад места переживает правку market.json: сохраняется не запас, а его отклонение от нормы.
+        RebaseMarkets(old, balance);
 
         var message = Protocol.Encode(new ConfigMsg(
-            balance.Hulls, balance.Weapons, balance.Rules, balance.Npc, balance.Loot, balance.Meteors, balance.Shop,
+            balance.Hulls, balance.Weapons, balance.Rules, balance.Npc, balance.Loot, balance.Meteors, balance.Economy,
             SystemInfo(), GalaxyInfo(balance.Galaxy), balance.Modules, balance.MarketSet, balance.ReputationSet));
         foreach (var player in _players.Values)
         {
@@ -1506,7 +1506,7 @@ public sealed partial class Room
 
     private WelcomeMsg Welcome(Player player, bool resumed) =>
         new(player.Id, SimConfig.TickRate, Protocol.Version, Hulls, Balance.Weapons, Balance.Rules, resumed,
-            Balance.Npc, Balance.Loot, Balance.Meteors, Balance.Shop, SystemInfo(), GalaxyInfo(Balance.Galaxy), Balance.Modules,
+            Balance.Npc, Balance.Loot, Balance.Meteors, Balance.Economy, SystemInfo(), GalaxyInfo(Balance.Galaxy), Balance.Modules,
             Balance.MarketSet, Balance.ReputationSet);
 
     /// <summary>Эта система для клиента: небо, станция, укрытие, врата с именами соседей и ценой прыжка.</summary>
@@ -1639,8 +1639,8 @@ public sealed partial class Room
             // Весь трюм — каждый груз по здешней цене; чем тут не торгуют, то остаётся в трюме.
             foreach (var (id, have) in player.Cargo.Items.ToList())
             {
-                if (!Trades(id)) continue;
-                credits += SellToStation(id, have);
+                if (!Trades(player, id)) continue;
+                credits += SellToStation(player, id, have);
                 player.Cargo.Remove(id, have);
                 sold += have;
             }
@@ -1650,13 +1650,13 @@ public sealed partial class Room
             // Наличие проверяем до изъятия: иначе бесценный груз пропал бы, не принеся кредитов.
             var have = player.Cargo.Count(item);
             if (have <= 0) return;
-            if (!Trades(item))
+            if (!Trades(player, item))
             {
                 connection.Send(new NoticeMsg(Protocol.NoGoodsNotice));
                 return;
             }
             sold = count <= 0 ? have : Math.Min(count, have);
-            credits = SellToStation(item, sold);
+            credits = SellToStation(player, item, sold);
             player.Cargo.Remove(item, sold);
         }
         if (sold <= 0)
@@ -1676,10 +1676,12 @@ public sealed partial class Room
     }
 
     /// <summary>
-    /// Стыковка (GDD §26): в круге станции корабль уходит в док — из космоса, из прицелов и с пути метеоритов.
-    /// Вылет — там же, где стыковались, стоя на месте и с защитой, как после появления (§25).
+    /// Стыковка и посадка (GDD §26, M15): в круге места корабль уходит в док — из космоса, из прицелов
+    /// и с пути метеоритов. Место — станция или поселение на планете; для комнаты разницы нет.
+    /// Вылет — там же, где вставали, стоя на месте и с защитой, как после появления (§25).
     /// </summary>
-    public void Dock(IClientConnection connection, bool on)
+    /// <param name="place">Куда именно вставать; null — ближайшее подходящее (станция вперёд планет).</param>
+    public void Dock(IClientConnection connection, bool on, string? place = null)
     {
         if (!_byConnection.TryGetValue(connection.Id, out var player)) return;
         if (on == player.Docked)
@@ -1690,29 +1692,31 @@ public sealed partial class Room
         if (on)
         {
             if (player.IsDead) return;
-            if (!AtStation(player))
+            if (PlaceAt(player, place) is not { } target)
             {
                 connection.Send(new NoticeMsg(Protocol.TooFarNotice));
                 return;
             }
-            // Врагу станция не открывает шлюз: ни торговли, ни ремонта, ни заданий, пока не исправится.
+            // Врагу здесь не открывают шлюз: ни торговли, ни ремонта, ни заданий, пока не исправится.
             if (IsEnemy(player))
             {
                 connection.Send(new NoticeMsg(Protocol.DockClosedNotice));
                 return;
             }
             player.Docked = true;
-            player.DockOffset = Balance.StationPath.ToLocal(OrbitSeconds, player.Ship.X, player.Ship.Y);
+            player.DockedPlace = target.Key;
+            player.DockOffset = target.Orbit.ToLocal(OrbitSeconds, player.Ship.X, player.Ship.Y);
             player.Ship.Vx = player.Ship.Vy = 0;
             player.FireHeld = false;
             player.TargetId = 0;
             player.SelectedLootId = 0;
             player.JumpTo = null;
-            // Последняя станция — дом: здесь пилот появится после гибели и после входа в игру.
+            // Последнее место — дом: здесь пилот появится после гибели и после входа в игру.
             player.Home = SystemId;
+            player.HomePlace = target.Key;
             RemoveShip(player);
             Save(player);
-            _log.LogInformation("Player {Id} docked in {System}", player.Id, SystemId);
+            _log.LogInformation("Player {Id} docked at {Place} in {System}", player.Id, target.Key, SystemId);
             // Груз доставки сдаётся сам, стоит пристыковаться к нужной станции.
             MakeRumours(player); // что здесь рассказывают — услышано один раз, на входе
             SendMarket(player); // цены станции нужны сразу: с ними открывается вкладка рынка
@@ -1726,10 +1730,13 @@ public sealed partial class Room
         }
         else
         {
+            // Место могло исчезнуть из баланса, пока пилот стоял, — тогда вылет от главного места системы.
+            var from = PlaceOf(player)?.Orbit ?? Balance.DefaultPlace?.Orbit ?? Balance.StationPath;
             player.Docked = false;
-            player.Rumours = []; // услышанное осталось на той станции
-            // Станция ушла по орбите, пока пилот был в доке, — вылет с той же её стороны.
-            (player.Ship.X, player.Ship.Y) = Balance.StationPath.ToWorld(OrbitSeconds, player.DockOffset.X, player.DockOffset.Y);
+            player.DockedPlace = null;
+            player.Rumours = []; // услышанное осталось в том месте
+            // Место ушло по орбите, пока пилот был в доке, — вылет с той же его стороны.
+            (player.Ship.X, player.Ship.Y) = from.ToWorld(OrbitSeconds, player.DockOffset.X, player.DockOffset.Y);
             player.ResetInputs();
             player.ProtectedUntilTick = Tick + Balance.Rules.ProtectionTicks;
             _ships[player.Id] = player;
@@ -1749,7 +1756,7 @@ public sealed partial class Room
     public void Buy(IClientConnection connection, string? kind, string? id, string? slot = null)
     {
         if (id is null || !_byConnection.TryGetValue(connection.Id, out var player) || !player.Docked) return;
-        var shop = Balance.Shop;
+        var shop = ShopOf(player);
         var price = kind switch
         {
             Protocol.HullItem when Hulls.ContainsKey(id) && !player.OwnsHull(id) => shop.SellsHull(id) ? shop.HullPrice(id) : null,
@@ -1833,8 +1840,9 @@ public sealed partial class Room
         var maxHp = player.MaxHp(hull);
         var maxShield = player.MaxShield(hull);
         if (player.Hp >= maxHp && player.Shield >= maxShield) return;
+        var shop = ShopOf(player);
         var cost = Balance.Reputation.Price(
-            Balance.Shop.RepairCost(maxHp - player.Hp, maxHp, Balance.Shop.HullPrice(player.HullId) ?? 0),
+            shop.RepairCost(maxHp - player.Hp, maxHp, shop.HullPrice(player.HullId) ?? 0),
             PlaceRep(player));
         if (player.Credits < cost)
         {
@@ -1849,14 +1857,33 @@ public sealed partial class Room
         if (cost > 0) Save(player);
     }
 
-    private bool AtStation(Player player)
+    /// <summary>Где место стоит сейчас: станция и планеты ходят по орбитам вокруг звезды.</summary>
+    public (double X, double Y) PlacePosition(PlaceDef place) => place.At(OrbitSeconds);
+
+    /// <summary>
+    /// Место, где стоит пилот; null — он в космосе или его место убрала горячая правка.
+    /// По нему идут витрина, рынок, доска и репутация: с M15 их в системе несколько.
+    /// </summary>
+    public PlaceDef? PlaceOf(Player player) => player.Docked ? Balance.Place(player.DockedPlace) : null;
+
+    /// <summary>Витрина того места, где стоит пилот. Вне дока — общие правила без ассортимента.</summary>
+    private ShopRules ShopOf(Player player) => Balance.ShopAt(PlaceOf(player)?.Key);
+
+    /// <summary>
+    /// Место, к которому пилот достаточно близко, чтобы встать. Ключ задан — проверяется только оно
+    /// (клиент говорит, куда именно садится); без ключа берётся первое подходящее, а станция в списке первая.
+    /// </summary>
+    private PlaceDef? PlaceAt(Player player, string? key = null)
     {
-        if (!Balance.HasStation) return false;
-        var (sx, sy) = StationPosition;
-        var dx = player.Ship.X - sx;
-        var dy = player.Ship.Y - sy;
-        var range = Balance.Loot.StationRange;
-        return dx * dx + dy * dy <= range * range;
+        foreach (var place in Balance.Places)
+        {
+            if (key is not null && place.Key != key) continue;
+            var (px, py) = PlacePosition(place);
+            var dx = player.Ship.X - px;
+            var dy = player.Ship.Y - py;
+            if (dx * dx + dy * dy <= place.Range * place.Range) return place;
+        }
+        return null;
     }
 
     private IEnumerable<Player> DockedPlayers() => _players.Values.Where(p => p.Docked);

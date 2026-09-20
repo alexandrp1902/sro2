@@ -4,62 +4,112 @@ using Sro.Sim;
 namespace Sro.Server.Game;
 
 /// <summary>
-/// Комната — торговая площадка (M12): склад станции, живые цены и покупка товара в доке. Продажа груза
+/// Комната — торговая площадка (M12): склады мест, живые цены и покупка товара в доке. Продажа груза
 /// живёт в <c>Room.Sell</c> рядом с остальным трюмом, а здесь — всё, что знает про склад.
-/// В системе без станции рынка нет: <see cref="_market"/> пуст, цены плоские, как до M12.
+/// С M15 склад свой у каждого места: у станции и у каждого поселения. Где рынка нет, цены плоские, как до M12.
 /// </summary>
 public sealed partial class Room
 {
-    private readonly Market _market = new();
+    /// <summary>Склад каждого места по его ключу. Пусто — торговать в системе негде.</summary>
+    private readonly Dictionary<string, Market> _markets = new(StringComparer.Ordinal);
 
     /// <summary>Когда считать возврат запасов к норме.</summary>
     private long _nextMarketTick;
 
-    /// <summary>Правила рынка этой станции; без станции — «рынка нет».</summary>
-    private MarketRules MarketRules => Balance.Market;
+    /// <summary>
+    /// Склад места; null — такого места здесь нет. Пара «правила + склад» всегда берётся вместе:
+    /// цена считается из них обоих, и перепутать склад одного места с правилами другого нельзя.
+    /// </summary>
+    private (MarketRules Rules, Market Stock)? MarketAt(string? key) =>
+        key is not null && _markets.TryGetValue(key, out var stock) ? (Balance.MarketAt(key), stock) : null;
 
-    /// <summary>Склад засевается на норме: пока никто не торговал, цены честные.</summary>
+    /// <summary>Рынок того места, где стоит пилот; null — он в космосе или там не торгуют.</summary>
+    private (MarketRules Rules, Market Stock)? MarketOf(Player player) => MarketAt(PlaceOf(player)?.Key);
+
+    /// <summary>
+    /// Место, чей склад двигают NPC-торговцы. Они летают от станции к вратам и обратно, поэтому поселения
+    /// их поставками пока не живут (M15): их запас только возвращается к норме.
+    /// </summary>
+    private string? TraderPlace => Balance.DefaultPlace?.Key;
+
+    /// <summary>Общие для системы правила рынка — шаг возврата к норме и прочие числа, не зависящие от места.</summary>
+    private MarketRules MarketTiming => Balance.MarketAt(TraderPlace);
+
+    /// <summary>Склады засеваются на норме: пока никто не торговал, цены честные.</summary>
     private void StartMarket()
     {
-        _market.Seed(MarketRules);
+        _markets.Clear();
+        foreach (var place in Balance.Places)
+        {
+            var rules = Balance.MarketAt(place.Key);
+            if (!rules.Any) continue;
+            var stock = new Market();
+            stock.Seed(rules);
+            _markets[place.Key] = stock;
+        }
         _nextMarketTick = Tick + MarketTicks;
     }
 
-    private int MarketTicks => Math.Max(1, Combat.SecondsToTicks(MarketRules.TickSeconds));
+    private int MarketTicks => Math.Max(1, Combat.SecondsToTicks(MarketTiming.TickSeconds));
 
     /// <summary>
-    /// Торгуют ли здесь этим грузом. Без рынка станция, как и до M12, принимает всё подряд по плоской цене —
-    /// на этом стоят тесты с рукописным балансом и системы, где market.json ещё не описан.
+    /// Торгуют ли этим грузом там, где стоит пилот. Без рынка место, как и до M12, принимает всё подряд
+    /// по плоской цене — на этом стоят тесты с рукописным балансом и системы, где market.json ещё не описан.
     /// </summary>
-    private bool Trades(string good) => !MarketRules.Any || MarketRules.Trades(good);
+    private bool Trades(Player player, string good) => MarketOf(player) is not { } m || !m.Rules.Any || m.Rules.Trades(good);
 
-    /// <summary>Снять с рынка столько штук и заплатить пилоту; склад при этом двигается.</summary>
-    private int SellToStation(string good, int count) =>
-        MarketRules.Any
-            ? _market.Sell(MarketRules, Balance.Loot, good, count)
+    /// <summary>Снять с рынка столько штук и заплатить пилоту; склад места при этом двигается.</summary>
+    private int SellToStation(Player player, string good, int count) =>
+        MarketOf(player) is { } m && m.Rules.Any
+            ? m.Stock.Sell(m.Rules, Balance.Loot, good, count)
             : Balance.Loot.Price(good) * count;
 
     /// <summary>Запасы тянутся к норме; кто стоит в доке — видит, как цены расходятся обратно.</summary>
     private void StepMarket()
     {
-        if (!MarketRules.Any || Tick < _nextMarketTick) return;
-        _market.Step(MarketRules, MarketRules.TickSeconds);
+        if (_markets.Count == 0 || Tick < _nextMarketTick) return;
+        foreach (var (key, stock) in _markets)
+        {
+            var rules = Balance.MarketAt(key);
+            if (rules.Any) stock.Step(rules, rules.TickSeconds);
+        }
         _nextMarketTick = Tick + MarketTicks;
         BroadcastMarket();
     }
 
-    /// <summary>
-    /// Цены этой станции для соседей (M12): по ним торговцы в других доках рассказывают, где что берут.
-    /// Пусто — станции или рынка здесь нет.
-    /// </summary>
-    public IReadOnlyList<MarketPrice> Prices()
+    /// <summary>Горячая правка market.json: у каждого места сохраняется не запас, а его отклонение от нормы.</summary>
+    private void RebaseMarkets(Balance old, Balance balance)
     {
-        var market = MarketRules;
-        if (!market.Any) return [];
+        foreach (var (key, stock) in _markets) stock.Rebase(old.MarketAt(key), balance.MarketAt(key));
+        // Место могло появиться или исчезнуть вместе с правкой галактики — тогда склады пересобираются.
+        var places = balance.Places.Where(p => balance.MarketAt(p.Key).Any).Select(p => p.Key).ToHashSet(StringComparer.Ordinal);
+        if (places.SetEquals(_markets.Keys)) return;
+        foreach (var gone in _markets.Keys.Where(k => !places.Contains(k)).ToList()) _markets.Remove(gone);
+        foreach (var added in places.Where(k => !_markets.ContainsKey(k)))
+        {
+            var stock = new Market();
+            stock.Seed(balance.MarketAt(added));
+            _markets[added] = stock;
+        }
+    }
+
+    /// <summary>
+    /// Цены мест этой системы для соседей (M12, по местам — M15): по ним торговцы в других доках
+    /// рассказывают, где что берут. Пусто — торговать здесь негде.
+    /// </summary>
+    public IReadOnlyList<StationPrices> Prices()
+    {
+        if (_markets.Count == 0) return [];
         var loot = Balance.Loot;
-        var list = new List<MarketPrice>();
-        foreach (var q in _market.Quotes(market, loot))
-            list.Add(new MarketPrice(q.Id, q.Buy, q.Sell, q.Stock, q.Norm, market.Sells(q.Id)));
+        var list = new List<StationPrices>();
+        foreach (var place in Balance.Places)
+        {
+            if (MarketAt(place.Key) is not { } m || !m.Rules.Any) continue;
+            var prices = new List<MarketPrice>();
+            foreach (var q in m.Stock.Quotes(m.Rules, loot))
+                prices.Add(new MarketPrice(q.Id, q.Buy, q.Sell, q.Stock, q.Norm, m.Rules.Sells(q.Id)));
+            if (prices.Count > 0) list.Add(new StationPrices(SystemId, place.Name, 0, prices, place.Key));
+        }
         return list;
     }
 
@@ -71,10 +121,9 @@ public sealed partial class Room
     private void MakeRumours(Player player)
     {
         player.Rumours = [];
-        var market = MarketRules;
-        if (!market.Any || _host is null) return;
-        var here = new StationPrices(SystemId, Balance.SystemDef.Name, 0, Prices());
-        if (here.Prices.Count == 0) return;
+        if (_host is null || PlaceOf(player) is not { } place) return;
+        var here = Prices().FirstOrDefault(p => p.Place == place.Key);
+        if (here is null || here.Prices.Count == 0) return;
         player.Rumours = Rumours.Pick(here, _host.MarketsExcept(SystemId), count: 1);
     }
 
@@ -84,17 +133,20 @@ public sealed partial class Room
         foreach (var player in DockedPlayers()) SendMarket(player);
     }
 
-    /// <summary>Цены станции — только тому, кто в доке: рынок у каждой станции свой.</summary>
+    /// <summary>Цены — только тому, кто в доке: рынок у каждого места свой.</summary>
     private void SendMarket(Player player)
     {
         if (player.Connection is null) return;
-        var quotes = _market.Quotes(MarketRules, Balance.Loot);
-        var items = new List<MarketItemDto>(quotes.Count);
-        foreach (var q in quotes) items.Add(new MarketItemDto(q.Id, q.Buy, q.Sell, q.Stock, q.Norm));
+        var items = new List<MarketItemDto>();
+        if (MarketOf(player) is { } m)
+        {
+            foreach (var q in m.Stock.Quotes(m.Rules, Balance.Loot))
+                items.Add(new MarketItemDto(q.Id, q.Buy, q.Sell, q.Stock, q.Norm));
+        }
         var rumours = new List<RumourDto>(player.Rumours.Count);
         foreach (var r in player.Rumours)
             rumours.Add(new RumourDto(r.Kind, r.Good, r.System, r.Name, r.Hops, r.Price, r.Profit, r.Scarce));
-        player.Connection.Send(new MarketMsg(SystemId, items, rumours));
+        player.Connection.Send(new MarketMsg(PlaceOf(player)?.Key ?? SystemId, items, rumours));
     }
 
     /// <summary>
@@ -104,17 +156,16 @@ public sealed partial class Room
     /// <param name="fromStation">Вылетел от станции (а не от врат).</param>
     private void LoadTrader(Trader trader, bool fromStation)
     {
-        var market = MarketRules;
-        if (!market.Any || market.Station is not { } profile || market.TraderUnits <= 0) return;
+        if (MarketAt(TraderPlace) is not { } m || !m.Rules.Any || m.Rules.Station is not { } profile || m.Rules.TraderUnits <= 0) return;
         var list = fromStation ? profile.ProduceList : profile.ConsumeList;
-        var goods = list.Where(market.Trades).ToList();
+        var goods = list.Where(m.Rules.Trades).ToList();
         if (goods.Count == 0) return;
 
         trader.Good = goods[_ai.Next(goods.Count)];
-        trader.Units = market.TraderUnits;
+        trader.Units = m.Rules.TraderUnits;
         if (!fromStation) return;
         // Загрузился перед вылетом: склад пустеет сразу, а не когда он долетит до врат.
-        _market.Take(trader.Good, trader.Units);
+        m.Stock.Take(trader.Good, trader.Units);
         BroadcastMarket();
     }
 
@@ -122,7 +173,7 @@ public sealed partial class Room
     private void DeliverTrader(Trader trader)
     {
         if (trader.Good is not { } good || !trader.ToStation) return;
-        _market.Add(MarketRules, good, trader.Units);
+        if (MarketAt(TraderPlace) is { } m) m.Stock.Add(m.Rules, good, trader.Units);
         trader.Good = null;
         BroadcastMarket();
     }
@@ -140,15 +191,15 @@ public sealed partial class Room
             return;
         }
         var loot = Balance.Loot;
-        var market = MarketRules;
-        // Купить можно только то, что станция делает сама: чужой товар она скупает, но не перепродаёт.
-        if (!loot.StationUnload || !market.Any || !market.Sells(item) || !loot.ItemMap.ContainsKey(item))
+        // Купить можно только то, что место делает само: чужой товар оно скупает, но не перепродаёт.
+        if (MarketOf(player) is not { } m || !loot.StationUnload || !m.Rules.Any || !m.Rules.Sells(item) || !loot.ItemMap.ContainsKey(item))
         {
             connection.Send(new NoticeMsg(Protocol.NoGoodsNotice));
             return;
         }
+        var market = m.Rules;
 
-        var want = Math.Min(count, _market.Available(item));
+        var want = Math.Min(count, m.Stock.Available(item));
         if (want <= 0)
         {
             connection.Send(new NoticeMsg(Protocol.NoStockNotice));
@@ -164,14 +215,14 @@ public sealed partial class Room
             return;
         }
         // Цена шагает по-штучно, поэтому «на сколько хватит» считается тем же шагом, а не делением.
-        want = _market.Affordable(market, loot, item, Math.Min(want, fits), player.Credits);
+        want = m.Stock.Affordable(market, loot, item, Math.Min(want, fits), player.Credits);
         if (want <= 0)
         {
             connection.Send(new NoticeMsg(Protocol.NoCreditsNotice));
             return;
         }
 
-        var cost = _market.Buy(market, loot, item, want);
+        var cost = m.Stock.Buy(market, loot, item, want);
         player.Credits -= cost;
         player.Cargo.Add(item, want);
         SendCargo(player);

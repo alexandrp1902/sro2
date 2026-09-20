@@ -4,15 +4,15 @@ using System.Text.Json.Serialization;
 namespace Sro.Sim;
 
 /// <summary>
-/// Ассортимент (M11): что продают в регионе или на станции конкретной системы.
-/// У станции списки — добавка к региону, <paramref name="Remove"/> убирает из него (все тиры), тиры и цена — свои.
+/// Ассортимент (M11): что продают в регионе или в отдельном месте — на станции, а с M15 и в поселении.
+/// У места списки — добавка к региону, <paramref name="Remove"/> убирает из него (все тиры), тиры и цена — свои.
 /// </summary>
 /// <param name="Hulls">Корпуса в продаже.</param>
 /// <param name="Items">Пушки и модули в продаже — базовые id (Mk1); тиры добавляет <paramref name="Tiers"/>.</param>
 /// <param name="Tiers">Какие тиры продают: [1] — только Mk1, [2, 3] — Mk2 и Mk3. У станции null — как в регионе.</param>
-/// <param name="Remove">Станция: чего из регионального ассортимента здесь нет.</param>
-/// <param name="Price">Станция: множитель всех цен (0.9 — на 10 % дешевле).</param>
-/// <param name="Title">Станция: подпись магазина в доке — «Военная верфь», «Шахтёрский склад».</param>
+/// <param name="Remove">Место: чего из регионального ассортимента здесь нет.</param>
+/// <param name="Price">Место: множитель всех цен (0.9 — на 10 % дешевле).</param>
+/// <param name="Title">Место: подпись магазина в доке — «Военная верфь», «Шахтёрский склад».</param>
 /// <param name="Fuel">Множитель цены топлива (M12): чем дальше от Ядра, тем дороже заправка; null — как везде.</param>
 public sealed record StockDef(
     IReadOnlyList<string>? Hulls = null,
@@ -46,9 +46,9 @@ public sealed record StockDef(
 /// </param>
 /// <param name="Tiers">Множители Mk2 и Mk3 (<see cref="TierDef"/>); null — тиров нет.</param>
 /// <param name="Regions">Ассортимент по регионам галактики; null — везде продают всё, что в прайсе (как до M11).</param>
-/// <param name="Stations">Отличия станций по id системы.</param>
-/// <param name="Stock">Магазин одной системы: что здесь продают. null — всё, что в прайсе.</param>
-/// <param name="Title">Магазин одной системы: подпись станции.</param>
+/// <param name="Places">Отличия отдельных мест по ключу места (M15): «st:sol», «pl:terra».</param>
+/// <param name="Stock">Магазин одного места: что здесь продают. null — всё, что в прайсе.</param>
+/// <param name="Title">Магазин одного места: его подпись.</param>
 public sealed record ShopRules(
     int StartCredits = 1000,
     double RepairPrice = 0,
@@ -58,7 +58,7 @@ public sealed record ShopRules(
     double SellShare = 0.5,
     IReadOnlyList<TierDef>? Tiers = null,
     IReadOnlyDictionary<string, StockDef>? Regions = null,
-    IReadOnlyDictionary<string, StockDef>? Stations = null,
+    IReadOnlyDictionary<string, StockDef>? Places = null,
     IReadOnlyList<string>? Stock = null,
     string? Title = null,
     double RepairHullShare = 0)
@@ -109,16 +109,17 @@ public sealed record ShopRules(
     public int FuelCost(double missingFuel) => missingFuel > 0 ? (int)Math.Ceiling(missingFuel * FuelPrice - 1e-9) : 0;
 
     /// <summary>
-    /// Магазин системы (M11): ассортимент региона и отличия станции, все цены — местные. Цены есть на всё,
-    /// чтобы здесь можно было продать что угодно со склада, а купить — только из <see cref="Stock"/>.
+    /// Магазин места (M11, по местам — M15): ассортимент региона и отличия места, все цены — местные. Цены есть
+    /// на всё, чтобы здесь можно было продать что угодно со склада, а купить — только из <see cref="Stock"/>.
     /// Без блока regions — этот же магазин везде.
     /// </summary>
+    /// <param name="placeKey">Ключ места: см. <see cref="PlaceKey"/>.</param>
     /// <param name="itemIds">Все пушки и модули всех тиров.</param>
-    public ShopRules Local(string systemId, string? region, IEnumerable<string> itemIds)
+    public ShopRules Local(string placeKey, string? region, IEnumerable<string> itemIds)
     {
         if (Regions is null) return this;
         var regional = region is not null ? Regions.GetValueOrDefault(region) : null;
-        var station = Stations?.GetValueOrDefault(systemId);
+        var station = Places?.GetValueOrDefault(placeKey);
         var tiers = station?.Tiers ?? regional?.Tiers ?? [1];
         var factor = station?.Price ?? 1;
 
@@ -145,7 +146,7 @@ public sealed record ShopRules(
             Items = items,
             Tiers = null,
             Regions = null,
-            Stations = null,
+            Places = null,
             Stock = [.. stock.Order(StringComparer.Ordinal)],
             Title = station?.Title,
             // Топливо дальше от Ядра дороже (M12): обратная дорога с Рубежа сама себе расход.
@@ -184,7 +185,7 @@ public sealed record ShopRules(
         }
         if (Sim.Tiers.Validate(Tiers) is { } tiers) return tiers;
         var maxTier = 1 + (Tiers?.Count ?? 0);
-        foreach (var (block, defs) in new[] { ("regions", Regions), ("stations", Stations) })
+        foreach (var (block, defs) in new[] { ("regions", Regions), ("places", Places) })
         {
             if (defs is null) continue;
             foreach (var (id, def) in defs)

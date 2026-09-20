@@ -87,16 +87,48 @@ public sealed record SunDef(string Kind = "yellow", double Radius = 220, double 
     }
 }
 
-/// <summary>Планета: ходит по орбите, выбирается прицелом, сквозь неё можно пролететь (посадки пока нет).</summary>
+/// <summary>
+/// Поселение на планете (M15): то же место, что станция, — док, магазин, рынок, доска заданий и своя репутация.
+/// Планета без него остаётся декорацией: сесть нельзя, кнопки посадки нет.
+/// </summary>
+/// <param name="Name">Как зовётся поселение; null — по имени планеты.</param>
+/// <param name="Scene">Набор фонов дока: desert, ice, jungle, lava, barren, orbital-platform; null — земной.</param>
+/// <param name="Shipyard">Здесь продают и меняют корпуса. Верфь есть не везде — в этом и разница со станцией.</param>
+public sealed record SettlementDef(string? Name = null, string? Scene = null, bool Shipyard = false)
+{
+    public string? Validate()
+    {
+        if (Name is not null && string.IsNullOrWhiteSpace(Name)) return "name is empty";
+        if (Scene is not null && string.IsNullOrWhiteSpace(Scene)) return "scene is empty";
+        return null;
+    }
+}
+
+/// <summary>Планета: ходит по орбите, выбирается прицелом, сквозь неё можно пролететь. С поселением — ещё и место посадки (M15).</summary>
 /// <param name="Kind">Вид для клиента: terran, desert, ice, gas.</param>
 /// <param name="Size">Радиус планеты в мире.</param>
-public sealed record PlanetDef(string Name, string Kind, double Size, OrbitDef Orbit)
+/// <param name="Id">Id планеты, уникальный на всю галактику; обязателен там, где есть поселение.</param>
+/// <param name="Settlement">Поселение (M15); null — планета необитаема, сесть нельзя.</param>
+public sealed record PlanetDef(
+    string Name,
+    string Kind,
+    double Size,
+    OrbitDef Orbit,
+    string? Id = null,
+    SettlementDef? Settlement = null)
 {
+    /// <summary>Как звать место посадки: имя поселения, если задано, иначе имя планеты.</summary>
+    public string PlaceName => Settlement?.Name ?? Name;
+
     public string? Validate()
     {
         if (string.IsNullOrWhiteSpace(Name)) return "name is empty";
         if (string.IsNullOrWhiteSpace(Kind)) return "kind is empty";
         if (!(Size > 0)) return "size must be positive";
+        if (Id is not null && string.IsNullOrWhiteSpace(Id)) return "id is empty";
+        // Без id поселение не к чему привязать: по нему ключуются магазин, рынок, задания и репутация места.
+        if (Settlement is not null && Id is null) return "a settlement needs an id";
+        if (Settlement?.Validate() is { } settlement) return $"settlement: {settlement}";
         return Orbit is null ? "orbit is missing" : Orbit.Validate() is { } orbit ? $"orbit: {orbit}" : null;
     }
 }

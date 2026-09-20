@@ -49,38 +49,38 @@
   // Маршрут, который из этого складывается: из Ядра на Рубеж везут продовольствие, медикаменты и машины,
   // обратно — редкие металлы, кристаллы и плазменные компоненты. Кастор — рудная остановка в Пограничье,
   // Nova и Барнард дают короткое рискованное плечо на оружии.
-  "stations": {
-    "sol": {
+  "places": {
+    "st:sol": {
       "produces": ["food", "machinery", "medicine"],
       "consumes": ["rareMetal", "crystals", "titanium", "fuelCells"]
     },
-    "vega": {
+    "st:vega": {
       "produces": ["machinery", "tech", "metal"],
       "consumes": ["ore", "titanium", "rareMetal", "food"]
     },
-    "alphaCen": {
+    "st:alphaCen": {
       "produces": ["food", "luxury"],
       "consumes": ["ore", "crystals", "arms", "fuelCells"]
     },
 
-    "castor": {
+    "st:castor": {
       "produces": ["ore", "metal", "titanium"],
       "consumes": ["food", "medicine", "machinery", "luxury"]
     },
-    "nova": {
+    "st:nova": {
       "produces": ["arms", "energy"],
       "consumes": ["food", "medicine", "fuelCells", "machinery"]
     },
-    "barnard": {
+    "st:barnard": {
       "produces": ["fuelCells", "medicine"],
       "consumes": ["arms", "machinery", "food", "luxury"]
     },
 
-    "aldebaran": {
+    "st:aldebaran": {
       "produces": ["crystals", "rareMetal"],
       "consumes": ["food", "medicine", "machinery", "fuelCells"]
     },
-    "epsilon": {
+    "st:epsilon": {
       "produces": ["rareMetal", "tech", "arms"],
       "consumes": ["food", "luxury", "medicine", "machinery"]
     }

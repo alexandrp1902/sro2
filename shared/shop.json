@@ -90,15 +90,16 @@
     }
   },
 
-  // Личные отличия станций: что добавили, чего нет и как плавают цены.
-  "stations": {
-    "sol": { "title": "Торговый порт Sol" },
-    "vega": { "title": "Верфь Веги", "items": ["heavyLaser"], "price": 1.05 },
-    "alphaCen": { "title": "Причал Альфы", "remove": ["cannon"], "price": 0.92 },
-    "castor": { "title": "Шахтёрский склад Кастора", "hulls": ["freighter"], "items": ["tankL", "cargoPod"], "price": 0.95 },
-    "nova": { "title": "Военная станция Nova", "items": ["railgun"], "price": 1.1 },
-    "barnard": { "title": "Пост рейнджеров Барнарда", "items": ["pointDefense", "ion", "repair"], "price": 1.05 },
-    "aldebaran": { "title": "Крепость Альдебарана", "items": ["torpedoes"], "price": 1.12 },
-    "epsilon": { "title": "Вольная гавань Эпсилона", "hulls": ["cruiser"], "price": 1.15 }
+  // Личные отличия мест: что добавили, чего нет и как плавают цены.
+  // Ключ — место (M15): «st:<система>» — станция, «pl:<планета>» — поселение.
+  "places": {
+    "st:sol": { "title": "Торговый порт Sol" },
+    "st:vega": { "title": "Верфь Веги", "items": ["heavyLaser"], "price": 1.05 },
+    "st:alphaCen": { "title": "Причал Альфы", "remove": ["cannon"], "price": 0.92 },
+    "st:castor": { "title": "Шахтёрский склад Кастора", "hulls": ["freighter"], "items": ["tankL", "cargoPod"], "price": 0.95 },
+    "st:nova": { "title": "Военная станция Nova", "items": ["railgun"], "price": 1.1 },
+    "st:barnard": { "title": "Пост рейнджеров Барнарда", "items": ["pointDefense", "ion", "repair"], "price": 1.05 },
+    "st:aldebaran": { "title": "Крепость Альдебарана", "items": ["torpedoes"], "price": 1.12 },
+    "st:epsilon": { "title": "Вольная гавань Эпсилона", "hulls": ["cruiser"], "price": 1.15 }
   }
 }

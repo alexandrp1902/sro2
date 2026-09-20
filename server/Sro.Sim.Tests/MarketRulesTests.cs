@@ -40,8 +40,8 @@ public class MarketRulesTests
         // Всё, чем торгуют, — настоящий груз: иначе в доке будет строка без названия и объёма.
         foreach (var id in market!.GoodMap.Keys) Assert.True(balance.Loot.ItemMap.ContainsKey(id), id);
         // В системе со станцией рынок есть, в системе без станции — нет.
-        Assert.True(balance.ForSystem("sol").Market.Any);
-        Assert.False(balance.ForSystem("tau").Market.Any);
+        Assert.True(balance.ForSystem("sol").MainMarket.Any);
+        Assert.False(balance.ForSystem("tau").MainMarket.Any);
     }
 
     [Fact]
@@ -49,8 +49,8 @@ public class MarketRulesTests
     {
         Assert.True(Balance.TryParse(TestHulls.SharedSources(), out var balance, out _));
 
-        var sol = balance!.ForSystem("sol").Market;
-        var rim = balance.ForSystem("aldebaran").Market;
+        var sol = balance!.ForSystem("sol").MainMarket;
+        var rim = balance.ForSystem("aldebaran").MainMarket;
         var price = balance.Loot.Price(Food);
 
         // Продовольствие делают в Ядре и ждут на Рубеже: везти туда должно быть выгодно даже по одной штуке.
@@ -174,7 +174,7 @@ public class MarketRulesTests
     {
         var rules = new MarketRules(
             Goods: new Dictionary<string, MarketGood> { [Food] = new(Baseline: 100) },
-            Stations: new Dictionary<string, MarketStation> { ["sol"] = new(Produces: [Food]) });
+            Places: new Dictionary<string, MarketStation> { ["sol"] = new(Produces: [Food]) });
 
         Assert.True(rules.Local("sol", "core").Any);
         Assert.False(rules.Local("tau", "frontier").Any);
@@ -193,8 +193,8 @@ public class MarketRulesTests
     [Theory]
     [InlineData("""{"goods": {"ghost": {"baseline": 10}}}""")]
     [InlineData("""{"goods": {"food": {"baseline": -1}}}""")]
-    [InlineData("""{"goods": {"food": {}}, "stations": {"sol": {"produces": ["ghost"]}}}""")]
-    [InlineData("""{"goods": {"food": {}}, "stations": {"sol": {"produces": ["food"], "consumes": ["food"]}}}""")]
+    [InlineData("""{"goods": {"food": {}}, "places": {"st:sol": {"produces": ["ghost"]}}}""")]
+    [InlineData("""{"goods": {"food": {}}, "places": {"st:sol": {"produces": ["food"], "consumes": ["food"]}}}""")]
     [InlineData("""{"spread": -1}""")]
     [InlineData("""{"minFactor": 2, "maxFactor": 1}""")]
     [InlineData("""{"elasticity": -1}""")]
@@ -218,15 +218,16 @@ public class MarketRulesTests
     }
 
     [Fact]
-    public void StationWithoutAStation_IsRejected()
+    public void MarketInAPlaceThatDoesNotExist_IsRejected()
     {
+        // tau — система без станции, и поселения на её планетах пока нет: торговать там негде.
         var sources = TestHulls.SharedSources() with
         {
-            Market = """{"goods": {"food": {}}, "stations": {"tau": {"produces": ["food"]}}}""",
+            Market = """{"goods": {"food": {}}, "places": {"st:tau": {"produces": ["food"]}}}""",
         };
 
         Assert.False(Balance.TryParse(sources, out _, out var error));
-        Assert.Contains("no station", error);
+        Assert.Contains("no such place", error);
     }
 
     [Fact]

@@ -414,7 +414,8 @@ public sealed record MissionRules(
         var candidates = new List<(double Weight, Func<Random, string, MissionOffer> Make)>();
         var near = Near(galaxy, station);
         // Доску просят для названной станции, а не обязательно для той, чей это вид баланса.
-        var market = balance.MarketSet?.Local(station, galaxy.System(station)?.Region);
+        // Рынок с M15 ключуется местом, а доска пока зовётся по системе: здесь это станция системы.
+        var market = balance.MarketSet?.Local(PlaceKey.Station(station), galaxy.System(station)?.Region);
         foreach (var t in KillList)
         {
             var targets = near.Where(s => PiratesIn(balance, s).Any(type => t.Npc is null || type == t.Npc)).ToList();
