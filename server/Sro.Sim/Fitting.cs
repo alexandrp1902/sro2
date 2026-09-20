@@ -28,7 +28,7 @@ public static class EquipClass
 }
 
 /// <summary>
-/// Модуль корабля из shared/modules.json (GDD §13): двигатель, щит, радар, бак, генератор — по одному на корабль —
+/// Модуль корабля из shared/modules.json (GDD §13): двигатель, щит, радар, генератор — по одному на корабль —
 /// или вспомогательный (utility, M11): ремонт, охлаждение, грузовой расширитель — сколько utility-слотов у корпуса.
 /// </summary>
 /// <param name="Slot">Куда ставится: <see cref="Fitting.EngineSlot"/> и соседние.</param>
@@ -39,7 +39,6 @@ public static class EquipClass
 /// <param name="Shield">Щит: ёмкость (GDD §17).</param>
 /// <param name="ShieldRegen">Щит: восстановление в секунду после паузы без урона.</param>
 /// <param name="Radar">Радар: дальность обзора (GDD §10).</param>
-/// <param name="Fuel">Бак: ёмкость (GDD §6).</param>
 /// <param name="Output">Генератор: сколько энергии он даёт всему остальному (GDD §18).</param>
 /// <param name="Repair">Utility: чинит корпус, единиц в секунду, если давно не было урона (<see cref="CombatRules.RepairDelay"/>).</param>
 /// <param name="Cooling">Utility: доля, на которую короче перезарядка всех пушек (0.1 — на 10 %).</param>
@@ -55,7 +54,6 @@ public sealed record ModuleParams(
     double Shield = 0,
     double ShieldRegen = 0,
     double Radar = 0,
-    double Fuel = 0,
     double Output = 0,
     double Repair = 0,
     double Cooling = 0,
@@ -74,7 +72,6 @@ public sealed record ModuleParams(
             Fitting.EngineSlot when !(Speed > 0) || !(Accel > 0) => "speed and accel must be positive",
             Fitting.ShieldSlot when !(Shield >= 0) || !(ShieldRegen >= 0) => "shield and shieldRegen must not be negative",
             Fitting.RadarSlot when !(Radar > 0) => "radar must be positive",
-            Fitting.TankSlot when !(Fuel >= 0) => "fuel must not be negative",
             Fitting.GeneratorSlot when !(Output > 0) => "output must be positive",
             Fitting.UtilityKind when !(Repair >= 0) || !(Cargo >= 0) || !(Cooling >= 0 && Cooling <= Fitting.MaxCooling) =>
                 $"repair and cargo must not be negative, cooling must be within 0..{Fitting.MaxCooling}",
@@ -89,14 +86,19 @@ public sealed record ModuleParams(
 /// и вспомогательные модули в utility-слотах (M11; null в старых профилях — пусто).
 /// Неизменяемый: любая перестановка — новый объект, поэтому по ссылке видно, что оснащение сменилось.
 /// </summary>
+/// <param name="Tank">
+/// Бак из профиля старше M15.6. Слота больше нет (топливо отменено), и поле живёт только затем, чтобы вход
+/// увидел оплаченный модуль и вернул за него кредиты: уберёшь свойство — <c>System.Text.Json</c> молча
+/// выбросит ключ «tank», и возвращать станет нечего. <c>Save</c> его не пишет, наружу оно не уходит.
+/// </param>
 public sealed record ShipFit(
     IReadOnlyList<string?> Weapons,
     string? Engine = null,
     string? Shield = null,
     string? Radar = null,
-    string? Tank = null,
     string? Generator = null,
-    IReadOnlyList<string?>? Utility = null)
+    IReadOnlyList<string?>? Utility = null,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? Tank = null)
 {
     [JsonIgnore] public IReadOnlyList<string?> UtilityList => Utility ?? [];
 
@@ -110,7 +112,6 @@ public sealed record ShipFit(
             Fitting.EngineSlot => Engine,
             Fitting.ShieldSlot => Shield,
             Fitting.RadarSlot => Radar,
-            Fitting.TankSlot => Tank,
             Fitting.GeneratorSlot => Generator,
             _ => null,
         };
@@ -138,7 +139,6 @@ public sealed record ShipFit(
             Fitting.EngineSlot => this with { Engine = id },
             Fitting.ShieldSlot => this with { Shield = id },
             Fitting.RadarSlot => this with { Radar = id },
-            Fitting.TankSlot => this with { Tank = id },
             Fitting.GeneratorSlot => this with { Generator = id },
             _ => this,
         };
@@ -154,10 +154,10 @@ public sealed record ShipFit(
 
     public bool Equals(ShipFit? other) =>
         other is not null && Weapons.SequenceEqual(other.Weapons) && Engine == other.Engine && Shield == other.Shield &&
-        Radar == other.Radar && Tank == other.Tank && Generator == other.Generator &&
+        Radar == other.Radar && Generator == other.Generator &&
         Trim(UtilityList).SequenceEqual(Trim(other.UtilityList));
 
-    public override int GetHashCode() => HashCode.Combine(Weapons.Count, Engine, Shield, Radar, Tank, Generator, Trim(UtilityList).Count());
+    public override int GetHashCode() => HashCode.Combine(Weapons.Count, Engine, Shield, Radar, Generator, Trim(UtilityList).Count());
 
     /// <summary>Пустые utility-слоты в конце оснащения не отличают: [] и [null] — одно и то же.</summary>
     private static IEnumerable<string?> Trim(IReadOnlyList<string?> list)
@@ -198,10 +198,9 @@ public static class Fitting
     public const string EngineSlot = "engine";
     public const string ShieldSlot = "shield";
     public const string RadarSlot = "radar";
-    public const string TankSlot = "tank";
     public const string GeneratorSlot = "generator";
 
-    public static readonly string[] ModuleSlots = [EngineSlot, ShieldSlot, RadarSlot, TankSlot, GeneratorSlot];
+    public static readonly string[] ModuleSlots = [EngineSlot, ShieldSlot, RadarSlot, GeneratorSlot];
 
     /// <summary>Без этих модулей корабль не летает: их можно заменить, но не снять.</summary>
     public static readonly string[] RequiredSlots = [EngineSlot, RadarSlot, GeneratorSlot];
@@ -210,12 +209,11 @@ public static class Fitting
     public const string StarterEngine = "engineS";
     public const string StarterShield = "shieldS";
     public const string StarterRadar = "radarS";
-    public const string StarterTank = "tankS";
     public const string StarterGenerator = "generatorS";
 
     /// <summary>Стартовое оснащение: стартовая пушка в первом слоте и стартовые модули.</summary>
     public static readonly ShipFit Starter = new(
-        [SimConfig.DefaultWeapon], StarterEngine, StarterShield, StarterRadar, StarterTank, StarterGenerator);
+        [SimConfig.DefaultWeapon], StarterEngine, StarterShield, StarterRadar, StarterGenerator);
 
     /// <summary>Модуль, который ставится взамен, если обязательный слот опустел (модуль убрали из баланса или он не влез в корпус).</summary>
     public static string? StarterFor(string slot) => slot switch
@@ -223,7 +221,6 @@ public static class Fitting
         EngineSlot => StarterEngine,
         ShieldSlot => StarterShield,
         RadarSlot => StarterRadar,
-        TankSlot => StarterTank,
         GeneratorSlot => StarterGenerator,
         _ => null,
     };
@@ -244,8 +241,8 @@ public static class Fitting
         WeaponIndex(slot) is not null || UtilityIndex(slot) is not null || ModuleSlots.Contains(slot);
 
     /// <summary>
-    /// Корпус с учётом модулей — по нему пилот летает, держит щит, видит радаром и заправляется. Двигатель умножает
-    /// скорость, разгон и торможение; щит, радар и бак берутся из модулей, грузовые расширители прибавляют трюм.
+    /// Корпус с учётом модулей — по нему пилот летает, держит щит и видит радаром. Двигатель умножает
+    /// скорость, разгон и торможение; щит и радар берутся из модулей, грузовые расширители прибавляют трюм.
     /// Без каталога модулей — корпус как есть (до M9).
     /// Зеркало effectiveHull в client/src/sim/fitting.ts: предсказание движения обязано совпасть с сервером.
     /// </summary>
@@ -255,7 +252,6 @@ public static class Fitting
         var engine = Module(modules, fit.Engine, EngineSlot);
         var shield = Module(modules, fit.Shield, ShieldSlot);
         var radar = Module(modules, fit.Radar, RadarSlot);
-        var tank = Module(modules, fit.Tank, TankSlot);
         var speed = engine?.Speed ?? 1;
         var accel = engine?.Accel ?? 1;
         return hull with
@@ -266,7 +262,6 @@ public static class Fitting
             Shield = shield?.Shield ?? 0,
             ShieldRegen = shield?.ShieldRegen ?? 0,
             Radar = radar?.Radar ?? hull.Radar,
-            Fuel = tank?.Fuel ?? 0,
             Cargo = hull.Cargo + Utilities(fit, modules).Sum(m => m.Cargo),
         };
     }

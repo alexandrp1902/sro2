@@ -153,8 +153,7 @@ async function main() {
   const galaxy = a.welcome.galaxy;
   check(`start system ${start?.name}, danger ${start?.danger}, PvP ${start?.pvp}, station ${start?.station}`, start?.station === true);
   check(`galaxy map: ${galaxy?.systems.length} systems, ${galaxy?.links.length} links`, galaxy?.systems.length >= 2);
-  check(`gates: ${start.gates.map((g) => `${g.name} (${g.cost})`).join(', ')}`, start.gates.length > 0);
-  check(`full tank: ${a.hangar.fuel}/${a.hangar.maxFuel}`, a.hangar.fuel === a.hangar.maxFuel && a.hangar.maxFuel > 0);
+  check(`gates: ${start.gates.map((g) => g.name).join(', ')}`, start.gates.length > 0);
 
   const gate = start.gates[0];
   a.send({ t: 'jump', to: gate.to });
@@ -167,7 +166,7 @@ async function main() {
   const radar = b.welcome.hulls.light.radar;
   check(`radar ${radar}: the watcher ${Math.round(bDistance)} away does not see the ship`, bDistance > radar + 200 && !b.ship(a.id));
 
-  const fuelBefore = a.hangar.fuel;
+  const creditsBefore = a.cargo.credits;
   a.send({ t: 'jump', to: gate.to });
   await a.until(() => (a.me?.j ?? 0) > 0, 2000, 'jump charging in the snapshot');
   const chargeTicks = a.me.j - a.snapshot.tick;
@@ -177,8 +176,9 @@ async function main() {
   await a.until(() => a.welcome.system.id === gate.to, (start.jumpSeconds + 3) * 1000, `welcome from ${gate.to}`);
   const there = a.welcome.system;
   check(`arrived in ${there.name}: resumed ${a.welcome.resumed}, same id ${a.welcome.id === id}`, a.welcome.resumed && a.welcome.id === id);
-  await a.until(() => a.hangar.fuel < fuelBefore, 2000, 'fuel spent');
-  check(`fuel ${fuelBefore} → ${a.hangar.fuel} (cost ${gate.cost})`, fuelBefore - a.hangar.fuel === gate.cost);
+  // Топливо отменено (M15.6): прыжок бесплатен, и ни бака, ни счёта он не касается.
+  check(`the jump is free: ${creditsBefore} → ${a.cargo.credits} credits`, a.cargo.credits === creditsBefore);
+  check('no fuel in the hangar message', a.hangar.fuel === undefined && a.hangar.maxFuel === undefined);
   await a.until(() => a.me, 2000, 'own ship in the new system');
   const back = there.gates.find((g) => g.to === start.id);
   const fromGate = Math.hypot(a.me.x - back.x, a.me.y - back.y);
@@ -192,8 +192,17 @@ async function main() {
   await a.flyTo(back.x, back.y, 120, 30000);
   a.send({ t: 'jump', to: start.id });
   await a.until(() => a.welcome.system.id === start.id, (start.jumpSeconds + 3) * 1000, 'jump back');
-  await a.until(() => a.hangar.fuel === a.hangar.maxFuel - gate.cost - back.cost, 2000, 'fuel after the jump back');
-  check(`back in ${start.name}, fuel ${a.hangar.fuel}/${a.hangar.maxFuel}`, true);
+  check(`back in ${start.name}, still ${a.cargo.credits} credits`, a.cargo.credits === creditsBefore);
+
+  // И ещё круг туда-обратно, уже без всяких проверок: без топлива прыгать можно сколько угодно.
+  await a.flyTo(gate.x, gate.y, 120, 60000);
+  a.send({ t: 'jump', to: gate.to });
+  await a.until(() => a.welcome.system.id === gate.to, (start.jumpSeconds + 3) * 1000, 'second jump out');
+  await a.until(() => a.me, 2000, 'own ship after the second jump');
+  await a.flyTo(back.x, back.y, 120, 30000);
+  a.send({ t: 'jump', to: start.id });
+  await a.until(() => a.welcome.system.id === start.id, (start.jumpSeconds + 3) * 1000, 'second jump back');
+  check(`two round trips on no fuel: ${a.cargo.credits} credits, unchanged`, a.cargo.credits === creditsBefore);
 
   // Станция на орбите: летим туда, где она сейчас, — за время полёта она уйдёт меньше, чем на круг стыковки.
   await a.until(() => a.snapshot, 2000, 'a snapshot after the jump back');
@@ -201,11 +210,7 @@ async function main() {
   await a.flyTo(station.x, station.y, 60, 60000);
   a.send({ t: 'dock', on: true });
   await a.until(() => a.hangar.docked, 2000, 'docked');
-  const credits = a.cargo.credits;
-  a.send({ t: 'refuel' });
-  await a.until(() => a.hangar.fuel === a.hangar.maxFuel, 2000, 'refuelled');
-  await a.until(() => a.cargo.credits < credits || a.welcome.shop?.fuelPrice === 0, 2000, 'paid for fuel');
-  check(`refuelled in the dock: ${credits} → ${a.cargo.credits} credits, home ${a.hangar.home}`, a.hangar.home === start.id);
+  check(`docked: home ${a.hangar.home}, no fuel price in the shop`, a.hangar.home === start.id && a.welcome.shop?.fuelPrice === undefined);
 
   a.close();
   b.close();

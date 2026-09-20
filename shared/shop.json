@@ -1,7 +1,6 @@
 {
   "startCredits": 1000,
   "repairPrice": 0.25,
-  "fuelPrice": 1,
   "sellShare": 0.5,
   // Доля цены корпуса за полный ремонт (M12): «Пчелу» латать даром, «Титана» — за 3 600 сверху.
   "repairHullShare": 0.06,
@@ -45,9 +44,6 @@
     "radarS": 150,
     "radarM": 1000,
     "radarL": 2500,
-    "tankS": 100,
-    "tankM": 600,
-    "tankL": 1500,
     "generatorS": 200,
     "generatorM": 1500,
     "generatorL": 4000,
@@ -56,35 +52,41 @@
     "cargoPod": 800
   },
 
+  // Цены снятого с баланса: по ним вход выкупает у пилота то, чего в игре больше нет (M15.6 — баки,
+  // вместе с топливом). Купить это нельзя — в ассортименте его нет, — а вернуть кредиты можно.
+  // Когда на диске не останется профилей с баком, блок можно убрать целиком.
+  "legacy": {
+    "tankS": 100,
+    "tankM": 600,
+    "tankL": 1500
+  },
+
   // Ассортимент по регионам галактики (M11): чем дальше от Sol, тем лучше снаряжение и выше тир.
   "regions": {
     "core": {
       "tiers": [1],
-      "fuel": 1,
       "hulls": ["light", "scout", "medium", "industrial"],
       "items": [
         "pulse", "laser", "cannon", "missiles",
         "engineS", "engineM", "shieldS", "shieldM", "radarS", "radarM",
-        "tankS", "tankM", "generatorS", "generatorM", "cargoPod", "repair"
+        "generatorS", "generatorM", "cargoPod", "repair"
       ]
     },
     "frontier": {
       "tiers": [1, 2],
-      "fuel": 1.5,
       "hulls": ["scout", "medium", "industrial", "interceptor", "heavy", "frigate"],
       "items": [
         "pulse", "laser", "cannon", "plasma", "missiles", "heavyLaser", "ion", "pointDefense",
         "engineM", "engineL", "afterburnerM", "shieldM", "shieldL", "radarM", "radarL",
-        "tankM", "tankL", "generatorM", "generatorL", "cargoPod", "repair", "cooling"
+        "generatorM", "generatorL", "cargoPod", "repair", "cooling"
       ]
     },
     "rim": {
       "tiers": [2, 3],
-      "fuel": 2.5,
       "hulls": ["interceptor", "heavy", "frigate", "freighter", "cruiser"],
       "items": [
         "plasma", "heavyLaser", "missiles", "ion", "pointDefense", "railgun", "torpedoes",
-        "engineL", "afterburnerL", "shieldL", "radarL", "tankL", "generatorL",
+        "engineL", "afterburnerL", "shieldL", "radarL", "generatorL",
         "cargoPod", "repair", "cooling"
       ]
     }
@@ -96,19 +98,19 @@
     "st:sol": { "title": "Торговый порт Sol" },
     "st:vega": { "title": "Верфь Веги", "items": ["heavyLaser"], "price": 1.05 },
     "st:alphaCen": { "title": "Причал Альфы", "remove": ["cannon"], "price": 0.92 },
-    "st:castor": { "title": "Шахтёрский склад Кастора", "hulls": ["freighter"], "items": ["tankL", "cargoPod"], "price": 0.95 },
+    "st:castor": { "title": "Шахтёрский склад Кастора", "hulls": ["freighter"], "items": ["cargoPod"], "price": 0.95 },
     "st:nova": { "title": "Военная станция Nova", "items": ["railgun"], "price": 1.1 },
     "st:barnard": { "title": "Пост рейнджеров Барнарда", "items": ["pointDefense", "ion", "repair"], "price": 1.05 },
     "st:aldebaran": { "title": "Крепость Альдебарана", "items": ["torpedoes"], "price": 1.12 },
     "st:epsilon": { "title": "Вольная гавань Эпсилона", "hulls": ["cruiser"], "price": 1.15 },
 
-    // Поселения (M15). На поверхности снаряжение дешевле, чем на орбите, но выбор беднее: чинят и
-    // заправляют везде, а корпуса продают лишь там, где верфь (см. settlement.shipyard в galaxy.json).
+    // Поселения (M15). На поверхности снаряжение дешевле, чем на орбите, но выбор беднее: чинят
+    // везде, а корпуса продают лишь там, где верфь (см. settlement.shipyard в galaxy.json).
     "pl:terra": { "title": "Порт Новый Порт", "price": 0.95 },
     "pl:vegaOne": { "title": "Склад Ледяной Веги", "remove": ["heavyLaser"], "price": 0.93 },
     "pl:alphaTwo": { "title": "Лавка Купола Альфы", "remove": ["cannon"], "price": 0.9 },
-    "pl:tauPrima": { "title": "Верфь Пыльной Гавани", "hulls": ["industrial"], "items": ["tankL"], "price": 0.97 },
-    "pl:novaGiant": { "title": "Причал Нова-Один", "items": ["tankL"], "price": 1.02 },
+    "pl:tauPrima": { "title": "Верфь Пыльной Гавани", "hulls": ["industrial"], "items": ["cargoPod"], "price": 0.97 },
+    "pl:novaGiant": { "title": "Причал Нова-Один", "items": ["cargoPod"], "price": 1.02 },
     "pl:castorOre": { "title": "Контора Рудника", "items": ["cargoPod"], "price": 0.92 },
     "pl:barnardGarden": { "title": "Лавка Оранжереи", "items": ["repair"], "price": 1.0 },
     "pl:sigmaIce": { "title": "Верфь Мороза", "hulls": ["freighter"], "items": ["cooling"], "price": 1.05 },

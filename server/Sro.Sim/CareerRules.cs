@@ -81,7 +81,6 @@ public sealed record CareerRules(
             Slot(Fitting.EngineSlot, Fitting.StarterEngine),
             Slot(Fitting.ShieldSlot, Fitting.StarterShield),
             Slot(Fitting.RadarSlot, Fitting.StarterRadar),
-            Slot(Fitting.TankSlot, Fitting.StarterTank),
             Slot(Fitting.GeneratorSlot, Fitting.StarterGenerator));
     }
 

@@ -168,8 +168,8 @@ async function main() {
   const { weapons, modules, hulls } = a.welcome;
   check(`modules.json in welcome: ${Object.keys(modules ?? {}).length} modules`, Object.keys(modules ?? {}).length >= 15);
   check(
-    `starter fit: ${guns(a.hangar)}; ${a.hangar.fit.engine}, ${a.hangar.fit.shield}, ${a.hangar.fit.radar}, ${a.hangar.fit.tank}, ${a.hangar.fit.generator}; energy ${a.hangar.power}/${a.hangar.powerMax}`,
-    a.hangar.fit.weapons[0] === 'pulse' && a.hangar.powerMax > a.hangar.power,
+    `starter fit: ${guns(a.hangar)}; ${a.hangar.fit.engine}, ${a.hangar.fit.shield}, ${a.hangar.fit.radar}, ${a.hangar.fit.generator}; energy ${a.hangar.power}/${a.hangar.powerMax}`,
+    a.hangar.fit.weapons[0] === 'pulse' && a.hangar.powerMax > a.hangar.power && a.hangar.fit.tank === undefined,
   );
   const traders = a.players.players.filter((p) => p.kind === 'trader');
   check(`traders in ${a.welcome.system.name}: ${traders.length} (${traders.map((t) => t.name).join(', ')})`, traders.length > 0);

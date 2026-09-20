@@ -1,5 +1,5 @@
 import type { GalaxyDto, GalaxySystemDto } from '../net/protocol';
-import { dangerColor, dangerName, hops, jumpCost, jumpOutlook, pvpName, regionName, type JumpOutlook } from '../sim/galaxy';
+import { dangerColor, dangerName, hops, jumpOutlook, pvpName, regionName, type JumpOutlook } from '../sim/galaxy';
 import { lootItem, type LootRules } from '../sim/loot';
 import type { MarketRules } from '../sim/market';
 import { levelColor, levelIndex, levelOf, repLabel, type ReputationRules } from '../sim/reputation';
@@ -7,12 +7,10 @@ import { color } from './cargoHud';
 
 const SVG = 'http://www.w3.org/2000/svg';
 
-/** Что пилот знает, открывая карту: где он, сколько топлива, где дом. */
+/** Что пилот знает, открывая карту: где он и где дом. */
 export interface GalaxyMapState {
   galaxy: GalaxyDto;
   current: string;
-  fuel: number;
-  maxFuel: number;
   /** Система последней стыковки: туда корабль вернётся после гибели. */
   home: string | null;
   /** Куда ведёт задание (GDD §36); null — никуда или цель здесь. */
@@ -49,8 +47,6 @@ function repMark(state: GalaxyMapState, id: string): string {
 const OUTLOOK_TEXT: Record<JumpOutlook, string> = {
   here: 'Вы здесь',
   far: 'Прямого маршрута нет — только через соседние системы',
-  noFuel: 'Не хватает топлива на прыжок',
-  oneWay: 'Туда хватит, обратно — нет: станции там нет, заправиться негде',
   ok: 'Можно прыгать: подлетите к вратам',
 };
 
@@ -105,7 +101,7 @@ export class GalaxyMap {
 
     const card = el('div', 'galaxy-card');
     const head = el('div', 'galaxy-head');
-    head.append(el('div', 'galaxy-title', 'Карта галактики'), el('div', 'galaxy-fuel', `Топливо ${state.fuel} / ${state.maxFuel}`));
+    head.append(el('div', 'galaxy-title', 'Карта галактики'));
     const close = document.createElement('button');
     close.type = 'button';
     close.className = 'galaxy-close';
@@ -150,17 +146,15 @@ export class GalaxyMap {
       const b = byId.get(link.b);
       if (!a || !b) continue;
       const fromHere = link.a === current || link.b === current;
-      const affordable = state.fuel >= link.cost;
       const line = svgEl('line', {
         x1: a.x,
         y1: a.y,
         x2: b.x,
         y2: b.y,
-        class: `galaxy-link${fromHere ? (affordable ? ' galaxy-link-open' : ' galaxy-link-poor') : ''}`,
+        class: `galaxy-link${fromHere ? ' galaxy-link-open' : ''}`,
       });
-      const cost = svgEl('text', { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 - 1.2, class: 'galaxy-cost' });
-      cost.textContent = String(link.cost);
-      svg.append(line, cost);
+      // Подписи у маршрута больше нет: с M15.6 он ничего не стоит, и цифра была только про топливо.
+      svg.append(line);
     }
 
     for (const system of galaxy.systems) {
@@ -244,10 +238,8 @@ export class GalaxyMap {
       line.style.color = levelColor(level);
       box.append(line);
     }
-    const cost = jumpCost(state.galaxy, state.current, system.id);
-    const outlook = jumpOutlook(state.galaxy, state.current, system.id, state.fuel);
+    const outlook = jumpOutlook(state.galaxy, state.current, system.id);
     let text = OUTLOOK_TEXT[outlook];
-    if (cost !== null && outlook !== 'here') text = `Прыжок · ${cost} топлива. ${text}`;
     if (outlook === 'far') {
       const count = hops(state.galaxy, state.current).get(system.id);
       if (count) text = `${count} ${count < 5 ? 'прыжка' : 'прыжков'} отсюда`;

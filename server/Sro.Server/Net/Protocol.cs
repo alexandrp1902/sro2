@@ -28,7 +28,6 @@ namespace Sro.Server.Net;
 [JsonDerivedType(typeof(BuyGoodsMsg), "buyGoods")]
 [JsonDerivedType(typeof(RepairMsg), "repair")]
 [JsonDerivedType(typeof(JumpMsg), "jump")]
-[JsonDerivedType(typeof(RefuelMsg), "refuel")]
 [JsonDerivedType(typeof(MissionMsg), "mission")]
 [JsonDerivedType(typeof(PartyMsg), "party")]
 [JsonDerivedType(typeof(PvpMsg), "pvp")]
@@ -146,9 +145,6 @@ public sealed record RepairMsg : ClientMessage;
 /// <summary>Начать гиперпрыжок через врата в систему To (GDD §5); To = null — отменить подготовку.</summary>
 public sealed record JumpMsg(string? To) : ClientMessage;
 
-/// <summary>Заправить бак в доке до полного — по fuelPrice из shop.json (GDD §6, §26).</summary>
-public sealed record RefuelMsg : ClientMessage;
-
 /// <summary>Задания (GDD §36, §54).</summary>
 /// <param name="Action">
 /// <see cref="Protocol.AcceptMission"/> — взять задание Id с доски (в доке); <see cref="Protocol.AbandonMission"/> —
@@ -230,8 +226,8 @@ public sealed record WelcomeMsg(
     MarketRules? Market = null,
     ReputationRules? Reputation = null) : ServerMessage;
 
-/// <summary>Врата в системе: куда ведут, как называется та система и сколько топлива стоит прыжок.</summary>
-public sealed record GateDto(string To, string Name, double X, double Y, int Cost);
+/// <summary>Врата в системе: куда ведут и как называется та система.</summary>
+public sealed record GateDto(string To, string Name, double X, double Y);
 
 /// <param name="Pvp">off — PvP нет; border — нет у станции; free — везде (GDD §34).</param>
 /// <param name="Station">В системе есть станция; иначе дока и укрытия нет.</param>
@@ -294,8 +290,7 @@ public sealed record PlaceNameDto(string Key, string Name);
 /// <summary>Регион галактики на карте (M11).</summary>
 public sealed record RegionDto(string Id, string Name, string Color);
 
-/// <param name="Cost">Топлива на прыжок в любую сторону.</param>
-public sealed record LinkDto(string A, string B, int Cost);
+public sealed record LinkDto(string A, string B);
 
 public sealed record GalaxyDto(
     IReadOnlyList<GalaxySystemDto> Systems,
@@ -363,8 +358,6 @@ public sealed record DeniedMsg(string Code) : ServerMessage;
 /// <param name="Docked">Корабль в доке: в космосе его нет, экран станции открыт.</param>
 /// <param name="Hp">Прочность корпуса, округлена вверх: в доке снапшот о своём корабле молчит.</param>
 /// <param name="MaxHp">Полная прочность активного корпуса.</param>
-/// <param name="Fuel">Топливо в баке (GDD §6). Меняется только прыжком и заправкой — тогда hangar приходит снова.</param>
-/// <param name="MaxFuel">Бак активного корпуса.</param>
 /// <param name="Home">Система последней стыковки: здесь корабль появится после гибели и после входа.</param>
 /// <param name="Power">Сколько энергии забирает оснащение (GDD §18).</param>
 /// <param name="PowerMax">Сколько даёт генератор; 0 — энергию не считают (баланс без modules.json).</param>
@@ -378,8 +371,6 @@ public sealed record HangarMsg(
     bool Docked,
     int Hp,
     int MaxHp,
-    int Fuel = 0,
-    int MaxFuel = 0,
     string? Home = null,
     int Power = 0,
     int PowerMax = 0,
@@ -575,7 +566,8 @@ public sealed record MissionsMsg(
     MissionMarkDto? Mark = null) : ServerMessage;
 
 /// <summary>Короткое уведомление игроку по коду; текст подставляет клиент (см. ui/feed.ts).</summary>
-public sealed record NoticeMsg(string Code) : ServerMessage;
+/// <param name="N">Число к тексту (M15.6): сумма возврата, счёт. 0 — числа в тексте нет.</param>
+public sealed record NoticeMsg(string Code, int N = 0) : ServerMessage;
 
 /// <summary>
 /// SOS торговца всем пилотам системы: на него напали (<see cref="Protocol.SosOn"/> — и потом раз в секунду, где он),
@@ -732,10 +724,11 @@ public static class Protocol
     /// 17 — рынок товаров, покупка груза, живые цены, M12; 18 — репутация систем и станций, M13;
     /// 19 — сопровождение, патруль, важное письмо, охота на метеориты и провал задания, M14;
     /// 20 — посадка на планеты: место как общее понятие дока, поселения, их рынок и репутация, M15;
-    /// 21 — выброс груза за борт; 22 — урон по площади, M15.5).
+    /// 21 — выброс груза за борт; 22 — урон по площади, M15.5;
+    /// 23 — топливо отменено, защитные модули, ангар с перевозкой, вход в доке, M15.6).
     /// Зеркало PROTOCOL_VERSION в client/src/net/protocol.ts.
     /// </summary>
-    public const int Version = 22;
+    public const int Version = 23;
 
     public const string DroneKind = "drone";
     public const string PirateKind = "pirate";
@@ -757,7 +750,8 @@ public static class Protocol
     public const string TooFarNotice = "tooFar";
     public const string NoCreditsNotice = "noCredits";
     public const string NotSoldNotice = "notSold";
-    public const string NoFuelNotice = "noFuel";
+    /// <summary>Баки выкуплены: топливо отменено (M15.6), кредиты за них вернулись на счёт.</summary>
+    public const string TanksSoldNotice = "tanksSold";
     public const string GateFarNotice = "gateFar";
     public const string JumpCancelledNotice = "jumpCancelled";
     /// <summary>Подготовку прыжка сбило попадание.</summary>

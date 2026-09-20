@@ -13,10 +13,6 @@
   "radarM": { "name": "Улучшенный радар", "slot": "radar", "class": "M", "power": 8, "radar": 2500 },
   "radarL": { "name": "Военный радар", "slot": "radar", "class": "L", "power": 12, "radar": 3000 },
 
-  "tankS": { "name": "Малый бак", "slot": "tank", "class": "S", "fuel": 100 },
-  "tankM": { "name": "Средний бак", "slot": "tank", "class": "M", "fuel": 180 },
-  "tankL": { "name": "Большой бак", "slot": "tank", "class": "L", "fuel": 300 },
-
   "generatorS": { "name": "Генератор «Огонёк»", "slot": "generator", "class": "S", "output": 60 },
   "generatorM": { "name": "Генератор «Пламя»", "slot": "generator", "class": "M", "output": 110 },
   "generatorL": { "name": "Генератор «Солнце»", "slot": "generator", "class": "L", "output": 170 },

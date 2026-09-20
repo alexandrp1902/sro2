@@ -102,7 +102,6 @@ public static class Tiers
                     Shield = Whole(m.Shield * t.Stat),
                     ShieldRegen = Whole(m.ShieldRegen * t.Stat),
                     Radar = Whole(m.Radar * t.Radar),
-                    Fuel = Whole(m.Fuel * t.Stat),
                     Output = Whole(m.Output * t.Stat),
                     Repair = Whole(m.Repair * t.Stat),
                     Cooling = Math.Min(Fitting.MaxCooling, Fine(m.Cooling * t.Stat)),

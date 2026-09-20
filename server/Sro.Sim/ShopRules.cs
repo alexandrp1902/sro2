@@ -13,15 +13,13 @@ namespace Sro.Sim;
 /// <param name="Remove">Место: чего из регионального ассортимента здесь нет.</param>
 /// <param name="Price">Место: множитель всех цен (0.9 — на 10 % дешевле).</param>
 /// <param name="Title">Место: подпись магазина в доке — «Военная верфь», «Шахтёрский склад».</param>
-/// <param name="Fuel">Множитель цены топлива (M12): чем дальше от Ядра, тем дороже заправка; null — как везде.</param>
 public sealed record StockDef(
     IReadOnlyList<string>? Hulls = null,
     IReadOnlyList<string>? Items = null,
     IReadOnlyList<int>? Tiers = null,
     IReadOnlyList<string>? Remove = null,
     double Price = 1,
-    string? Title = null,
-    double? Fuel = null)
+    string? Title = null)
 {
     [JsonIgnore] public IReadOnlyList<string> HullList => Hulls ?? [];
     [JsonIgnore] public IReadOnlyList<string> ItemList => Items ?? [];
@@ -38,7 +36,6 @@ public sealed record StockDef(
 /// <param name="RepairPrice">Кредитов за единицу прочности корпуса при ремонте в доке; 0 — бесплатно.</param>
 /// <param name="Hulls">Корпус — цена. Корпуса, которого здесь нет, не продают и не выкупают.</param>
 /// <param name="Items">Пушка или модуль — цена Mk1; цена старших тиров — по <paramref name="Tiers"/>.</param>
-/// <param name="FuelPrice">Кредитов за единицу топлива при заправке в доке (GDD §6, §26); 0 — бесплатно.</param>
 /// <param name="SellShare">Доля цены, за которую станция выкупает пушку или модуль со склада.</param>
 /// <param name="RepairHullShare">
 /// Доля цены корпуса за полный ремонт (M12): латать крейсер дороже, чем челнок. 0 — ремонт зависит
@@ -49,19 +46,23 @@ public sealed record StockDef(
 /// <param name="Places">Отличия отдельных мест по ключу места (M15): «st:sol», «pl:terra».</param>
 /// <param name="Stock">Магазин одного места: что здесь продают. null — всё, что в прайсе.</param>
 /// <param name="Title">Магазин одного места: его подпись.</param>
+/// <param name="Legacy">
+/// Цены предметов, снятых с баланса (M15.6): по ним вход возвращает кредиты за то, чего больше нет в игре.
+/// Эти id нарочно не проверяются по каталогам — их там уже нет, иначе проверка падала бы по построению.
+/// </param>
 public sealed record ShopRules(
     int StartCredits = 1000,
     double RepairPrice = 0,
     IReadOnlyDictionary<string, int>? Hulls = null,
     IReadOnlyDictionary<string, int>? Items = null,
-    double FuelPrice = 0,
     double SellShare = 0.5,
     IReadOnlyList<TierDef>? Tiers = null,
     IReadOnlyDictionary<string, StockDef>? Regions = null,
     IReadOnlyDictionary<string, StockDef>? Places = null,
     IReadOnlyList<string>? Stock = null,
     string? Title = null,
-    double RepairHullShare = 0)
+    double RepairHullShare = 0,
+    IReadOnlyDictionary<string, int>? Legacy = null)
 {
     public const string File = "shop.json";
 
@@ -105,8 +106,18 @@ public sealed record ShopRules(
         return (int)Math.Ceiling(missingHp * RepairPrice + byHull);
     }
 
-    /// <summary>Сколько стоит залить столько топлива; округляется вверх.</summary>
-    public int FuelCost(double missingFuel) => missingFuel > 0 ? (int)Math.Ceiling(missingFuel * FuelPrice - 1e-9) : 0;
+    /// <summary>
+    /// Цена снятого с баланса предмета (и его старшего тира); null — за это не возвращают. Этими ценами вход
+    /// выкупает у пилота то, чего в игре больше нет (M15.6 — баки): молча отнять оплаченный модуль нельзя.
+    /// </summary>
+    public int? LegacyPrice(string id)
+    {
+        if (Legacy is null) return null;
+        if (Legacy.TryGetValue(id, out var price)) return price;
+        var (baseId, tier) = Sim.Tiers.Split(id);
+        if (tier <= 1 || !Legacy.TryGetValue(baseId, out var basePrice)) return null;
+        return Tiers is null || tier - 2 >= Tiers.Count ? null : Sim.Tiers.Price(basePrice, tier, Tiers);
+    }
 
     /// <summary>
     /// Магазин места (M11, по местам — M15): ассортимент региона и отличия места, все цены — местные. Цены есть
@@ -149,8 +160,6 @@ public sealed record ShopRules(
             Places = null,
             Stock = [.. stock.Order(StringComparer.Ordinal)],
             Title = station?.Title,
-            // Топливо дальше от Ядра дороже (M12): обратная дорога с Рубежа сама себе расход.
-            FuelPrice = FuelPrice * (station?.Fuel ?? regional?.Fuel ?? 1),
         };
     }
 
@@ -170,9 +179,10 @@ public sealed record ShopRules(
     {
         if (StartCredits < 0) return "startCredits must not be negative";
         if (!(RepairPrice >= 0)) return "repairPrice must not be negative";
-        if (!(FuelPrice >= 0)) return "fuelPrice must not be negative";
         if (!(SellShare >= 0 && SellShare <= 1)) return "sellShare must be within 0..1";
         if (!(RepairHullShare >= 0)) return "repairHullShare must not be negative";
+        foreach (var (id, price) in Legacy ?? new Dictionary<string, int>())
+            if (price < 0) return $"legacy.{id}: price must not be negative";
         foreach (var (id, price) in HullPrices)
         {
             if (!hulls.ContainsKey(id)) return $"hulls.{id}: unknown hull";
@@ -198,7 +208,6 @@ public sealed record ShopRules(
                 }
                 if (def.Tiers is { } list && list.Any(t => t < 1 || t > maxTier)) return $"{block}.{id}: tiers must be within 1..{maxTier}";
                 if (!(def.Price > 0)) return $"{block}.{id}: price must be positive";
-                if (def.Fuel is { } fuel && !(fuel > 0)) return $"{block}.{id}: fuel must be positive";
             }
         }
         return null;

@@ -47,7 +47,7 @@ import {
   repPrice,
   type ReputationRules,
 } from '../sim/reputation';
-import { NO_SHOP, formatCredits, fuelCost, price, repairCost, sells, sellPrice, type ShopRules } from '../sim/shop';
+import { NO_SHOP, formatCredits, price, repairCost, sells, sellPrice, type ShopRules } from '../sim/shop';
 import type { Weapons } from '../sim/weapons';
 import { color, round, type CargoState } from './cargoHud';
 
@@ -239,7 +239,6 @@ export interface DockHandlers {
   /** Продать со склада пушку или модуль. */
   onSellItem(id: string): void;
   onRepair(): void;
-  onRefuel(): void;
   onUndock(): void;
   /** Бургер-меню (M15.5): открыть под кнопкой, прямоугольник которой передан. */
   onMenu(anchor: DOMRect): void;
@@ -668,20 +667,6 @@ export class DockScreen {
       repair.disabled = cost > credits;
       line.append(repair);
     }
-    // Топливо (GDD §6) — только на гиперпрыжки: заправка здесь же, до полного бака.
-    const maxFuel = hangar.maxFuel ?? 0;
-    if (maxFuel > 0) {
-      const fuel = hangar.fuel ?? 0;
-      line.append(el('div', 'dock-ship-hp', `Топливо ${fuel} / ${maxFuel}`));
-      if (fuel < maxFuel) {
-        const cost = fuelCost(this.shop, maxFuel - fuel);
-        const refuel = button(cost > 0 ? `Заправить · ${formatCredits(cost)}` : 'Заправить бесплатно', 'dock-buy', () =>
-          this.handlers.onRefuel(),
-        );
-        refuel.disabled = cost > credits;
-        line.append(refuel);
-      }
-    }
     return line;
   }
 
@@ -909,7 +894,7 @@ export class DockScreen {
       const utility = hullUtilitySlots(hull);
       const own = this.modules.enabled
         ? [`класс ${hull.class ?? 'L'}`, `пушки ${slots}`, utility ? `вспомогательных ${utility}` : '']
-        : [`щит ${hull.shield}`, hull.fuel ? `бак ${hull.fuel}` : '', hull.radar ? `радар ${hull.radar}` : ''];
+        : [`щит ${hull.shield}`, hull.radar ? `радар ${hull.radar}` : ''];
       const stats = [`корпус ${hull.hp} · скорость ${hull.maxSpeed} · трюм ${hull.cargo}`, ...own.filter(Boolean)].join(' · ');
       // Здесь продают не всё (M11): чего нет в ассортименте станции, то и не купить.
       const listed = sells(this.shop, id, this.shop.hulls) ? price(this.shop.hulls, id) : null;

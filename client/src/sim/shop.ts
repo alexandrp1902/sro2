@@ -9,8 +9,6 @@ export interface ShopRules {
   hulls?: Record<string, number> | null;
   /** Пушка или модуль — цена. */
   items?: Record<string, number> | null;
-  /** Кредитов за единицу топлива при заправке (GDD §6); 0 или нет поля — бесплатно. */
-  fuelPrice?: number;
   /** Доля цены, за которую станция выкупает пушку или модуль со склада. */
   sellShare?: number;
   /** Доля цены корпуса за полный ремонт (M12): дорогой корабль и чинить дорого. 0 или нет поля — как до M12. */
@@ -55,11 +53,6 @@ export function repairCost(shop: ShopRules, missingHp: number, maxHp = 0, hullPr
   const share = shop.repairHullShare ?? 0;
   const byHull = maxHp > 0 && hullPrice > 0 ? (share * hullPrice * missingHp) / maxHp : 0;
   return Math.ceil(missingHp * shop.repairPrice + byHull);
-}
-
-/** Заправка до полного бака — как на сервере: округлено вверх. */
-export function fuelCost(shop: ShopRules, missingFuel: number): number {
-  return missingFuel > 0 ? Math.ceil(missingFuel * (shop.fuelPrice ?? 0) - 1e-9) : 0;
 }
 
 /** «1 800 кр»: тысячи через пробел, как принято в русском тексте. */

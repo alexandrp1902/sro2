@@ -11,13 +11,10 @@ export class FlightHud {
     el.addEventListener('click', onTap);
   }
 
-  /** @param fuel топливо и бак (GDD §6); null — сервер о них не сообщал (локальный полёт) */
-  update(hullName: string, speed: number, throttle: number, fuel: { fuel: number; max: number } | null = null): void {
+  update(hullName: string, speed: number, throttle: number): void {
     const now = performance.now();
     if (now - this.lastRender < RENDER_INTERVAL_MS) return;
     this.lastRender = now;
-    const parts = [hullName, String(Math.round(speed)), `тяга ${Math.round(throttle * 100)}%`];
-    if (fuel && fuel.max > 0) parts.push(`топливо ${fuel.fuel}/${fuel.max}`);
-    this.el.textContent = parts.join(' · ');
+    this.el.textContent = [hullName, String(Math.round(speed)), `тяга ${Math.round(throttle * 100)}%`].join(' · ');
   }
 }

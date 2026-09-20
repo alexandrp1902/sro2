@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { GalaxyDto } from '../net/protocol';
-import { dangerColor, describeSystem, gateIndex, gateMarkId, hops, jumpCost, jumpOutlook, neighbours } from './galaxy';
+import { dangerColor, describeSystem, gateIndex, gateMarkId, hops, jumpOutlook, linked, neighbours } from './galaxy';
 
 const galaxy: GalaxyDto = {
   systems: [
@@ -10,30 +10,26 @@ const galaxy: GalaxyDto = {
     { id: 'sigma', name: 'Sigma', danger: 5, pvp: 'free', station: false, x: 92, y: 82 },
   ],
   links: [
-    { a: 'sol', b: 'vega', cost: 20 },
-    { a: 'sol', b: 'tau', cost: 30 },
-    { a: 'tau', b: 'sigma', cost: 25 },
+    { a: 'sol', b: 'vega' },
+    { a: 'sol', b: 'tau' },
+    { a: 'tau', b: 'sigma' },
   ],
 };
 
 describe('galaxy', () => {
-  it('finds the jump cost both ways', () => {
-    expect(jumpCost(galaxy, 'sol', 'tau')).toBe(30);
-    expect(jumpCost(galaxy, 'tau', 'sol')).toBe(30);
-    expect(jumpCost(galaxy, 'sol', 'sigma')).toBeNull();
-    expect(neighbours(galaxy, 'sol')).toEqual([
-      { id: 'vega', cost: 20 },
-      { id: 'tau', cost: 30 },
-    ]);
+  it('finds the route both ways', () => {
+    expect(linked(galaxy, 'sol', 'tau')).toBe(true);
+    expect(linked(galaxy, 'tau', 'sol')).toBe(true);
+    expect(linked(galaxy, 'sol', 'sigma')).toBe(false);
+    expect(neighbours(galaxy, 'sol')).toEqual(['vega', 'tau']);
   });
 
-  it('warns about one-way jumps into systems without a station', () => {
-    expect(jumpOutlook(galaxy, 'sol', 'sol', 100)).toBe('here');
-    expect(jumpOutlook(galaxy, 'sol', 'sigma', 100)).toBe('far');
-    expect(jumpOutlook(galaxy, 'sol', 'tau', 29)).toBe('noFuel');
-    expect(jumpOutlook(galaxy, 'sol', 'tau', 40)).toBe('oneWay'); // в Tau не заправиться, обратно — ещё 30
-    expect(jumpOutlook(galaxy, 'sol', 'tau', 60)).toBe('ok');
-    expect(jumpOutlook(galaxy, 'sol', 'vega', 20)).toBe('ok'); // в Vega есть станция
+  // Топливо отменено (M15.6): прыжку мешает только отсутствие прямого маршрута.
+  it('tells here from a neighbour from an unreachable system', () => {
+    expect(jumpOutlook(galaxy, 'sol', 'sol')).toBe('here');
+    expect(jumpOutlook(galaxy, 'sol', 'sigma')).toBe('far');
+    expect(jumpOutlook(galaxy, 'sol', 'tau')).toBe('ok');
+    expect(jumpOutlook(galaxy, 'sol', 'vega')).toBe('ok');
   });
 
   it('counts hops from the current system', () => {

@@ -14,7 +14,7 @@ public sealed record MapPoint(double X, double Y);
 /// <param name="Color">Цвет подложки на карте галактики, #rrggbb.</param>
 public sealed record RegionDef(string Name, string Color = "#4f7cc4");
 
-/// <summary>Маршрут между двумя системами (GDD §55). Прыжок стоит distance × fuelPerDistance топлива (§6).</summary>
+/// <summary>Маршрут между двумя системами (GDD §55). Distance — длина плеча: по ней считают тариф буксира (M15.6).</summary>
 public sealed record LinkDef(string A, string B, double Distance);
 
 /// <summary>
@@ -94,17 +94,15 @@ public sealed record SystemDef(
 }
 
 /// <summary>
-/// Галактика из shared/galaxy.json (GDD §4–6, §33–34, §55): системы, их раскладка, врата, маршруты и топливо.
+/// Галактика из shared/galaxy.json (GDD §4–6, §33–34, §55): системы, их раскладка, врата и маршруты.
 /// Типы пиратов, таблицы лута и радиусы остаются в npcs.json, loot.json и combat.json — здесь только где что стоит.
 /// </summary>
-/// <param name="FuelPerDistance">Топлива за единицу расстояния маршрута — «коэффициент двигателя» из §6.</param>
 /// <param name="GateRange">Ближе этого к вратам можно начать прыжок.</param>
 /// <param name="JumpSeconds">Подготовка прыжка (§5 — 3 секунды).</param>
 /// <param name="ArrivalOffset">Корабль после прыжка появляется на столько ближе к центру, чем врата.</param>
 /// <param name="StartSystem">Здесь появляются новые пилоты и гости; в ней обязана быть станция.</param>
 /// <param name="Regions">Регионы (M11); null — регионов нет, магазин везде один.</param>
 public sealed record GalaxyRules(
-    double FuelPerDistance = 1,
     double GateRange = 250,
     double JumpSeconds = 3,
     double ArrivalOffset = 250,
@@ -187,11 +185,6 @@ public sealed record GalaxyRules(
     public LinkDef? Link(string a, string b) =>
         LinkList.FirstOrDefault(l => (l.A == a && l.B == b) || (l.A == b && l.B == a));
 
-    /// <summary>Сколько топлива стоит прыжок a → b; null — прямого маршрута нет. Округляется вверх.</summary>
-    public int? JumpCost(string a, string b) => Link(a, b) is { } link ? Cost(link) : null;
-
-    public int Cost(LinkDef link) => (int)Math.Ceiling(link.Distance * FuelPerDistance - 1e-9);
-
     /// <summary>Куда корабль попадает после прыжка from → to: у ответных врат, на ArrivalOffset ближе к центру.</summary>
     public (double X, double Y)? Arrival(string from, string to)
     {
@@ -205,7 +198,6 @@ public sealed record GalaxyRules(
     /// <param name="validateSystem">Проверка раскладки системы по правилам NPC, лута и боя; null — всё хорошо.</param>
     public string? Validate(Func<string, SystemDef, string?> validateSystem)
     {
-        if (!(FuelPerDistance >= 0)) return "fuelPerDistance must not be negative";
         if (!(GateRange > 0)) return "gateRange must be positive";
         if (!(JumpSeconds >= 0)) return "jumpSeconds must not be negative";
         if (!(ArrivalOffset >= 0)) return "arrivalOffset must not be negative";

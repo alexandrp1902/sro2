@@ -235,7 +235,6 @@ public sealed partial class Room
             Home = SystemId,
         };
         Refit(player, player.Fit);
-        player.Fuel = Tank(player);
         // Гость — это тесты, смоук-скрипты и боты: обучения у него нет, доска заданий есть.
         player.Missions.Seed = Random.Shared.Next();
         Enter(player, connection);
@@ -292,9 +291,13 @@ public sealed partial class Room
             player.Fit = fit with { Weapons = [.. fit.Weapons ?? []] };
             foreach (var (item, count) in profile.Cargo) if (count > 0) player.Cargo.Add(item, count);
         }
+        // Бака больше нет (M15.6), а модуль был оплачен — выкупаем его по legacy-прайсу. Считать надо было
+        // до Refit: он про слот «бак» уже не знает, а из profile.Storage баки и так не дошли — IsItem их
+        // не признал. Поэтому источник один: сырой профиль.
+        var tanksSold = TankRefund(profile);
+        player.Credits += tanksSold;
         Refit(player, player.Fit);
-        // Профиль старше M7 — бак полный. Дом — система, где пилот появился: её выбрала галактика по профилю.
-        player.Fuel = Math.Clamp(profile?.Fuel ?? int.MaxValue, 0, Tank(player));
+        // Дом — система, где пилот появился: её выбрала галактика по профилю.
         player.Home = SystemId;
         // Место последней стыковки (M15). У профиля старше M15 его нет — там домом звалась система,
         // и это её станция; место могло и пропасть из баланса, тогда берём главное место системы.
@@ -317,6 +320,29 @@ public sealed partial class Room
             foreach (var (key, delta) in path.RepMap) player.Rep.Add(key, delta, NowSeconds, Balance.Reputation);
         Enter(player, connection);
         if (profile is null || profile.Fit is null) Save(player);
+        if (tanksSold > 0)
+        {
+            connection.Send(new NoticeMsg(Protocol.TanksSoldNotice, tanksSold));
+            // Без записи возврат повторился бы при каждом входе.
+            Save(player);
+            _log.LogInformation("Player {Id} got {Credits} credits back for fuel tanks", player.Id, tanksSold);
+        }
+    }
+
+    /// <summary>
+    /// Сколько вернуть за баки из профиля старше M15.6: за стоявший и за все, что лежали на складе.
+    /// По полной цене, а не по sellShare: модуль отбирают решением разработчика, и скидка на это
+    /// читалась бы как ошибка. 0 — баков не было или цен для них нет.
+    /// </summary>
+    private int TankRefund(AccountProfile? profile)
+    {
+        if (profile is null) return 0;
+        var shop = Balance.Economy;
+        var total = 0;
+        if (profile.Fit?.Tank is { } fitted) total += shop.LegacyPrice(fitted) ?? 0;
+        foreach (var (id, count) in profile.Storage ?? new Dictionary<string, int>())
+            if (count > 0 && !IsItem(id) && shop.LegacyPrice(id) is { } price) total += price * count;
+        return total;
     }
 
     /// <summary>
@@ -462,8 +488,8 @@ public sealed partial class Room
     }
 
     /// <summary>
-    /// Гиперпрыжок (GDD §5): у врат в систему to, с топливом на маршрут — через jumpSeconds корабль уйдёт.
-    /// to = null — отменить подготовку.
+    /// Гиперпрыжок (GDD §5): у врат в систему to — через jumpSeconds корабль уйдёт. Топлива прыжок не стоит
+    /// с M15.6. to = null — отменить подготовку.
     /// </summary>
     public void Jump(IClientConnection connection, string? to)
     {
@@ -475,40 +501,15 @@ public sealed partial class Room
         }
         if (player.IsDead || player.Docked || player.JumpTo == to || _host is null) return;
         var galaxy = Balance.Galaxy;
-        if (Balance.SystemDef.GateTo(to) is not { } gate || galaxy.JumpCost(SystemId, to) is not { } cost) return;
+        if (Balance.SystemDef.GateTo(to) is not { } gate || galaxy.Link(SystemId, to) is null) return;
         if (!NearGate(player, gate, galaxy.GateRange))
         {
             connection.Send(new NoticeMsg(Protocol.GateFarNotice));
             return;
         }
-        if (player.Fuel < cost)
-        {
-            connection.Send(new NoticeMsg(Protocol.NoFuelNotice));
-            return;
-        }
         player.JumpTo = to;
         player.JumpAtTick = Tick + galaxy.JumpTicks;
         _log.LogInformation("Player {Id} charges a jump {From} → {To}", player.Id, SystemId, to);
-    }
-
-    /// <summary>Заправка в доке до полного бака (GDD §6, §26) по fuelPrice из shop.json.</summary>
-    public void Refuel(IClientConnection connection)
-    {
-        if (!_byConnection.TryGetValue(connection.Id, out var player) || !player.Docked) return;
-        var missing = Tank(player) - player.Fuel;
-        if (missing <= 0) return;
-        var cost = ShopOf(player).FuelCost(missing);
-        if (player.Credits < cost)
-        {
-            connection.Send(new NoticeMsg(Protocol.NoCreditsNotice));
-            return;
-        }
-        player.Credits -= cost;
-        player.Fuel += missing;
-        SendCargo(player);
-        SendHangar(player);
-        Save(player);
-        _log.LogInformation("Player {Id} refuelled {Fuel} for {Credits} credits", player.Id, missing, cost);
     }
 
     private static bool NearGate(Player player, GateDef gate, double range)
@@ -553,7 +554,7 @@ public sealed partial class Room
 
     /// <summary>
     /// Подготовка прыжка: сбивается, если корабль погиб, ушёл в док, потерял связь, отошёл от врат или по нему попали;
-    /// по готовности топливо списывается, и галактика переводит корабль в соседнюю систему.
+    /// по готовности галактика переводит корабль в соседнюю систему.
     /// </summary>
     private void StepJumps()
     {
@@ -564,31 +565,20 @@ public sealed partial class Room
         {
             var to = player.JumpTo!;
             var gate = Balance.SystemDef.GateTo(to);
-            var cost = galaxy.JumpCost(SystemId, to);
-            if (player.IsDead || player.Docked || player.Connection is null || gate is null || cost is null ||
-                !NearGate(player, gate, galaxy.GateRange * GateSlack))
+            if (player.IsDead || player.Docked || player.Connection is null || gate is null ||
+                galaxy.Link(SystemId, to) is null || !NearGate(player, gate, galaxy.GateRange * GateSlack))
             {
                 CancelJump(player, notify: true);
                 continue;
             }
             if (Tick < player.JumpAtTick) continue;
-            if (player.Fuel < cost)
-            {
-                CancelJump(player, notify: false);
-                player.Connection.Send(new NoticeMsg(Protocol.NoFuelNotice));
-                continue;
-            }
-            player.Fuel -= cost.Value;
             player.JumpTo = null;
             player.JumpAtTick = 0;
             Save(player);
-            _log.LogInformation("Player {Id} jumps {From} → {To}, fuel left {Fuel}", player.Id, SystemId, to, player.Fuel);
+            _log.LogInformation("Player {Id} jumps {From} → {To}", player.Id, SystemId, to);
             _host!.Depart(this, player, to, jump: true);
         }
     }
-
-    /// <summary>Бак корабля: модуль бака, без modules.json — корпус (hulls.json fuel).</summary>
-    private int Tank(Player player) => (int)Math.Floor(player.Effective(Balance).Fuel);
 
     public void Input(IClientConnection connection, int seq, MoveInput input)
 
@@ -674,7 +664,6 @@ public sealed partial class Room
         player.Fit = Fitting.Refit(player.Hull(Hulls), fit, Balance.Weapons, Balance.Modules, removed);
         if (!player.IsGuest) foreach (var id in removed) player.Store(id);
         player.Rescale(from, player.Effective(Balance));
-        player.Fuel = Math.Min(player.Fuel, Tank(player));
     }
 
     /// <summary>Продать со склада пушку или модуль — за долю цены (shop.json sellShare).</summary>
@@ -755,7 +744,6 @@ public sealed partial class Room
             player.Fit = Fitting.Refit(player.Hull(Hulls), player.Fit, balance.Weapons, balance.Modules, removed);
             if (!player.IsGuest) foreach (var id in removed) player.Store(id);
             player.Rescale(from, player.Effective(balance));
-            player.Fuel = Math.Min(player.Fuel, Tank(player));
         }
 
         var raidsJson = System.Text.Json.JsonSerializer.Serialize(balance.Raids);
@@ -1497,7 +1485,6 @@ public sealed partial class Room
         player.Fit = Fitting.Refit(player.Hull(Hulls), player.Fit, Balance.Weapons, Balance.Modules, removed);
         if (!player.IsGuest) foreach (var id in removed) player.Store(id);
         player.Rescale(from, player.Effective(Balance));
-        player.Fuel = Math.Min(player.Fuel, Tank(player));
     }
 
     /// <summary>Ракета с корабля шуттера — в полёт; PvP уже проверил Battle.</summary>
@@ -1649,7 +1636,7 @@ public sealed partial class Room
             system.Station ? Balance.Npc.StationSafeRadius : 0,
             galaxy.GateRange,
             galaxy.JumpSeconds,
-            [.. system.GateList.Select(g => new GateDto(g.To, galaxy.System(g.To)?.Name ?? g.To, g.X, g.Y, galaxy.JumpCost(SystemId, g.To) ?? 0))],
+            [.. system.GateList.Select(g => new GateDto(g.To, galaxy.System(g.To)?.Name ?? g.To, g.X, g.Y))],
             Balance.Sun,
             Balance.StationPath,
             Balance.GalaxySet is null ? [] : system.PlanetList,
@@ -1666,7 +1653,7 @@ public sealed partial class Room
             kv.Key, kv.Value.Name, kv.Value.Danger, kv.Value.Pvp, kv.Value.Station,
             kv.Value.Map?.X ?? 0, kv.Value.Map?.Y ?? 0, kv.Value.Region,
             [.. kv.Value.Places(kv.Key, 0).Select(p => new PlaceNameDto(p.Key, p.Name))]))],
-        [.. galaxy.LinkList.Select(l => new LinkDto(l.A, l.B, galaxy.Cost(l)))],
+        [.. galaxy.LinkList.Select(l => new LinkDto(l.A, l.B))],
         galaxy.Regions is null ? null : [.. galaxy.RegionMap.Select(kv => new RegionDto(kv.Key, kv.Value.Name, kv.Value.Color))]);
 
     /// <summary>Занятое другим игроком имя получает номер: «Имя 2», «Имя 3»…</summary>
@@ -2064,8 +2051,6 @@ public sealed partial class Room
             player.Docked,
             (int)Math.Ceiling(player.Hp),
             (int)Math.Ceiling(player.MaxHp(hull)),
-            player.Fuel,
-            Tank(player),
             player.Home ?? SystemId,
             (int)Math.Round(Fitting.Power(player.Fit, Balance.Weapons, Balance.Modules)),
             Balance.Modules is null ? 0 : (int)Math.Round(Fitting.Output(player.Fit, Balance.Modules)),
@@ -2089,24 +2074,23 @@ public sealed partial class Room
     private void Save(Player player)
     {
         if (_accounts is null || player.AccountId is null) return;
+        // Все аргументы по именам: полей много, среди них соседние строки и словари, и позиционный
+        // вызов молча переживал бы перестановку или удаление поля профиля.
         _accounts.Save(player.AccountId, new AccountProfile(
-            player.Credits,
-            player.HullId,
-            player.WeaponId ?? "",
-            [.. player.Hulls.Order(StringComparer.Ordinal)],
-            [],
-            new Dictionary<string, int>(player.Cargo.Items),
-            player.Fuel,
-            player.Home,
-            player.Missions.Tutorial,
-            player.Missions.Active,
-            player.Missions.Seed,
-            player.Fit,
-            new SortedDictionary<string, int>(player.Storage, StringComparer.Ordinal),
-            SaveRep(player),
-            player.Rep.At,
-            // Дальше — два строковых поля подряд: имена аргументов обязательны, иначе дом и путь
-            // можно перепутать местами, и компилятор смолчит.
+            Credits: player.Credits,
+            Hull: player.HullId,
+            Weapon: player.WeaponId ?? "",
+            Hulls: [.. player.Hulls.Order(StringComparer.Ordinal)],
+            Weapons: [],
+            Cargo: new Dictionary<string, int>(player.Cargo.Items),
+            System: player.Home,
+            Tutorial: player.Missions.Tutorial,
+            Mission: player.Missions.Active,
+            MissionSeed: player.Missions.Seed,
+            Fit: player.Fit,
+            Storage: new SortedDictionary<string, int>(player.Storage, StringComparer.Ordinal),
+            Reputation: SaveRep(player),
+            RepAt: player.Rep.At,
             Place: player.HomePlace,
             Career: player.Career));
     }

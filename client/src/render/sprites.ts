@@ -116,7 +116,6 @@ const MODULE_SPRITES: Record<string, string> = {
   engine: 'modules-engine',
   shield: 'modules-shield',
   radar: 'modules-scanner',
-  tank: 'modules-fuel-tank',
   generator: 'modules-reactor',
   utility: 'modules-cargo',
 };

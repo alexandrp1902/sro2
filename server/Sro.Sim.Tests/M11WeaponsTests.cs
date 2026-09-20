@@ -62,7 +62,6 @@ public class M11WeaponsTests
         ["engineS"] = new("Двигатель", Fitting.EngineSlot, EquipClass.S, Power: 5),
         ["shieldS"] = new("Щит", Fitting.ShieldSlot, EquipClass.S, Power: 10, Shield: 150, ShieldRegen: 20),
         ["radarS"] = new("Радар", Fitting.RadarSlot, EquipClass.S, Power: 5, Radar: 2000),
-        ["tankS"] = new("Бак", Fitting.TankSlot, EquipClass.S, Fuel: 100),
         ["generatorS"] = new("Генератор", Fitting.GeneratorSlot, EquipClass.S, Output: 200),
         ["repair"] = new("Ремонтный блок", Fitting.UtilityKind, EquipClass.S, Power: 10, Repair: 8),
         ["cooling"] = new("Охлаждение", Fitting.UtilityKind, EquipClass.S, Power: 12, Cooling: 0.1),
@@ -78,7 +77,7 @@ public class M11WeaponsTests
     private static HullParams Hull(int utility) => TestHulls.Light with { UtilitySlots = utility, Cargo = 20, Class = EquipClass.S };
 
     private static ShipFit Starter(params string?[] utility) =>
-        new(["pulse"], "engineS", "shieldS", "radarS", "tankS", "generatorS", utility);
+        new(["pulse"], "engineS", "shieldS", "radarS", "generatorS", utility);
 
     [Fact]
     public void UtilityModules_AddCargoRepairAndCooling()

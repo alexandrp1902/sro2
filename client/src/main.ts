@@ -257,7 +257,6 @@ async function main(): Promise<void> {
   let system: SystemDto | null = null;
   let galaxy: GalaxyDto | null = null;
   /** Топливо и бак (GDD §6) — из ангара: меняются только прыжком и заправкой. */
-  let fuel = { fuel: 0, max: 0 };
   let home: string | null = null;
   /** Обучение и задания (GDD §36, §54) — от сервера, по событию. */
   let missions: MissionsMsg | null = null;
@@ -358,7 +357,6 @@ async function main(): Promise<void> {
     onFit: (slot, id) => send({ t: 'fit', slot, id }),
     onSellItem: (id) => send({ t: 'sellItem', id }),
     onRepair: () => send({ t: 'repair' }),
-    onRefuel: () => send({ t: 'refuel' }),
     onUndock: () => send({ t: 'dock', on: false }),
     onMenu: (anchor) => menu.toggleAt(anchor),
     onAccept: (id) => send({ t: 'mission', action: 'accept', id }),
@@ -403,8 +401,6 @@ async function main(): Promise<void> {
         ? {
             galaxy,
             current: system.id,
-            fuel: fuel.fuel,
-            maxFuel: fuel.max,
             home,
             objective: objectiveSystem(missions, system.id, galaxy),
             invasion: invasion.system(performance.now()),
@@ -543,8 +539,7 @@ async function main(): Promise<void> {
       if (jumping()) send({ t: 'jump', to: null });
       else if (Math.hypot(prediction.curr.x - gate.x, prediction.curr.y - gate.y) > system.gateRange) {
         feed.add('Подлетите ближе к вратам');
-      } else if (fuel.fuel < gate.cost) feed.add(`Не хватает топлива: ${fuel.fuel} из ${gate.cost}`);
-      else send({ t: 'jump', to: gate.to });
+      } else send({ t: 'jump', to: gate.to });
       return true;
     }
     if (selectedLootId === 0) return false;
@@ -742,7 +737,8 @@ async function main(): Promise<void> {
         return system && !system.station ? null : { ...systemView.stationAt, size: STATION.radius };
       case 'gate': {
         const gates = system?.gates ?? [];
-        const gate = goal.to ? gates.find((g) => g.to === goal.to) : [...gates].sort((a, b) => a.cost - b.cost)[0];
+        // Задание без адреса: любые врата годятся — с M15.6 все прыжки стоят одинаково, то есть ничего.
+        const gate = goal.to ? gates.find((g) => g.to === goal.to) : gates[0];
         return gate ? { x: gate.x, y: gate.y, size: GATE_SIZE } : null;
       }
       case 'meteor':
@@ -834,7 +830,6 @@ async function main(): Promise<void> {
       docked = message.docked;
       prediction.hullId = message.hull;
       fit = message.fit;
-      fuel = { fuel: message.fuel ?? 0, max: message.maxFuel ?? 0 };
       home = message.home ?? null;
       refreshGalaxyMap();
       dockScreen.setPlace(message.place); // где именно стоим: от этого заголовок, фон и вкладки (M15)
@@ -897,7 +892,7 @@ async function main(): Promise<void> {
       refreshGalaxyMap();
     };
     connection.onNotice = (message) => {
-      const text = describeNotice(message.code);
+      const text = describeNotice(message.code, message.n ?? 0);
       if (text) feed.add(text);
     };
     connection.onSnapshot = (message) => {
@@ -1150,8 +1145,6 @@ async function main(): Promise<void> {
                 name: gate.name,
                 distance: Math.hypot(gate.x - state.x, gate.y - state.y),
                 inRange: Math.hypot(gate.x - state.x, gate.y - state.y) <= system.gateRange,
-                cost: gate.cost,
-                fuel: fuel.fuel,
                 charging: jumping() ? Math.max(0, (ownDto!.j! - tick) * DT) : null,
               }
             : null,
@@ -1185,7 +1178,7 @@ async function main(): Promise<void> {
     const speed = Math.hypot(prediction.curr.vx, prediction.curr.vy);
     const velocity = localVelocity(prediction.curr);
     status.update(connection, app.ticker.FPS, isBraking() && speed > STOPPED_SPEED, system ? `${system.name} · ${pvpName(system.pvp)}` : null);
-    flight.update(hull.name, speed, input.throttle, online && fuel.max > 0 ? fuel : null);
+    flight.update(hull.name, speed, input.throttle);
 
     dev.update({
       tick,

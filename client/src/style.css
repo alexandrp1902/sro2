@@ -1673,13 +1673,8 @@ body {
   font-weight: 600;
 }
 
-.galaxy-fuel {
-  margin-left: auto;
-  font-variant-numeric: tabular-nums;
-  color: #9fc0e8;
-}
-
 .galaxy-close {
+  margin-left: auto;
   padding: 4px 10px;
   border: 0;
   border-radius: 8px;
@@ -1706,18 +1701,6 @@ body {
 .galaxy-link-open {
   stroke: #b58cff;
   stroke-width: 0.8;
-}
-
-.galaxy-link-poor {
-  stroke: #5a4a78;
-  stroke-width: 0.6;
-  stroke-dasharray: 1.4 1;
-}
-
-.galaxy-cost {
-  fill: #8fa7c8;
-  font-size: 3.2px;
-  text-anchor: middle;
 }
 
 .galaxy-node {

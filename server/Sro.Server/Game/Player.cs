@@ -129,9 +129,6 @@ public sealed class Player(int id, string? token, string name, string hullId, st
     /// </summary>
     public (double X, double Y) DockOffset;
 
-    /// <summary>Топливо (GDD §6): тратится только на гиперпрыжки, заправляется в доке.</summary>
-    public int Fuel;
-
     /// <summary>Система последней стыковки: здесь корабль появляется после гибели и после входа. null — стартовая.</summary>
     public string? Home;
 

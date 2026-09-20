@@ -52,7 +52,7 @@ public readonly record struct MoveInput(double Dx, double Dy, double Throttle)
 /// <param name="MoveEvasion">Добавка к уклонению на полной скорости, % (§40).</param>
 /// <param name="Cargo">Ёмкость трюма в единицах объёма (§46): сколько добычи влезает в корпус.</param>
 /// <param name="Shield">
-/// Щит, <paramref name="ShieldRegen"/>, <paramref name="Fuel"/> и <paramref name="Radar"/> — у NPC; у пилота их задают модули
+/// Щит, <paramref name="ShieldRegen"/> и <paramref name="Radar"/> — у NPC; у пилота их задают модули
 /// (<see cref="Fitting.Effective"/>), а без modules.json — корпус, как до M9.
 /// </param>
 /// <param name="Class">Старший класс оборудования, которое встаёт на корпус (GDD §20): S, M или L.</param>
@@ -74,7 +74,6 @@ public sealed record HullParams(
     double Evasion = 25,
     double MoveEvasion = 8,
     double Cargo = 20,
-    double Fuel = 100,
     double Radar = 2000,
     string Class = EquipClass.L,
     IReadOnlyList<string>? WeaponSlots = null,
@@ -99,7 +98,6 @@ public sealed record HullParams(
         if (!(Evasion >= 0 && Evasion <= 100) || !(MoveEvasion >= 0 && MoveEvasion <= 100))
             return "evasion and moveEvasion must be within 0..100";
         if (!(Cargo >= 0)) return "cargo must not be negative";
-        if (!(Fuel >= 0)) return "fuel must not be negative";
         if (!(Radar > 0)) return "radar must be positive";
         if (!EquipClass.IsValid(Class)) return "class must be S, M or L";
         if (Slots.Count is < 1 or > Fitting.MaxWeaponSlots) return $"weaponSlots must have 1..{Fitting.MaxWeaponSlots} slots";

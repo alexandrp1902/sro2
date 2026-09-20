@@ -14,7 +14,6 @@ public sealed class MissionTests : IDisposable
 
     /// <summary>home (станция, дрон) — wild (без станции, логово пиратов) — port (станция).</summary>
     private static readonly GalaxyRules Rules = new(
-        FuelPerDistance: 1,
         GateRange: 250,
         JumpSeconds: 1,
         ArrivalOffset: 250,

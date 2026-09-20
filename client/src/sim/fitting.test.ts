@@ -12,7 +12,6 @@ const starter: ShipFit = {
   engine: 'engineS',
   shield: 'shieldS',
   radar: 'radarS',
-  tank: 'tankS',
   generator: 'generatorS',
 };
 

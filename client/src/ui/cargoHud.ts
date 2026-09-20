@@ -27,15 +27,13 @@ export interface StationCardState {
   inRange: boolean;
 }
 
-/** Выбранные врата: куда ведут, далеко ли, хватит ли топлива, идёт ли подготовка прыжка. */
+/** Выбранные врата: куда ведут, далеко ли, идёт ли подготовка прыжка. */
 export interface GateCardState {
   kind: 'gate';
   /** Система за вратами. */
   name: string;
   distance: number;
   inRange: boolean;
-  cost: number;
-  fuel: number;
   /** Сколько секунд до прыжка; null — подготовки нет. */
   charging: number | null;
 }
@@ -66,12 +64,10 @@ const GATE_COLOR = 0xb58cff;
 /** Как подпись планеты в мире. */
 const PLANET_COLOR = 0x9fc7a8;
 
-/** Подсказка под именем врат: что сейчас мешает прыжку или что он стоит. */
+/** Подсказка под именем врат: что сейчас мешает прыжку. Топлива прыжок не стоит (M15.6). */
 export function gateHint(card: GateCardState): string {
   if (card.charging !== null) return `прыжок через ${Math.ceil(card.charging)} с`;
-  if (!card.inRange) return 'подлетите ближе, чтобы прыгнуть';
-  if (card.fuel < card.cost) return `не хватает топлива: ${card.fuel} из ${card.cost}`;
-  return `прыжок · ${card.cost} топлива из ${card.fuel}`;
+  return card.inRange ? 'прыжок готов' : 'подлетите ближе, чтобы прыгнуть';
 }
 
 /**

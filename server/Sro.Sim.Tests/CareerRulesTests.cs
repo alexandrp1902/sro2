@@ -24,7 +24,6 @@ public class CareerRulesTests
         ["engineS"] = new("Двигатель", Fitting.EngineSlot, Power: 5),
         ["shieldS"] = new("Щит", Fitting.ShieldSlot, Power: 10, Shield: 150),
         ["radarS"] = new("Радар", Fitting.RadarSlot, Power: 5, Radar: 2000),
-        ["tankS"] = new("Бак", Fitting.TankSlot, Fuel: 100),
         ["generatorS"] = new("Генератор", Fitting.GeneratorSlot, Output: 300),
     };
 

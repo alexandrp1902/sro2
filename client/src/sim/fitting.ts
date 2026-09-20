@@ -7,7 +7,7 @@ import type { WeaponConfig, WeaponParams } from './combat';
 import type { HullParams } from './movement';
 
 export type EquipClass = 'S' | 'M' | 'L';
-export type ModuleSlot = 'engine' | 'shield' | 'radar' | 'tank' | 'generator';
+export type ModuleSlot = 'engine' | 'shield' | 'radar' | 'generator';
 /** Вспомогательный модуль (M11): ремонт, охлаждение, грузовой расширитель — в слоты u0…u2. */
 export const UTILITY = 'utility';
 /** w0…w5 — оружейные слоты, u0…u2 — вспомогательные, остальное — модули. */
@@ -33,8 +33,6 @@ export interface ModuleParams {
   shieldRegen?: number;
   /** Радар: дальность. */
   radar?: number;
-  /** Бак: ёмкость. */
-  fuel?: number;
   /** Генератор: сколько энергии даёт. */
   output?: number;
   /** Вспомогательный: ремонт корпуса вне боя, единиц в секунду. */
@@ -55,13 +53,12 @@ export interface ShipFit {
   engine?: string | null;
   shield?: string | null;
   radar?: string | null;
-  tank?: string | null;
   generator?: string | null;
   /** Вспомогательные модули по слотам u0…u2 (M11); нет — старый профиль без них. */
   utility?: (string | null)[] | null;
 }
 
-export const MODULE_SLOTS: ModuleSlot[] = ['engine', 'shield', 'radar', 'tank', 'generator'];
+export const MODULE_SLOTS: ModuleSlot[] = ['engine', 'shield', 'radar', 'generator'];
 /** Без этих модулей корабль не летает: заменить можно, снять нельзя. */
 export const REQUIRED_SLOTS: ModuleSlot[] = ['engine', 'radar', 'generator'];
 
@@ -70,7 +67,6 @@ export const SLOT_NAMES: Record<ModuleSlot | typeof UTILITY, string> = {
   engine: 'Двигатель',
   shield: 'Щит',
   radar: 'Радар',
-  tank: 'Бак',
   generator: 'Генератор',
 };
 
@@ -199,7 +195,6 @@ export function effectiveHull(hull: HullParams, fit: ShipFit | null, modules: Mo
   const engine = module(modules, fit.engine, 'engine');
   const shield = module(modules, fit.shield, 'shield');
   const radar = module(modules, fit.radar, 'radar');
-  const tank = module(modules, fit.tank, 'tank');
   const speed = engine?.speed ?? 1;
   const accel = engine?.accel ?? 1;
   return {
@@ -210,7 +205,6 @@ export function effectiveHull(hull: HullParams, fit: ShipFit | null, modules: Mo
     shield: shield?.shield ?? 0,
     shieldRegen: shield?.shieldRegen ?? 0,
     radar: radar?.radar ?? hull.radar,
-    fuel: tank?.fuel ?? 0,
     cargo: hull.cargo + utilities(fit, modules).reduce((sum, m) => sum + (m.cargo ?? 0), 0),
   };
 }
@@ -288,8 +282,6 @@ export function moduleLabel(m: ModuleParams): string {
       return `щит ${m.shield ?? 0} · +${m.shieldRegen ?? 0}/с${power}`;
     case 'radar':
       return `дальность ${m.radar ?? 0}${power}`;
-    case 'tank':
-      return `топливо ${m.fuel ?? 0}${power}`;
     case 'generator':
       return `даёт энергии ${m.output ?? 0}`;
     default: {

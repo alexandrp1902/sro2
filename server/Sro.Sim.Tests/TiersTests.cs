@@ -50,7 +50,6 @@ public class TiersTests
             Whole(m.Shield, $"{id}.shield");
             Whole(m.ShieldRegen, $"{id}.shieldRegen");
             Whole(m.Radar, $"{id}.radar");
-            Whole(m.Fuel, $"{id}.fuel");
             Whole(m.Output, $"{id}.output");
             Whole(m.Repair, $"{id}.repair");
             Whole(m.Cargo, $"{id}.cargo");

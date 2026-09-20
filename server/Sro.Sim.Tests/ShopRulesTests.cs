@@ -44,30 +44,38 @@ public class ShopRulesTests
         Assert.Equal(0, shop.RepairCost(0, 100, 60_000));
     }
 
+    /// <summary>
+    /// Выкуп снятых с баланса предметов (M15.6): цены живут отдельно от прайса, потому что этих id
+    /// в каталогах модулей уже нет, и обычная проверка «unknown weapon or module» падала бы на них.
+    /// </summary>
     [Fact]
-    public void FuelCost_GrowsWithDistanceFromTheCore()
+    public void LegacyPrice_BuysBackWhatLeftTheBalance_TiersIncluded()
     {
         var shop = new ShopRules(
-            FuelPrice: 1,
-            Hulls: new Dictionary<string, int> { ["light"] = 0 },
-            Regions: new Dictionary<string, StockDef>
-            {
-                ["core"] = new(Fuel: 1),
-                ["rim"] = new(Fuel: 2.5),
-            });
+            Tiers: [new TierDef(Price: 3), new TierDef(Price: 8)],
+            Legacy: new Dictionary<string, int> { ["tankS"] = 100, ["tankL"] = 1500 });
 
-        Assert.Equal(10, shop.Local("sol", "core", []).FuelCost(10));
-        Assert.Equal(25, shop.Local("epsilon", "rim", []).FuelCost(10));
+        Assert.Equal(100, shop.LegacyPrice("tankS"));
+        Assert.Equal(4500, shop.LegacyPrice("tankL_mk2"));
+        Assert.Equal(12_000, shop.LegacyPrice("tankL_mk3"));
+        Assert.Null(shop.LegacyPrice("tankM"));   // цены нет — и возвращать нечего
+        Assert.Null(shop.LegacyPrice("pulse"));
+        // Местный магазин тоже умеет выкупать: Local переносит блок как есть.
+        Assert.Equal(100, shop.Local("st:sol", "core", []).LegacyPrice("tankS"));
     }
 
     [Fact]
-    public void SharedFile_ChargesMoreForFuelOnTheRim()
+    public void SharedFile_BuysBackEveryTankItEverSold()
     {
         Assert.True(Balance.TryParse(TestHulls.SharedSources(), out var balance, out var error), error);
 
-        var core = balance!.ForSystem("sol").MainShop.FuelCost(100);
-        var rim = balance.ForSystem("epsilon").MainShop.FuelCost(100);
-        Assert.True(rim > core, $"rim {rim} must cost more than core {core}");
+        var shop = balance!.Economy;
+        foreach (var id in new[] { "tankS", "tankM", "tankL" })
+        {
+            Assert.True(shop.LegacyPrice(id) > 0, $"{id} has no legacy price");
+            Assert.True(shop.LegacyPrice($"{id}_mk3") > 0, $"{id}_mk3 has no legacy price");
+            Assert.Null(shop.ItemPrice(id));   // в прайсе бака больше нет: купить его нельзя
+        }
     }
 
     [Fact]

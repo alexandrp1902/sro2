@@ -1,5 +1,6 @@
 import type { RepChangeDto } from '../net/protocol';
 import type { RosterEvent } from '../net/roster';
+import { formatCredits } from '../sim/shop';
 
 const SHOW_MS = 4000;
 const FADE_MS = 400;
@@ -35,7 +36,6 @@ const NOTICES: Record<string, string> = {
   tooFar: 'Слишком далеко',
   noCredits: 'Не хватает кредитов',
   notSold: 'Здесь этого не продают — ищите в другом регионе',
-  noFuel: 'Не хватает топлива на прыжок',
   gateFar: 'Подлетите ближе к вратам',
   jumpCancelled: 'Прыжок сорван',
   jumpHit: 'Прыжок сбит — по вам попали',
@@ -50,6 +50,11 @@ const NOTICES: Record<string, string> = {
   missionAway: 'Вы отстаёте от конвоя — возвращайтесь!',
   ambush: 'Засада на курсе конвоя!',
   wing: 'Звено рейнджеров вышло с вами',
+};
+
+/** Уведомления с числом: сервер присылает его в notice.n (M15.6). */
+const COUNTED: Record<string, (n: number) => string> = {
+  tanksSold: (n) => `Топливо отменено — баки выкуплены, вернулось ${formatCredits(n)}`,
 };
 
 /** @returns текст уведомления или null, если код незнакомый (сервер новее клиента). */
@@ -79,8 +84,8 @@ export function describeRepChange(change: RepChangeDto, name?: string | null): s
   return `${sign}${change.delta} ${where}: ${why}`;
 }
 
-export function describeNotice(code: string): string | null {
-  return NOTICES[code] ?? null;
+export function describeNotice(code: string, n = 0): string | null {
+  return COUNTED[code]?.(n) ?? NOTICES[code] ?? null;
 }
 
 /** Лента событий системы вверху экрана: сообщения живут несколько секунд. */

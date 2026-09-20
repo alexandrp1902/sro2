@@ -25,7 +25,6 @@ public sealed class DemandTests
 
     /// <summary>free — красная зона со станцией и поселением; core — безопасная: события там не бывать.</summary>
     private static readonly GalaxyRules Galaxy = new(
-        FuelPerDistance: 1,
         // Пилоты начинают прямо в красной зоне: перелёт между системами к событию отношения не имеет.
         StartSystem: "free",
         Systems: new Dictionary<string, SystemDef>

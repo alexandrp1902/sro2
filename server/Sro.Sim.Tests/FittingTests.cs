@@ -21,13 +21,12 @@ public class FittingTests
         ["engineL"] = new("Двигатель L", Fitting.EngineSlot, EquipClass.L, Power: 15, Speed: 1.2, Accel: 1.5),
         ["shieldS"] = new("Щит S", Fitting.ShieldSlot, Power: 10, Shield: 150, ShieldRegen: 20),
         ["radarS"] = new("Радар S", Fitting.RadarSlot, Power: 5, Radar: 2000),
-        ["tankS"] = new("Бак S", Fitting.TankSlot, Fuel: 100),
         ["generatorS"] = new("Генератор S", Fitting.GeneratorSlot, Output: 60),
         ["generatorL"] = new("Генератор L", Fitting.GeneratorSlot, EquipClass.L, Output: 200),
     };
 
     [Fact]
-    public void Effective_TakesShieldRadarAndTankFromModules_AndScalesTheEngine()
+    public void Effective_TakesShieldAndRadarFromModules_AndScalesTheEngine()
     {
         var fit = Fitting.Starter.With(Fitting.EngineSlot, "engineL");
 
@@ -37,7 +36,7 @@ public class FittingTests
         Assert.Equal(Heavy.Acceleration * 1.5, hull.Acceleration, 9);
         Assert.Equal(Heavy.BrakeAcceleration * 1.5, hull.BrakeAcceleration, 9);
         Assert.Equal(Heavy.TurnRate, hull.TurnRate); // поворот двигатель не меняет
-        Assert.Equal((150, 20, 2000, 100), (hull.Shield, hull.ShieldRegen, hull.Radar, hull.Fuel));
+        Assert.Equal((150, 20, 2000), (hull.Shield, hull.ShieldRegen, hull.Radar));
         Assert.Equal(Heavy.Hp, hull.Hp);
     }
 
@@ -45,9 +44,9 @@ public class FittingTests
     public void Effective_WithoutModules_IsTheHull()
     {
         Assert.Same(Light, Fitting.Effective(Light, Fitting.Starter, null));
-        // Щит сняли — щита нет, бак сняли — топлива нет.
-        var bare = Fitting.Effective(Light, Fitting.Starter.With(Fitting.ShieldSlot, null).With(Fitting.TankSlot, null), Modules);
-        Assert.Equal((0, 0), (bare.Shield, bare.Fuel));
+        // Щит сняли — щита нет.
+        var bare = Fitting.Effective(Light, Fitting.Starter.With(Fitting.ShieldSlot, null), Modules);
+        Assert.Equal(0, bare.Shield);
     }
 
     [Fact]
@@ -129,14 +128,35 @@ public class FittingTests
     [Fact]
     public void Fit_WithAndGet_AddressSlotsByName()
     {
-        var fit = new ShipFit([]).With("w2", "pulse").With(Fitting.TankSlot, "tankS");
+        var fit = new ShipFit([]).With("w2", "pulse").With(Fitting.ShieldSlot, "shieldS");
 
         Assert.Equal([null, null, "pulse"], fit.Weapons);
         Assert.Equal("pulse", fit.Get("w2"));
         Assert.Null(fit.Get("w5"));
-        Assert.Equal("tankS", fit.Get(Fitting.TankSlot));
-        Assert.Equal([("w2", "pulse"), (Fitting.TankSlot, "tankS")], fit.Items());
-        Assert.Equal(fit, new ShipFit([null, null, "pulse"], Tank: "tankS")); // сравнение по значению, а не по ссылке на список
+        Assert.Equal("shieldS", fit.Get(Fitting.ShieldSlot));
+        Assert.Equal([("w2", "pulse"), (Fitting.ShieldSlot, "shieldS")], fit.Items());
+        Assert.Equal(fit, new ShipFit([null, null, "pulse"], Shield: "shieldS")); // сравнение по значению, а не по ссылке на список
+    }
+
+    /// <summary>
+    /// Бак сняли с баланса в M15.6, но профили с ним лежат на диске, и вход возвращает за него кредиты
+    /// (Room.TankRefund). Читать его больше нечем, кроме этого поля: уберут свойство — ключ «tank» молча
+    /// пропадёт при разборе, и возврат перестанет работать, ничем об этом не сообщив.
+    /// </summary>
+    [Fact]
+    public void Fit_StillReadsTheTankOfAnOldProfile_ButNeverWritesItBack()
+    {
+        var json = new System.Text.Json.JsonSerializerOptions(System.Text.Json.JsonSerializerDefaults.Web);
+        var old = System.Text.Json.JsonSerializer.Deserialize<ShipFit>(
+            """{"weapons":["pulse"],"engine":"engineS","tank":"tankM","generator":"generatorS"}""", json);
+
+        Assert.Equal("tankM", old!.Tank);
+        // Слота нет: ни адресовать, ни поставить его нельзя, и в Items() бак не выходит.
+        Assert.Null(old.Get("tank"));
+        Assert.Equal(old, old.With("tank", "tankL"));
+        Assert.DoesNotContain("tankM", old.Items().Select(i => i.Id));
+        // Наружу не уходит: своё оснащение сервер собирает заново, и в нём Tank всегда null.
+        Assert.DoesNotContain("tank", System.Text.Json.JsonSerializer.Serialize(new ShipFit(["pulse"]), json));
     }
 
     [Theory]
@@ -165,7 +185,7 @@ public class FittingTests
         Assert.Equal(30, balance.Weapons.Count);
         var light = balance.Hulls[SimConfig.DefaultHull];
         var starter = Fitting.Effective(light, Fitting.Starter, modules);
-        Assert.True(starter.Shield > 0 && starter.Fuel > 0 && starter.Radar > 0);
+        Assert.True(starter.Shield > 0 && starter.Radar > 0);
         // Второй стартовой пушке место и энергия есть: первая покупка — вторая пушка.
         Assert.Null(Fitting.CanInstall(light, Fitting.Starter, "w1", SimConfig.DefaultWeapon, balance.Weapons, modules));
     }

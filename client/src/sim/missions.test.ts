@@ -25,11 +25,11 @@ const galaxy: GalaxyDto = {
     { id: 'sigma', name: 'Sigma', danger: 5, pvp: 'free', station: false, x: 92, y: 82 },
   ],
   links: [
-    { a: 'sol', b: 'vega', cost: 20 },
-    { a: 'sol', b: 'tau', cost: 30 },
-    { a: 'vega', b: 'nova', cost: 30 },
-    { a: 'tau', b: 'nova', cost: 25 },
-    { a: 'nova', b: 'sigma', cost: 25 },
+    { a: 'sol', b: 'vega' },
+    { a: 'sol', b: 'tau' },
+    { a: 'vega', b: 'nova' },
+    { a: 'tau', b: 'nova' },
+    { a: 'nova', b: 'sigma' },
   ],
 };
 

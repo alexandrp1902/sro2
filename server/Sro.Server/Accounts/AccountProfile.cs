@@ -10,7 +10,6 @@ namespace Sro.Server.Accounts;
 /// <param name="Hulls">Купленные корпуса — ангар (GDD §51).</param>
 /// <param name="Weapons">До M9 — купленные пушки; теперь пусто, всё купленное — в <paramref name="Storage"/> и <paramref name="Fit"/>.</param>
 /// <param name="Cargo">Трюм: предмет — количество. Груз живёт у пилота, а не у корабля (GDD §24).</param>
-/// <param name="Fuel">Топливо (GDD §6); null — профиль старше M7, бак полный.</param>
 /// <param name="System">Система последней стыковки — «домашняя база»; null — стартовая.</param>
 /// <param name="Tutorial">Шаг обучения (GDD §54); null — профиль старше M8: обучение считается пройденным.</param>
 /// <param name="Mission">Взятое задание; null — нет.</param>
@@ -39,7 +38,6 @@ public sealed record AccountProfile(
     IReadOnlyList<string> Hulls,
     IReadOnlyList<string> Weapons,
     IReadOnlyDictionary<string, int> Cargo,
-    int? Fuel = null,
     string? System = null,
     int? Tutorial = null,
     Sro.Sim.ActiveMission? Mission = null,

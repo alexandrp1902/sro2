@@ -36,7 +36,6 @@ const HULL: HullParams = {
   evasion: 25,
   moveEvasion: 8,
   cargo: 20,
-  fuel: 100,
   radar: 2000,
   class: 'S',
   weaponSlots: ['S', 'S'],
@@ -47,7 +46,6 @@ const MODULES: ModuleConfig = {
   engineS: { name: 'Двигатель', slot: 'engine', class: 'S', power: 5 },
   shieldS: { name: 'Щит', slot: 'shield', class: 'S', power: 10, shield: 150, shieldRegen: 20 },
   radarS: { name: 'Радар', slot: 'radar', class: 'S', power: 5, radar: 2000 },
-  tankS: { name: 'Бак', slot: 'tank', class: 'S', fuel: 100 },
   generatorS: { name: 'Генератор', slot: 'generator', class: 'S', output: 200 },
   repair: { name: 'Ремонтный блок', slot: UTILITY, class: 'S', power: 10, repair: 8 },
   cooling: { name: 'Охлаждение', slot: UTILITY, class: 'S', power: 12, cooling: 0.1 },
@@ -59,7 +57,7 @@ const WEAPONS: WeaponConfig = {
   pulse: { name: 'Импульсная', kind: 'bolt', color: '#fff', class: 'S', power: 15, damage: 100, accuracy: 75, cooldown: 1, optimalRange: 500, maxRange: 700, rangePenalty: 10, closeRange: 0, closePenalty: 0, arc: 180 },
 };
 
-const FIT: ShipFit = { weapons: ['pulse', null], engine: 'engineS', shield: 'shieldS', radar: 'radarS', tank: 'tankS', generator: 'generatorS' };
+const FIT: ShipFit = { weapons: ['pulse', null], engine: 'engineS', shield: 'shieldS', radar: 'radarS', generator: 'generatorS' };
 
 describe('utility-слоты (M11)', () => {
   it('читает и пишет слоты u0…u2', () => {

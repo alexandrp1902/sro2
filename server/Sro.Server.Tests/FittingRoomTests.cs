@@ -36,7 +36,6 @@ public sealed class FittingRoomTests : IDisposable
         ["shieldS"] = new("Щит S", Fitting.ShieldSlot, Power: 10, Shield: 150, ShieldRegen: 20),
         ["shieldL"] = new("Щит L", Fitting.ShieldSlot, EquipClass.L, Power: 30, Shield: 500, ShieldRegen: 50),
         ["radarS"] = new("Радар S", Fitting.RadarSlot, Power: 5, Radar: TestBalance.Radar),
-        ["tankS"] = new("Бак S", Fitting.TankSlot, Fuel: 100),
         ["generatorS"] = new("Генератор S", Fitting.GeneratorSlot, Output: 60),
         ["generatorL"] = new("Генератор L", Fitting.GeneratorSlot, EquipClass.L, Output: 200),
     };
@@ -113,9 +112,8 @@ public sealed class FittingRoomTests : IDisposable
         var hangar = a.Last<HangarMsg>();
 
         Assert.Equal(["pulse", null], hangar.Fit.Weapons);
-        Assert.Equal(("engineS", "shieldS", "radarS", "tankS", "generatorS"), (hangar.Fit.Engine, hangar.Fit.Shield, hangar.Fit.Radar, hangar.Fit.Tank, hangar.Fit.Generator));
+        Assert.Equal(("engineS", "shieldS", "radarS", "generatorS"), (hangar.Fit.Engine, hangar.Fit.Shield, hangar.Fit.Radar, hangar.Fit.Generator));
         Assert.Equal((35, 60), (hangar.Power, hangar.PowerMax));
-        Assert.Equal((100, 100), (hangar.Fuel, hangar.MaxFuel));
         Assert.Equal(150, PlayerOf(a).Shield);
         Assert.NotNull(a.Last<WelcomeMsg>().Modules);
     }

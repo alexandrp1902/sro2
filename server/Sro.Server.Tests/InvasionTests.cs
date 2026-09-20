@@ -10,7 +10,6 @@ public sealed class InvasionTests
 {
     /// <summary>home — станция, опасность 2, врата в wild; wild — без станции: вторжению там не бывать.</summary>
     private static readonly GalaxyRules Rules = new(
-        FuelPerDistance: 1,
         GateRange: 250,
         JumpSeconds: 1,
         ArrivalOffset: 250,

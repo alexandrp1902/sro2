@@ -37,7 +37,6 @@ public class M11RoomTests
         ["engineS"] = new("Двигатель", Fitting.EngineSlot, EquipClass.S, Power: 5),
         ["shieldS"] = new("Щит", Fitting.ShieldSlot, EquipClass.S, Power: 10, Shield: 150, ShieldRegen: 20),
         ["radarS"] = new("Радар", Fitting.RadarSlot, EquipClass.S, Power: 5, Radar: TestBalance.Radar),
-        ["tankS"] = new("Бак", Fitting.TankSlot, EquipClass.S, Fuel: 100),
         ["generatorS"] = new("Генератор", Fitting.GeneratorSlot, EquipClass.S, Output: 300),
         ["repair"] = new("Ремонтный блок", Fitting.UtilityKind, EquipClass.S, Power: 10, Repair: 20),
         ["cooling"] = new("Охлаждение", Fitting.UtilityKind, EquipClass.S, Power: 12, Cooling: 0.5),
@@ -47,7 +46,7 @@ public class M11RoomTests
     {
         ["light"] = new(
             "Лёгкий", 165, 180, 220, 150, 0.65, 0, 16, Hp: 400, Shield: 150, ShieldRegen: 20, Evasion: 0, MoveEvasion: 0,
-            Cargo: 20, Fuel: 100, Radar: TestBalance.Radar, Class: EquipClass.S, WeaponSlots: ["S", "S"], UtilitySlots: 2),
+            Cargo: 20, Radar: TestBalance.Radar, Class: EquipClass.S, WeaponSlots: ["S", "S"], UtilitySlots: 2),
     };
 
     private double _roll = Hit;

@@ -7,7 +7,7 @@ using Sro.Sim;
 namespace Sro.Server.Tests;
 
 /// <summary>
-/// Галактика (GDD §4–6, §24, §33–34, §61): гиперпрыжок, топливо, дом пилота, возврат к кораблю в любой системе,
+/// Галактика (GDD §4–6, §24, §33–34, §61): гиперпрыжок, дом пилота, возврат к кораблю в любой системе,
 /// PvP по правилам системы, радар.
 /// </summary>
 public sealed class GalaxyTests : IDisposable
@@ -18,7 +18,6 @@ public sealed class GalaxyTests : IDisposable
 
     /// <summary>home (станция, без PvP) — wild (без станции, PvP везде) — port (станция, PvP вне укрытия).</summary>
     private static readonly GalaxyRules Rules = new(
-        FuelPerDistance: 1,
         GateRange: 250,
         JumpSeconds: 1,
         ArrivalOffset: 250,
@@ -32,7 +31,7 @@ public sealed class GalaxyTests : IDisposable
         },
         Links: [new LinkDef("home", "wild", 30), new LinkDef("wild", "port", 20)]);
 
-    private static readonly ShopRules Shop = new(StartCredits: 1000, FuelPrice: 2);
+    private static readonly ShopRules Shop = new(StartCredits: 1000);
 
     private readonly string _dir = Path.Combine(Path.GetTempPath(), "sro-galaxy-" + Guid.NewGuid().ToString("N"));
     private readonly AccountStore _accounts;
@@ -103,7 +102,7 @@ public sealed class GalaxyTests : IDisposable
     }
 
     [Fact]
-    public void Guest_StartsInTheStartSystem_WithAFullTank()
+    public void Guest_StartsInTheStartSystem()
     {
         var a = Guest();
         var welcome = a.Last<WelcomeMsg>();
@@ -111,16 +110,15 @@ public sealed class GalaxyTests : IDisposable
         Assert.Equal("Home", welcome.System.Name);
         Assert.True(welcome.System.Station);
         Assert.Equal(GalaxyRules.PvpOff, welcome.System.Pvp);
-        Assert.Equal([new GateDto("wild", "Wild", 3000, 0, 30)], welcome.System.Gates);
+        Assert.Equal([new GateDto("wild", "Wild", 3000, 0)], welcome.System.Gates);
         Assert.Equal(3, welcome.Galaxy!.Systems.Count);
-        Assert.Contains(new LinkDto("wild", "port", 20), welcome.Galaxy.Links);
+        Assert.Contains(new LinkDto("wild", "port"), welcome.Galaxy.Links);
 
-        var hangar = a.Last<HangarMsg>();
-        Assert.Equal((100, 100, "home"), (hangar.Fuel, hangar.MaxFuel, hangar.Home));
+        Assert.Equal("home", a.Last<HangarMsg>().Home);
     }
 
     [Fact]
-    public void Jump_ChargesThenMovesTheShipThroughTheGate()
+    public void Jump_PreparesThenMovesTheShipThroughTheGate()
     {
         var a = Guest();
         var b = Guest("Watcher");
@@ -140,7 +138,6 @@ public sealed class GalaxyTests : IDisposable
         Assert.True(welcome.Resumed);
         Assert.Equal(id, welcome.Id); // id не меняется: он общий на всю галактику
         Assert.Equal("wild", welcome.System!.Id);
-        Assert.Equal(70, a.Last<HangarMsg>().Fuel);
 
         // У ответных врат, на arrivalOffset ближе к центру, стоя на месте и под защитой.
         var ship = PlayerOf(a);
@@ -206,17 +203,19 @@ public sealed class GalaxyTests : IDisposable
         Assert.Equal("home", RoomOf(a).SystemId);
     }
 
+    /// <summary>Топливо отменено (M15.6): прыгать можно сколько угодно, ничего не тратя и ни за что не платя.</summary>
     [Fact]
-    public void Jump_WithoutFuel_SaysSo()
+    public void Jump_CostsNothing_AndRepeatsWithoutRefuelling()
     {
         var a = Guest();
-        Place(a, 3000, 0);
-        PlayerOf(a).Fuel = 29;
-        Do(a, r => r.Jump(a, "wild"));
-        Assert.Equal(Protocol.NoFuelNotice, a.Last<NoticeMsg>().Code);
-        Steps(JumpTicks);
+        var credits = PlayerOf(a).Credits;
+        JumpTo(a, "wild");
+        JumpTo(a, "port");
+        JumpTo(a, "wild");
+        JumpTo(a, "home");
         Assert.Equal("home", RoomOf(a).SystemId);
-        Assert.Equal(29, PlayerOf(a).Fuel);
+        Assert.Equal(credits, PlayerOf(a).Credits);
+        Assert.Empty(a.Messages.OfType<NoticeMsg>());
     }
 
     [Fact]
@@ -240,7 +239,6 @@ public sealed class GalaxyTests : IDisposable
         Do(a, r => r.Jump(a, null));
         Steps(JumpTicks);
         Assert.Equal("home", RoomOf(a).SystemId);
-        Assert.Equal(100, PlayerOf(a).Fuel);
         Assert.Equal(0, a.Last<SnapshotMsg>().Ships.Single(s => s.Id == IdOf(a)).J);
     }
 
@@ -284,14 +282,12 @@ public sealed class GalaxyTests : IDisposable
         Do(a, r => r.Dock(a, true));
         Assert.Equal("port", a.Last<HangarMsg>().Home);
 
-        var profile = _accounts.Profile(AccountId())!;
-        Assert.Equal(("port", 50), (profile.System, profile.Fuel));
+        Assert.Equal("port", _accounts.Profile(AccountId())!.System);
 
-        // Сервер перезапустили: пилот входит у станции port, с тем же баком.
+        // Сервер перезапустили: пилот входит у станции port.
         _galaxy = New();
         var again = Pilot();
         Assert.Equal("port", RoomOf(again).SystemId);
-        Assert.Equal(50, again.Last<HangarMsg>().Fuel);
         Assert.False(again.Last<WelcomeMsg>().Resumed);
     }
 
@@ -307,22 +303,12 @@ public sealed class GalaxyTests : IDisposable
     }
 
     [Fact]
-    public void ProfileWithoutFuel_GetsAFullTank()
-    {
-        var id = AccountId();
-        _accounts.Save(id, new AccountProfile(500, "light", "pulse", ["light"], ["pulse"], new Dictionary<string, int>()));
-        var a = Pilot();
-        Assert.Equal((100, "home"), (a.Last<HangarMsg>().Fuel, a.Last<HangarMsg>().Home));
-    }
-
-    [Fact]
     public void ProfileWithAStationlessHome_StartsInTheStartSystem()
     {
         var id = AccountId();
-        _accounts.Save(id, new AccountProfile(500, "light", "pulse", ["light"], ["pulse"], new Dictionary<string, int>(), 40, "wild"));
+        _accounts.Save(id, new AccountProfile(500, "light", "pulse", ["light"], ["pulse"], new Dictionary<string, int>(), "wild"));
         var a = Pilot();
         Assert.Equal("home", RoomOf(a).SystemId);
-        Assert.Equal(40, a.Last<HangarMsg>().Fuel);
     }
 
     [Fact]
@@ -367,46 +353,6 @@ public sealed class GalaxyTests : IDisposable
         Assert.Equal((id, "wild"), (IdOf(again), RoomOf(again).SystemId));
     }
 
-    [Fact]
-    public void Refuel_FillsTheTankForCredits()
-    {
-        var a = Guest();
-        Place(a, 0, 50);
-        Do(a, r => r.Dock(a, true));
-        PlayerOf(a).Fuel = 40;
-
-        Do(a, r => r.Refuel(a));
-        Assert.Equal(100, a.Last<HangarMsg>().Fuel);
-        Assert.Equal(1000 - 60 * 2, a.Last<CargoMsg>().Credits);
-
-        PlayerOf(a).Fuel = 0;
-        PlayerOf(a).Credits = 10;
-        Do(a, r => r.Refuel(a));
-        Assert.Equal(Protocol.NoCreditsNotice, a.Last<NoticeMsg>().Code);
-        Assert.Equal(0, PlayerOf(a).Fuel);
-    }
-
-    [Fact]
-    public void Refuel_OnlyInTheDock()
-    {
-        var a = Guest();
-        PlayerOf(a).Fuel = 40;
-        Do(a, r => r.Refuel(a));
-        Assert.Equal(40, PlayerOf(a).Fuel);
-    }
-
-    [Fact]
-    public void SmallerTank_CutsTheFuel()
-    {
-        var a = Guest();
-        Place(a, 0, 50);
-        Do(a, r => r.Dock(a, true));
-        Do(a, r => r.SetHull(a, "heavy"));
-        Assert.Equal((100, 300), (a.Last<HangarMsg>().Fuel, a.Last<HangarMsg>().MaxFuel)); // больший бак сам не наполняется
-        Do(a, r => r.Refuel(a));
-        Do(a, r => r.SetHull(a, "light"));
-        Assert.Equal((100, 100), (a.Last<HangarMsg>().Fuel, a.Last<HangarMsg>().MaxFuel));
-    }
 
     [Fact]
     public void Names_AreUniqueAcrossTheGalaxy()

@@ -98,7 +98,6 @@ public sealed class GalaxyHost : BackgroundService
 
     public void Jump(IClientConnection connection, string? to) => With(connection, r => r.Jump(connection, to));
 
-    public void Refuel(IClientConnection connection) => With(connection, r => r.Refuel(connection));
 
     public void Mission(IClientConnection connection, string? action, string? id) => With(connection, r => r.Mission(connection, action, id));
 

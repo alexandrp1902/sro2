@@ -11,8 +11,8 @@ internal static class TestBalance
     public static readonly IReadOnlyDictionary<string, HullParams> Hulls = new Dictionary<string, HullParams>
     {
         // Трюмы нарочно разные: на них проверяется перегруз при смене корпуса на меньший.
-        ["light"] = new("Лёгкий", 165, 180, 220, 150, 0.65, 0, 16, Hp: 400, Shield: 150, ShieldRegen: 20, Evasion: 25, MoveEvasion: 8, Cargo: 20, Fuel: 100, Radar: Radar),
-        ["heavy"] = new("Тяжёлый", 85, 70, 80, 55, 1.5, 0, 30, Hp: 1800, Shield: 500, ShieldRegen: 50, Evasion: 5, MoveEvasion: 2, Cargo: 60, Fuel: 300, Radar: Radar),
+        ["light"] = new("Лёгкий", 165, 180, 220, 150, 0.65, 0, 16, Hp: 400, Shield: 150, ShieldRegen: 20, Evasion: 25, MoveEvasion: 8, Cargo: 20, Radar: Radar),
+        ["heavy"] = new("Тяжёлый", 85, 70, 80, 55, 1.5, 0, 30, Hp: 1800, Shield: 500, ShieldRegen: 50, Evasion: 5, MoveEvasion: 2, Cargo: 60, Radar: Radar),
     };
 
     public static readonly IReadOnlyDictionary<string, WeaponParams> Weapons = new Dictionary<string, WeaponParams>

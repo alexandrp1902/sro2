@@ -10,7 +10,6 @@ public class GalaxyRulesTests
         SystemDef? b = null,
         IReadOnlyList<LinkDef>? links = null,
         string start = "a") => new(
-            FuelPerDistance: 1.5,
             StartSystem: start,
             Systems: new Dictionary<string, SystemDef>
             {
@@ -53,32 +52,12 @@ public class GalaxyRulesTests
     }
 
     [Fact]
-    public void SharedGalaxy_LightTankReachesEveryNeighbourOfAStation()
+    public void Link_FindsTheRouteInEitherDirection_AndNoneToItself()
     {
-        // Из любой системы со станцией лёгкий корабль с полным баком долетает до соседа и обратно:
-        // иначе новичок застрянет без топлива в системе без станции.
-        Assert.True(Balance.TryParse(TestHulls.SharedSources(), out var balance, out var error), error);
-        var galaxy = balance!.Galaxy;
-        var tank = balance.Hulls[SimConfig.DefaultHull].Fuel;
-        foreach (var (id, system) in galaxy.SystemMap.Where(kv => kv.Value.Station))
-        {
-            foreach (var gate in system.GateList)
-            {
-                Assert.True(2 * galaxy.JumpCost(id, gate.To)!.Value <= tank, $"{id} → {gate.To} and back does not fit the tank");
-            }
-        }
-    }
-
-    [Theory]
-    [InlineData(21, 1.5, 32)] // 31,5 → вверх
-    [InlineData(20, 1, 20)]
-    [InlineData(0.1, 1, 1)]
-    public void JumpCost_IsDistanceTimesCoefficientRoundedUp(double distance, double perDistance, int expected)
-    {
-        var galaxy = Two(links: [new LinkDef("a", "b", distance)]) with { FuelPerDistance = perDistance };
-        Assert.Equal(expected, galaxy.JumpCost("a", "b"));
-        Assert.Equal(expected, galaxy.JumpCost("b", "a"));
-        Assert.Null(galaxy.JumpCost("a", "a"));
+        var galaxy = Two();
+        Assert.Equal(21, galaxy.Link("a", "b")!.Distance);
+        Assert.Equal(21, galaxy.Link("b", "a")!.Distance);
+        Assert.Null(galaxy.Link("a", "a"));
     }
 
     [Fact]

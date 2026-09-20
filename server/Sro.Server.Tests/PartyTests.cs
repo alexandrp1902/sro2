@@ -12,7 +12,6 @@ public sealed class PartyTests
 
     /// <summary>home — станция, PvP везде (чтобы проверить огонь по своим), логово пирата; wild — за вратами.</summary>
     private static readonly GalaxyRules Rules = new(
-        FuelPerDistance: 1,
         GateRange: 250,
         JumpSeconds: 1,
         ArrivalOffset: 250,

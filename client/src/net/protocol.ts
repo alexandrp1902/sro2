@@ -11,7 +11,7 @@ import type { ReputationRules } from '../sim/reputation';
 import type { ShopRules } from '../sim/shop';
 
 /** Версия протокола; зеркало Protocol.Version на сервере. Сервер другой версии (или старый, без поля) — не играем. */
-export const PROTOCOL_VERSION = 22;
+export const PROTOCOL_VERSION = 23;
 
 /** Состояние ИИ пирата: патруль, бой, возврат в логово (налётчик — полёт от врат к точке), уход из системы. */
 export type AiState = 'patrol' | 'attack' | 'return' | 'leave';
@@ -78,8 +78,6 @@ export type ClientMessage =
   | { t: 'repair' }
   /** Начать гиперпрыжок через врата в систему to (GDD §5); null — отменить подготовку. */
   | { t: 'jump'; to: string | null }
-  /** Заправить бак в доке до полного. */
-  | { t: 'refuel' }
   /**
    * Задания (GDD §36, §54): accept — взять с доски (в доке), abandon — бросить своё, complete — сдать «собрать»
    * (в доке), skip — пропустить обучение.
@@ -254,13 +252,12 @@ export interface WelcomeMsg {
 /** PvP в системе (GDD §34): off — нет; border — нет у станции; free — везде. */
 export type PvpRule = 'off' | 'border' | 'free';
 
-/** Врата: куда ведут, как называется та система и сколько топлива стоит прыжок. */
+/** Врата: куда ведут и как называется та система. */
 export interface GateDto {
   to: string;
   name: string;
   x: number;
   y: number;
-  cost: number;
 }
 
 /** Круговая орбита вокруг звезды; положение — функция времени (sim/orbits.ts). */
@@ -374,11 +371,10 @@ export interface RegionDto {
   color: string;
 }
 
-/** Маршрут; cost — топлива на прыжок в любую сторону. */
+/** Маршрут между двумя системами: прыжок по нему ничего не стоит (M15.6). */
 export interface LinkDto {
   a: string;
   b: string;
-  cost: number;
 }
 
 export interface GalaxyDto {
@@ -484,9 +480,6 @@ export interface HangarMsg {
   /** Прочность корпуса — в доке снапшот о своём корабле молчит. */
   hp: number;
   maxHp: number;
-  /** Топливо и бак активного корпуса (GDD §6): меняется прыжком и заправкой — тогда hangar приходит снова. */
-  fuel?: number;
-  maxFuel?: number;
   /** Система последней стыковки: здесь корабль появится после гибели и после входа. */
   home?: string;
   /** Сколько энергии забирает оснащение и сколько даёт генератор (GDD §18); powerMax 0 — энергию не считают. */
@@ -728,6 +721,8 @@ export interface MissionsMsg {
 export interface NoticeMsg {
   t: 'notice';
   code: string;
+  /** Число к тексту (M15.6): сумма возврата, счёт. Нет или 0 — числа в тексте нет. */
+  n?: number;
 }
 
 /**
