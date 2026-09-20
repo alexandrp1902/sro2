@@ -85,7 +85,9 @@ public class ReputationRulesTests
     {
         var rules = Rules();
         // Округление магазина: от сотни — до десятков, мелочь — до кредита.
+        // Нейтрал — цена как есть: округление приходит вместе со скидкой, а не само по себе.
         Assert.Equal(3000, rules.Price(3000, 0));
+        Assert.Equal(101, rules.Price(101, 0));
         Assert.Equal(2850, rules.Price(3000, 40));
         Assert.Equal(2700, rules.Price(3000, 80));
         Assert.Equal(3300, rules.Price(3000, -80));

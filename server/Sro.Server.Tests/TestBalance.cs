@@ -34,6 +34,40 @@ internal static class TestBalance
         LootRules? loot = null,
         MeteorRules? meteors = null,
         ShopRules? shop = null,
-        MarketRules? market = null) =>
-        new(Hulls, Weapons, rules ?? new CombatRules(SpawnJitter: 0), npcs, loot, meteors, shop, MarketSet: market);
+        MarketRules? market = null,
+        ReputationRules? reputation = null,
+        MissionRules? missions = null) =>
+        new(Hulls, Weapons, rules ?? new CombatRules(SpawnJitter: 0), npcs, loot, meteors, shop,
+            MissionSet: missions, MarketSet: market, ReputationSet: reputation);
+
+    /// <summary>
+    /// Доска из одних «собрать»: ей нужен только предмет из loot.json, без пиратов и соседних станций.
+    /// Этого хватает, чтобы проверить размер доски и особый контракт, не поднимая всю галактику.
+    /// </summary>
+    public static MissionRules Missions(string item = "metal") => new(
+        Offers: 4,
+        Collect: [new CollectTemplate(item, Min: 2, Max: 4)]);
+
+    /// <summary>
+    /// Шкала репутации для тестов: пять ступеней, ±10 % на цены, Mk3 и «cruiser» только друзьям,
+    /// доска ужимается недоверенным. Числа свои, чтобы тюнинг reputation.json не ронял тесты.
+    /// </summary>
+    public static ReputationRules Reputation(double decayPerDay = 3) => new(
+        Limit: 100,
+        Levels:
+        [
+            new RepLevel("enemy", "Враг", -100, 1.10),
+            new RepLevel("distrust", "Недоверие", -50, 1.05),
+            new RepLevel("neutral", "Нейтрал", -10),
+            new RepLevel("friend", "Друг", 30, 0.95),
+            new RepLevel("hero", "Герой", 70, 0.90),
+        ],
+        DecayPerDay: decayPerDay,
+        Events: new RepEvents(
+            MissionPlace: 8, MissionSystem: 2, MissionAbandon: -5,
+            PirateKill: 0.5, PirateHourly: 6, SosHelp: 2, InvasionMax: 10,
+            TraderAttack: -6, TraderKill: -12, TraderPlace: -4,
+            RangerAttack: -10, RangerKill: -25, PlayerKill: -15),
+        Gate: new RepGate("friend", [3], ["heavy"]),
+        Missions: new RepMissions(new Dictionary<string, int> { ["enemy"] = 0, ["distrust"] = 2 }, "friend", 1.5));
 }
