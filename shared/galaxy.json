@@ -28,7 +28,9 @@
           "name": "Терра",
           "kind": "terran",
           "size": 150,
-          "orbit": { "radius": 1900, "periodMinutes": 90, "phase": 200 }
+          "orbit": { "radius": 1900, "periodMinutes": 90, "phase": 200 },
+          "id": "terra",
+          "settlement": { "name": "Новый Порт", "shipyard": true }
         },
         {
           "name": "Марс",
@@ -209,7 +211,9 @@
           "name": "Вега I",
           "kind": "ice",
           "size": 140,
-          "orbit": { "radius": 1850, "periodMinutes": 70, "phase": 250 }
+          "orbit": { "radius": 1850, "periodMinutes": 70, "phase": 250 },
+          "id": "vegaOne",
+          "settlement": { "name": "Ледяная Вега", "scene": "ice" }
         },
         {
           "name": "Вега II",
@@ -354,7 +358,9 @@
           "name": "Альфа II",
           "kind": "barren",
           "size": 120,
-          "orbit": { "radius": 2900, "periodMinutes": 160, "phase": 220 }
+          "orbit": { "radius": 2900, "periodMinutes": 160, "phase": 220 },
+          "id": "alphaTwo",
+          "settlement": { "name": "Купол Альфы", "scene": "barren" }
         }
       ],
       "spawns": [
@@ -448,7 +454,9 @@
           "name": "Тау-Прима",
           "kind": "desert",
           "size": 160,
-          "orbit": { "radius": 1500, "periodMinutes": 50, "phase": 60 }
+          "orbit": { "radius": 1500, "periodMinutes": 50, "phase": 60 },
+          "id": "tauPrima",
+          "settlement": { "name": "Пыльная Гавань", "scene": "desert", "shipyard": true }
         },
         {
           "name": "Тау-Секунда",
@@ -589,7 +597,9 @@
           "name": "Нова-Гигант",
           "kind": "gas",
           "size": 230,
-          "orbit": { "radius": 3300, "periodMinutes": 260, "phase": 80 }
+          "orbit": { "radius": 3300, "periodMinutes": 260, "phase": 80 },
+          "id": "novaGiant",
+          "settlement": { "name": "Платформа Нова-Один", "scene": "orbital-platform" }
         }
       ],
       "spawns": [
@@ -715,7 +725,9 @@
           "name": "Кастор-Руда",
           "kind": "barren",
           "size": 160,
-          "orbit": { "radius": 1700, "periodMinutes": 60, "phase": 100 }
+          "orbit": { "radius": 1700, "periodMinutes": 60, "phase": 100 },
+          "id": "castorOre",
+          "settlement": { "name": "Рудник Кастора", "scene": "barren" }
         },
         {
           "name": "Кастор-Туман",
@@ -831,7 +843,9 @@
           "name": "Барнард-Сад",
           "kind": "jungle",
           "size": 160,
-          "orbit": { "radius": 1900, "periodMinutes": 95, "phase": 300 }
+          "orbit": { "radius": 1900, "periodMinutes": 95, "phase": 300 },
+          "id": "barnardGarden",
+          "settlement": { "name": "Оранжерея Барнарда", "scene": "jungle" }
         },
         {
           "name": "Барнард-Кольцо",
@@ -947,7 +961,9 @@
           "name": "Сигма-Лёд",
           "kind": "ice",
           "size": 140,
-          "orbit": { "radius": 2200, "periodMinutes": 100, "phase": 150 }
+          "orbit": { "radius": 2200, "periodMinutes": 100, "phase": 150 },
+          "id": "sigmaIce",
+          "settlement": { "name": "Станция Мороз", "scene": "ice", "shipyard": true }
         },
         {
           "name": "Сигма-Пустошь",
@@ -1066,7 +1082,9 @@
           "name": "Альдебаран-Пекло",
           "kind": "lava",
           "size": 170,
-          "orbit": { "radius": 1800, "periodMinutes": 75, "phase": 130 }
+          "orbit": { "radius": 1800, "periodMinutes": 75, "phase": 130 },
+          "id": "aldPyre",
+          "settlement": { "name": "Плавильня Пекла", "scene": "lava" }
         },
         {
           "name": "Альдебаран-Прах",
@@ -1282,7 +1300,9 @@
           "name": "Край-Пепел",
           "kind": "lava",
           "size": 180,
-          "orbit": { "radius": 2100, "periodMinutes": 120, "phase": 250 }
+          "orbit": { "radius": 2100, "periodMinutes": 120, "phase": 250 },
+          "id": "edgeAsh",
+          "settlement": { "name": "Пепельный Приют", "scene": "lava", "shipyard": true }
         },
         {
           "name": "Край-Кольцо",

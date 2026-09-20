@@ -39,9 +39,33 @@ public class MarketRulesTests
         Assert.NotNull(market);
         // Всё, чем торгуют, — настоящий груз: иначе в доке будет строка без названия и объёма.
         foreach (var id in market!.GoodMap.Keys) Assert.True(balance.Loot.ItemMap.ContainsKey(id), id);
-        // В системе со станцией рынок есть, в системе без станции — нет.
+        // Рынок есть там, где есть место. С M15 это и система без станции: в tau торгует поселение.
         Assert.True(balance.ForSystem("sol").MainMarket.Any);
-        Assert.False(balance.ForSystem("tau").MainMarket.Any);
+        Assert.True(balance.ForSystem("tau").MainMarket.Any);
+        Assert.Equal("pl:tauPrima", balance.ForSystem("tau").DefaultPlace!.Key);
+        // А без места торговать по-прежнему не с кем.
+        Assert.False(balance.ForSystem("sol").MarketAt("pl:nowhere").Any);
+    }
+
+    [Fact]
+    public void SharedFile_LetsEverySettlementTrade()
+    {
+        Assert.True(Balance.TryParse(TestHulls.SharedSources(), out var balance, out var error), error);
+
+        var settled = 0;
+        foreach (var (id, system) in balance!.Galaxy.SystemMap)
+        {
+            var view = balance.ForSystem(id);
+            foreach (var place in view.Places.Where(p => p.IsPlanet))
+            {
+                settled++;
+                // Сесть и не иметь возможности ничего продать — худшее, что может случиться с поселением.
+                Assert.True(view.MarketAt(place.Key).Any, place.Key);
+                Assert.NotNull(view.ShopAt(place.Key).Title);
+            }
+            _ = system;
+        }
+        Assert.Equal(10, settled);
     }
 
     [Fact]

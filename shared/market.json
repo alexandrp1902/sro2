@@ -43,8 +43,8 @@
     "arms": { "baseline": 60, "illegal": ["core"] }
   },
 
-  // Профили станций. produces — делают тут, дёшево и много; consumes — тут этого не хватает, скупают дорого.
-  // Один товар не может быть и там, и там. Системы без станции (tau, sigma, kray) рынка не имеют.
+  // Профили мест. produces — делают тут, дёшево и много; consumes — тут этого не хватает, скупают дорого.
+  // Один товар не может быть и там, и там. Ключ — место (M15): «st:<система>» — станция, «pl:<планета>» — поселение.
   //
   // Маршрут, который из этого складывается: из Ядра на Рубеж везут продовольствие, медикаменты и машины,
   // обратно — редкие металлы, кристаллы и плазменные компоненты. Кастор — рудная остановка в Пограничье,
@@ -83,6 +83,52 @@
     "st:epsilon": {
       "produces": ["rareMetal", "tech", "arms"],
       "consumes": ["food", "luxury", "medicine", "machinery"]
+    },
+
+    // Поселения (M15). Планета торгует сырьём и едой, а покупает то, что делают на орбите и в Ядре:
+    // машины, медикаменты, роскошь. Там, где в системе есть и станция, профили нарочно встречные —
+    // короткий маршрут «поверхность ↔ орбита» на пару минут, без прыжка.
+    "pl:terra": {
+      "produces": ["food", "luxury"],
+      "consumes": ["machinery", "ore", "metal"]
+    },
+    "pl:vegaOne": {
+      "produces": ["ore", "fuelCells"],
+      "consumes": ["machinery", "food", "medicine"]
+    },
+    "pl:alphaTwo": {
+      "produces": ["ore", "metal"],
+      "consumes": ["food", "machinery", "medicine"]
+    },
+
+    "pl:tauPrima": {
+      "produces": ["ore", "titanium"],
+      "consumes": ["food", "medicine", "machinery", "fuelCells"]
+    },
+    "pl:novaGiant": {
+      "produces": ["fuelCells", "energy"],
+      "consumes": ["food", "medicine", "luxury", "arms"]
+    },
+    "pl:castorOre": {
+      "produces": ["ore", "titanium", "rareMetal"],
+      "consumes": ["food", "medicine", "machinery"]
+    },
+    "pl:barnardGarden": {
+      "produces": ["food", "medicine"],
+      "consumes": ["machinery", "titanium", "arms", "luxury"]
+    },
+
+    "pl:sigmaIce": {
+      "produces": ["crystals", "fuelCells"],
+      "consumes": ["food", "medicine", "machinery", "tech"]
+    },
+    "pl:aldPyre": {
+      "produces": ["rareMetal", "metal"],
+      "consumes": ["food", "medicine", "machinery", "luxury"]
+    },
+    "pl:edgeAsh": {
+      "produces": ["rareMetal", "crystals"],
+      "consumes": ["food", "medicine", "machinery", "arms"]
     }
   }
 }

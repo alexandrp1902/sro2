@@ -1779,6 +1779,12 @@ public sealed partial class Room
     public void Buy(IClientConnection connection, string? kind, string? id, string? slot = null)
     {
         if (id is null || !_byConnection.TryGetValue(connection.Id, out var player) || !player.Docked) return;
+        // Корпус продают только там, где есть верфь: в поселении без неё его негде собирать (M15).
+        if (kind == Protocol.HullItem && PlaceOf(player) is { Shipyard: false })
+        {
+            connection.Send(new NoticeMsg(Protocol.NoShipyardNotice));
+            return;
+        }
         var shop = ShopOf(player);
         var price = kind switch
         {

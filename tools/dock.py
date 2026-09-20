@@ -19,6 +19,33 @@ QUALITY = 88
 SCENES = [
     # Свой офис у станций рейнджеров (пачка C): «Пост рейнджеров Барнарда».
     ("ranger/station-ranger-office", "ranger-office"),
+
+    # Поселения на планетах (пачка D, M15): пять биомов и орбитальная платформа газового гиганта.
+    # Земного набора здесь нет: земное поселение рисуют общие сцены planet-*, нарезанные раньше.
+    ("planet-settlements/desert-office", "desert-office"),
+    ("planet-settlements/desert-trader", "desert-trader"),
+    ("planet-settlements/desert-shipyard", "desert-shipyard"),
+    ("planet-settlements/desert-hangar", "desert-hangar"),
+    ("planet-settlements/ice-office", "ice-office"),
+    ("planet-settlements/ice-trader", "ice-trader"),
+    ("planet-settlements/ice-shipyard", "ice-shipyard"),
+    ("planet-settlements/ice-hangar", "ice-hangar"),
+    ("planet-settlements/jungle-office", "jungle-office"),
+    ("planet-settlements/jungle-trader", "jungle-trader"),
+    ("planet-settlements/jungle-shipyard", "jungle-shipyard"),
+    ("planet-settlements/jungle-hangar", "jungle-hangar"),
+    ("planet-settlements/lava-office", "lava-office"),
+    ("planet-settlements/lava-trader", "lava-trader"),
+    ("planet-settlements/lava-shipyard", "lava-shipyard"),
+    ("planet-settlements/lava-hangar", "lava-hangar"),
+    ("planet-settlements/barren-office", "barren-office"),
+    ("planet-settlements/barren-trader", "barren-trader"),
+    ("planet-settlements/barren-shipyard", "barren-shipyard"),
+    ("planet-settlements/barren-hangar", "barren-hangar"),
+    ("planet-settlements/orbital-platform-office", "orbital-platform-office"),
+    ("planet-settlements/orbital-platform-trader", "orbital-platform-trader"),
+    ("planet-settlements/orbital-platform-shipyard", "orbital-platform-shipyard"),
+    ("planet-settlements/orbital-platform-hangar", "orbital-platform-hangar"),
 ]
 
 

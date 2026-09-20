@@ -100,6 +100,19 @@
     "st:nova": { "title": "Военная станция Nova", "items": ["railgun"], "price": 1.1 },
     "st:barnard": { "title": "Пост рейнджеров Барнарда", "items": ["pointDefense", "ion", "repair"], "price": 1.05 },
     "st:aldebaran": { "title": "Крепость Альдебарана", "items": ["torpedoes"], "price": 1.12 },
-    "st:epsilon": { "title": "Вольная гавань Эпсилона", "hulls": ["cruiser"], "price": 1.15 }
+    "st:epsilon": { "title": "Вольная гавань Эпсилона", "hulls": ["cruiser"], "price": 1.15 },
+
+    // Поселения (M15). На поверхности снаряжение дешевле, чем на орбите, но выбор беднее: чинят и
+    // заправляют везде, а корпуса продают лишь там, где верфь (см. settlement.shipyard в galaxy.json).
+    "pl:terra": { "title": "Порт Новый Порт", "price": 0.95 },
+    "pl:vegaOne": { "title": "Склад Ледяной Веги", "remove": ["heavyLaser"], "price": 0.93 },
+    "pl:alphaTwo": { "title": "Лавка Купола Альфы", "remove": ["cannon"], "price": 0.9 },
+    "pl:tauPrima": { "title": "Верфь Пыльной Гавани", "hulls": ["industrial"], "items": ["tankL"], "price": 0.97 },
+    "pl:novaGiant": { "title": "Причал Нова-Один", "items": ["tankL"], "price": 1.02 },
+    "pl:castorOre": { "title": "Контора Рудника", "items": ["cargoPod"], "price": 0.92 },
+    "pl:barnardGarden": { "title": "Лавка Оранжереи", "items": ["repair"], "price": 1.0 },
+    "pl:sigmaIce": { "title": "Верфь Мороза", "hulls": ["freighter"], "items": ["cooling"], "price": 1.05 },
+    "pl:aldPyre": { "title": "Плавильня", "items": ["railgun"], "price": 1.08 },
+    "pl:edgeAsh": { "title": "Верфь Пепельного Приюта", "hulls": ["frigate"], "items": ["torpedoes"], "price": 1.1 }
   }
 }
