@@ -37,12 +37,19 @@ public sealed class GalaxyHost : BackgroundService
 
     public long Tick => Interlocked.Read(ref _tick);
 
+    /// <summary>
+    /// Текущий баланс — сетевому потоку: он проверяет путь в <c>hello</c> (M15.5) до входа,
+    /// а значит до того, как команда доберётся до тика галактики.
+    /// </summary>
+    public Balance Balance => _galaxy.Balance;
+
     public void Join(IClientConnection connection, HelloMsg hello) =>
         _commands.Enqueue(() => _galaxy.Join(connection, hello.Token, hello.Name, hello.Hull, hello.Weapon));
 
     /// <summary>Пилот с аккаунтом: вход уже проверен в сетевом потоке.</summary>
-    public void JoinAccount(IClientConnection connection, string accountId, string name) =>
-        _commands.Enqueue(() => _galaxy.JoinAccount(connection, accountId, name));
+    /// <param name="career">Путь нового пилота (M15.5); null — общий стартовый набор.</param>
+    public void JoinAccount(IClientConnection connection, string accountId, string name, string? career = null) =>
+        _commands.Enqueue(() => _galaxy.JoinAccount(connection, accountId, name, career));
 
     public void Leave(IClientConnection connection) => _commands.Enqueue(() => _galaxy.Disconnect(connection));
 

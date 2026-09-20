@@ -36,6 +36,30 @@ public sealed class AccountStoreTests : IDisposable
     }
 
     [Fact]
+    public void Free_TellsWhetherThisNameWouldCreateAnAccount()
+    {
+        using var store = Open();
+
+        // По этому ответу экран входа решает, показывать ли карточки пути (M15.5).
+        Assert.True(store.Free("Alice"));
+        Assert.True(store.Login("Alice", "secret").Ok);
+        Assert.False(store.Free("Alice"));
+        Assert.False(store.Free("alice")); // регистр ника не считается
+        Assert.True(store.Free("Bob"));
+    }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData("  ")]
+    [InlineData("ab")]
+    public void Free_SaysNoToANameNobodyCouldTake(string? name)
+    {
+        using var store = Open();
+        Assert.False(store.Free(name));
+    }
+
+    [Fact]
     public void TakenName_IsALogin_InAnyCase()
     {
         using var store = Open();

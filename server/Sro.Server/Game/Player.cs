@@ -141,6 +141,12 @@ public sealed class Player(int id, string? token, string name, string hullId, st
     /// </summary>
     public string? HomePlace;
 
+    /// <summary>
+    /// Путь, с которого начался аккаунт (M15.5): «ranger», «trader». null — гость или профиль старше M15.5.
+    /// Влияет только на старт и на ветку обучения; на бой, цены и доступ — нет.
+    /// </summary>
+    public string? Career;
+
     /// <summary>Готовится гиперпрыжок в эту систему (GDD §5); null — нет.</summary>
     public string? JumpTo;
 

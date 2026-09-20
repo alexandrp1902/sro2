@@ -29,7 +29,11 @@ export type ClientMessage =
       token?: string;
       password?: string;
       key?: string;
+      /** Путь пилота (M15.5): применяется, только если этим входом заводится аккаунт. */
+      career?: string;
     }
+  /** Свободен ли ник (M15.5): по ответу решаем, показывать ли карточки пути. Шлётся до hello. */
+  | { t: 'check'; name: string }
   | { t: 'ping'; c: number }
   /** Только управление (§49): направление на экране и тяга; координаты клиент не присылает. */
   | { t: 'input'; seq: number; dx: number; dy: number; th: number }
@@ -435,8 +439,30 @@ export interface AccountMsg {
   key?: string;
 }
 
+/** Карточка пути на экране входа (M15.5). */
+export interface CareerDto {
+  id: string;
+  name: string;
+  hint: string;
+  /** false — карточка серая и не выбирается: путь ещё закрыт. */
+  enabled: boolean;
+}
+
+/**
+ * Этим ником заведётся новый аккаунт (M15.5), а не вход в старый. Пути едут здесь же:
+ * экран входа нужен раньше welcome, и спросить их больше негде.
+ */
+export interface NameFreeMsg {
+  t: 'nameFree';
+  name: string;
+  free: boolean;
+  careers: CareerDto[];
+  /** Какой путь выбран заранее. */
+  career: string;
+}
+
 /** Причина отказа во входе; следом сервер закрывает соединение. */
-export type DeniedCode = 'badName' | 'badPassword' | 'wrongPassword' | 'badKey';
+export type DeniedCode = 'badName' | 'badPassword' | 'wrongPassword' | 'badKey' | 'badCareer';
 
 export interface DeniedMsg {
   t: 'denied';
@@ -635,7 +661,7 @@ export interface MissionMarkDto {
 export interface TutorialDto {
   step: number;
   total: number;
-  id: 'undock' | 'drone' | 'grab' | 'sell' | 'jump';
+  id: 'undock' | 'drone' | 'grab' | 'sell' | 'jump' | 'buy';
   title: string;
   hint: string;
 }
@@ -778,6 +804,7 @@ export type ServerMessage =
   | CargoMsg
   | NoticeMsg
   | AccountMsg
+  | NameFreeMsg
   | DeniedMsg
   | HangarMsg
   | MissionsMsg

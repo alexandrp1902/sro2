@@ -123,7 +123,24 @@ public sealed class WebSocketConnection(WebSocket socket, ILogger log) : IClient
                     joined = true;
                     room.Join(this, hello);
                     break;
+                case CheckMsg check when !joined:
+                    // Свободен ли ник (M15.5): по ответу экран входа решает, показывать ли карточки пути.
+                    var careers = room.Balance.Careers;
+                    Send(new NameFreeMsg(
+                        check.Name ?? "",
+                        accounts.Free(check.Name),
+                        [.. careers.CareerMap.Select(c => new CareerDto(c.Key, c.Value.Name, c.Value.Hint, c.Value.Enabled))],
+                        careers.Default));
+                    break;
                 case HelloMsg hello when !joined:
+                    // Путь проверяет сервер, а не серая кнопка в клиенте, — и до входа:
+                    // отклонённый пират не должен оставить за собой заведённый аккаунт.
+                    if (hello.Career is { } wanted && !room.Balance.Careers.IsPlayable(wanted))
+                    {
+                        Send(new DeniedMsg(Protocol.BadCareerDenied));
+                        Close(Protocol.DeniedCloseCode, "denied");
+                        break;
+                    }
                     // Хеш пароля — десятки миллисекунд: считаем здесь, в сетевом потоке, а не в тике комнаты.
                     var login = hello.Password is null ? accounts.Resume(hello.Key) : accounts.Login(hello.Name, hello.Password);
                     if (!login.Ok)
@@ -134,7 +151,8 @@ public sealed class WebSocketConnection(WebSocket socket, ILogger log) : IClient
                     }
                     joined = true;
                     Send(new AccountMsg(login.Name, login.Key));
-                    room.JoinAccount(this, login.Id, login.Name);
+                    // Путь — только тому, кто заводится сейчас: вернувшемуся он уже записан в профиль.
+                    room.JoinAccount(this, login.Id, login.Name, login.Created ? hello.Career : null);
                     break;
                 case DockMsg dock when joined:
                     room.Dock(this, dock.On, dock.Place);

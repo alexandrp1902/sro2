@@ -10,6 +10,7 @@ import {
   type HangarMsg,
   type InvasionMsg,
   type MissionsMsg,
+  type NameFreeMsg,
   type NoticeMsg,
   type PartyEventMsg,
   type PartyInviteMsg,
@@ -26,9 +27,12 @@ import { SnapshotDecoder } from './snapshotCodec';
 export type ConnectionState = 'connecting' | 'online' | 'offline';
 
 /** Вход по нику и паролю (свободный ник заводит аккаунт) или по ключу устройства. */
-export type Credentials = { name: string; password: string } | { key: string };
+/** career — путь (M15.5): сервер применит его, только если этим входом заводится аккаунт. */
+export type Credentials = { name: string; password: string; career?: string } | { key: string };
 
 const PING_INTERVAL_MS = 1000;
+/** Сервер не ответил про ник за это время — молча закрываем вопрос: карточки просто не появятся. */
+const CHECK_TIMEOUT_MS = 3000;
 const FIRST_RETRY_MS = 500;
 const MAX_RETRY_MS = 5000;
 
@@ -79,6 +83,7 @@ export class Connection {
   onRep: ((message: RepMsg) => void) | null = null;
   onNotice: ((message: NoticeMsg) => void) | null = null;
   onAccount: ((message: AccountMsg) => void) | null = null;
+  onNameFree: ((message: NameFreeMsg) => void) | null = null;
   onDenied: ((code: DeniedCode) => void) | null = null;
   onHangar: ((message: HangarMsg) => void) | null = null;
   onMissions: ((message: MissionsMsg) => void) | null = null;
@@ -128,6 +133,37 @@ export class Connection {
     this.retryMs = FIRST_RETRY_MS;
     this.replaced = false;
     this.connect();
+  }
+
+  /**
+   * Спросить сервер, свободен ли ник (M15.5), и заодно получить пути.
+   *
+   * До входа своего соединения у клиента нет — оно открывается только под учётные данные, — а вошедшему
+   * сервер на этот вопрос уже не отвечает: сокет занят игрой. Поэтому вопрос задаётся отдельным коротким
+   * сокетом, который закрывается сразу с ответом. Опоздавший или потерянный ответ ничего не ломает:
+   * карточки просто не появятся, а путь всё равно проверит сервер при входе.
+   */
+  checkName(name: string): void {
+    let ws: WebSocket;
+    try {
+      ws = new WebSocket(this.url);
+    } catch {
+      return;
+    }
+    const stop = () => {
+      window.clearTimeout(timer);
+      if (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING) ws.close(CLOSE_LOGOUT);
+    };
+    const timer = window.setTimeout(stop, CHECK_TIMEOUT_MS);
+    ws.onopen = () => ws.send(JSON.stringify({ t: 'check', name } satisfies ClientMessage));
+    ws.onerror = stop;
+    ws.onmessage = (e) => {
+      if (typeof e.data !== 'string') return;
+      const message = JSON.parse(e.data) as ServerMessage;
+      if (message.t !== 'nameFree') return;
+      stop();
+      this.onNameFree?.(message);
+    };
   }
 
   send(message: ClientMessage): void {
@@ -202,6 +238,9 @@ export class Connection {
 
   private handle(message: ServerMessage): void {
     switch (message.t) {
+      case 'nameFree':
+        this.onNameFree?.(message);
+        break;
       case 'account':
         this.accountName = message.name;
         // Пароль больше не нужен: дальше входим по ключу устройства.

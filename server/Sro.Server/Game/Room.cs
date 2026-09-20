@@ -245,7 +245,11 @@ public sealed partial class Room
     /// Пилот с аккаунтом: ник и пароль (или ключ устройства) уже проверены в сетевом потоке, см. <see cref="AccountStore"/>.
     /// Корабль, который ещё ждёт после обрыва, достаётся новому соединению — даже с другого устройства (GDD §61).
     /// </summary>
-    public void JoinAccount(IClientConnection connection, string accountId, string name)
+    /// <param name="career">
+    /// Путь нового пилота (M15.5): корабль, кредиты, груз, место и первое отношение мира. null — общий
+    /// стартовый набор. У вернувшегося пилота путь уже в профиле, и переписать его отсюда нельзя.
+    /// </param>
+    public void JoinAccount(IClientConnection connection, string accountId, string name, string? career = null)
     {
         if (_byConnection.ContainsKey(connection.Id)) return;
         if (_byToken.TryGetValue(accountId, out var player))
@@ -256,9 +260,23 @@ public sealed partial class Room
 
         var profile = _accounts?.Profile(accountId);
         player = new Player(_newId(), accountId, UniqueName(SanitizeName(name), null), SimConfig.DefaultHull, SimConfig.DefaultWeapon, accountId);
+        // Путь берётся только у нового аккаунта: у вернувшегося он свой, из профиля.
+        var path = profile is null ? Balance.Careers.Of(career) : null;
+        player.Career = profile is not null ? profile.Career : path is null ? null : career ?? Balance.Careers.Default;
         if (profile is null)
         {
-            player.Credits = Balance.Economy.StartCredits; // GDD §54: новый пилот получает стартовый капитал
+            player.Credits = path?.Credits ?? Balance.Economy.StartCredits; // GDD §54: новый пилот получает стартовый капитал
+            if (path is { Hull: { } hull } && Hulls.ContainsKey(hull))
+            {
+                player.HullId = hull;
+                player.Hulls.Add(hull);
+            }
+            if (path is not null)
+            {
+                player.Fit = CareerRules.FitOf(path);
+                // Часть капитала уже в товаре: торговцу есть что везти с первой минуты.
+                foreach (var (item, count) in path.CargoMap) if (count > 0) player.Cargo.Add(item, count);
+            }
         }
         else
         {
@@ -280,7 +298,7 @@ public sealed partial class Room
         player.Home = SystemId;
         // Место последней стыковки (M15). У профиля старше M15 его нет — там домом звалась система,
         // и это её станция; место могло и пропасть из баланса, тогда берём главное место системы.
-        var savedPlace = profile?.Place ?? (profile?.System is { } old ? PlaceKey.Station(old) : null);
+        var savedPlace = profile?.Place ?? path?.Place ?? (profile?.System is { } old ? PlaceKey.Station(old) : null);
         player.HomePlace = Balance.Place(savedPlace)?.Key ?? Balance.DefaultPlace?.Key;
         // Обучение — только новому пилоту (GDD §54): профиль старше M8 считается прошедшим его.
         player.Missions.Tutorial = profile is null ? 0 : profile.Tutorial ?? MissionLog.Finished;
@@ -292,6 +310,11 @@ public sealed partial class Room
         player.Cargo.Reserved = Reserve(player.Missions.Active);
         // Репутация тает по часам: распад за время отсутствия применяется прямо здесь, на входе.
         player.Rep.Load(profile?.Reputation, profile?.RepAt, NowSeconds, Balance.Reputation);
+        // Первое отношение мира — строго после Load: он ставит очки с нуля и затёр бы прибавку.
+        // И через player.Rep.Add, а не RoomReputation.AddRep: тот шлёт уведомление, и новый пилот
+        // увидел бы «+15 репутации» ещё до первого кадра.
+        if (path is not null)
+            foreach (var (key, delta) in path.RepMap) player.Rep.Add(key, delta, NowSeconds, Balance.Reputation);
         Enter(player, connection);
         if (profile is null || profile.Fit is null) Save(player);
     }
@@ -320,7 +343,7 @@ public sealed partial class Room
         SpawnHere(player);
         player.Attach(connection);
         _players[player.Id] = player;
-        if (HomePlaceOf(player) is { } home && Balance.Missions.Step(player.Missions.Tutorial)?.Id == MissionRules.UndockStep)
+        if (HomePlaceOf(player) is { } home && Balance.Missions.Step(player.Career, player.Missions.Tutorial)?.Id == MissionRules.UndockStep)
         {
             player.Docked = true;
             player.DockedPlace = home.Key;
@@ -2082,7 +2105,10 @@ public sealed partial class Room
             new SortedDictionary<string, int>(player.Storage, StringComparer.Ordinal),
             SaveRep(player),
             player.Rep.At,
-            player.HomePlace));
+            // Дальше — два строковых поля подряд: имена аргументов обязательны, иначе дом и путь
+            // можно перепутать местами, и компилятор смолчит.
+            Place: player.HomePlace,
+            Career: player.Career));
     }
 
     /// <summary>Очки в профиль: сперва догоняем их до «сейчас», иначе на диск уехало бы вчерашнее число.</summary>
@@ -2165,8 +2191,8 @@ public sealed partial class Room
     private bool Advance(Player player, string stepId)
     {
         var rules = Balance.Missions;
-        if (rules.Step(player.Missions.Tutorial) is not { } step || step.Id != stepId) return false;
-        var last = rules.Step(player.Missions.Tutorial + 1) is null;
+        if (rules.Step(player.Career, player.Missions.Tutorial) is not { } step || step.Id != stepId) return false;
+        var last = rules.Step(player.Career, player.Missions.Tutorial + 1) is null;
         player.Missions.Tutorial = last ? MissionLog.Finished : player.Missions.Tutorial + 1;
         player.Credits += step.Reward;
         SendCargo(player);
@@ -2307,12 +2333,12 @@ public sealed partial class Room
         if (player.Connection is null) return;
         var rules = Balance.Missions;
         var log = player.Missions;
-        var step = rules.Step(log.Tutorial);
+        var step = rules.Step(player.Career, log.Tutorial);
         var active = log.Active;
         if (active?.Offer is { Kind: MissionRules.CollectKind, Item: { } item })
             active = active with { Progress = Math.Min(active.Offer.Count, player.Cargo.Items.GetValueOrDefault(item)) };
         player.Connection.Send(new MissionsMsg(
-            step is null ? null : new TutorialDto(log.Tutorial, rules.Steps.Count, step.Id, step.Title, step.Hint),
+            step is null ? null : new TutorialDto(log.Tutorial, rules.StepsFor(player.Career).Count, step.Id, step.Title, step.Hint),
             active,
             Board(player),
             done,

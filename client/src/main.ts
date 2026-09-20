@@ -186,11 +186,12 @@ async function main(): Promise<void> {
     connection?.logout();
   };
   const pilotForm = new PilotForm(el('connect'), {
-    onLogin: (name, password) => {
+    onLogin: (name, password, career) => {
       account.setName(name);
-      connection?.login({ name, password });
+      connection?.login(career ? { name, password, career } : { name, password });
     },
     onLogout: logout,
+    onCheckName: (name) => connection?.checkName(name),
   });
   const showPilotForm = (error = '') =>
     pilotForm.show(
@@ -865,6 +866,7 @@ async function main(): Promise<void> {
       account.setName(message.name);
       pilotForm.hide();
     };
+    connection.onNameFree = (message) => pilotForm.setNameFree(message);
     connection.onDenied = (code) => {
       if (code === 'badKey' && serverUrl) account.forget(serverUrl);
       showPilotForm(describeDenied(code));

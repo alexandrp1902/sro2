@@ -228,6 +228,8 @@ public sealed partial class Room
         SendCargo(player);
         BroadcastMarket();
         Save(player);
+        // Обучение торговца (M15.5): «купить товар» засчитывается здесь — как «продать» в Sell.
+        Advance(player, MissionRules.BuyStep);
         _log.LogInformation("Player {Id} bought {Count} {Item} for {Credits} credits", player.Id, want, item, cost);
     }
 }

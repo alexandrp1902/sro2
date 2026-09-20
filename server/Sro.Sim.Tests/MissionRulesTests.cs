@@ -15,8 +15,23 @@ public class MissionRulesTests
     public void SharedMissionsJson_HasTheWholeTutorialInOrder()
     {
         var missions = Shared().Missions;
-        Assert.Equal(MissionRules.TutorialIds, missions.Steps.Select(s => s.Id));
+        // Общий список — путь рейнджера: с M15.5 он же достаётся всем, у кого своей ветки нет.
+        Assert.Equal(
+            [MissionRules.UndockStep, MissionRules.DroneStep, MissionRules.GrabStep, MissionRules.SellStep, MissionRules.JumpStep],
+            missions.Steps.Select(s => s.Id));
         Assert.True(missions.Offers > 0);
+    }
+
+    [Fact]
+    public void SharedMissionsJson_TeachesTheTraderItsOwnFirstSteps()
+    {
+        var missions = Shared().Missions;
+        var trader = missions.StepsFor("trader");
+        Assert.NotEqual(missions.Steps.Select(s => s.Id), trader.Select(s => s.Id));
+        Assert.Contains(MissionRules.BuyStep, trader.Select(s => s.Id));
+        // Незнакомый путь и путь без своей ветки учатся общим списком.
+        Assert.Equal(missions.Steps, missions.StepsFor("ranger"));
+        Assert.Equal(missions.Steps, missions.StepsFor(null));
     }
 
     [Fact]

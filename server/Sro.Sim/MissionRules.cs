@@ -180,6 +180,7 @@ public sealed record MissionRules(
     double DangerBonus = 0.35,
     double RefreshMinutes = 0,
     IReadOnlyList<TutorialStep>? Tutorial = null,
+    IReadOnlyDictionary<string, IReadOnlyList<TutorialStep>>? Tutorials = null,
     IReadOnlyList<KillTemplate>? Kill = null,
     IReadOnlyList<CollectTemplate>? Collect = null,
     IReadOnlyList<DeliverTemplate>? Deliver = null,
@@ -247,8 +248,10 @@ public sealed record MissionRules(
     public const string GrabStep = "grab";
     public const string SellStep = "sell";
     public const string JumpStep = "jump";
+    /// <summary>Купить товар на рынке (M15.5): шаг пути торговца.</summary>
+    public const string BuyStep = "buy";
 
-    public static readonly string[] TutorialIds = [UndockStep, DroneStep, GrabStep, SellStep, JumpStep];
+    public static readonly string[] TutorialIds = [UndockStep, DroneStep, GrabStep, SellStep, JumpStep, BuyStep];
 
     public const int MaxOffers = 8;
     public const int MaxCount = 100;
@@ -260,6 +263,10 @@ public sealed record MissionRules(
     public static readonly MissionRules None = new(Offers: 0);
 
     [JsonIgnore] public IReadOnlyList<TutorialStep> Steps => Tutorial ?? [];
+
+    [JsonIgnore]
+    public IReadOnlyDictionary<string, IReadOnlyList<TutorialStep>> TutorialMap =>
+        Tutorials ?? new Dictionary<string, IReadOnlyList<TutorialStep>>();
     [JsonIgnore] public IReadOnlyList<KillTemplate> KillList => Kill ?? [];
     [JsonIgnore] public IReadOnlyList<CollectTemplate> CollectList => Collect ?? [];
     [JsonIgnore] public IReadOnlyList<DeliverTemplate> DeliverList => Deliver ?? [];
@@ -281,8 +288,43 @@ public sealed record MissionRules(
     public IReadOnlyList<InvasionGroup> Wave(int index) =>
         AmbushList.Count == 0 ? [] : AmbushList[Math.Clamp(index, 0, AmbushList.Count - 1)];
 
+    /// <summary>
+    /// Обучение этого пути (M15.5): у торговца свои первые шаги. Пути нет в файле — общий список,
+    /// он же путь рейнджера. Сохранён только номер шага, поэтому список пути **нельзя переупорядочивать
+    /// задним числом**: пилот, бросивший игру посередине, вернётся не на тот шаг.
+    /// </summary>
+    public IReadOnlyList<TutorialStep> StepsFor(string? career) =>
+        career is not null && TutorialMap.TryGetValue(career, out var own) ? own : Steps;
+
     /// <summary>Шаг обучения по номеру; null — обучение пройдено.</summary>
     public TutorialStep? Step(int index) => index >= 0 && index < Steps.Count ? Steps[index] : null;
+
+    /// <summary>Шаг обучения этого пути по номеру; null — обучение пройдено.</summary>
+    public TutorialStep? Step(string? career, int index)
+    {
+        var steps = StepsFor(career);
+        return index >= 0 && index < steps.Count ? steps[index] : null;
+    }
+
+    /// <summary>Один список шагов: id из белого списка, без повторов, с названием и неотрицательной наградой.</summary>
+    private static string? Check(IReadOnlyList<TutorialStep> steps, string where)
+    {
+        for (var i = 0; i < steps.Count; i++)
+        {
+            var step = steps[i];
+            var problem = step switch
+            {
+                null => "is null",
+                _ when !TutorialIds.Contains(step.Id) => $"unknown id '{step.Id}': must be one of {string.Join(", ", TutorialIds)}",
+                _ when steps.Take(i).Any(s => s?.Id == step.Id) => $"duplicate id '{step.Id}'",
+                _ when string.IsNullOrWhiteSpace(step.Title) => "title is empty",
+                _ when step.Reward < 0 => "reward must not be negative",
+                _ => null,
+            };
+            if (problem is not null) return $"{where}[{i}]: {problem}";
+        }
+        return null;
+    }
 
     /// <param name="npcs">Типы NPC: пираты для kill и засад, рейнджеры для patrol.</param>
     /// <param name="items">Предметы лута для collect.</param>
@@ -294,20 +336,9 @@ public sealed record MissionRules(
     {
         if (Offers is < 0 or > MaxOffers) return $"offers must be within 0..{MaxOffers}";
         if (!(DangerBonus >= 0)) return "dangerBonus must not be negative";
-        for (var i = 0; i < Steps.Count; i++)
-        {
-            var step = Steps[i];
-            var problem = step switch
-            {
-                null => "is null",
-                _ when !TutorialIds.Contains(step.Id) => $"unknown id '{step.Id}': must be one of {string.Join(", ", TutorialIds)}",
-                _ when Steps.Take(i).Any(s => s?.Id == step.Id) => $"duplicate id '{step.Id}'",
-                _ when string.IsNullOrWhiteSpace(step.Title) => "title is empty",
-                _ when step.Reward < 0 => "reward must not be negative",
-                _ => null,
-            };
-            if (problem is not null) return $"tutorial[{i}]: {problem}";
-        }
+        if (Check(Steps, "tutorial") is { } bad) return bad;
+        foreach (var (career, steps) in TutorialMap)
+            if (Check(steps, $"tutorials.{career}") is { } wrong) return wrong;
         for (var i = 0; i < KillList.Count; i++)
         {
             var t = KillList[i];

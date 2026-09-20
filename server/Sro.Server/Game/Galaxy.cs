@@ -120,11 +120,15 @@ public sealed class Galaxy : IRoomHost
     /// Пилот с аккаунтом: к кораблю, который ещё в игре (ждёт после обрыва или летает с другого устройства), —
     /// где бы тот ни был; иначе — к станции системы, где пилот стыковался последний раз.
     /// </summary>
-    public void JoinAccount(IClientConnection connection, string accountId, string name)
+    public void JoinAccount(IClientConnection connection, string accountId, string name, string? career = null)
     {
         if (_byConnection.ContainsKey(connection.Id)) return;
-        var room = _rooms.Values.FirstOrDefault(r => r.HasToken(accountId)) ?? Home(_accounts?.Profile(accountId)?.System);
-        room.JoinAccount(connection, accountId, name);
+        var profile = _accounts?.Profile(accountId);
+        // Новому пилоту комнату выбирает путь: сегодня оба начинают в Sol, но когда появится пират
+        // с базой на Рубеже, менять тут будет нечего.
+        var start = profile?.System ?? (profile is null ? Balance.Careers.Of(career)?.System : null);
+        var room = _rooms.Values.FirstOrDefault(r => r.HasToken(accountId)) ?? Home(start);
+        room.JoinAccount(connection, accountId, name, career);
         _byConnection[connection.Id] = room;
         Joined(room, connection);
     }

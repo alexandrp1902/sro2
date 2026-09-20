@@ -27,6 +27,11 @@ namespace Sro.Server.Accounts;
 /// тогда это станция системы <paramref name="System"/>. Сама <paramref name="System"/> остаётся заполненной:
 /// по ней выбирается комната, и откат сервера на старую версию не обнулит пилоту дом.
 /// </param>
+/// <param name="Career">
+/// Путь, выбранный при заведении аккаунта (M15.5): «ranger», «trader». null — профиль старше M15.5 или гость,
+/// читается как рейнджер. Дальше старта путь ни на что не влияет: он остаётся ради карточки пилота,
+/// ветки обучения и статистики.
+/// </param>
 public sealed record AccountProfile(
     int Credits,
     string Hull,
@@ -43,4 +48,5 @@ public sealed record AccountProfile(
     IReadOnlyDictionary<string, int>? Storage = null,
     IReadOnlyDictionary<string, double>? Reputation = null,
     long? RepAt = null,
-    string? Place = null);
+    string? Place = null,
+    string? Career = null);

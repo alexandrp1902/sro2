@@ -808,6 +808,48 @@ body {
   -webkit-user-select: text;
 }
 
+/* Ряд путей (M15.5): виден, только когда ник свободен, — то есть когда заводится аккаунт. */
+.connect-careers[hidden] {
+  display: none;
+}
+
+.connect-career-row {
+  display: flex;
+  gap: 8px;
+}
+
+.connect .connect-career {
+  display: flex;
+  flex: 1 1 0;
+  min-width: 0;
+  flex-direction: column;
+  gap: 3px;
+  padding: 10px;
+  border: 1px solid #1f3350;
+  background: rgba(10, 16, 28, 0.6);
+  text-align: left;
+}
+
+.connect .connect-career[aria-pressed='true'] {
+  border-color: #7fd4ff;
+  background: #14293f;
+}
+
+.connect .connect-career:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.connect-career-name {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.connect-career-hint {
+  color: #8fa3c4;
+  font-size: 12px;
+}
+
 .connect-error {
   min-height: 18px;
   margin: 6px 0;

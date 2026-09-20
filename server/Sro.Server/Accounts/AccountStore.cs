@@ -96,6 +96,20 @@ public sealed class AccountStore : IDisposable
     /// Вход по нику и паролю; свободный ник заводит новый аккаунт — отдельной регистрации нет.
     /// Успешный вход выдаёт устройству ключ: с ним переподключение обходится без пароля.
     /// </summary>
+    /// <summary>
+    /// Этим ником заведётся новый аккаунт (M15.5). По нему экран входа решает, показывать ли карточки пути:
+    /// вошедшему в старый аккаунт выбирать нечего. Пароль не спрашиваем и хеш не считаем — это просто
+    /// заглядывание в словарь. Ник могут занять между проверкой и входом: тогда вход станет обычным,
+    /// и <see cref="Login"/> разберётся сам.
+    /// </summary>
+    public bool Free(string? name)
+    {
+        if (string.IsNullOrWhiteSpace(name)) return false;
+        var clean = Room.SanitizeName(name);
+        if (clean.Length < MinNameLength) return false;
+        lock (_lock) return !_idByName.ContainsKey(clean);
+    }
+
     public LoginResult Login(string? name, string? password)
     {
         if (string.IsNullOrWhiteSpace(name)) return new(LoginError.BadName);

@@ -9,6 +9,7 @@ namespace Sro.Server.Net;
 // Клиент → сервер
 [JsonPolymorphic(TypeDiscriminatorPropertyName = "t")]
 [JsonDerivedType(typeof(HelloMsg), "hello")]
+[JsonDerivedType(typeof(CheckMsg), "check")]
 [JsonDerivedType(typeof(PingMsg), "ping")]
 [JsonDerivedType(typeof(InputMsg), "input")]
 [JsonDerivedType(typeof(HullMsg), "hull")]
@@ -42,13 +43,33 @@ public abstract record ClientMessage;
 /// <param name="Weapon">Гость: пушка, сохранённая на устройстве.</param>
 /// <param name="Password">Пароль; свободный ник с ним заводит новый аккаунт.</param>
 /// <param name="Key">Ключ устройства из <see cref="AccountMsg"/>: вход без пароля.</param>
+/// <param name="Career">
+/// Путь пилота (M15.5): применяется, только когда этим входом заводится аккаунт. Вошедшему в старый
+/// аккаунт путь менять нечем, и поле у него просто игнорируется; запертый путь отклоняется как denied.
+/// </param>
 public sealed record HelloMsg(
     string? Name,
     string? Hull,
     string? Token,
     string? Weapon = null,
     string? Password = null,
-    string? Key = null) : ClientMessage;
+    string? Key = null,
+    string? Career = null) : ClientMessage;
+
+/// <summary>Свободен ли ник (M15.5): по ответу клиент решает, показывать ли карточки пути.</summary>
+public sealed record CheckMsg(string? Name) : ClientMessage;
+
+/// <summary>Карточка пути на экране входа (M15.5).</summary>
+/// <param name="Enabled">false — карточка серая и не выбирается: путь ещё закрыт.</param>
+public sealed record CareerDto(string Id, string Name, string Hint, bool Enabled);
+
+/// <summary>
+/// Ответ на <see cref="CheckMsg"/>: этим ником заведётся новый аккаунт или это вход в старый.
+/// Пути едут здесь же — экран входа нужен раньше, чем welcome, и спросить их больше негде.
+/// </summary>
+/// <param name="Careers">Пути; пусто — их нет, и выбирать нечего (сервер без careers.json).</param>
+/// <param name="Career">Какой выбран заранее.</param>
+public sealed record NameFreeMsg(string Name, bool Free, IReadOnlyList<CareerDto> Careers, string Career) : ServerMessage;
 
 /// <param name="C">Время клиента, возвращается в pong как есть для замера RTT.</param>
 public sealed record PingMsg(double C) : ClientMessage;
@@ -159,6 +180,7 @@ public sealed record PvpMsg(bool On) : ClientMessage;
 [JsonDerivedType(typeof(CargoMsg), "cargo")]
 [JsonDerivedType(typeof(NoticeMsg), "notice")]
 [JsonDerivedType(typeof(AccountMsg), "account")]
+[JsonDerivedType(typeof(NameFreeMsg), "nameFree")]
 [JsonDerivedType(typeof(DeniedMsg), "denied")]
 [JsonDerivedType(typeof(HangarMsg), "hangar")]
 [JsonDerivedType(typeof(MissionsMsg), "missions")]
@@ -774,6 +796,8 @@ public static class Protocol
     public const string BadPasswordDenied = "badPassword";
     public const string WrongPasswordDenied = "wrongPassword";
     public const string BadKeyDenied = "badKey";
+    /// <summary>Такого пути нет или он ещё закрыт — например, пират (M15.5).</summary>
+    public const string BadCareerDenied = "badCareer";
 
     /// <summary>Код закрытия WebSocket после <see cref="DeniedMsg"/>: клиент не переподключается сам, а ждёт пилота.</summary>
     public const int DeniedCloseCode = 4003;

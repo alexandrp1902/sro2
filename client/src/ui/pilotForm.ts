@@ -1,5 +1,8 @@
-import type { DeniedCode } from '../net/protocol';
+import type { CareerDto, DeniedCode, NameFreeMsg } from '../net/protocol';
 import { normalizeServerUrl } from '../net/serverUrl';
+
+/** Сколько ждать после последней буквы, прежде чем спросить сервер про ник. */
+const CHECK_DELAY_MS = 300;
 
 /** Почему сервер не пустил: он шлёт код, текст живёт здесь. */
 const DENIED: Record<DeniedCode, string> = {
@@ -7,16 +10,36 @@ const DENIED: Record<DeniedCode, string> = {
   badPassword: 'Пароль — от 4 до 64 символов',
   wrongPassword: 'Ник занят, пароль не подходит',
   badKey: 'Вход на этом устройстве устарел — введите пароль',
+  badCareer: 'Этот путь пока закрыт',
 };
+
+/** Карточка пути на экране: какая выбрана и какая недоступна. Чистая — её и проверяют тесты. */
+export interface CareerCard extends CareerDto {
+  chosen: boolean;
+}
+
+/**
+ * Что показать в ряду путей (M15.5). Карточки видны, только когда ник свободен: вошедшему
+ * в старый аккаунт выбирать нечего, и предлагать ему выбор — обманывать.
+ *
+ * @param chosen Что выбрал игрок; null — ещё ничего, берётся путь по умолчанию.
+ */
+export function careerCards(message: NameFreeMsg | null, chosen: string | null): CareerCard[] {
+  if (!message?.free || message.careers.length === 0) return [];
+  const picked = chosen !== null && message.careers.some((c) => c.id === chosen && c.enabled) ? chosen : message.career;
+  return message.careers.map((career) => ({ ...career, chosen: career.id === picked }));
+}
 
 export function describeDenied(code: string): string {
   return DENIED[code as DeniedCode] ?? 'Вход отклонён';
 }
 
 export interface PilotFormHandlers {
-  /** Войти по нику и паролю; свободный ник заводит аккаунт. */
-  onLogin(name: string, password: string): void;
+  /** Войти по нику и паролю; свободный ник заводит аккаунт, и тогда применяется путь. */
+  onLogin(name: string, password: string, career: string | null): void;
   onLogout(): void;
+  /** Спросить сервер, свободен ли ник (M15.5): от ответа зависит, показывать ли карточки пути. */
+  onCheckName(name: string): void;
 }
 
 export interface PilotFormState {
@@ -39,7 +62,12 @@ export class PilotForm {
   private readonly cancel: HTMLButtonElement;
   private readonly logout: HTMLButtonElement;
   private readonly submit: HTMLButtonElement;
+  private readonly careers: HTMLElement;
   private state: PilotFormState = { url: null, name: '', loggedIn: false };
+  /** Последний ответ сервера про ник; null — ещё не спрашивали или ответ устарел. */
+  private free: NameFreeMsg | null = null;
+  private chosen: string | null = null;
+  private checkTimer = 0;
 
   constructor(
     private readonly root: HTMLElement,
@@ -52,6 +80,17 @@ export class PilotForm {
     this.cancel = root.querySelector('.connect-cancel')!;
     this.logout = root.querySelector('.connect-logout')!;
     this.submit = root.querySelector('button[type=submit]')!;
+    this.careers = root.querySelector('.connect-careers')!;
+
+    // Спрашиваем про ник не на каждую букву, а когда печатать перестали.
+    this.nameInput.addEventListener('input', () => {
+      this.free = null;
+      this.renderCareers();
+      window.clearTimeout(this.checkTimer);
+      const name = this.nameInput.value.trim();
+      if (name.length < 3) return;
+      this.checkTimer = window.setTimeout(() => handlers.onCheckName(name), CHECK_DELAY_MS);
+    });
 
     root.querySelector('form')!.addEventListener('submit', (e) => {
       e.preventDefault();
@@ -84,7 +123,9 @@ export class PilotForm {
       if (!password) return this.setError('Введите пароль');
       this.setError('');
       this.submit.textContent = 'Вход…';
-      handlers.onLogin(name, password);
+      // Путь шлём, только когда карточки видны: значит ник свободен и аккаунт заводится сейчас.
+      const cards = careerCards(this.free, this.chosen);
+      handlers.onLogin(name, password, cards.find((c) => c.chosen)?.id ?? null);
     });
     this.cancel.addEventListener('click', () => this.hide());
     this.logout.addEventListener('click', () => {
@@ -97,8 +138,19 @@ export class PilotForm {
     return !this.root.hidden;
   }
 
+  /** Ответ сервера про ник: свободен — показываем карточки пути. */
+  setNameFree(message: NameFreeMsg): void {
+    // Ответ про прежний ник: игрок успел допечатать, и показывать его уже нельзя.
+    if (message.name !== this.nameInput.value.trim()) return;
+    this.free = message;
+    this.renderCareers();
+  }
+
   show(state: PilotFormState, error = ''): void {
     this.state = state;
+    this.free = null;
+    this.chosen = null;
+    this.renderCareers();
     this.nameInput.value = state.name;
     this.passwordInput.value = '';
     this.serverInput.value = state.url ?? '';
@@ -126,5 +178,39 @@ export class PilotForm {
 
   private setError(text: string): void {
     this.error.textContent = text;
+  }
+
+  private renderCareers(): void {
+    const cards = careerCards(this.free, this.chosen);
+    this.careers.hidden = cards.length === 0;
+    if (cards.length === 0) {
+      this.careers.replaceChildren();
+      return;
+    }
+    const title = document.createElement('div');
+    title.className = 'connect-label';
+    title.textContent = 'Новый пилот: с чего начнёте';
+    const row = document.createElement('div');
+    row.className = 'connect-career-row';
+    for (const card of cards) {
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'connect-career';
+      button.disabled = !card.enabled;
+      button.setAttribute('aria-pressed', String(card.chosen));
+      const name = document.createElement('div');
+      name.className = 'connect-career-name';
+      name.textContent = card.name;
+      const hint = document.createElement('div');
+      hint.className = 'connect-career-hint';
+      hint.textContent = card.hint;
+      button.append(name, hint);
+      button.addEventListener('click', () => {
+        this.chosen = card.id;
+        this.renderCareers();
+      });
+      row.append(button);
+    }
+    this.careers.replaceChildren(title, row);
   }
 }
