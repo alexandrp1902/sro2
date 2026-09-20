@@ -1747,7 +1747,7 @@ public sealed partial class Room
         var maxHp = player.MaxHp(hull);
         var maxShield = player.MaxShield(hull);
         if (player.Hp >= maxHp && player.Shield >= maxShield) return;
-        var cost = Balance.Shop.RepairCost(maxHp - player.Hp);
+        var cost = Balance.Shop.RepairCost(maxHp - player.Hp, maxHp, Balance.Shop.HullPrice(player.HullId) ?? 0);
         if (player.Credits < cost)
         {
             connection.Send(new NoticeMsg(Protocol.NoCreditsNotice));

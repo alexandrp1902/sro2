@@ -108,7 +108,8 @@ public sealed partial class Room
         }
         var loot = Balance.Loot;
         var market = MarketRules;
-        if (!loot.StationUnload || !market.Any || !market.Trades(item) || !loot.ItemMap.ContainsKey(item))
+        // Купить можно только то, что станция делает сама: чужой товар она скупает, но не перепродаёт.
+        if (!loot.StationUnload || !market.Any || !market.Sells(item) || !loot.ItemMap.ContainsKey(item))
         {
             connection.Send(new NoticeMsg(Protocol.NoGoodsNotice));
             return;

@@ -27,7 +27,9 @@ public sealed class MarketTests
 
     private static readonly ShopRules Shop = new(StartCredits: 1000);
 
-    /// <summary>Станция делает продовольствие и скупает руду; оружие здесь вне закона.</summary>
+    /// <summary>
+    /// Станция делает продовольствие и оружие, скупает руду. В Ядре оружие вне закона, на Рубеже — нет.
+    /// </summary>
     private static MarketRules Market(string region = "core") => new MarketRules(
         Goods: new Dictionary<string, MarketGood>
         {
@@ -37,7 +39,7 @@ public sealed class MarketTests
         },
         Stations: new Dictionary<string, MarketStation>
         {
-            [GalaxyRules.DefaultSystem] = new(Produces: [Food], Consumes: [Ore]),
+            [GalaxyRules.DefaultSystem] = new(Produces: [Food, Contraband], Consumes: [Ore]),
         })
         .Local(GalaxyRules.DefaultSystem, region);
 
@@ -192,6 +194,19 @@ public sealed class MarketTests
         room.BuyGoods(a, Contraband, 2);
 
         Assert.Equal(2, player.Cargo.Count(Contraband));
+    }
+
+    [Fact]
+    public void Buying_WhatTheStationOnlyBuys_IsRefused()
+    {
+        var (room, a, player) = Docked();
+
+        // Руду здесь скупают, но не перепродают: склад станции — это её продукция, а не витрина всего.
+        room.BuyGoods(a, Ore, 1);
+
+        Assert.Equal(Protocol.NoGoodsNotice, a.Last<NoticeMsg>().Code);
+        Assert.Empty(player.Cargo.Items);
+        Assert.Contains(a.Last<MarketMsg>().Items, i => i.Id == Ore); // но в списке он есть — его видно, чтобы продать
     }
 
     [Fact]

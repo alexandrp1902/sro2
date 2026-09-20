@@ -55,6 +55,8 @@ public class MissionRulesTests
                             break;
                         case MissionRules.CollectKind:
                             Assert.True(balance.Loot.ItemMap.ContainsKey(offer.Item!));
+                            // Купить это здесь же и тут же сдать нельзя: станция такого не продаёт (M12).
+                            Assert.False(balance.ForSystem(station).Market.Sells(offer.Item!), offer.Item);
                             break;
                         default:
                             Assert.Fail($"unknown kind {offer.Kind}");

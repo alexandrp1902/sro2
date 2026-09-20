@@ -94,8 +94,15 @@ public sealed record MarketRules(
     public bool IsIllegal(string good) =>
         Region is not null && GoodMap.TryGetValue(good, out var def) && def.IllegalIn.Contains(Region);
 
-    /// <summary>Торгуют ли здесь этим товаром.</summary>
+    /// <summary>Берут ли здесь этот товар: скупает станция всё, чем торгует.</summary>
     public bool Trades(string good) => Any && GoodMap.ContainsKey(good) && !IsIllegal(good);
+
+    /// <summary>
+    /// Продаёт ли станция этот товар. Продаёт только то, что сама делает: склад — это её продукция,
+    /// а не витрина всего подряд. Отсюда и весь маршрут — покупать у производителя, везти к потребителю.
+    /// Побочно это закрывает дыру в заданиях «собрать»: купить нужное на месте и тут же сдать не выйдет.
+    /// </summary>
+    public bool Sells(string good) => Trades(good) && Role(good) == MarketRole.Produces;
 
     /// <summary>Что станция делает с этим товаром.</summary>
     public MarketRole Role(string good)

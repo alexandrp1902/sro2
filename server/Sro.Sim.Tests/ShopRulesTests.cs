@@ -30,6 +30,47 @@ public class ShopRulesTests
     }
 
     [Fact]
+    public void RepairCost_GrowsWithThePriceOfTheHull()
+    {
+        var shop = new ShopRules(
+            RepairPrice: 1,
+            Hulls: new Dictionary<string, int> { ["light"] = 0, ["cruiser"] = 60_000 },
+            RepairHullShare: 0.06);
+
+        // Полный ремонт стоит шестую часть от шести процентов цены корпуса сверх платы за прочность.
+        Assert.Equal(100, shop.RepairCost(100, 100, 0)); // стартовый корпус даром — только прочность
+        Assert.Equal(100 + 3600, shop.RepairCost(100, 100, 60_000));
+        Assert.Equal(50 + 1800, shop.RepairCost(50, 100, 60_000)); // полкорпуса — половина надбавки
+        Assert.Equal(0, shop.RepairCost(0, 100, 60_000));
+    }
+
+    [Fact]
+    public void FuelCost_GrowsWithDistanceFromTheCore()
+    {
+        var shop = new ShopRules(
+            FuelPrice: 1,
+            Hulls: new Dictionary<string, int> { ["light"] = 0 },
+            Regions: new Dictionary<string, StockDef>
+            {
+                ["core"] = new(Fuel: 1),
+                ["rim"] = new(Fuel: 2.5),
+            });
+
+        Assert.Equal(10, shop.Local("sol", "core", []).FuelCost(10));
+        Assert.Equal(25, shop.Local("epsilon", "rim", []).FuelCost(10));
+    }
+
+    [Fact]
+    public void SharedFile_ChargesMoreForFuelOnTheRim()
+    {
+        Assert.True(Balance.TryParse(TestHulls.SharedSources(), out var balance, out var error), error);
+
+        var core = balance!.ForSystem("sol").Shop.FuelCost(100);
+        var rim = balance.ForSystem("epsilon").Shop.FuelCost(100);
+        Assert.True(rim > core, $"rim {rim} must cost more than core {core}");
+    }
+
+    [Fact]
     public void SellPrice_IsAShareOfThePrice_RoundedDown()
     {
         var shop = new ShopRules(Items: new Dictionary<string, int> { ["pulse"] = 301 }, SellShare: 0.5);

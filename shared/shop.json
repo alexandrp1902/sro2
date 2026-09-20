@@ -3,6 +3,8 @@
   "repairPrice": 0.25,
   "fuelPrice": 1,
   "sellShare": 0.5,
+  // Доля цены корпуса за полный ремонт (M12): «Пчелу» латать даром, «Титана» — за 3 600 сверху.
+  "repairHullShare": 0.06,
 
   // Множители старших тиров (M11): первый — Mk2, второй — Mk3. Раскрывают weapons.json и modules.json.
   "tiers": [
@@ -58,6 +60,7 @@
   "regions": {
     "core": {
       "tiers": [1],
+      "fuel": 1,
       "hulls": ["light", "scout", "medium", "industrial"],
       "items": [
         "pulse", "laser", "cannon", "missiles",
@@ -67,6 +70,7 @@
     },
     "frontier": {
       "tiers": [1, 2],
+      "fuel": 1.5,
       "hulls": ["scout", "medium", "industrial", "interceptor", "heavy", "frigate"],
       "items": [
         "pulse", "laser", "cannon", "plasma", "missiles", "heavyLaser", "ion", "pointDefense",
@@ -76,6 +80,7 @@
     },
     "rim": {
       "tiers": [2, 3],
+      "fuel": 2.5,
       "hulls": ["interceptor", "heavy", "frigate", "freighter", "cruiser"],
       "items": [
         "plasma", "heavyLaser", "missiles", "ion", "pointDefense", "railgun", "torpedoes",

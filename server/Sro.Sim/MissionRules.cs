@@ -194,6 +194,8 @@ public sealed record MissionRules(
 
         var candidates = new List<(double Weight, Func<Random, string, MissionOffer> Make)>();
         var near = Near(galaxy, station);
+        // Доску просят для названной станции, а не обязательно для той, чей это вид баланса.
+        var market = balance.MarketSet?.Local(station, galaxy.System(station)?.Region);
         foreach (var t in KillList)
         {
             var targets = near.Where(s => PiratesIn(balance, s).Any(type => t.Npc is null || type == t.Npc)).ToList();
@@ -209,6 +211,9 @@ public sealed record MissionRules(
         }
         foreach (var t in CollectList)
         {
+            // Чем станция торгует сама, того она не просит привезти: иначе задание сдавалось бы
+            // покупкой в соседней вкладке, и награда за него превращалась бы в бесплатные кредиты (M12).
+            if (market?.Sells(t.Item) == true) continue;
             var price = balance.Loot.Price(t.Item);
             candidates.Add((t.Weight, (rng, id) =>
             {

@@ -13,13 +13,15 @@ namespace Sro.Sim;
 /// <param name="Remove">Станция: чего из регионального ассортимента здесь нет.</param>
 /// <param name="Price">Станция: множитель всех цен (0.9 — на 10 % дешевле).</param>
 /// <param name="Title">Станция: подпись магазина в доке — «Военная верфь», «Шахтёрский склад».</param>
+/// <param name="Fuel">Множитель цены топлива (M12): чем дальше от Ядра, тем дороже заправка; null — как везде.</param>
 public sealed record StockDef(
     IReadOnlyList<string>? Hulls = null,
     IReadOnlyList<string>? Items = null,
     IReadOnlyList<int>? Tiers = null,
     IReadOnlyList<string>? Remove = null,
     double Price = 1,
-    string? Title = null)
+    string? Title = null,
+    double? Fuel = null)
 {
     [JsonIgnore] public IReadOnlyList<string> HullList => Hulls ?? [];
     [JsonIgnore] public IReadOnlyList<string> ItemList => Items ?? [];
@@ -38,6 +40,10 @@ public sealed record StockDef(
 /// <param name="Items">Пушка или модуль — цена Mk1; цена старших тиров — по <paramref name="Tiers"/>.</param>
 /// <param name="FuelPrice">Кредитов за единицу топлива при заправке в доке (GDD §6, §26); 0 — бесплатно.</param>
 /// <param name="SellShare">Доля цены, за которую станция выкупает пушку или модуль со склада.</param>
+/// <param name="RepairHullShare">
+/// Доля цены корпуса за полный ремонт (M12): латать крейсер дороже, чем челнок. 0 — ремонт зависит
+/// только от <paramref name="RepairPrice"/>, как до M12.
+/// </param>
 /// <param name="Tiers">Множители Mk2 и Mk3 (<see cref="TierDef"/>); null — тиров нет.</param>
 /// <param name="Regions">Ассортимент по регионам галактики; null — везде продают всё, что в прайсе (как до M11).</param>
 /// <param name="Stations">Отличия станций по id системы.</param>
@@ -54,7 +60,8 @@ public sealed record ShopRules(
     IReadOnlyDictionary<string, StockDef>? Regions = null,
     IReadOnlyDictionary<string, StockDef>? Stations = null,
     IReadOnlyList<string>? Stock = null,
-    string? Title = null)
+    string? Title = null,
+    double RepairHullShare = 0)
 {
     public const string File = "shop.json";
 
@@ -85,8 +92,18 @@ public sealed record ShopRules(
     /// <summary>Сколько станция даёт за пушку или модуль со склада; то, чего нет в прайсе, — даром.</summary>
     public int SellPrice(string id) => ItemPrice(id) is { } price ? (int)Math.Floor(price * SellShare + 1e-9) : 0;
 
-    /// <summary>Сколько стоит довести корпус до полной прочности; округляется вверх.</summary>
-    public int RepairCost(double missingHp) => missingHp > 0 ? (int)Math.Ceiling(missingHp * RepairPrice) : 0;
+    /// <summary>
+    /// Сколько стоит довести корпус до полной прочности; округляется вверх. С M12 к плате за единицу
+    /// прочности добавляется доля цены корпуса: дорогой корабль и чинить дорого.
+    /// </summary>
+    /// <param name="maxHp">Полная прочность корпуса; 0 — считаем только по <see cref="RepairPrice"/>.</param>
+    /// <param name="hullPrice">Цена корпуса в прайсе; 0 — надбавки нет (стартовый корпус даром).</param>
+    public int RepairCost(double missingHp, double maxHp = 0, int hullPrice = 0)
+    {
+        if (!(missingHp > 0)) return 0;
+        var byHull = maxHp > 0 && hullPrice > 0 ? RepairHullShare * hullPrice * missingHp / maxHp : 0;
+        return (int)Math.Ceiling(missingHp * RepairPrice + byHull);
+    }
 
     /// <summary>Сколько стоит залить столько топлива; округляется вверх.</summary>
     public int FuelCost(double missingFuel) => missingFuel > 0 ? (int)Math.Ceiling(missingFuel * FuelPrice - 1e-9) : 0;
@@ -131,6 +148,8 @@ public sealed record ShopRules(
             Stations = null,
             Stock = [.. stock.Order(StringComparer.Ordinal)],
             Title = station?.Title,
+            // Топливо дальше от Ядра дороже (M12): обратная дорога с Рубежа сама себе расход.
+            FuelPrice = FuelPrice * (station?.Fuel ?? regional?.Fuel ?? 1),
         };
     }
 
@@ -148,6 +167,7 @@ public sealed record ShopRules(
         if (!(RepairPrice >= 0)) return "repairPrice must not be negative";
         if (!(FuelPrice >= 0)) return "fuelPrice must not be negative";
         if (!(SellShare >= 0 && SellShare <= 1)) return "sellShare must be within 0..1";
+        if (!(RepairHullShare >= 0)) return "repairHullShare must not be negative";
         foreach (var (id, price) in HullPrices)
         {
             if (!hulls.ContainsKey(id)) return $"hulls.{id}: unknown hull";
@@ -173,6 +193,7 @@ public sealed record ShopRules(
                 }
                 if (def.Tiers is { } list && list.Any(t => t < 1 || t > maxTier)) return $"{block}.{id}: tiers must be within 1..{maxTier}";
                 if (!(def.Price > 0)) return $"{block}.{id}: price must be positive";
+                if (def.Fuel is { } fuel && !(fuel > 0)) return $"{block}.{id}: fuel must be positive";
             }
         }
         return null;
