@@ -13,6 +13,8 @@ export interface ShopRules {
   fuelPrice?: number;
   /** Доля цены, за которую станция выкупает пушку или модуль со склада. */
   sellShare?: number;
+  /** Доля цены корпуса за полный ремонт (M12): дорогой корабль и чинить дорого. 0 или нет поля — как до M12. */
+  repairHullShare?: number;
   /** Что продают именно здесь (M11); нет — продаётся всё, что в прайсе. */
   stock?: string[] | null;
   /** Подпись магазина станции: «Военная станция Nova». */
@@ -41,9 +43,18 @@ export function sells(shop: ShopRules, id: string, prices: Record<string, number
   return price(prices, id) !== null && (!shop.stock || shop.stock.includes(id));
 }
 
-/** Ремонт до полной прочности — как на сервере: округлено вверх. */
-export function repairCost(shop: ShopRules, missingHp: number): number {
-  return missingHp > 0 ? Math.ceil(missingHp * shop.repairPrice) : 0;
+/**
+ * Ремонт до полной прочности — как на сервере (ShopRules.RepairCost), округлено вверх. С M12 к плате
+ * за единицу прочности добавляется доля цены корпуса, иначе кнопка в доке обещает сильно меньше,
+ * чем спишется: на крейсере — 25 кр вместо 3625.
+ * @param maxHp полная прочность корпуса; 0 — считаем только по repairPrice
+ * @param hullPrice цена корпуса в прайсе; 0 — надбавки нет (стартовый корпус даром)
+ */
+export function repairCost(shop: ShopRules, missingHp: number, maxHp = 0, hullPrice = 0): number {
+  if (!(missingHp > 0)) return 0;
+  const share = shop.repairHullShare ?? 0;
+  const byHull = maxHp > 0 && hullPrice > 0 ? (share * hullPrice * missingHp) / maxHp : 0;
+  return Math.ceil(missingHp * shop.repairPrice + byHull);
 }
 
 /** Заправка до полного бака — как на сервере: округлено вверх. */

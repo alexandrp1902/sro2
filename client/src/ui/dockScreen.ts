@@ -381,7 +381,7 @@ export class DockScreen {
     line.append(el('div', 'dock-ship-hp', `Корпус ${hangar.hp} / ${hangar.maxHp}`));
     const missing = hangar.maxHp - hangar.hp;
     if (missing > 0) {
-      const cost = repairCost(this.shop, missing);
+      const cost = repairCost(this.shop, missing, hangar.maxHp, price(this.shop.hulls, hangar.hull) ?? 0);
       const repair = button(cost > 0 ? `Ремонт · ${formatCredits(cost)}` : 'Ремонт бесплатно', 'dock-buy', () =>
         this.handlers.onRepair(),
       );
