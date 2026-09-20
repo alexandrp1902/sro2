@@ -1109,6 +1109,91 @@ body {
   font-weight: 600;
 }
 
+/* Вкладка «Рынок» (M12): цена, склад станции, счётчик и две кнопки в одной строке. */
+.dock-market-row {
+  grid-template-columns: auto 1fr;
+}
+
+.dock-market-row > .dock-qty,
+.dock-market-row > .dock-market-actions,
+.dock-market-row > .dock-tag {
+  grid-column: 2;
+}
+
+.dock-market-have {
+  color: #7f97b8;
+  font-size: 13px;
+}
+
+.dock-market-price {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.dock-market-rate {
+  color: #b9cbe4;
+}
+
+/* Дороже обычного — сюда везут, дешевле — здесь берут. */
+.dock-market-trend {
+  font-size: 13px;
+}
+
+.dock-market-up {
+  color: #8ede9a;
+}
+
+.dock-market-down {
+  color: #ff9d7a;
+}
+
+.dock-market-stock[data-level='low'] {
+  color: #ffd166;
+}
+
+.dock-market-stock[data-level='high'] {
+  color: #7f97b8;
+}
+
+.dock-qty {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 4px 0;
+}
+
+.dock-qty-step {
+  min-width: 34px;
+  padding: 5px 8px;
+  border: 1px solid #25415f;
+  border-radius: 7px;
+  background: #16263c;
+  color: #cfe0f5;
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.dock-qty-step:hover {
+  background: #1d3a60;
+}
+
+.dock-qty-value {
+  min-width: 42px;
+  color: #e6f0ff;
+  font-size: 15px;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+
+.dock-market-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 2px;
+}
+
 /* Вкладка «Задания»: обучение и своё задание — карточками над доской станции. */
 .dock-mission {
   margin: 8px 0;
@@ -1447,6 +1532,13 @@ body {
   margin-top: 4px;
   font-size: 14px;
   color: #b8cbe6;
+}
+
+/* Чем торгует станция (M12): где дёшево купить и куда это везти. */
+.galaxy-info-trade {
+  margin-top: 3px;
+  font-size: 13px;
+  color: #7f97b8;
 }
 
 .galaxy-legend {

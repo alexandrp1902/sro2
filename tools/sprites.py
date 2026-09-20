@@ -64,6 +64,12 @@ SINGLES = [
       ["cannon", "heavy-laser", "railgun", "ion", "point-defense", "torpedoes"]],
     *[(f"equipment-extra/modules-{n}", f"modules-{n}", 128) for n in
       ["reactor", "fuel-tank", "military-radar", "afterburner", "repair", "cooling"]],
+    # Товары рынка (M12). Имя спрайта — resources-<id товара в loot.json>: itemSprite() найдёт их без алиасов.
+    *[(f"trade-missions/goods-{f}", f"resources-{n}", 128) for f, n in
+      [("food", "food"), ("medicine", "medicine"), ("machinery", "machinery"),
+       ("luxury", "luxury"), ("weapons", "arms"), ("fuel-cells", "fuelCells")]],
+    # Письмо для заданий-курьеров (M14): нарезано заранее, кода это пока не касается.
+    ("trade-missions/item-letter", "item-letter", 128),
 ]
 
 

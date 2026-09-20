@@ -35,6 +35,7 @@ import { Modules, effectiveHull, fitWeapons, tierOf, type ShipFit } from './sim/
 import { describeSystem, gateIndex, gateMarkId, pvpName } from './sim/galaxy';
 import { DEFAULT_HULL, Hulls } from './sim/hulls';
 import { NO_LOOT, lootLabel, rarityColor, type GearItem, type LootRules } from './sim/loot';
+import type { MarketRules } from './sim/market';
 import { DT, ION_SLOW, directionAngle, localVelocity, slowedHull, type MoveInput } from './sim/movement';
 import { orbitSeconds } from './sim/orbits';
 import { objective, objectiveSystem, trackerLines, doneLines, type MissionNames, type Objective } from './sim/missions';
@@ -116,6 +117,8 @@ async function main(): Promise<void> {
   const prediction = new Prediction(ownHulls, DEFAULT_HULL, SPAWN);
   /** Каталог лута с сервера: названия, редкость и радиус захвата. */
   let lootRules: LootRules = NO_LOOT;
+  /** Правила рынка (M12): по ним карта галактики показывает, что где производят и скупают. */
+  let marketRules: MarketRules | null = null;
   /**
    * Каталог лута вместе со снаряжением (M11): выпавшие пушки и модули подписываются именами из каталогов,
    * а цвет им даёт тир — Mk2 синий, Mk3 фиолетовый.
@@ -297,7 +300,8 @@ async function main(): Promise<void> {
     if (isOnline()) connection!.send(message);
   };
   const dockScreen = new DockScreen(el('dock'), hulls, weapons, modules, {
-    onSell: (item) => send({ t: 'sell', item }),
+    onSell: (item, count) => send({ t: 'sell', item, count }),
+    onBuyGoods: (item, count) => send({ t: 'buyGoods', item, count }),
     onBuy: (kind, id, slot) => send({ t: 'buy', kind, id, slot }),
     onEquip: (id) => send({ t: 'hull', id }),
     onFit: (slot, id) => send({ t: 'fit', slot, id }),
@@ -336,6 +340,8 @@ async function main(): Promise<void> {
             home,
             objective: objectiveSystem(missions, system.id, galaxy),
             invasion: invasion.system(performance.now()),
+            market: marketRules,
+            loot: lootRules,
           }
         : null,
     );
@@ -671,7 +677,8 @@ async function main(): Promise<void> {
       npcRules = message.npcs ?? null;
       loot.setRules(lootRules);
       cargoHud.setRules(lootRules);
-      dockScreen.setRules(lootRules, message.shop);
+      marketRules = message.market ?? null;
+      dockScreen.setRules(lootRules, message.shop, marketRules);
       loot.clear();
       meteors.setRules(message.meteors);
       meteors.clear();
@@ -698,7 +705,8 @@ async function main(): Promise<void> {
       npcRules = message.npcs ?? null;
       loot.setRules(lootRules);
       cargoHud.setRules(lootRules);
-      dockScreen.setRules(lootRules, message.shop);
+      marketRules = message.market ?? null;
+      dockScreen.setRules(lootRules, message.shop, marketRules);
       meteors.setRules(message.meteors);
       dockScreen.refresh();
     };
@@ -713,6 +721,8 @@ async function main(): Promise<void> {
       cargoHud.setCargo(cargo);
       dockScreen.setCargo(cargo);
     };
+    // Живые цены станции (M12): приходят, пока пилот в доке, и после каждой сделки.
+    connection.onMarket = (message) => dockScreen.setMarket(message);
     connection.onHangar = (message) => {
       const was = docked;
       docked = message.docked;
@@ -732,7 +742,10 @@ async function main(): Promise<void> {
         controls.setThrottle(0);
       }
       // Вылет: сервер начал буфер входов заново — и мы нумеруем их с 1, первый снапшот принимаем как есть.
-      if (!docked && was) prediction.resetNet();
+      if (!docked && was) {
+        prediction.resetNet();
+        dockScreen.setMarket(null); // цены той станции больше не наши: на следующей они свои
+      }
     };
     connection.onMissions = (message) => {
       missions = message;

@@ -3,13 +3,14 @@
 import type { CombatRules, WeaponConfig } from '../sim/combat';
 import type { ModuleConfig, ShipFit } from '../sim/fitting';
 import type { LootRules } from '../sim/loot';
+import type { MarketRules } from '../sim/market';
 import type { MeteorRules } from '../sim/meteors';
 import type { HullConfig } from '../sim/movement';
 import type { NpcRules } from '../sim/npcs';
 import type { ShopRules } from '../sim/shop';
 
 /** Версия протокола; зеркало Protocol.Version на сервере. Сервер другой версии (или старый, без поля) — не играем. */
-export const PROTOCOL_VERSION = 16;
+export const PROTOCOL_VERSION = 17;
 
 /** Состояние ИИ пирата: патруль, бой, возврат в логово (налётчик — полёт от врат к точке), уход из системы. */
 export type AiState = 'patrol' | 'attack' | 'return' | 'leave';
@@ -46,8 +47,16 @@ export type ClientMessage =
   | { t: 'loot'; id: number }
   /** Взять выбранный предмет: подбор ручной, сам луч ничего не хватает. */
   | { t: 'grab' }
-  /** Продать груз в доке; item — что именно, без него — весь трюм. */
-  | { t: 'sell'; item?: string }
+  /**
+   * Продать груз в доке; item — что именно, без него — весь трюм (всё, чем здесь торгуют).
+   * count — сколько штук; 0 или без него — вся стопка.
+   */
+  | { t: 'sell'; item?: string; count?: number }
+  /**
+   * Купить товар на рынке станции (M12). Отдельно от buy: тот берёт одну вещь в слот или на склад,
+   * а здесь — N единиц в трюм. Сервер сам урежет count до склада, кредитов и места.
+   */
+  | { t: 'buyGoods'; item: string; count: number }
   /** Пристыковаться к станции или вылететь из дока. */
   | { t: 'dock'; on: boolean }
   /**
@@ -223,6 +232,11 @@ export interface WelcomeMsg {
   galaxy?: GalaxyDto;
   /** Модули кораблей; нет — сервер без modules.json: щит, радар и бак даёт корпус. */
   modules?: ModuleConfig | null;
+  /**
+   * Правила рынка этой станции (M12): по ним считается цена пачки — той же формулой, что на сервере.
+   * Живые цены приходят отдельным market; нет поля — рынка здесь нет.
+   */
+  market?: MarketRules | null;
 }
 
 /** PvP в системе (GDD §34): off — нет; border — нет у станции; free — везде. */
@@ -375,6 +389,7 @@ export interface ConfigMsg {
   system?: SystemDto;
   galaxy?: GalaxyDto;
   modules?: ModuleConfig | null;
+  market?: MarketRules | null;
 }
 
 /** Вход принят; приходит раньше welcome. */
@@ -437,6 +452,29 @@ export interface CargoMsg {
   credits?: number;
   /** Из занятого — груз доставки: его не продать и не выбросить. */
   reserved?: number;
+}
+
+/** Строка рынка станции (M12): название, объём и цвет редкости товара клиент берёт из loot.json. */
+export interface MarketItemDto {
+  id: string;
+  /** Сколько пилот платит за штуку прямо сейчас. */
+  buy: number;
+  /** Сколько пилот получает за штуку. */
+  sell: number;
+  /** Запас станции, штук: от него и пляшет цена. */
+  stock: number;
+  /** Равновесный запас — по нему видно, здесь «мало» или «много». */
+  norm: number;
+}
+
+/**
+ * Живые цены станции (M12) — только тому, кто в доке. Приходит по событию: стыковка, сделка,
+ * поставка торговца, возврат запасов к норме, правка баланса.
+ */
+export interface MarketMsg {
+  t: 'market';
+  system: string;
+  items: MarketItemDto[];
 }
 
 /** Вид задания (GDD §36). */
@@ -609,4 +647,5 @@ export type ServerMessage =
   | PartyStateMsg
   | PartyEventMsg
   | BountyMsg
-  | InvasionMsg;
+  | InvasionMsg
+  | MarketMsg;

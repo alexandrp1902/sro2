@@ -1,5 +1,7 @@
 import type { GalaxyDto, GalaxySystemDto } from '../net/protocol';
 import { dangerColor, dangerName, hops, jumpCost, jumpOutlook, pvpName, regionName, type JumpOutlook } from '../sim/galaxy';
+import { lootItem, type LootRules } from '../sim/loot';
+import type { MarketRules } from '../sim/market';
 import { color } from './cargoHud';
 
 const SVG = 'http://www.w3.org/2000/svg';
@@ -16,6 +18,10 @@ export interface GalaxyMapState {
   objective?: string | null;
   /** Где вторжение пиратов (GDD §38) — объявлено или идёт; null — нигде. */
   invasion?: string | null;
+  /** Правила рынка (M12): по ним видно, что где производят и скупают. */
+  market?: MarketRules | null;
+  /** Каталог груза: названия товаров для строки «производит / покупает». */
+  loot?: LootRules | null;
 }
 
 const OUTLOOK_TEXT: Record<JumpOutlook, string> = {
@@ -180,6 +186,16 @@ export class GalaxyMap {
     const region = regionName(state.galaxy, system.region);
     if (region) facts.unshift(region);
     box.append(el('div', 'galaxy-info-facts', facts.join(' · ')));
+    // Чем здесь торгуют (M12): «производит» — где это дёшево купить, «покупает» — куда везти.
+    const profile = state.market?.stations?.[system.id];
+    if (profile && state.loot) {
+      const names = (ids: string[] | null | undefined): string =>
+        (ids ?? []).map((id) => lootItem(state.loot!, id)?.name ?? id).join(', ');
+      const produces = names(profile.produces);
+      const consumes = names(profile.consumes);
+      if (produces) box.append(el('div', 'galaxy-info-trade', `Производит: ${produces}`));
+      if (consumes) box.append(el('div', 'galaxy-info-trade', `Покупает: ${consumes}`));
+    }
     const cost = jumpCost(state.galaxy, state.current, system.id);
     const outlook = jumpOutlook(state.galaxy, state.current, system.id, state.fuel);
     let text = OUTLOOK_TEXT[outlook];

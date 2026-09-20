@@ -442,5 +442,33 @@
   "modules-cooling": {
     "w": 128,
     "h": 95
+  },
+  "resources-food": {
+    "w": 128,
+    "h": 113
+  },
+  "resources-medicine": {
+    "w": 128,
+    "h": 105
+  },
+  "resources-machinery": {
+    "w": 128,
+    "h": 116
+  },
+  "resources-luxury": {
+    "w": 128,
+    "h": 128
+  },
+  "resources-arms": {
+    "w": 128,
+    "h": 122
+  },
+  "resources-fuelCells": {
+    "w": 128,
+    "h": 126
+  },
+  "item-letter": {
+    "w": 128,
+    "h": 84
   }
 }

@@ -1,4 +1,4 @@
-import type { BuyKind, HangarMsg, MissionOffer, MissionsMsg } from '../net/protocol';
+import type { BuyKind, HangarMsg, MarketItemDto, MarketMsg, MissionOffer, MissionsMsg } from '../net/protocol';
 import type { WeaponParams } from '../sim/combat';
 import {
   MODULE_SLOTS,
@@ -24,6 +24,7 @@ import { itemSprite, moduleSprite, shipSprite, spriteUrl, weaponSprite } from '.
 import type { Hulls } from '../sim/hulls';
 import { activeHint, activeLine, offerNote, offerTitle, type MissionNames } from '../sim/missions';
 import { lootItem, rarityColor, type LootRules } from '../sim/loot';
+import { NO_MARKET, affordable, stockLevel, tradeCost, trend, type MarketRules } from '../sim/market';
 import { NO_SHOP, formatCredits, fuelCost, price, repairCost, sells, sellPrice, type ShopRules } from '../sim/shop';
 import type { Weapons } from '../sim/weapons';
 import { color, round, type CargoState } from './cargoHud';
@@ -52,7 +53,8 @@ export type Tab = 'missions' | 'cargo' | 'hulls' | 'fitting';
 
 const TABS: { id: Tab; label: string }[] = [
   { id: 'missions', label: 'Задания' },
-  { id: 'cargo', label: 'Груз' },
+  // Покупка и продажа товаров — в одном списке (M12); id остался прежним, на него смотрит startTab.
+  { id: 'cargo', label: 'Рынок' },
   { id: 'hulls', label: 'Корабли' },
   { id: 'fitting', label: 'Оснащение' },
 ];
@@ -73,7 +75,7 @@ interface Scene {
 
 const SCENES: Record<Tab, Scene> = {
   missions: { art: 'office', who: 'Диспетчер', line: 'Работа есть всегда. Вопрос — сколько вы готовы рискнуть.', ship: false },
-  cargo: { art: 'trader', who: 'Торговец', line: 'Показывайте, что привезли. Честная цена — моя цена.', ship: false },
+  cargo: { art: 'trader', who: 'Торговец', line: 'Товар берут там, где его нет. Остальное — арифметика.', ship: false },
   hulls: { art: 'shipyard', who: 'Мастер верфи', line: 'Корпус выбирают под задачу, а не под мечту.', ship: true },
   fitting: { art: 'hangar', who: '', line: '', ship: true },
 };
@@ -111,9 +113,52 @@ export function slotOffer(
   return { action: 'buy', cost, problem, poor: cost > credits };
 }
 
+/** Строка рынка: что с этим товаром можно сделать здесь и сейчас. */
+export interface MarketRow {
+  id: string;
+  /** Сколько лежит в трюме. */
+  have: number;
+  /** Цены станции; null — этим здесь не торгуют (чужой регион или контрабанда). */
+  quote: MarketItemDto | null;
+  /** Станция продаёт этот товар: покупают только то, что она делает сама. */
+  sells: boolean;
+  /** Сколько штук выбрано счётчиком. */
+  qty: number;
+  /** Максимум к покупке: склад, кошелёк и трюм; 0 — купить нельзя. */
+  maxBuy: number;
+  /** Максимум к продаже: сколько лежит в трюме. */
+  maxSell: number;
+}
+
+/**
+ * Сколько штук можно купить: меньшее из склада станции, места в трюме и того, что по карману.
+ * Цена растёт по ходу сделки, поэтому кошелёк считается тем же шагом, что и сама покупка.
+ */
+export function maxBuyable(
+  market: MarketRules,
+  loot: LootRules,
+  quote: MarketItemDto,
+  credits: number,
+  freeVolume: number,
+): number {
+  const volume = lootItem(loot, quote.id)?.volume ?? 1;
+  const fits = volume > 0 ? Math.floor((freeVolume + 1e-9) / volume) : quote.stock;
+  const room = Math.max(0, Math.min(quote.stock, fits));
+  if (room <= 0) return 0;
+  return affordable(market, quote.id, lootItem(loot, quote.id)?.price ?? 0, quote.stock, room, credits);
+}
+
+/** Счётчик не уходит за границы: меньше одного и больше доступного выбрать нельзя. */
+export function clampQty(qty: number, max: number): number {
+  if (max <= 0) return 0;
+  return Math.min(Math.max(1, Math.round(qty)), max);
+}
+
 export interface DockHandlers {
-  /** Продать груз: item — что именно, без него — весь трюм. */
-  onSell(item?: string): void;
+  /** Продать груз: item — что именно, без него — весь трюм; count — сколько штук, 0 — вся стопка. */
+  onSell(item?: string, count?: number): void;
+  /** Купить товар на рынке станции. */
+  onBuyGoods(item: string, count: number): void;
   /** Купить корпус, пушку или модуль; slot — пушку или модуль сразу в этот слот. */
   onBuy(kind: BuyKind, id: string, slot?: string): void;
   /** Поставить свой корпус из ангара. */
@@ -163,6 +208,15 @@ export class DockScreen {
   private missions: MissionsMsg | null = null;
   /** Слот, для которого открыт список пушек или модулей; null — ни один. */
   private slot: string | null = null;
+  /** Правила рынка этой станции (M12). */
+  private market: MarketRules = NO_MARKET;
+  /** Живые цены станции; null — рынка здесь нет. */
+  private quotes: MarketMsg | null = null;
+  /**
+   * Сколько штук выбрано счётчиком, по товарам. Живёт на экране, а не в разметке: render() заменяет
+   * карточку целиком после каждого события сервера, и значение в поле ввода стиралось бы.
+   */
+  private readonly qty = new Map<string, number>();
 
   constructor(
     private readonly root: HTMLElement,
@@ -177,9 +231,16 @@ export class DockScreen {
     return this.hangar?.docked ?? false;
   }
 
-  setRules(loot: LootRules | undefined, shop: ShopRules | undefined): void {
+  setRules(loot: LootRules | undefined, shop: ShopRules | undefined, market?: MarketRules | null): void {
     this.loot = loot ?? null;
     this.shop = shop ?? NO_SHOP;
+    this.market = market ?? NO_MARKET;
+    this.render();
+  }
+
+  /** Живые цены станции; null — рынка здесь нет, груз сдаётся по обычной цене. */
+  setMarket(market: MarketMsg | null): void {
+    this.quotes = market;
     this.render();
   }
 
@@ -329,34 +390,145 @@ export class DockScreen {
     return line;
   }
 
+  /**
+   * Что показать на рынке: сначала то, что лежит в трюме (это продают), потом остальной ассортимент станции.
+   * Один список вместо двух вкладок — цена товара в доке ровно одна, и видно её в одном месте.
+   */
+  private marketRows(credits: number): MarketRow[] {
+    const cargo = this.cargo;
+    const rules = this.loot;
+    if (!cargo || !rules) return [];
+    const quotes = new Map((this.quotes?.items ?? []).map((q) => [q.id, q]));
+    const free = Math.max(0, cargo.max - cargo.used);
+
+    const ids: string[] = [...Object.keys(cargo.items)];
+    for (const id of quotes.keys()) if (!cargo.items[id]) ids.push(id);
+
+    return ids.map((id) => {
+      const quote = quotes.get(id) ?? null;
+      const have = cargo.items[id] ?? 0;
+      const maxBuy = quote && this.canSellHere(quote.id) ? maxBuyable(this.market, rules, quote, credits, free) : 0;
+      const maxSell = quote ? have : 0;
+      return {
+        id,
+        have,
+        quote,
+        sells: maxBuy > 0 || (!!quote && this.canSellHere(quote.id)),
+        qty: clampQty(this.qty.get(id) ?? 1, Math.max(maxBuy, maxSell)),
+        maxBuy,
+        maxSell,
+      };
+    });
+  }
+
+  /** Станция продаёт этот товар: покупают у неё только то, что она делает сама. */
+  private canSellHere(id: string): boolean {
+    // Без правил рынка (сервер без market.json) станция ничего не продаёт — как до M12.
+    return this.market.station ? (this.market.station.produces ?? []).includes(id) : false;
+  }
+
+  /** Рынок станции (M12): в одном списке и покупка, и продажа. */
   private renderCargo(body: HTMLElement): void {
     const cargo = this.cargo;
     const rules = this.loot;
     if (!cargo || !rules) return;
     body.append(el('div', 'dock-note', `Трюм ${round(cargo.used)} / ${round(cargo.max)}`));
     if (cargo.reserved > 0) body.append(el('div', 'dock-note', `Из них груз задания — ${cargo.reserved} ед.: не продаётся`));
-    const items = Object.entries(cargo.items);
-    if (items.length === 0) {
-      body.append(el('div', 'dock-empty', 'Трюм пуст. Груз добывают с пиратов, метеоритов и из контейнеров.'));
+    if (!rules.stationUnload) {
+      body.append(el('div', 'dock-note', 'Станция сейчас груз не принимает'));
       return;
     }
-    if (!rules.stationUnload) body.append(el('div', 'dock-note', 'Станция сейчас груз не принимает'));
-    let total = 0;
-    for (const [id, count] of items) {
-      const item = lootItem(rules, id);
-      const sum = (item?.price ?? 0) * count;
-      total += sum;
-      const row = el('div', 'dock-row');
-      row.append(icon(itemSprite(id)));
-      const name = el('div', 'dock-name', `${item?.name ?? id} ×${count}`);
-      name.style.color = color(rarityColor(rules, id));
-      row.append(name, el('div', 'dock-stats', `${formatCredits(item?.price ?? 0)} за шт.`));
-      if (rules.stationUnload) row.append(button(`Продать · ${formatCredits(sum)}`, 'dock-buy', () => this.handlers.onSell(id)));
-      body.append(row);
+
+    const rows = this.marketRows(cargo.credits);
+    if (rows.length === 0) {
+      body.append(el('div', 'dock-empty', 'Трюм пуст, и торговать здесь нечем. Груз добывают с пиратов, метеоритов и из контейнеров.'));
+      return;
     }
-    if (rules.stationUnload && items.length > 1) {
+    for (const row of rows) body.append(this.marketRow(row, rules));
+
+    // «Продать всё» считает по здешним ценам и не трогает то, чего тут не берут.
+    const sellable = rows.filter((r) => r.maxSell > 0 && r.quote);
+    if (sellable.length > 1) {
+      let total = 0;
+      for (const r of sellable) {
+        total += tradeCost(this.market, r.id, lootItem(rules, r.id)?.price ?? 0, r.quote!.stock, r.have, false);
+      }
       body.append(button(`Продать всё · ${formatCredits(total)}`, 'dock-buy dock-sell-all', () => this.handlers.onSell()));
     }
+  }
+
+  private marketRow(row: MarketRow, rules: LootRules): HTMLElement {
+    const item = lootItem(rules, row.id);
+    const basePrice = item?.price ?? 0;
+    const view = el('div', 'dock-row dock-market-row');
+    view.append(icon(itemSprite(row.id)));
+
+    const name = el('div', 'dock-name', item?.name ?? row.id);
+    name.style.color = color(rarityColor(rules, row.id));
+    if (row.have > 0) name.append(el('span', 'dock-market-have', ` в трюме ${row.have}`));
+    view.append(name);
+
+    if (!row.quote) {
+      // Товар есть, но станция им не торгует: чужой регион или контрабанда.
+      view.append(el('div', 'dock-tag', 'Здесь этим не торгуют'));
+      return view;
+    }
+
+    view.append(this.priceLine(row.quote, basePrice));
+    const max = Math.max(row.maxBuy, row.maxSell);
+    if (max > 0) view.append(this.stepper(row, max));
+
+    const actions = el('div', 'dock-market-actions');
+    if (row.maxBuy > 0) {
+      const count = Math.min(row.qty, row.maxBuy);
+      const cost = tradeCost(this.market, row.id, basePrice, row.quote.stock, count, true);
+      actions.append(button(`Купить ${count} · ${formatCredits(cost)}`, 'dock-buy', () => this.handlers.onBuyGoods(row.id, count)));
+    } else if (row.sells) {
+      // Продают, но прямо сейчас нельзя: пусто на складе, нет места или не хватает кредитов.
+      actions.append(el('div', 'dock-tag', row.quote.stock <= 0 ? 'Склад пуст' : 'Не по карману'));
+    }
+    if (row.maxSell > 0) {
+      const count = Math.min(row.qty, row.maxSell);
+      const gain = tradeCost(this.market, row.id, basePrice, row.quote.stock, count, false);
+      actions.append(button(`Продать ${count} · ${formatCredits(gain)}`, 'dock-buy', () => this.handlers.onSell(row.id, count)));
+    }
+    if (actions.childElementCount > 0) view.append(actions);
+    return view;
+  }
+
+  /** Цена штуки, стрелка «дороже/дешевле обычного» и намёк на склад станции. */
+  private priceLine(quote: MarketItemDto, basePrice: number): HTMLElement {
+    const line = el('div', 'dock-stats dock-market-price');
+    const where = trend(quote.buy, quote.sell, basePrice);
+    const arrow = where === 'up' ? '▲' : where === 'down' ? '▼' : '';
+    const price = el('span', 'dock-market-rate', `${formatCredits(quote.sell)} / ${formatCredits(quote.buy)}`);
+    price.title = 'Станция покупает / продаёт за штуку';
+    line.append(price);
+    if (arrow) {
+      const mark = el('span', `dock-market-trend dock-market-${where}`, ` ${arrow}`);
+      mark.title = where === 'up' ? 'Дороже обычного' : 'Дешевле обычного';
+      line.append(mark);
+    }
+    const level = stockLevel(quote.stock, quote.norm);
+    const stock = el('span', 'dock-market-stock', ` склад ${quote.stock}`);
+    stock.dataset.level = level;
+    line.append(stock);
+    return line;
+  }
+
+  /** Счётчик количества: значение живёт на экране, разметка строится из него заново на каждой перерисовке. */
+  private stepper(row: MarketRow, max: number): HTMLElement {
+    const box = el('div', 'dock-qty');
+    const set = (value: number): void => {
+      this.qty.set(row.id, clampQty(value, max));
+      this.render();
+    };
+    box.append(button('−', 'dock-qty-step', () => set(row.qty - 1)));
+    box.append(el('div', 'dock-qty-value', String(row.qty)));
+    box.append(button('+', 'dock-qty-step', () => set(row.qty + 1)));
+    if (max > 10) box.append(button('+10', 'dock-qty-step', () => set(row.qty + 10)));
+    box.append(button('Макс', 'dock-qty-step', () => set(max)));
+    return box;
   }
 
   /** Обучение (GDD §54), своё задание и доска станции (§36). */

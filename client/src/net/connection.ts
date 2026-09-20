@@ -4,6 +4,7 @@ import {
   type AccountMsg,
   type BountyMsg,
   type CargoMsg,
+  type MarketMsg,
   type ClientMessage,
   type DeniedCode,
   type HangarMsg,
@@ -71,6 +72,8 @@ export class Connection {
   onSnapshot: ((message: SnapshotMsg) => void) | null = null;
   onRosterEvents: ((events: RosterEvent[]) => void) | null = null;
   onCargo: ((message: CargoMsg) => void) | null = null;
+  /** Живые цены станции (M12) — приходят, только пока пилот в доке. */
+  onMarket: ((message: MarketMsg) => void) | null = null;
   onNotice: ((message: NoticeMsg) => void) | null = null;
   onAccount: ((message: AccountMsg) => void) | null = null;
   onDenied: ((code: DeniedCode) => void) | null = null;
@@ -246,6 +249,9 @@ export class Connection {
         break;
       case 'cargo':
         this.onCargo?.(message);
+        break;
+      case 'market':
+        this.onMarket?.(message);
         break;
       case 'notice':
         this.onNotice?.(message);

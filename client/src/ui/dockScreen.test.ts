@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { offerState, slotOffer, weaponLabel } from './dockScreen';
+import type { LootRules } from '../sim/loot';
+import type { MarketRules } from '../sim/market';
+import { clampQty, maxBuyable, offerState, slotOffer, weaponLabel } from './dockScreen';
 
 describe('offerState', () => {
   it('puts what is on the ship first, then the hangar', () => {
@@ -32,6 +34,53 @@ describe('slotOffer', () => {
     expect(slotOffer(false, 0, 100, 99, null)).toEqual({ action: 'buy', cost: 100, problem: null, poor: true });
     expect(slotOffer(false, 0, 100, 100, null)).toEqual({ action: 'buy', cost: 100, problem: null, poor: false });
     expect(slotOffer(false, 0, null, 1e9, null)).toEqual({ action: 'none' });
+  });
+});
+
+describe('счётчик на рынке', () => {
+  it('не уходит за границы', () => {
+    expect(clampQty(5, 10)).toBe(5);
+    expect(clampQty(0, 10)).toBe(1);
+    expect(clampQty(-3, 10)).toBe(1);
+    expect(clampQty(40, 10)).toBe(10);
+    expect(clampQty(5, 0)).toBe(0); // покупать нечего — кнопок не будет
+  });
+});
+
+describe('maxBuyable', () => {
+  const loot: LootRules = {
+    items: {
+      food: { name: 'Продовольствие', rarity: 'common', volume: 1, price: 30 },
+      machinery: { name: 'Машины', rarity: 'uncommon', volume: 3, price: 90 },
+    },
+  } as unknown as LootRules;
+  const market: MarketRules = {
+    goods: { food: { baseline: 100 }, machinery: { baseline: 100 } },
+    station: { produces: ['food', 'machinery'] },
+    region: 'core',
+  };
+
+  it('упирается в склад станции', () => {
+    const quote = { id: 'food', buy: 23, sell: 19, stock: 4, norm: 250 };
+    expect(maxBuyable(market, loot, quote, 1e6, 1000)).toBe(4);
+  });
+
+  it('упирается в трюм — и объём товара считается', () => {
+    const quote = { id: 'machinery', buy: 70, sell: 60, stock: 999, norm: 250 };
+    // Свободно 10 единиц объёма, «машины» занимают по 3 — влезут три штуки.
+    expect(maxBuyable(market, loot, quote, 1e6, 10)).toBe(3);
+  });
+
+  it('упирается в кошелёк', () => {
+    const quote = { id: 'food', buy: 23, sell: 19, stock: 999, norm: 250 };
+    const count = maxBuyable(market, loot, quote, 100, 1000);
+    expect(count).toBeGreaterThan(0);
+    expect(count).toBeLessThan(10);
+  });
+
+  it('без места не даёт купить ничего', () => {
+    const quote = { id: 'food', buy: 23, sell: 19, stock: 999, norm: 250 };
+    expect(maxBuyable(market, loot, quote, 1e6, 0)).toBe(0);
   });
 });
 
