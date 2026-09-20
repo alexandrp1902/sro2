@@ -15,6 +15,24 @@ export type Locate = (id: number) => FxAnchor | null;
 
 /** Псевдо-пушка тарана метеорита в ShotDto (MeteorRules.RamWeapon на сервере). */
 export const RAM_WEAPON = 'ram';
+/** Псевдо-пушка осколков взрыва в ShotDto (Combat.SplashWeapon на сервере, M15.5). */
+export const SPLASH_WEAPON = 'splash';
+
+/** Как рисовать выстрел. */
+export type ShotStyle = 'ram' | 'splash' | 'missile' | 'tracer';
+
+/**
+ * У тарана и у осколков пушки в каталоге нет: weapons.get на них молча вернёт импульсную,
+ * а с ней — и трассер, которого быть не должно.
+ */
+export const isPseudoWeapon = (w: string): boolean => w === RAM_WEAPON || w === SPLASH_WEAPON;
+
+/** Чем рисовать выстрел; чистая — её и проверяют тесты, PixiJS для этого не нужен. */
+export function shotStyle(w: string, missile: boolean): ShotStyle {
+  if (w === RAM_WEAPON) return 'ram';
+  if (w === SPLASH_WEAPON) return 'splash';
+  return missile ? 'missile' : 'tracer';
+}
 /** Время полёта снаряда до цели, мс; луч — мгновенный. */
 const FLIGHT_MS: Record<string, number> = { bolt: 150, orb: 320, beam: 0, rail: 90, ion: 260, flak: 120 };
 const BEAM_MS = 140;
@@ -71,21 +89,30 @@ export class CombatFx {
   shot(shot: ShotDto, now: number, locate: Locate): void {
     const from = locate(shot.from);
     const to = locate(shot.to);
+    const weapon = isPseudoWeapon(shot.w) ? null : this.weapons.get(shot.w);
+    const style = shotStyle(shot.w, !!weapon?.missile);
     // Таран метеорита: снаряда нет, камень уже разбился — сразу цифры, вспышка щита и искры на корабле.
-    if (shot.w === RAM_WEAPON) {
+    if (style === 'ram') {
       if (to) this.impact(shot, null, to, now);
       return;
     }
+    // Осколки взрыва (M15.5): снаряда не было, рвануло на самом соседе — цифра урона, щит, искры и вспышка.
+    if (style === 'splash') {
+      if (to) {
+        this.impact(shot, null, to, now);
+        this.add(new Explosion(this.view, to.x, to.y, to.size * MISSILE_BLAST, now));
+      }
+      return;
+    }
     // Ракета долетела сама (render/missiles.ts): трассера нет — только попадание и малый взрыв на цели.
-    const weapon = this.weapons.get(shot.w);
-    if (weapon.missile) {
+    if (style === 'missile') {
       if (to) {
         this.impact(shot, 'bolt', to, now);
         this.add(new Explosion(this.view, to.x, to.y, to.size * MISSILE_BLAST, now));
       }
       return;
     }
-    if (!from || !to) return;
+    if (!from || !to || !weapon) return;
     const kind = shotKind(weapon.kind);
     this.add(new SpriteFlash(this.view, `weapon-shots-${kind}-flash`, shot.from, from, to, MUZZLE_SIZE, MUZZLE_MS, now, 0.12));
     this.add(new Tracer(this.view, shot, kind, now, from, to, (at, time) => this.impact(shot, kind, at, time)));

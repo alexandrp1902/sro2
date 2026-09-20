@@ -55,6 +55,10 @@ public static class Tiers
         return null;
     }
 
+    /// <summary>
+    /// Тир двигает только урон и потребление. Радиус взрыва (M15.5) намеренно остаётся прежним:
+    /// осколки и так растут вместе с уроном, а больший радиус — это уже другая роль пушки, а не более мощная та же.
+    /// </summary>
     public static IReadOnlyDictionary<string, WeaponParams> Expand(
         IReadOnlyDictionary<string, WeaponParams> weapons, IReadOnlyList<TierDef>? tiers)
     {

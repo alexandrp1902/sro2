@@ -73,6 +73,9 @@
       "slow": 0,
       "slowSeconds": 0,
       "intercept": null,
+      "blastRadius": 0,
+      "blastShare": 0,
+      "blastFalloff": 1.5,
       "tier": 1
     },
     "plasma": {
@@ -96,6 +99,9 @@
       "slow": 0,
       "slowSeconds": 0,
       "intercept": null,
+      "blastRadius": 0,
+      "blastShare": 0,
+      "blastFalloff": 1.5,
       "tier": 1
     },
     "big": {
@@ -119,6 +125,9 @@
       "slow": 0,
       "slowSeconds": 0,
       "intercept": null,
+      "blastRadius": 0,
+      "blastShare": 0,
+      "blastFalloff": 1.5,
       "tier": 1
     }
   },

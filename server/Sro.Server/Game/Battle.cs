@@ -21,6 +21,7 @@ internal sealed class Battle(Func<double> roll, ILogger log)
     /// <param name="canAttack">Можно ли стрелку бить эту цель — PvP по правилам системы; null — можно всех.</param>
     /// <param name="launch">Запуск ракеты: стрелок, цель, слот, ракетница; null — ракетницы молчат.</param>
     /// <param name="missiles">Ракеты в полёте — цели зениток; null — зенитки бьют только корабли.</param>
+    /// <param name="canSplash">Кого задевает взрыв площадного оружия (M15.5); null — осколки никого не трогают.</param>
     public void Run(
         long tick,
         Dictionary<int, ShipEntity> ships,
@@ -30,14 +31,15 @@ internal sealed class Battle(Func<double> roll, ILogger log)
         Action<ShipEntity> respawn,
         Func<ShipEntity, ShipEntity, bool>? canAttack = null,
         Action<ShipEntity, ShipEntity, int, WeaponParams>? launch = null,
-        MissileSystem? missiles = null)
+        MissileSystem? missiles = null,
+        Func<ShipEntity, ShipEntity, bool>? canSplash = null)
     {
         if (missiles is { Alive.Count: > 0 }) Intercept(tick, ships, balance, missiles, shots, canAttack);
         foreach (var shooter in ships.Values) Aim(tick, shooter, ships, balance, canAttack, launch is not null);
         foreach (var volley in _volleys)
         {
             if (volley.Weapon.Missile is not null) Launch(tick, volley, launch!);
-            else Fire(tick, volley, shots);
+            else Fire(tick, volley, ships, balance, shots, canSplash);
         }
         _volleys.Clear();
 
@@ -116,7 +118,13 @@ internal sealed class Battle(Func<double> roll, ILogger log)
         launch(shooter, target, slot, weapon);
     }
 
-    private void Fire(long tick, Volley volley, List<ShotDto> shots)
+    private void Fire(
+        long tick,
+        Volley volley,
+        Dictionary<int, ShipEntity> ships,
+        Balance balance,
+        List<ShotDto> shots,
+        Func<ShipEntity, ShipEntity, bool>? canSplash)
     {
         var (shooter, target, slot, weapon, chance, cooldown) = volley;
         shooter.NextFireTicks[slot] = tick + Combat.CooldownTicks(weapon, cooldown);
@@ -141,6 +149,8 @@ internal sealed class Battle(Func<double> roll, ILogger log)
             (int)Math.Round(damage.Shield + damage.Hull),
             (int)Math.Round(damage.Shield),
             Math.Round(chance, 2)));
+        // Площадь считается от попадания по цели (M15.5): промахом мимо кучи по ней не ударишь.
+        if (hit) Blast.Apply(tick, shooter, target, weapon, ships, balance, shots, canSplash);
     }
 
     /// <summary>

@@ -670,10 +670,10 @@ public static class Protocol
     /// 17 — рынок товаров, покупка груза, живые цены, M12; 18 — репутация систем и станций, M13;
     /// 19 — сопровождение, патруль, важное письмо, охота на метеориты и провал задания, M14;
     /// 20 — посадка на планеты: место как общее понятие дока, поселения, их рынок и репутация, M15;
-    /// 21 — выброс груза за борт).
+    /// 21 — выброс груза за борт; 22 — урон по площади, M15.5).
     /// Зеркало PROTOCOL_VERSION в client/src/net/protocol.ts.
     /// </summary>
-    public const int Version = 21;
+    public const int Version = 22;
 
     public const string DroneKind = "drone";
     public const string PirateKind = "pirate";

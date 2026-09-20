@@ -25,6 +25,12 @@ namespace Sro.Sim;
 /// <param name="Slow">Попадание замедляет цель: доля, на которую падают скорость и разгон (0.4 — на 40 %).</param>
 /// <param name="SlowSeconds">Сколько длится замедление.</param>
 /// <param name="Intercept">Зенитка (M11): сама бьёт ракеты и торпеды, летящие рядом, даже без цели и без огня.</param>
+/// <param name="BlastRadius">
+/// Урон по площади (M15.5): попадание рвётся в точке цели и задевает соседей в этом радиусе. 0 — осколков нет.
+/// Взрыв именно в точке попадания, а не задевание по дороге: промах не взрывается вовсе.
+/// </param>
+/// <param name="BlastShare">Доля урона пушки, которую получает сосед в самом эпицентре.</param>
+/// <param name="BlastFalloff">Показатель спада к краю: 1 — линейный, больше — круче.</param>
 /// <param name="Tier">Тир Mk1–Mk3 (<see cref="Tiers"/>): в файле всегда 1, старшие тиры раскрываются при разборе.</param>
 public sealed record WeaponParams(
     string Name,
@@ -47,6 +53,9 @@ public sealed record WeaponParams(
     double Slow = 0,
     double SlowSeconds = 0,
     InterceptParams? Intercept = null,
+    double BlastRadius = 0,
+    double BlastShare = 0,
+    double BlastFalloff = 1.5,
     int Tier = 1)
 {
     [System.Text.Json.Serialization.JsonIgnore] public int SlowTicks => Combat.SecondsToTicks(SlowSeconds);
@@ -74,6 +83,11 @@ public sealed record WeaponParams(
         if (!(Slow >= 0 && Slow <= 0.9) || !(SlowSeconds >= 0)) return "slow must be within 0..0.9, slowSeconds must not be negative";
         if (Intercept?.Validate() is { } intercept) return $"intercept: {intercept}";
         if (Intercept is not null && Missile is not null) return "a missile launcher cannot intercept";
+        if (!(BlastRadius >= 0)) return "blastRadius must not be negative";
+        if (BlastRadius > MaxRange) return "blastRadius must not exceed maxRange";
+        if (!(BlastShare >= 0 && BlastShare <= 1)) return "blastShare must be within 0..1";
+        if (!(BlastFalloff >= 0.5 && BlastFalloff <= 4)) return "blastFalloff must be within 0.5..4";
+        if (BlastRadius > 0 && !(BlastShare > 0)) return "blastRadius without blastShare does nothing";
         return null;
     }
 }
@@ -91,6 +105,13 @@ public static class Combat
     /// <summary>Цель ровно на границе сектора — в секторе, несмотря на погрешность atan2.</summary>
     private const double ArcEpsilon = 1e-9;
     private const double SameSpotSq = 1e-9;
+
+    /// <summary>
+    /// Псевдо-пушка осколков в <c>ShotDto.W</c> (M15.5): трассера у такой записи нет, рисуется только
+    /// попадание на соседе. Тот же приём, что у тарана метеорита (<see cref="MeteorRules.RamWeapon"/>),
+    /// и он позволяет не ломать семиполевой ShotDto и его бинарный кодек.
+    /// </summary>
+    public const string SplashWeapon = "splash";
 
     /// <summary>Уклонение цели, % (§39–40): базовое плюс добавка, растущая со скоростью.</summary>
     public static double Evasion(HullParams hull, double speed) =>
@@ -155,6 +176,19 @@ public static class Combat
     /// <summary>Урон пушки с её множителями по щиту и корпусу.</summary>
     public static DamageResult ApplyDamage(ref double hp, ref double shield, WeaponParams weapon) =>
         ApplyDamage(ref hp, ref shield, weapon.Damage, weapon.ShieldFactor, weapon.HullFactor);
+
+    /// <summary>
+    /// Осколочный урон соседу (M15.5): доля урона пушки, спадающая от эпицентра к краю радиуса.
+    /// </summary>
+    /// <param name="distance">От эпицентра до брони соседа, а не до его центра: крупный корпус ловит осколки бортом.</param>
+    public static double Splash(WeaponParams weapon, double distance)
+    {
+        var radius = weapon.BlastRadius;
+        if (!(radius > 0) || !(weapon.BlastShare > 0)) return 0;
+        if (!(distance < radius)) return 0;
+        var reach = 1 - Math.Max(0, distance) / radius;
+        return weapon.Damage * weapon.BlastShare * Math.Pow(reach, weapon.BlastFalloff);
+    }
 
     /// <summary>Перезарядка в тиках: выстрел не чаще раза за столько тиков.</summary>
     /// <param name="scale">Множитель от охлаждения (<see cref="Fitting.CooldownScale"/>); 1 — без него.</param>

@@ -231,6 +231,28 @@ public sealed class PartyTests
     }
 
     [Fact]
+    public void Members_AreNotSplashed_EvenWherePvpIsFree()
+    {
+        var a = Guest("Alice");
+        var b = Guest("Bob");
+        var c = Guest("Carol");
+        Join(a, b);
+        Place(a, 0, 1000);
+        Place(c, 0, 700);  // цель — чужой пилот
+        Place(b, 60, 700); // товарищ по группе стоит вплотную к ней
+        PlayerOf(a).WeaponId = "blast";
+        var mate = PlayerOf(b).Hp + PlayerOf(b).Shield;
+        var stranger = PlayerOf(c).Hp + PlayerOf(c).Shield;
+        Do(a, r => r.SetTarget(a, IdOf(c)));
+        Do(a, r => r.SetFire(a, true));
+        Steps(SimConfig.TickRate);
+
+        // Осколки — тоже огонь по своим (GDD §37): группу они не задевают даже там, где PvP свободен.
+        Assert.Equal(mate, PlayerOf(b).Hp + PlayerOf(b).Shield);
+        Assert.True(PlayerOf(c).Hp + PlayerOf(c).Shield < stranger);
+    }
+
+    [Fact]
     public void Bounty_GoesToALoneKiller_InFull()
     {
         var a = Guest("Alice");

@@ -64,7 +64,13 @@ public sealed class MissileSystem(Func<int> newId)
     }
 
     /// <summary>Шаг: полёт, попадания, погасшие. Попадание — выстрел в общем списке: урон, цифра и лента те же, что у пушек.</summary>
-    public void Step(long tick, IReadOnlyDictionary<int, ShipEntity> ships, Balance balance, List<ShotDto> shots)
+    /// <param name="canSplash">Кого задевает взрыв торпеды или ракеты (M15.5); null — осколки никого не трогают.</param>
+    public void Step(
+        long tick,
+        IReadOnlyDictionary<int, ShipEntity> ships,
+        Balance balance,
+        List<ShotDto> shots,
+        Func<ShipEntity, ShipEntity, bool>? canSplash = null)
     {
         for (var i = _alive.Count - 1; i >= 0; i--)
         {
@@ -94,6 +100,9 @@ public sealed class MissileSystem(Func<int> newId)
                 (int)Math.Round(damage.Shield + damage.Hull),
                 (int)Math.Round(damage.Shield),
                 100));
+            // Ракета не мажет, так что взрыв безусловен — но стрелка надо знать, чтобы понять, кто ему свой.
+            if (ships.TryGetValue(missile.OwnerId, out var owner))
+                Blast.Apply(tick, owner, target, missile.Weapon, ships, balance, shots, canSplash);
         }
     }
 

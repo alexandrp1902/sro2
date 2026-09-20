@@ -61,7 +61,9 @@
     "rangePenalty": 10,
     "closeRange": 250,
     "closePenalty": 35,
-    "arc": 180
+    "arc": 180,
+    "blastRadius": 180,
+    "blastShare": 0.45
   },
   "heavyLaser": {
     "name": "Тяжёлый лазер Mk1",
@@ -94,6 +96,8 @@
     "closeRange": 0,
     "closePenalty": 0,
     "arc": 90,
+    "blastRadius": 220,
+    "blastShare": 0.5,
     "missile": { "speed": 330, "turnRate": 120, "lifetime": 5, "hitRadius": 10 }
   },
   "ion": {
@@ -164,6 +168,8 @@
     "closeRange": 0,
     "closePenalty": 0,
     "arc": 60,
+    "blastRadius": 300,
+    "blastShare": 0.5,
     "missile": { "speed": 170, "turnRate": 55, "lifetime": 9, "hitRadius": 18, "hp": 150, "sprite": "torpedo" }
   }
 }

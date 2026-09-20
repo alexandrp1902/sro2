@@ -868,8 +868,8 @@ public sealed partial class Room
         // одновременно пиратом и метеоритом, погибает один раз.
         _meteors.Collide(_ships, Balance, Tick, _shots);
         // Ракеты — тоже до боя: их урон попадает в тот же свод смертей. Запущенные в этом тике полетят со следующего.
-        _missiles.Step(Tick, _ships, Balance, _shots);
-        _battle.Run(Tick, _ships, Balance, _shots, _kills, Spawn, CanAttack, Launch, _missiles);
+        _missiles.Step(Tick, _ships, Balance, _shots, CanSplash);
+        _battle.Run(Tick, _ships, Balance, _shots, _kills, Spawn, CanAttack, Launch, _missiles, CanSplash);
         // Задания — до уборки налётчиков: погибший должен ещё найтись среди кораблей.
         foreach (var kill in _kills)
         {
@@ -1497,6 +1497,38 @@ public sealed partial class Room
             GalaxyRules.PvpBorder => !InCore(shooter) && !InCore(target),
             _ => false,
         };
+    }
+
+    /// <summary>
+    /// Кого задевает взрыв площадного оружия (M15.5). Строже <see cref="CanAttack"/>: осколки — не прицельный
+    /// огонь, и случайно испортить ими репутацию нельзя. Мирные не задеваются никогда, даже там, где PvP свободен, —
+    /// иначе площадью нельзя было бы пользоваться в бою рядом со станцией. Заметьте: CanAttack мирных не защищает,
+    /// у него «не игрок против не игрока» пропускает всё.
+    /// </summary>
+    private bool CanSplash(ShipEntity shooter, ShipEntity ship)
+    {
+        // Камни осколками не бьём: иначе площадное оружие стало бы лучшим способом чистить пояс,
+        // а «охота на метеориты» (M14) требует именно расстрела. И один залп сыпал бы минералы горстями.
+        if (ship is Meteor) return false;
+        if (ship.IsDead || ship.IsProtected(Tick)) return false;
+
+        if (shooter is Player player)
+        {
+            // Попал в пирата вплотную к торговцу — торговец цел: ни урона, ни обиды, ни рейнджеров.
+            if (ship is Trader or Pirate { Type.IsRanger: true }) return false;
+            if (ship is not Player other) return true; // пираты и учебные дроны
+            if (other.Id == player.Id) return false;
+            if (_host?.SameParty(player.Id, other.Id) == true) return false;
+            // Строже прямого огня и намеренно: по выключившему PvP прицельно попасть можно, осколками — нет.
+            if (!player.PvpOn || !other.PvpOn) return false;
+            return CanAttack(player, other);
+        }
+
+        // NPC по своим не бьют: иначе волна вторжения молча съедала бы сама себя.
+        if (shooter is Pirate { Type.IsPirate: true } && ship is Pirate { Type.IsPirate: true }) return false;
+        if (shooter is Pirate { Type.IsRanger: true } && ship is Trader or Pirate { Type.IsRanger: true }) return false;
+        if (shooter is Trader && ship is Trader or Pirate { Type.IsRanger: true }) return false;
+        return true;
     }
 
     /// <summary>В укрытии станции; в системе без станции укрытия нет.</summary>

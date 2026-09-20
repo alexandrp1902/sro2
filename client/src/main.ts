@@ -19,7 +19,7 @@ import { Roster } from './net/roster';
 import { resolveServerUrl } from './net/serverUrl';
 import type { ReputationRules } from './sim/reputation';
 import { Camera } from './render/camera';
-import { CombatFx, type FxAnchor } from './render/combatFx';
+import { CombatFx, isPseudoWeapon, type FxAnchor } from './render/combatFx';
 import { JumpFx, type Jumper } from './render/jumpFx';
 import { LootField } from './render/lootView';
 import { MeteorField } from './render/meteorView';
@@ -631,7 +631,9 @@ async function main(): Promise<void> {
     }
     const shot = event.shot;
     fx.shot(shot, now, locate);
-    if (shot.from === ownId() && shot.w === mainWeaponId() && !weapons.get(shot.w).missile) {
+    // Осколки и таран идут под псевдо-пушкой (M15.5): полосу перезарядки они не крутят,
+    // и спрашивать про них weapons.get нельзя — он молча вернёт импульсную.
+    if (!isPseudoWeapon(shot.w) && shot.from === ownId() && shot.w === mainWeaponId() && !weapons.get(shot.w).missile) {
       fire.reloadFrom(now, cooldownTicks(weapons.get(shot.w)) * DT * 1000);
     }
   };

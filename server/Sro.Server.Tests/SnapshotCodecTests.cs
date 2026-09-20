@@ -136,6 +136,25 @@ public class SnapshotCodecTests
     }
 
     [Fact]
+    public void SplashShot_ReachesTheObserverWhoSeesOnlyTheShooter()
+    {
+        var encoder = new SnapshotCodec.Encoder();
+        var decoder = new SnapshotCodec.Decoder();
+        // Осколок (M15.5) едет обычной записью под псевдо-пушкой: стрелок рядом, задетый сосед — за радаром.
+        var shots = new[] { new ShotDto(2, 9, Combat.SplashWeapon, true, 40, 0, 100) };
+        var snapshot = decoder.Decode(encoder.Encode(
+            World(1, [Ship(1, 0, 0), Ship(2, 100, 0), Ship(9, 9000, 0)], shots: shots, kills: [new KillDto(9, 2)]),
+            Self,
+            (x, _) => x < 1000));
+
+        var shot = Assert.Single(snapshot.Shots!);
+        Assert.Equal(Combat.SplashWeapon, shot.W);
+        Assert.Equal(9, shot.To);
+        // Сосед в деле, значит игрок увидит и что взрыв его разнёс.
+        Assert.Equal(9, Assert.Single(snapshot.Kills!).Id);
+    }
+
+    [Fact]
     public void Keyframe_ComesRegularly_AndAfterReset()
     {
         var encoder = new SnapshotCodec.Encoder();
