@@ -1,0 +1,88 @@
+{
+  // Рынок товаров (M12). Название, объём и базовая цена товара — в loot.json, здесь только торговля.
+  //
+  // Цена на станции = базовая × уровень × (норма запаса / запас) ^ elasticity, зажатая в minFactor..maxFactor.
+  // Уровень задаёт, насколько тут вообще дорого (производят — дёшево, скупают — дорого), норма запаса —
+  // насколько сильно цену двигает одна сделка. Это разные рычаги: если крутить только норму, все свежие
+  // станции стояли бы на базовой цене и разницы между регионами не было бы.
+
+  "spread": 0.18,          // станция продаёт дороже, чем скупает: ±9 % от справедливой цены
+  "elasticity": 0.6,       // насколько круто цена отзывается на отклонение запаса от нормы
+  "minFactor": 0.45,       // цена не ниже 45 % базовой…
+  "maxFactor": 2.2,        // …и не выше 220 %
+  "stockFloor": 0.08,      // ниже этой доли нормы запас в формуле не опускается: иначе деление на ноль
+  "stockCap": 3,           // выше нормы × 3 запас не растёт: затоваренный склад не отдаёт даром
+  "halfLifeSeconds": 600,  // за 10 минут запас проходит половину пути к норме
+  "tickSeconds": 5,        // как часто считается возврат
+
+  "produceMul": 0.7,       // производитель отдаёт дешевле справедливой цены…
+  "consumeMul": 1.45,      // …потребитель платит дороже
+  "produceStock": 2.5,     // у производителя склад большой: крупная сделка его почти не двигает
+  "consumeStock": 0.5,     // у потребителя склад мал: цена отзывается резко
+  "illegalMul": 1.6,       // контрабанда стоит дороже там, где она вне закона
+
+  "traderUnits": 8,        // сколько единиц двигает один NPC-торговец: довёз — цена упала, сбили — осталась высокой
+  "baseline": 100,         // норма запаса по умолчанию, штук
+
+  // Чем вообще торгуют. Каждый id — груз из loot.json. Чем меньше baseline, тем резче ходит цена.
+  "goods": {
+    "ore": { "baseline": 260 },
+    "metal": { "baseline": 260 },
+    "titanium": { "baseline": 140 },
+    "energy": { "baseline": 110 },
+    "crystals": { "baseline": 70 },
+    "rareMetal": { "baseline": 45 },
+    "tech": { "baseline": 30 },
+
+    "food": { "baseline": 240 },
+    "fuelCells": { "baseline": 150 },
+    "medicine": { "baseline": 100 },
+    "machinery": { "baseline": 90 },
+    "luxury": { "baseline": 45 },
+    // Оружие вне закона в Ядре: там его не купить и не продать. Наказание за перевозку придёт с репутацией в M13.
+    "arms": { "baseline": 60, "illegal": ["core"] }
+  },
+
+  // Профили станций. produces — делают тут, дёшево и много; consumes — тут этого не хватает, скупают дорого.
+  // Один товар не может быть и там, и там. Системы без станции (tau, sigma, kray) рынка не имеют.
+  //
+  // Маршрут, который из этого складывается: из Ядра на Рубеж везут продовольствие, медикаменты и машины,
+  // обратно — редкие металлы, кристаллы и плазменные компоненты. Кастор — рудная остановка в Пограничье,
+  // Nova и Барнард дают короткое рискованное плечо на оружии.
+  "stations": {
+    "sol": {
+      "produces": ["food", "machinery", "medicine"],
+      "consumes": ["rareMetal", "crystals", "titanium", "fuelCells"]
+    },
+    "vega": {
+      "produces": ["machinery", "tech", "metal"],
+      "consumes": ["ore", "titanium", "rareMetal", "food"]
+    },
+    "alphaCen": {
+      "produces": ["food", "luxury"],
+      "consumes": ["ore", "crystals", "arms", "fuelCells"]
+    },
+
+    "castor": {
+      "produces": ["ore", "metal", "titanium"],
+      "consumes": ["food", "medicine", "machinery", "luxury"]
+    },
+    "nova": {
+      "produces": ["arms", "energy"],
+      "consumes": ["food", "medicine", "fuelCells", "machinery"]
+    },
+    "barnard": {
+      "produces": ["fuelCells", "medicine"],
+      "consumes": ["arms", "machinery", "food", "luxury"]
+    },
+
+    "aldebaran": {
+      "produces": ["crystals", "rareMetal"],
+      "consumes": ["food", "medicine", "machinery", "fuelCells"]
+    },
+    "epsilon": {
+      "produces": ["rareMetal", "tech", "arms"],
+      "consumes": ["food", "luxury", "medicine", "machinery"]
+    }
+  }
+}

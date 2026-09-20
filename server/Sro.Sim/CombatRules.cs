@@ -105,9 +105,11 @@ public sealed record CombatRules(
 /// <param name="Modules">modules.json; null — модулей нет: щит, радар и бак пилоту даёт корпус, как до M9.</param>
 /// <param name="Party">party.json; null — группы по умолчанию.</param>
 /// <param name="Invasion">invasion.json; null — вторжений нет.</param>
+/// <param name="Market">market.json; null — рынка товаров нет, груз сдаётся по плоской цене loot.json, как до M12.</param>
 public sealed record BalanceSources(
     string Hulls, string Weapons, string Rules, string Npcs, string Loot, string Meteors, string Shop,
-    string? Galaxy = null, string? Missions = null, string? Modules = null, string? Party = null, string? Invasion = null);
+    string? Galaxy = null, string? Missions = null, string? Modules = null, string? Party = null, string? Invasion = null,
+    string? Market = null);
 
 /// <summary>
 /// Весь баланс: корпуса, пушки, правила боя, NPC, лут, метеориты, магазин станции, галактика, задания.
@@ -128,6 +130,7 @@ public sealed record BalanceSources(
 /// <param name="Modules">Модули кораблей (GDD §13); null — их нет: щит, радар и бак пилоту даёт корпус, энергию не считают.</param>
 /// <param name="PartySet">Группы игроков (GDD §37); null — по умолчанию.</param>
 /// <param name="InvasionSet">Вторжения пиратов (GDD §38); null — их нет.</param>
+/// <param name="MarketSet">Рынок товаров (M12); null — груз сдаётся по плоской цене loot.json и не покупается.</param>
 public sealed record Balance(
     IReadOnlyDictionary<string, HullParams> Hulls,
     IReadOnlyDictionary<string, WeaponParams> Weapons,
@@ -142,7 +145,8 @@ public sealed record Balance(
     MissionRules? MissionSet = null,
     IReadOnlyDictionary<string, ModuleParams>? Modules = null,
     PartyRules? PartySet = null,
-    InvasionRules? InvasionSet = null)
+    InvasionRules? InvasionSet = null,
+    MarketRules? MarketSet = null)
 {
     public const string HullsFile = "hulls.json";
     public const string WeaponsFile = "weapons.json";
@@ -156,10 +160,11 @@ public sealed record Balance(
     public const string ModulesFile = ModuleCatalog.File;
     public const string PartyFile = PartyRules.File;
     public const string InvasionFile = InvasionRules.File;
+    public const string MarketFile = MarketRules.File;
 
     /// <summary>Все файлы баланса в порядке разбора.</summary>
     public static readonly string[] Files =
-        [HullsFile, WeaponsFile, RulesFile, NpcsFile, LootFile, MeteorsFile, ShopFile, GalaxyFile, MissionsFile, ModulesFile, PartyFile, InvasionFile];
+        [HullsFile, WeaponsFile, RulesFile, NpcsFile, LootFile, MeteorsFile, ShopFile, GalaxyFile, MissionsFile, ModulesFile, PartyFile, InvasionFile, MarketFile];
 
     public NpcRules Npc => Npcs ?? NpcRules.None;
 
@@ -176,6 +181,9 @@ public sealed record Balance(
     public PartyRules Party => PartySet ?? PartyRules.Default;
 
     public InvasionRules Invasion => InvasionSet ?? InvasionRules.None;
+
+    /// <summary>Рынок этой станции (M12); рынка нет — <see cref="MarketRules.Any"/> false, цены плоские, как до M12.</summary>
+    public MarketRules Market => MarketSet ?? MarketRules.None;
 
     /// <summary>Система этого вида баланса.</summary>
     public string System => SystemId ?? Galaxy.StartSystem;
@@ -250,6 +258,8 @@ public sealed record Balance(
             MeteorSet = meteors,
             CoreRadius = npc.StationSafeRadius,
             ShopSet = b.ShopSet?.Local(id, system.Region, b.ItemIds),
+            // Рынок есть только там, где есть станция: торговать в пустой системе не с кем (планеты — M15).
+            MarketSet = system.Station ? b.MarketSet?.Local(id, system.Region) : null,
         };
     }
 
@@ -415,6 +425,19 @@ public sealed record Balance(
                 return false;
             }
             parsed = parsed with { InvasionSet = invasion };
+        }
+        if (sources.Market is not null)
+        {
+            // Последним: рынку нужны и товары из loot.json, и станции с регионами из galaxy.json.
+            var galaxySet = parsed.GalaxySet;
+            var hasStation = galaxySet is null ? null : (Func<string, bool>)(id => galaxySet.System(id) is { Station: true });
+            var regions = galaxySet is null ? null : galaxySet.RegionMap.Keys.ToHashSet(StringComparer.Ordinal);
+            if (!MarketRules.TryParse(sources.Market, loot.ItemMap, out var market, out error, hasStation, regions))
+            {
+                error = $"{MarketFile}: {error}";
+                return false;
+            }
+            parsed = parsed with { MarketSet = market };
         }
         balance = parsed;
         return true;
