@@ -217,7 +217,16 @@ internal sealed class LootSystem(Func<int> nextId, Random rng, ILogger log)
     /// подбирает то, что по пути, и не разворачивается назад.
     /// Контейнеры — постоянные точки для пилотов: их NPC не трогают.
     /// </summary>
-    public LootDrop? ScavengeTarget<T>(T ship, double anchorX, double anchorY, double range, double leash, double capacity, LootRules loot)
+    /// <param name="allow">Дополнительная проверка груза; null — берём любой, что прошёл по расстояниям.</param>
+    public LootDrop? ScavengeTarget<T>(
+        T ship,
+        double anchorX,
+        double anchorY,
+        double range,
+        double leash,
+        double capacity,
+        LootRules loot,
+        Func<LootDrop, bool>? allow = null)
         where T : ShipEntity, IScavenger
     {
         LootDrop? best = null;
@@ -229,6 +238,7 @@ internal sealed class LootSystem(Func<int> nextId, Random rng, ILogger log)
             if (Math.Sqrt(Sq(drop.X - anchorX) + Sq(drop.Y - anchorY)) > leash) continue;
             var distance = Math.Sqrt(Sq(drop.X - ship.Ship.X) + Sq(drop.Y - ship.Ship.Y));
             if (distance > bestDistance) continue;
+            if (allow is not null && !allow(drop)) continue;
             best = drop;
             bestDistance = distance;
         }

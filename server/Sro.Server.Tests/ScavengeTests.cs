@@ -166,4 +166,39 @@ public sealed class ScavengeTests
 
         Assert.True(ranger.Hold.IsEmpty);
     }
+
+    [Fact]
+    public void ATraderIgnoresWhatIsNotOnItsWay()
+    {
+        // Груз сбоку: поводка «не дальше от цели, чем я сам» мало — крюк тоже должен быть коротким.
+        Watcher();
+        Steps(1);
+        var trader = Trader();
+        var toDest = Math.Sqrt(
+            Math.Pow(trader.DestX - trader.Ship.X, 2) + Math.Pow(trader.DestY - trader.Ship.Y, 2));
+        Assert.True(toDest > 1500, $"торговцу до цели всего {toDest:0}");
+
+        // Перпендикулярно курсу, в 700 единицах: это уже рейс за грузом, а не попутная находка.
+        var dx = (trader.DestX - trader.Ship.X) / toDest;
+        var dy = (trader.DestY - trader.Ship.Y) / toDest;
+        _room.SpillAt("metal", 1, trader.Ship.X - dy * 700, trader.Ship.Y + dx * 700);
+        Steps(3);
+
+        Assert.True(trader.Hold.IsEmpty, "торговец свернул за грузом, который не по пути");
+    }
+
+    [Fact]
+    public void AMissionConvoy_FliesPastEverything()
+    {
+        // Конвой «сопровождения» (M14) — тоже торговец, но у него работа, и игрок обязан держаться рядом:
+        // крюк за грузом сорвал бы сопровождение.
+        Watcher();
+        Steps(1);
+        var convoy = Trader();
+        convoy.MissionId = 7;
+
+        DropUnder(convoy, "metal", 2);
+
+        Assert.True(convoy.Hold.IsEmpty);
+    }
 }

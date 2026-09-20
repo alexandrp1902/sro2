@@ -1297,7 +1297,7 @@ public sealed partial class Room
     /// </summary>
     /// <param name="hunting">Сейчас он вообще смотрит по сторонам: не в бою, не убегает, не уходит из системы.</param>
     /// <param name="anchorX">Якорь поводка: дальше leash от него за грузом не сворачивают.</param>
-    private void Scavenge<T>(T ship, bool hunting, double anchorX, double anchorY, double leash)
+    private void Scavenge<T>(T ship, bool hunting, double anchorX, double anchorY, double leash, Func<LootDrop, bool>? allow = null)
         where T : ShipEntity, IScavenger
     {
         var loot = Balance.Loot;
@@ -1308,7 +1308,7 @@ public sealed partial class Room
             ship.LootId = 0;
             ClearMissingLootTargets(); // пилот мог пометить этот же груз
         }
-        var drop = hunting ? _loot.ScavengeTarget(ship, anchorX, anchorY, ScavengeRange, leash, capacity, loot) : null;
+        var drop = hunting ? _loot.ScavengeTarget(ship, anchorX, anchorY, ScavengeRange, leash, capacity, loot, allow) : null;
         ship.LootId = drop?.Id ?? 0;
         if (drop is not null) (ship.LootX, ship.LootY) = (drop.X, drop.Y);
     }
@@ -1324,20 +1324,29 @@ public sealed partial class Room
         pirate.HomeY,
         Balance.Npc.PatrolRadius + ScavengeRange);
 
+    /// <summary>Насколько торговец согласен удлинить рейс ради находки: крюк больше этого — уже не «по пути».</summary>
+    private const double TraderDetour = 300;
+
     /// <summary>
-    /// Торговец подбирает то, что лежит по дороге. Якорь — его цель, а поводок — то, сколько ему до неё
-    /// осталось: значит, груз не дальше от цели, чем он сам, и заворачивать назад он не станет.
-    /// Под огнём и на последних метрах у цели ему не до находок.
+    /// Торговец подбирает то, что лежит по дороге. «По дороге» здесь настоящее: крюк «до груза и от него
+    /// до цели» должен быть длиннее прямого пути не больше чем на <see cref="TraderDetour"/>. Одного поводка
+    /// мало — с ним он сворачивал бы на 800 вбок, а это уже не попутная находка, а рейс за ней.
+    ///
+    /// Конвой задания (M14) не подбирает ничего: у него работа, а игрок обязан держаться рядом —
+    /// крюк за грузом сорвал бы ему сопровождение.
     /// </summary>
     /// <param name="dest">Куда он летит сейчас: станция ходит по орбите, и её точка своя в каждом тике.</param>
     private void Scavenge(Trader trader, (double X, double Y) dest)
     {
-        var toDest = Math.Sqrt(
-            (dest.X - trader.Ship.X) * (dest.X - trader.Ship.X) +
-            (dest.Y - trader.Ship.Y) * (dest.Y - trader.Ship.Y));
-        var hunting = !trader.Fleeing && !trader.InDistress && trader.LeaveAtTick == 0 && toDest > ScavengeRange;
-        Scavenge(trader, hunting, dest.X, dest.Y, toDest);
+        var toDest = Hypot(dest.X - trader.Ship.X, dest.Y - trader.Ship.Y);
+        var hunting = trader.MissionId == 0 && !trader.Fleeing && !trader.InDistress &&
+            trader.LeaveAtTick == 0 && toDest > ScavengeRange;
+        Scavenge(trader, hunting, dest.X, dest.Y, toDest, drop =>
+            Hypot(drop.X - trader.Ship.X, drop.Y - trader.Ship.Y) +
+            Hypot(dest.X - drop.X, dest.Y - drop.Y) <= toDest + TraderDetour);
     }
+
+    private static double Hypot(double x, double y) => Math.Sqrt(x * x + y * y);
 
     /// <summary>Пилот погиб — трюм высыпан в космос (GDD §24): клиенту новый трюм и строка в ленту.</summary>
     private void LostCargo(Player player)
