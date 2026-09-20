@@ -1,11 +1,21 @@
+/*
+ * Раскладка и игровая специфика. Внешний вид — в design/tokens.css и design/components.css (классы sro-*),
+ * подключённых раньше этого файла: при равной специфичности правило раскладки отсюда побеждает дефолт компонента.
+ */
+
+/* Компоненты задают display; атрибут hidden должен побеждать их всегда. Единственный !important в игре. */
+[hidden] {
+  display: none !important;
+}
+
 html,
 body {
   margin: 0;
   height: 100%;
   overflow: hidden;
-  background: #05060a;
-  color: #cfe3ff;
-  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  background: var(--bg-space);
+  color: var(--text);
+  font-family: var(--font-sans);
   /* игра сама обрабатывает жесты: без скролла, «резинки», выделения и лупы iOS */
   overscroll-behavior: none;
   touch-action: none;

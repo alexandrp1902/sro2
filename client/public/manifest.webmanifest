@@ -5,6 +5,6 @@
   "scope": "./",
   "display": "fullscreen",
   "orientation": "portrait",
-  "background_color": "#05060a",
-  "theme_color": "#05060a"
+  "background_color": "#08090b",
+  "theme_color": "#08090b"
 }

@@ -1,3 +1,6 @@
+import '@fontsource-variable/manrope';
+import './design/tokens.css';
+import './design/components.css';
 import './style.css';
 import { Application, Container } from 'pixi.js';
 import { SPAWN, STATION } from './game/layout';
@@ -1233,7 +1236,7 @@ function toCompass(angle: number): number {
 async function createApp(): Promise<Application> {
   const base = {
     resizeTo: window,
-    background: '#05060a',
+    background: '#08090b',
     resolution: Math.min(window.devicePixelRatio || 1, 2),
     autoDensity: true,
   };
@@ -1262,7 +1265,7 @@ function showFatal(error: unknown): void {
   const box = document.createElement('div');
   box.style.cssText =
     'position:fixed;inset:0;z-index:1000;display:flex;align-items:center;justify-content:center;padding:24px;' +
-    'background:#05060a;color:#e8eefc;font:16px system-ui,sans-serif;text-align:center;line-height:1.5';
+    'background:var(--bg-space,#08090b);color:var(--text,#e4e6ea);font:16px/1.5 var(--font-sans,system-ui,sans-serif);text-align:center';
   box.textContent =
     `Игра не запустилась в этом браузере: ${error instanceof Error ? error.message : String(error)}. ` +
     'Обновите Chrome или включите аппаратное ускорение (chrome://flags → WebGL).';

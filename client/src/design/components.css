@@ -1,0 +1,649 @@
+/*
+ * SRO Steel — компоненты. Все цвета, отступы, радиусы и тени берутся из tokens.css (--bg-pane, --space-2 …).
+ * Префикс sro-. Без JS: состояния через атрибуты, которые уже есть в игре (data-state, data-on, aria-pressed, disabled).
+ */
+
+.sro-root {
+  background: var(--bg-space);
+  color: var(--text);
+  font-family: var(--font-sans);
+  font-size: 13px;
+  line-height: 18px;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ---------- Текст ---------- */
+
+.sro-label {
+  font-size: 11px;
+  line-height: 14px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.sro-num {
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+
+.sro-muted { color: var(--text-muted); }
+.sro-faint { color: var(--text-faint); }
+.sro-strong { color: var(--text-strong); }
+.sro-gain { color: var(--gain); }
+.sro-warn { color: var(--warn); }
+.sro-danger { color: var(--danger-text); }
+
+/* ---------- Панель (стекло) ---------- */
+
+.sro-pane {
+  position: relative;
+  box-sizing: border-box;
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  background: var(--bg-pane);
+  box-shadow: var(--shadow-pane);
+  backdrop-filter: blur(var(--blur-pane));
+  -webkit-backdrop-filter: blur(var(--blur-pane));
+}
+
+/* Статус, сообщение, карточка предмета: один ряд — таблетка. */
+.sro-pane--pill {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-1) 14px var(--space-1) 10px;
+  border-radius: var(--radius-pill);
+  white-space: nowrap;
+}
+
+/* Тревога: SOS, вторжение, ракета. */
+.sro-pane--alert {
+  background: var(--danger-pane);
+  border-color: var(--danger-line);
+  color: var(--alert-text);
+  font-weight: 600;
+}
+
+/* Спрос, задание в доке. */
+.sro-pane--warn {
+  background: var(--warn-tint);
+  border-color: var(--warn-line);
+  color: var(--warn);
+}
+
+/* Полноэкранное окно: док, карта, управление. Размытие не нужно — под ним ничего нет. */
+.sro-pane--window {
+  padding: 0;
+  border-radius: var(--radius-lg);
+  background: var(--bg-window);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  overflow: hidden;
+}
+
+.sro-divider {
+  border: 0;
+  border-top: 1px solid var(--line-soft);
+  margin: 0;
+}
+
+/* ---------- Точки-индикаторы ---------- */
+
+.sro-dot {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  background: var(--steel-soft);
+}
+
+.sro-dot--ok { background: var(--ok); box-shadow: 0 0 8px var(--ok); }
+.sro-dot--gain { background: var(--gain); }
+.sro-dot--warn { background: var(--warn); }
+.sro-dot--danger { background: var(--danger); box-shadow: 0 0 8px var(--danger); }
+.sro-dot--off { background: var(--danger); }
+.sro-dot--connecting { background: var(--warn); }
+
+/* ---------- Кнопки ---------- */
+
+.sro-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-1);
+  box-sizing: border-box;
+  min-height: var(--control);
+  padding: 0 18px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-pill);
+  background: var(--bg-raised);
+  color: var(--text);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1;
+  white-space: nowrap;
+  cursor: pointer;
+  touch-action: manipulation;
+  transition: background 0.12s, border-color 0.12s;
+}
+
+.sro-btn:hover { background: var(--bg-raised-hover); }
+.sro-btn:active { background: var(--bg-raised); }
+
+.sro-btn:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+/* Одно главное действие на экран: «Вылет», «Взять», «Войти». */
+.sro-btn--primary {
+  background: var(--steel);
+  border-color: var(--steel);
+  color: var(--text-on-steel);
+  box-shadow: var(--glow-steel);
+}
+
+.sro-btn--primary:hover { background: var(--text-strong); border-color: var(--text-strong); }
+
+/* Необратимое: «Выйти», «Выбросить», «Бросить задание». */
+.sro-btn--danger {
+  background: var(--danger-tint);
+  border-color: var(--danger-line);
+  color: var(--danger-text);
+}
+
+.sro-btn--danger:hover { background: var(--danger-fill); }
+
+/* Включённый переключатель: огонь, PvP. Атрибуты как в игре. */
+.sro-btn--on,
+.sro-btn[data-on='true'],
+.sro-btn[aria-pressed='true'] {
+  background: var(--danger-fill);
+  border-color: var(--danger);
+  color: var(--danger-text-strong);
+  box-shadow: var(--glow-danger);
+}
+
+/* Без рамки и фона: «Макс», «×», «Продать всё» в подвале. */
+.sro-btn--ghost {
+  border-color: transparent;
+  background: transparent;
+  color: var(--text-muted);
+}
+
+.sro-btn--ghost:hover { background: var(--bg-raised); color: var(--text); }
+
+/* Квадратная: бургер, шаги цели, PvP. Скругление — radius-sm, а не таблетка. */
+.sro-btn--icon {
+  width: var(--touch);
+  min-height: var(--touch);
+  padding: 0;
+  border-radius: var(--radius-sm);
+  font-size: 17px;
+}
+
+.sro-btn--sm { min-height: 34px; padding: 0 14px; font-size: 12px; }
+.sro-btn--xs { min-height: 30px; padding: 0 10px; font-size: 12px; }
+
+.sro-btn:disabled {
+  opacity: var(--opacity-disabled);
+  cursor: default;
+  box-shadow: none;
+}
+
+.sro-btn:disabled:hover { background: var(--bg-raised); }
+
+/* ---------- Полоски ---------- */
+
+.sro-bar-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: var(--space-2);
+  font-size: 12px;
+}
+
+.sro-bar {
+  height: 7px;
+  margin-top: var(--space-1);
+  border-radius: var(--radius-pill);
+  background: var(--bg-track);
+  overflow: hidden;
+}
+
+.sro-bar--thin { height: 5px; }
+
+.sro-bar__fill {
+  height: 100%;
+  border-radius: var(--radius-pill);
+  background: var(--steel-soft);
+  transition: width 0.15s;
+}
+
+.sro-bar--hull .sro-bar__fill { background: var(--hull); }
+.sro-bar--shield .sro-bar__fill { background: var(--shield); }
+.sro-bar--cargo .sro-bar__fill { background: var(--steel-soft); }
+/* Перегруз трюма — предупреждение, не гибель. */
+.sro-bar--over .sro-bar__fill { background: var(--warn); }
+
+.sro-bar-row--hull .sro-num { color: var(--hull-text); }
+.sro-bar-row--shield .sro-num { color: var(--shield-text); }
+
+/* ---------- Сообщения ленты ---------- */
+
+.sro-msg {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  max-width: 100%;
+  box-sizing: border-box;
+  padding: var(--space-1) var(--space-3) var(--space-1) 9px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-pill);
+  background: var(--bg-pane);
+  box-shadow: var(--shadow-pane);
+  backdrop-filter: blur(var(--blur-pane));
+  -webkit-backdrop-filter: blur(var(--blur-pane));
+  font-size: 13px;
+  line-height: 18px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transition: opacity 0.4s;
+}
+
+.sro-msg--gain { color: var(--text); }
+.sro-msg--gain .sro-num { color: var(--gain); }
+.sro-msg--warn { color: var(--warn); }
+
+.sro-msg--alert {
+  background: var(--danger-pane);
+  border-color: var(--danger-line);
+  color: var(--alert-text);
+  font-weight: 600;
+}
+
+.sro-msg--out { opacity: var(--opacity-feed-out); }
+
+/* ---------- Карточка цели ---------- */
+
+.sro-target {
+  width: var(--hud-card);
+  padding: 9px var(--space-3) 10px;
+  font-size: 12px;
+}
+
+.sro-target[data-state='ready'] { border-color: var(--ok-line); }
+.sro-target[data-state='dead'] { border-color: var(--dead-line); }
+
+.sro-target__head {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+}
+
+.sro-target__name {
+  max-width: 140px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-strong);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.sro-target__class {
+  flex: 1;
+  color: var(--steel-soft);
+  white-space: nowrap;
+}
+
+.sro-target__close {
+  padding: 0 0 0 var(--space-2);
+  border: 0;
+  background: transparent;
+  color: var(--text-muted);
+  font: inherit;
+  font-size: 16px;
+  line-height: 16px;
+  cursor: pointer;
+}
+
+.sro-target__info {
+  display: flex;
+  gap: 14px;
+  margin-top: 5px;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.sro-target__info .sro-num { font-weight: 500; }
+
+/* Плашка под карточкой на ПК, где нет круглой кнопки. */
+.sro-target__fire {
+  display: none;
+  position: absolute;
+  left: 50%;
+  top: 100%;
+  margin-top: var(--space-2);
+  transform: translateX(-50%);
+  padding: var(--space-1) var(--space-3);
+  border: 1px solid var(--danger);
+  border-radius: var(--radius-pill);
+  background: var(--danger-fill);
+  color: var(--danger-text-strong);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+  box-shadow: var(--glow-danger);
+}
+
+.sro-target[data-fire='true'] .sro-target__fire { display: block; }
+
+/* ---------- Вкладки (сегментный переключатель) ---------- */
+
+.sro-tabs {
+  display: flex;
+  gap: var(--space-1);
+  padding: 3px;
+  border-radius: var(--radius-pill);
+  background: var(--bg-raised);
+}
+
+.sro-tab {
+  flex: 1;
+  min-height: 34px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-pill);
+  background: transparent;
+  color: var(--text-muted);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.sro-tab:hover { color: var(--text); }
+
+.sro-tab[aria-pressed='true'] {
+  background: var(--steel-tint);
+  box-shadow: inset 0 0 0 1px var(--steel-line);
+  color: var(--text-strong);
+  font-weight: 700;
+}
+
+.sro-tab:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: -2px;
+}
+
+/* ---------- Степпер количества ---------- */
+
+.sro-stepper {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 3px;
+  border-radius: var(--radius-pill);
+  background: var(--bg-raised);
+}
+
+.sro-stepper .sro-btn {
+  width: 30px;
+  min-height: 30px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  font-size: 15px;
+}
+
+.sro-stepper .sro-btn:hover { background: var(--bg-raised-hover); }
+
+.sro-stepper__value {
+  min-width: 34px;
+  text-align: center;
+  font-size: 13px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-strong);
+}
+
+/* ---------- Строка списка (рынок, витрина, задания) ---------- */
+
+.sro-row {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  align-items: center;
+  gap: var(--space-1) 14px;
+  padding: 11px 0;
+  border-bottom: 1px solid var(--line-soft);
+}
+
+.sro-row__name {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.sro-row__meta {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.sro-row__meta .sro-num { color: var(--text); }
+.sro-row__actions { display: flex; gap: var(--space-2); }
+.sro-trend-up { color: var(--gain); }
+.sro-trend-down { color: var(--danger-text); }
+
+/* ---------- Шапка окна ---------- */
+
+.sro-head {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border-bottom: 1px solid var(--line-soft);
+}
+
+.sro-head__title {
+  min-width: 0;
+  overflow: hidden;
+  font-size: 17px;
+  font-weight: 700;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.sro-head__left { display: flex; align-items: baseline; gap: var(--space-3); min-width: 0; }
+.sro-head__right { display: flex; justify-content: flex-end; }
+.sro-credits { font-size: 14px; font-weight: 600; font-variant-numeric: tabular-nums; color: var(--warn); white-space: nowrap; }
+
+/* ---------- Диалог ---------- */
+
+.sro-dialog {
+  min-width: 260px;
+  max-width: 360px;
+  padding: var(--space-4) 18px 18px;
+  border-radius: var(--radius-lg);
+  text-align: center;
+}
+
+.sro-dialog__title { font-size: 16px; font-weight: 700; color: var(--text-strong); }
+
+.sro-dialog__text {
+  margin-top: 6px;
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--text-muted);
+}
+
+.sro-dialog__actions {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.sro-dialog__actions .sro-btn { min-width: 116px; }
+
+/* ---------- Меню ---------- */
+
+.sro-menu {
+  display: flex;
+  flex-direction: column;
+  min-width: 170px;
+  padding: 6px;
+}
+
+.sro-menu__item {
+  display: block;
+  min-height: 42px;
+  padding: 0 var(--space-3);
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 500;
+  text-align: left;
+  cursor: pointer;
+}
+
+.sro-menu__item:hover { background: var(--bg-raised-hover); }
+.sro-menu__item:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: -2px; }
+
+/* ---------- Бой: кнопка огня и шаги цели ---------- */
+
+.sro-fire {
+  position: relative;
+  box-sizing: border-box;
+  width: var(--fire-size);
+  height: var(--fire-size);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  border: 2px solid var(--line);
+  border-radius: 50%;
+  background: var(--bg-pane);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  color: var(--text-muted);
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.sro-fire__label {
+  font-size: 15px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+}
+
+.sro-fire__state { font-size: 11px; font-weight: 500; }
+
+.sro-fire[data-active='true'] {
+  border-color: var(--danger);
+  background: var(--danger-pane);
+  color: var(--danger-text-strong);
+  box-shadow: var(--glow-fire);
+}
+
+.sro-fire[data-active='true'] .sro-fire__state { color: var(--danger-text); }
+
+/* Подбор: та же кнопка, подпись «Взять», стальная. */
+.sro-fire[data-aim='loot'] {
+  border-color: var(--steel);
+  color: var(--text-strong);
+}
+
+.sro-step {
+  width: 46px;
+  min-height: 46px;
+  padding: 0;
+  font-size: 18px;
+  border-radius: var(--radius-pill);
+}
+
+/* Основание стика. */
+.sro-stick {
+  position: relative;
+  width: var(--fire-size);
+  height: var(--fire-size);
+  border: 1px solid var(--line);
+  border-radius: 50%;
+  background: rgba(24, 27, 32, 0.35);
+  backdrop-filter: blur(var(--blur-stick));
+  -webkit-backdrop-filter: blur(var(--blur-stick));
+}
+
+.sro-stick__handle {
+  position: absolute;
+  left: 31px;
+  top: 31px;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  background: rgba(255, 255, 255, 0.14);
+  box-shadow: var(--shadow-stick);
+}
+
+/* ---------- Поля ввода ---------- */
+
+.sro-field { display: block; margin: 10px 0 var(--space-1); font-size: 13px; color: var(--text-muted); }
+
+.sro-input {
+  box-sizing: border-box;
+  width: 100%;
+  padding: 10px var(--space-3);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--bg-raised);
+  color: var(--text-strong);
+  font: inherit;
+  font-size: 16px;
+  user-select: text;
+  -webkit-user-select: text;
+}
+
+.sro-input:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 0; border-color: transparent; }
+
+@media (prefers-reduced-motion: reduce) {
+  .sro-btn, .sro-bar__fill, .sro-msg { transition: none; }
+}
+
+/* ---------- Дополнения при внедрении в игру (2026-09-20) ---------- */
+
+.sro-ok { color: var(--ok); }
+
+/* Второй блок полосок под первым: корпус, потом щит. */
+.sro-bar + .sro-bar-row { margin-top: var(--space-1); }
+
+/* Цель в прицеле и готова: зелёная кромка, как у карточки цели. */
+.sro-fire[data-aim='ready'] { border-color: var(--ok-line); }
+
+/* «+10» и «Макс» не помещаются в квадрат 30 px — кнопка степпера растёт по содержимому. */
+.sro-stepper .sro-btn { width: auto; min-width: 30px; padding: 0 8px; }
+
+/* Стик в игре считает радиус под экран (--stick-r); размер основания и ручки берётся оттуда. */
+.sro-stick {
+  width: calc(var(--stick-r, 55px) * 2);
+  height: calc(var(--stick-r, 55px) * 2);
+}
+
+.sro-stick__handle {
+  left: 50%;
+  top: 50%;
+  width: calc(var(--stick-r, 55px) * 0.84);
+  height: calc(var(--stick-r, 55px) * 0.84);
+  margin: calc(var(--stick-r, 55px) * -0.42) 0 0 calc(var(--stick-r, 55px) * -0.42);
+}
