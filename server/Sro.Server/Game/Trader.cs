@@ -34,6 +34,14 @@ public sealed class Trader(int id, string typeId, NpcType type, NpcRules rules) 
     /// <summary>Ушёл из системы: комната уберёт его после шага.</summary>
     public bool Gone;
 
+    /// <summary>
+    /// Что везёт (M12): id товара из market.json; null — рынка в системе нет. Летит к станции — это поставка,
+    /// она придёт на склад, если торговца не собьют. Летит от станции — груз со склада уже забрали.
+    /// </summary>
+    public string? Good;
+    /// <summary>Сколько единиц товара он двигает.</summary>
+    public int Units;
+
     /// <summary>Подал SOS: пока не наступил этот тик без новых выстрелов по нему, он зовёт на помощь; 0 — не зовёт.</summary>
     public long SosUntilTick;
     /// <summary>Когда снова разослать, где он: SOS видно на миникарте и за радаром.</summary>

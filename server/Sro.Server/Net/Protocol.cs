@@ -23,6 +23,7 @@ namespace Sro.Server.Net;
 [JsonDerivedType(typeof(SellMsg), "sell")]
 [JsonDerivedType(typeof(DockMsg), "dock")]
 [JsonDerivedType(typeof(BuyMsg), "buy")]
+[JsonDerivedType(typeof(BuyGoodsMsg), "buyGoods")]
 [JsonDerivedType(typeof(RepairMsg), "repair")]
 [JsonDerivedType(typeof(JumpMsg), "jump")]
 [JsonDerivedType(typeof(RefuelMsg), "refuel")]
@@ -85,8 +86,9 @@ public sealed record LootTargetMsg(int Id) : ClientMessage;
 /// <summary>Взять выбранный предмет: подбор ручной, тракторный луч сам ничего не хватает.</summary>
 public sealed record GrabMsg : ClientMessage;
 
-/// <summary>Продать груз в доке; Item — что именно, null — весь трюм.</summary>
-public sealed record SellMsg(string? Item = null) : ClientMessage;
+/// <summary>Продать груз в доке; Item — что именно, null — весь трюм (всё, чем здесь торгуют).</summary>
+/// <param name="Count">Сколько штук; 0 — вся стопка. Без Item не смотрится.</param>
+public sealed record SellMsg(string? Item = null, int Count = 0) : ClientMessage;
 
 /// <summary>Пристыковаться к станции (On) или вылететь из дока.</summary>
 public sealed record DockMsg(bool On) : ClientMessage;
@@ -97,6 +99,13 @@ public sealed record DockMsg(bool On) : ClientMessage;
 /// Пушку или модуль — сразу в этот слот (старое уходит на склад); null — в свободный подходящий слот или на склад.
 /// </param>
 public sealed record BuyMsg(string? Kind, string? Id, string? Slot = null) : ClientMessage;
+
+/// <summary>
+/// Купить товар на рынке станции (M12). Отдельно от <see cref="BuyMsg"/>: тот берёт ровно одну вещь и уходит
+/// в слот, на склад или в смену корпуса, а здесь — N единиц в трюм. Сервер сам урежет Count до того,
+/// что есть на складе, что по карману и что влезет.
+/// </summary>
+public sealed record BuyGoodsMsg(string? Item, int Count = 1) : ClientMessage;
 
 /// <summary>Починить корпус в доке и зарядить щит — по цене repairPrice из shop.json.</summary>
 public sealed record RepairMsg : ClientMessage;
@@ -147,6 +156,7 @@ public sealed record PvpMsg(bool On) : ClientMessage;
 [JsonDerivedType(typeof(PartyEventMsg), "partyEvent")]
 [JsonDerivedType(typeof(BountyMsg), "bounty")]
 [JsonDerivedType(typeof(InvasionMsg), "invasion")]
+[JsonDerivedType(typeof(MarketMsg), "market")]
 public abstract record ServerMessage;
 
 /// <param name="Id">Id своего корабля в снапшотах.</param>
@@ -162,6 +172,10 @@ public abstract record ServerMessage;
 /// <param name="System">Система, где сейчас корабль: небо, станция, врата. После прыжка приходит новый welcome.</param>
 /// <param name="Galaxy">Карта галактики: системы и маршруты с ценой прыжка.</param>
 /// <param name="Modules">Модули кораблей: клиент считает по ним скорость, щит, радар и энергию, как сервер.</param>
+/// <param name="Market">
+/// Правила рынка этой станции (M12): по ним клиент считает цену пачки той же формулой, что и сервер.
+/// Живые цены сюда не кладутся — они приходят отдельным <see cref="MarketMsg"/>. null — рынка здесь нет.
+/// </param>
 public sealed record WelcomeMsg(
     int Id,
     int TickRate,
@@ -176,7 +190,8 @@ public sealed record WelcomeMsg(
     ShopRules? Shop = null,
     SystemDto? System = null,
     GalaxyDto? Galaxy = null,
-    IReadOnlyDictionary<string, ModuleParams>? Modules = null) : ServerMessage;
+    IReadOnlyDictionary<string, ModuleParams>? Modules = null,
+    MarketRules? Market = null) : ServerMessage;
 
 /// <summary>Врата в системе: куда ведут, как называется та система и сколько топлива стоит прыжок.</summary>
 public sealed record GateDto(string To, string Name, double X, double Y, int Cost);
@@ -263,7 +278,8 @@ public sealed record ConfigMsg(
     ShopRules? Shop = null,
     SystemDto? System = null,
     GalaxyDto? Galaxy = null,
-    IReadOnlyDictionary<string, ModuleParams>? Modules = null) : ServerMessage;
+    IReadOnlyDictionary<string, ModuleParams>? Modules = null,
+    MarketRules? Market = null) : ServerMessage;
 
 /// <summary>Вход принят. Приходит раньше <see cref="WelcomeMsg"/>.</summary>
 /// <param name="Name">Ник аккаунта так, как он записан на сервере.</param>
@@ -322,6 +338,20 @@ public sealed record CargoMsg(
     IReadOnlyDictionary<string, int> Items,
     int Credits = 0,
     int Reserved = 0) : ServerMessage;
+
+/// <summary>Строка рынка станции (M12).</summary>
+/// <param name="Id">Товар — из loot.json: название, объём и цвет редкости клиент берёт оттуда.</param>
+/// <param name="Buy">Сколько пилот платит за штуку прямо сейчас.</param>
+/// <param name="Sell">Сколько пилот получает за штуку.</param>
+/// <param name="Stock">Запас станции, штук: на него и смотрит формула цены.</param>
+/// <param name="Norm">Равновесный запас — по нему видно, здесь «мало» или «много».</param>
+public sealed record MarketItemDto(string Id, int Buy, int Sell, int Stock, int Norm);
+
+/// <summary>
+/// Живые цены станции (M12) — только тому, кто в доке: у каждой станции рынок свой, а в космосе он не нужен.
+/// Шлётся по событию: стыковка, сделка, приход торговца, возврат запасов к норме, правка баланса.
+/// </summary>
+public sealed record MarketMsg(string System, IReadOnlyList<MarketItemDto> Items) : ServerMessage;
 
 /// <summary>Текущий шаг обучения (GDD §54).</summary>
 /// <param name="Step">Номер шага с нуля.</param>
@@ -503,10 +533,11 @@ public static class Protocol
     /// 8 — аккаунты, док и магазин станции, M6; 9 — системы, врата, топливо, радар и бинарные дельта-снапшоты, M7;
     /// 10 — звезда, орбиты и налёты; 11 — задания и обучение, M8; 12 — слоты, модули, ракеты, торговцы, M9; 13 — SOS торговцев;
     /// 14 — группы, награда за голову и вторжения, M10;
-    /// 15 — переключатель PvP; 16 — регионы, тиры Mk1–Mk3, utility-слоты, новое оружие и замедление, M11).
+    /// 15 — переключатель PvP; 16 — регионы, тиры Mk1–Mk3, utility-слоты, новое оружие и замедление, M11;
+    /// 17 — рынок товаров, покупка груза, живые цены, M12).
     /// Зеркало PROTOCOL_VERSION в client/src/net/protocol.ts.
     /// </summary>
-    public const int Version = 16;
+    public const int Version = 17;
 
     public const string DroneKind = "drone";
     public const string PirateKind = "pirate";
@@ -535,6 +566,10 @@ public static class Protocol
     public const string BadSlotNotice = "badSlot";
     /// <summary>Рейнджеры пошли на пилота: он напал на торговца.</summary>
     public const string RangersNotice = "rangers";
+    /// <summary>Этим товаром здесь не торгуют: чужой регион или контрабанда (M12).</summary>
+    public const string NoGoodsNotice = "noGoods";
+    /// <summary>На складе станции столько нет (M12).</summary>
+    public const string NoStockNotice = "noStock";
 
     /// <summary>Состояния SOS торговца (<see cref="SosMsg.State"/>).</summary>
     public const string SosOn = "on";

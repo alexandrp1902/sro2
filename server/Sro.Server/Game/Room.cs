@@ -119,6 +119,7 @@ public sealed partial class Room
         SpawnPirates();
         StartRaids();
         StartTraders();
+        StartMarket();
     }
 
     public long Tick { get; private set; }
@@ -685,8 +686,11 @@ public sealed partial class Room
         foreach (var (player, from) in pilots)
         {
             if (!Hulls.ContainsKey(player.HullId)) player.HullId = SimConfig.DefaultHull;
-            // Предметы, которых больше нет в балансе, пропадают и со склада.
+            // Предметы, которых больше нет в балансе, пропадают и со склада…
             foreach (var id in player.Storage.Keys.Where(id => !IsItem(id)).ToList()) player.Storage.Remove(id);
+            // …и из трюма: иначе такой груз весит 0, стоит 0 и не продаётся — невидимый неудаляемый хлам.
+            foreach (var id in player.Cargo.Items.Keys.Where(id => !balance.Loot.ItemMap.ContainsKey(id)).ToList())
+                player.Cargo.Remove(id, player.Cargo.Count(id));
             var removed = new List<string>();
             player.Fit = Fitting.Refit(player.Hull(Hulls), player.Fit, balance.Weapons, balance.Modules, removed);
             if (!player.IsGuest) foreach (var id in removed) player.Store(id);
@@ -720,16 +724,19 @@ public sealed partial class Room
 
         if (!old.Loot.ContainerList.SequenceEqual(balance.Loot.ContainerList)) _loot.SetContainers(balance.Loot.ContainerList);
         if (_loot.DropUnknown(balance.Loot)) ClearMissingLootTargets();
+        // Склад станции переживает правку market.json: сохраняется не запас, а его отклонение от нормы.
+        _market.Rebase(old.Market, balance.Market);
 
         var message = Protocol.Encode(new ConfigMsg(
             balance.Hulls, balance.Weapons, balance.Rules, balance.Npc, balance.Loot, balance.Meteors, balance.Shop,
-            SystemInfo(), GalaxyInfo(balance.Galaxy), balance.Modules));
+            SystemInfo(), GalaxyInfo(balance.Galaxy), balance.Modules, balance.MarketSet));
         foreach (var player in _players.Values)
         {
             player.Connection?.SendRaw(message);
             SendCargo(player); // объёмы предметов и ёмкость корпуса могли измениться
             SendHangar(player); // корпус, пушку или модуль могли убрать из баланса
             SendMissions(player); // шаги обучения и шаблоны доски
+            if (player.Docked) SendMarket(player); // цены станции могли поехать вместе с профилем
         }
 
         if (!old.Rules.DroneList.SequenceEqual(balance.Rules.DroneList))
@@ -820,6 +827,7 @@ public sealed partial class Room
         StepRaids();
         RemoveGoneTraders();
         StepTraders();
+        StepMarket();
         // Дроп после боя: предмет должен пролежать хотя бы тик, иначе игрок вплотную к убитому
         // увидит «ничего не выпало», а трюм молча пополнится.
         _spilled.Clear();
@@ -1182,6 +1190,7 @@ public sealed partial class Room
         };
         trader.Ship = new ShipState { X = x, Y = y, Rot = Math.Atan2(to.X - x, -(to.Y - y)) };
         trader.Revive(trader.Effective(Balance), 0);
+        LoadTrader(trader, from.Station);
         _traders.Add(trader);
         _ships[trader.Id] = trader;
     }
@@ -1296,6 +1305,8 @@ public sealed partial class Room
             if (!_traders.Remove(trader)) continue;
             // Долетел, пока звал на помощь, — спасён; сбит — погиб.
             if (trader.InDistress) EndSos(trader, saved: !trader.IsDead);
+            // Довёз поставку — только живой: сбитый конвой до склада не добрался, и товар остаётся дорогим.
+            if (!trader.IsDead) DeliverTrader(trader);
             RemoveShip(trader);
         }
         _goneTraders.Clear();
@@ -1435,7 +1446,8 @@ public sealed partial class Room
 
     private WelcomeMsg Welcome(Player player, bool resumed) =>
         new(player.Id, SimConfig.TickRate, Protocol.Version, Hulls, Balance.Weapons, Balance.Rules, resumed,
-            Balance.Npc, Balance.Loot, Balance.Meteors, Balance.Shop, SystemInfo(), GalaxyInfo(Balance.Galaxy), Balance.Modules);
+            Balance.Npc, Balance.Loot, Balance.Meteors, Balance.Shop, SystemInfo(), GalaxyInfo(Balance.Galaxy), Balance.Modules,
+            Balance.MarketSet);
 
     /// <summary>Эта система для клиента: небо, станция, укрытие, врата с именами соседей и ценой прыжка.</summary>
     private SystemDto SystemInfo()
@@ -1546,7 +1558,8 @@ public sealed partial class Room
     /// Продать груз в доке: item — что именно, null — весь трюм. Сдача ручная, чтобы игрок решал,
     /// что везти дальше, а что менять на кредиты.
     /// </summary>
-    public void Sell(IClientConnection connection, string? item)
+    /// <param name="count">Сколько штук; 0 — вся стопка (а без item — весь трюм, что станция берёт).</param>
+    public void Sell(IClientConnection connection, string? item, int count = 0)
     {
         if (!_byConnection.TryGetValue(connection.Id, out var player)) return;
         var loot = Balance.Loot;
@@ -1557,25 +1570,46 @@ public sealed partial class Room
             return;
         }
 
-        int credits;
+        var credits = 0;
+        var sold = 0;
         if (item is null)
         {
-            credits = player.Cargo.Price(loot);
-            player.Cargo.Clear();
+            // Весь трюм — каждый груз по здешней цене; чем тут не торгуют, то остаётся в трюме.
+            foreach (var (id, have) in player.Cargo.Items.ToList())
+            {
+                if (!Trades(id)) continue;
+                credits += SellToStation(id, have);
+                player.Cargo.Remove(id, have);
+                sold += have;
+            }
         }
         else
         {
             // Наличие проверяем до изъятия: иначе бесценный груз пропал бы, не принеся кредитов.
-            if (!player.Cargo.Items.ContainsKey(item)) return;
-            credits = player.Cargo.Take(item, loot);
+            var have = player.Cargo.Count(item);
+            if (have <= 0) return;
+            if (!Trades(item))
+            {
+                connection.Send(new NoticeMsg(Protocol.NoGoodsNotice));
+                return;
+            }
+            sold = count <= 0 ? have : Math.Min(count, have);
+            credits = SellToStation(item, sold);
+            player.Cargo.Remove(item, sold);
+        }
+        if (sold <= 0)
+        {
+            connection.Send(new NoticeMsg(Protocol.NoGoodsNotice));
+            return;
         }
 
         player.Credits += credits;
         player.CargoFullUntilTick = 0;
         connection.Send(new NoticeMsg(Protocol.UnloadedNotice));
         SendCargo(player);
+        BroadcastMarket();
         Save(player);
-        _log.LogInformation("Player {Id} sold cargo for {Credits} credits", player.Id, credits);
+        _log.LogInformation("Player {Id} sold {Count} cargo for {Credits} credits", player.Id, sold, credits);
         if (!Advance(player, MissionRules.SellStep)) SendCollect(player);
     }
 
@@ -1612,6 +1646,7 @@ public sealed partial class Room
             Save(player);
             _log.LogInformation("Player {Id} docked in {System}", player.Id, SystemId);
             // Груз доставки сдаётся сам, стоит пристыковаться к нужной станции.
+            SendMarket(player); // цены станции нужны сразу: с ними открывается вкладка рынка
             if (player.Missions.Active?.Offer is { Kind: MissionRules.DeliverKind } deliver && deliver.System == SystemId)
                 Complete(player);
         }

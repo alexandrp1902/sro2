@@ -38,23 +38,14 @@ public sealed class Cargo
 
     public void Add(string item, int count) => _items[item] = _items.GetValueOrDefault(item) + count;
 
-    /// <summary>Сколько кредитов дадут за весь груз на станции.</summary>
-    public int Price(LootRules loot)
-    {
-        var total = 0;
-        foreach (var (item, count) in _items) total += loot.Price(item) * count;
-        return total;
-    }
+    /// <summary>Сколько штук такого груза лежит; 0 — нет совсем.</summary>
+    public int Count(string item) => _items.GetValueOrDefault(item);
 
-    /// <summary>Достаёт из трюма весь такой груз.</summary>
-    /// <returns>Сколько за него дают кредитов; 0 — такого груза нет.</returns>
-    public int Take(string item, LootRules loot)
-    {
-        if (!_items.Remove(item, out var count)) return 0;
-        return loot.Price(item) * count;
-    }
-
-    /// <summary>Убирает count штук — без денег: так сдают задание «собрать».</summary>
+    /// <summary>
+    /// Убирает count штук. Денег трюм не считает: с M12 цена зависит от станции (<see cref="Market"/>),
+    /// и второй источник правды тут же развёл бы вкладки дока на разные числа.
+    /// </summary>
+    /// <returns>false — столько нет, трюм не тронут.</returns>
     /// <returns>false — столько нет, трюм не тронут.</returns>
     public bool Remove(string item, int count)
     {

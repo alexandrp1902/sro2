@@ -178,6 +178,23 @@ public sealed record MarketRules(
         return (credits, Clamp(good, stock));
     }
 
+    /// <summary>
+    /// На сколько штук хватит кредитов, но не больше max. Считается тем же шагом по единицам, что и сама
+    /// сделка, — делить кредиты на цену первой штуки нельзя: следующие дороже.
+    /// </summary>
+    public int Affordable(string good, double basePrice, double stock, int max, int credits)
+    {
+        var spent = 0;
+        for (var i = 0; i < max; i++)
+        {
+            var unit = BuyPrice(good, basePrice, stock);
+            if (spent + unit > credits) return i;
+            spent += unit;
+            stock = Math.Max(0, stock - 1);
+        }
+        return Math.Max(0, max);
+    }
+
     /// <summary>Запас за столько секунд возвращается к норме: половина пути за HalfLifeSeconds.</summary>
     public double Regress(string good, double stock, double seconds)
     {
@@ -191,14 +208,12 @@ public sealed record MarketRules(
     public double Clamp(string good, double stock) => Math.Clamp(stock, 0, Norm(good) * StockCap);
 
     /// <summary>
-    /// Рынок одной системы (M12): профиль этой станции и её регион. Без блока stations рынка нет нигде.
-    /// Станция не названа — в системе не торгуют (её может и не быть вовсе).
+    /// Рынок одной системы (M12): профиль этой станции и её регион. Станция не названа — в системе
+    /// не торгуют (её может и не быть вовсе).
+    /// Блок stations остаётся: по нему карта галактики показывает, что где производят и скупают.
     /// </summary>
-    public MarketRules Local(string systemId, string? region)
-    {
-        var station = Stations?.GetValueOrDefault(systemId);
-        return this with { Station = station, Region = region, Stations = null };
-    }
+    public MarketRules Local(string systemId, string? region) =>
+        this with { Station = Stations?.GetValueOrDefault(systemId), Region = region };
 
     /// <param name="items">Груз из loot.json: каждый торгуемый товар должен быть там.</param>
     /// <param name="hasStation">Есть ли станция в системе с таким id; null — галактика ещё не разобрана.</param>

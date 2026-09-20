@@ -67,7 +67,11 @@ public sealed class GalaxyHost : BackgroundService
 
     public void Grab(IClientConnection connection) => With(connection, r => r.Grab(connection));
 
-    public void Sell(IClientConnection connection, string? item) => With(connection, r => r.Sell(connection, item));
+    public void Sell(IClientConnection connection, string? item, int count = 0) =>
+        With(connection, r => r.Sell(connection, item, count));
+
+    public void BuyGoods(IClientConnection connection, string? item, int count) =>
+        With(connection, r => r.BuyGoods(connection, item, count));
 
     public void Rename(IClientConnection connection, string? name) => With(connection, r => r.Rename(connection, name));
 

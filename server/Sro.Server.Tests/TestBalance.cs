@@ -27,11 +27,13 @@ internal static class TestBalance
     };
 
     /// <summary>Без дронов, пиратов, лута, метеоритов и разброса спауна — корабли появляются ровно в SpawnX, SpawnY.</summary>
+    /// <param name="market">Рынок товаров (M12); null — цены плоские, как до M12.</param>
     public static Balance Create(
         CombatRules? rules = null,
         NpcRules? npcs = null,
         LootRules? loot = null,
         MeteorRules? meteors = null,
-        ShopRules? shop = null) =>
-        new(Hulls, Weapons, rules ?? new CombatRules(SpawnJitter: 0), npcs, loot, meteors, shop);
+        ShopRules? shop = null,
+        MarketRules? market = null) =>
+        new(Hulls, Weapons, rules ?? new CombatRules(SpawnJitter: 0), npcs, loot, meteors, shop, MarketSet: market);
 }

@@ -176,7 +176,10 @@ public sealed class WebSocketConnection(WebSocket socket, ILogger log) : IClient
                     room.Grab(this);
                     break;
                 case SellMsg sell when joined:
-                    room.Sell(this, sell.Item);
+                    room.Sell(this, sell.Item, sell.Count);
+                    break;
+                case BuyGoodsMsg goods when joined:
+                    room.BuyGoods(this, goods.Item, goods.Count);
                     break;
                 case HullMsg hull when joined:
                     room.SetHull(this, hull.Id);
