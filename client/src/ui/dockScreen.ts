@@ -457,9 +457,8 @@ export class DockScreen {
       body.append(el('div', 'dock-empty', 'Трюм пуст, и торговать здесь нечем. Груз добывают с пиратов, метеоритов и из контейнеров.'));
       return;
     }
-    for (const row of rows) body.append(this.marketRow(row, rules));
-
-    // «Продать всё» считает по здешним ценам и не трогает то, чего тут не берут.
+    // «Продать всё» — первым делом: с полным трюмом в док заходят чаще, чем за покупками.
+    // Считает по здешним ценам и не трогает то, чего тут не берут.
     const sellable = rows.filter((r) => r.maxSell > 0 && r.quote);
     if (sellable.length > 1) {
       let total = 0;
@@ -468,6 +467,7 @@ export class DockScreen {
       }
       body.append(button(`Продать всё · ${formatCredits(total)}`, 'dock-buy dock-sell-all', () => this.handlers.onSell()));
     }
+    for (const row of rows) body.append(this.marketRow(row, rules));
   }
 
   private marketRow(row: MarketRow, rules: LootRules): HTMLElement {
