@@ -80,9 +80,19 @@ const SCENES: Record<Tab, Scene> = {
   fitting: { art: 'hangar', who: '', line: '', ship: true },
 };
 
+/**
+ * Свои сцены дока у отдельных станций: какие вкладки нарисованы для набора. Чего в наборе нет,
+ * берётся общая сцена места — наборы дорисовываются по одной картинке, а не пачкой.
+ */
+const SCENE_SETS: Record<string, readonly string[]> = {
+  ranger: ['office'],
+};
+
 /** Адрес фона сцены: относительный, как и спрайты. */
-export function sceneUrl(place: Place, tab: Tab): string {
-  return `dock/${place}-${SCENES[tab].art}.webp`;
+export function sceneUrl(place: Place, tab: Tab, set?: string | null): string {
+  const art = SCENES[tab].art;
+  if (set && SCENE_SETS[set]?.includes(art)) return `dock/${set}-${art}.webp`;
+  return `dock/${place}-${art}.webp`;
 }
 
 /** Что можно сделать с пушкой или модулем для выбранного слота. */
@@ -208,6 +218,8 @@ export class DockScreen {
   private missions: MissionsMsg | null = null;
   /** Слот, для которого открыт список пушек или модулей; null — ни один. */
   private slot: string | null = null;
+  /** Свой набор фонов дока у этой станции; null — общие сцены места. */
+  private scene_: string | null = null;
   /** Правила рынка этой станции (M12). */
   private market: MarketRules = NO_MARKET;
   /** Живые цены станции; null — рынка здесь нет. */
@@ -257,10 +269,11 @@ export class DockScreen {
     this.render();
   }
 
-  /** Имя станции в заголовке — по системе: «Станция Vega». */
-  setStation(name: string | null, system: string | null = null): void {
+  /** Имя станции в заголовке — по системе: «Станция Vega»; scene — свой набор фонов дока (M12). */
+  setStation(name: string | null, system: string | null = null, scene: string | null = null): void {
     this.station = name ? `Станция ${name}` : 'Станция';
     this.here = system;
+    this.scene_ = scene;
     this.render();
   }
 
@@ -336,7 +349,7 @@ export class DockScreen {
     const view = el('div', 'dock-scene');
     view.dataset.scene = scene.art;
     // Абсолютный адрес: относительный url() в CSS-переменной браузер отсчитывает от файла стилей (assets/), а не от страницы.
-    view.style.setProperty('--scene-art', `url("${new URL(sceneUrl(this.place, this.tab), document.baseURI).href}")`);
+    view.style.setProperty('--scene-art', `url("${new URL(sceneUrl(this.place, this.tab, this.scene_), document.baseURI).href}")`);
     if (scene.ship) {
       const ship = icon(shipSprite(hangar.hull));
       ship.className = 'dock-scene-ship';

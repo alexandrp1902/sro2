@@ -32,6 +32,7 @@ public sealed record LinkDef(string A, string B, double Distance);
 /// <param name="Drones">Учебные дроны; x и y — в осях станции (<see cref="OrbitDef.ToWorld"/>): они летят вместе с ней.</param>
 /// <param name="Region">Регион (M11) из <see cref="GalaxyRules.Regions"/>: от него ассортимент магазина.</param>
 /// <param name="StationSprite">Картинка станции на клиенте: ring, mining, fortress, habitat, outpost, trade, ranger…; null — по опасности.</param>
+/// <param name="DockScene">Свой набор фонов дока: ranger…; null — общие сцены станции (M12-арт).</param>
 /// <param name="MeteorSizes">Свои веса размеров метеоритов (small, medium, large); null — как в meteors.json.</param>
 /// <param name="LootTables">Замена таблиц лута в системе: «тип NPC → таблица» (пираты Рубежа роняют Mk2/Mk3).</param>
 public sealed record SystemDef(
@@ -53,6 +54,7 @@ public sealed record SystemDef(
     TraderRules? Traders = null,
     string? Region = null,
     string? StationSprite = null,
+    string? DockScene = null,
     IReadOnlyDictionary<string, double>? MeteorSizes = null,
     IReadOnlyDictionary<string, string>? LootTables = null)
 {

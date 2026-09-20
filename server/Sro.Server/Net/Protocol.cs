@@ -228,6 +228,8 @@ public sealed record SystemDto(
     PirateBase? PirateBase = null,
     /// <summary>Картинка станции (M11); null — по опасности системы, как до M11.</summary>
     string? StationSprite = null,
+    /// <summary>Свой набор фонов дока (M12); null — общие сцены станции.</summary>
+    string? DockScene = null,
     /// <summary>Регион галактики (M11); null — регионов нет.</summary>
     string? Region = null);
 

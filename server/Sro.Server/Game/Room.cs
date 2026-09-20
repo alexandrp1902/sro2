@@ -1471,6 +1471,7 @@ public sealed partial class Room
             OrbitEpoch,
             Balance.Raids?.Base,
             system.StationSprite,
+            system.DockScene,
             system.Region);
     }
 

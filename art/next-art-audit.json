@@ -514,43 +514,193 @@
   },
   {
     "file": "art/space/trade-missions/goods-food.png",
-    "status": "missing"
+    "status": "present",
+    "width": 1254,
+    "height": 1254,
+    "expectedSize": [
+      1024,
+      1024
+    ],
+    "sizeMatches": false,
+    "alphaRequired": true,
+    "transparentPixels": 662909,
+    "alphaBounds": [
+      48,
+      132,
+      1212,
+      1157
+    ]
   },
   {
     "file": "art/space/trade-missions/goods-medicine.png",
-    "status": "missing"
+    "status": "present",
+    "width": 1254,
+    "height": 1254,
+    "expectedSize": [
+      1024,
+      1024
+    ],
+    "sizeMatches": false,
+    "alphaRequired": true,
+    "transparentPixels": 699517,
+    "alphaBounds": [
+      19,
+      157,
+      1234,
+      1153
+    ]
   },
   {
     "file": "art/space/trade-missions/goods-machinery.png",
-    "status": "missing"
+    "status": "present",
+    "width": 1254,
+    "height": 1254,
+    "expectedSize": [
+      1024,
+      1024
+    ],
+    "sizeMatches": false,
+    "alphaRequired": true,
+    "transparentPixels": 597396,
+    "alphaBounds": [
+      28,
+      103,
+      1230,
+      1192
+    ]
   },
   {
     "file": "art/space/trade-missions/goods-luxury.png",
-    "status": "missing"
+    "status": "present",
+    "width": 1254,
+    "height": 1254,
+    "expectedSize": [
+      1024,
+      1024
+    ],
+    "sizeMatches": false,
+    "alphaRequired": true,
+    "transparentPixels": 579155,
+    "alphaBounds": [
+      61,
+      50,
+      1217,
+      1205
+    ]
   },
   {
     "file": "art/space/trade-missions/goods-weapons.png",
-    "status": "missing"
+    "status": "present",
+    "width": 1254,
+    "height": 1254,
+    "expectedSize": [
+      1024,
+      1024
+    ],
+    "sizeMatches": false,
+    "alphaRequired": true,
+    "transparentPixels": 527250,
+    "alphaBounds": [
+      27,
+      92,
+      1235,
+      1243
+    ]
   },
   {
     "file": "art/space/trade-missions/goods-fuel-cells.png",
-    "status": "missing"
+    "status": "present",
+    "width": 1254,
+    "height": 1254,
+    "expectedSize": [
+      1024,
+      1024
+    ],
+    "sizeMatches": false,
+    "alphaRequired": true,
+    "transparentPixels": 533001,
+    "alphaBounds": [
+      26,
+      13,
+      1235,
+      1201
+    ]
   },
   {
     "file": "art/space/trade-missions/item-letter.png",
-    "status": "missing"
+    "status": "present",
+    "width": 1254,
+    "height": 1254,
+    "expectedSize": [
+      1024,
+      1024
+    ],
+    "sizeMatches": false,
+    "alphaRequired": true,
+    "transparentPixels": 937094,
+    "alphaBounds": [
+      18,
+      227,
+      1235,
+      1027
+    ]
   },
   {
     "file": "art/space/mission-reputation/mission-escort.png",
-    "status": "missing"
+    "status": "present",
+    "width": 1254,
+    "height": 1254,
+    "expectedSize": [
+      256,
+      256
+    ],
+    "sizeMatches": false,
+    "alphaRequired": true,
+    "transparentPixels": 998846,
+    "alphaBounds": [
+      156,
+      192,
+      1097,
+      1061
+    ]
   },
   {
     "file": "art/space/mission-reputation/mission-patrol.png",
-    "status": "missing"
+    "status": "present",
+    "width": 1254,
+    "height": 1254,
+    "expectedSize": [
+      256,
+      256
+    ],
+    "sizeMatches": false,
+    "alphaRequired": true,
+    "transparentPixels": 1205488,
+    "alphaBounds": [
+      141,
+      286,
+      1137,
+      977
+    ]
   },
   {
     "file": "art/space/mission-reputation/mission-courier.png",
-    "status": "missing"
+    "status": "present",
+    "width": 1254,
+    "height": 1254,
+    "expectedSize": [
+      256,
+      256
+    ],
+    "sizeMatches": false,
+    "alphaRequired": true,
+    "transparentPixels": 1216403,
+    "alphaBounds": [
+      43,
+      328,
+      1210,
+      922
+    ]
   },
   {
     "file": "art/space/mission-reputation/mission-meteor.png",
@@ -582,107 +732,497 @@
   },
   {
     "file": "art/dock/ranger/station-ranger-office.png",
-    "status": "missing"
+    "status": "present",
+    "width": 1448,
+    "height": 1086,
+    "expectedSize": [
+      1600,
+      1200
+    ],
+    "sizeMatches": false,
+    "alphaRequired": false,
+    "transparentPixels": 0,
+    "alphaBounds": [
+      0,
+      0,
+      1447,
+      1085
+    ]
   },
   {
     "file": "art/dock/planet-settlements/desert-office.png",
-    "status": "missing"
+    "status": "present",
+    "width": 1448,
+    "height": 1086,
+    "expectedSize": [
+      1600,
+      1200
+    ],
+    "sizeMatches": false,
+    "alphaRequired": false,
+    "transparentPixels": 0,
+    "alphaBounds": [
+      0,
+      0,
+      1447,
+      1085
+    ]
   },
   {
     "file": "art/dock/planet-settlements/desert-trader.png",
-    "status": "missing"
+    "status": "present",
+    "width": 1448,
+    "height": 1086,
+    "expectedSize": [
+      1600,
+      1200
+    ],
+    "sizeMatches": false,
+    "alphaRequired": false,
+    "transparentPixels": 0,
+    "alphaBounds": [
+      0,
+      0,
+      1447,
+      1085
+    ]
   },
   {
     "file": "art/dock/planet-settlements/desert-shipyard.png",
-    "status": "missing"
+    "status": "present",
+    "width": 1448,
+    "height": 1086,
+    "expectedSize": [
+      1600,
+      1200
+    ],
+    "sizeMatches": false,
+    "alphaRequired": false,
+    "transparentPixels": 0,
+    "alphaBounds": [
+      0,
+      0,
+      1447,
+      1085
+    ]
   },
   {
     "file": "art/dock/planet-settlements/desert-hangar.png",
-    "status": "missing"
+    "status": "present",
+    "width": 1448,
+    "height": 1086,
+    "expectedSize": [
+      1600,
+      1200
+    ],
+    "sizeMatches": false,
+    "alphaRequired": false,
+    "transparentPixels": 0,
+    "alphaBounds": [
+      0,
+      0,
+      1447,
+      1085
+    ]
   },
   {
     "file": "art/dock/planet-settlements/ice-office.png",
-    "status": "missing"
+    "status": "present",
+    "width": 1448,
+    "height": 1086,
+    "expectedSize": [
+      1600,
+      1200
+    ],
+    "sizeMatches": false,
+    "alphaRequired": false,
+    "transparentPixels": 0,
+    "alphaBounds": [
+      0,
+      0,
+      1447,
+      1085
+    ]
   },
   {
     "file": "art/dock/planet-settlements/ice-trader.png",
-    "status": "missing"
+    "status": "present",
+    "width": 1448,
+    "height": 1086,
+    "expectedSize": [
+      1600,
+      1200
+    ],
+    "sizeMatches": false,
+    "alphaRequired": false,
+    "transparentPixels": 0,
+    "alphaBounds": [
+      0,
+      0,
+      1447,
+      1085
+    ]
   },
   {
     "file": "art/dock/planet-settlements/ice-shipyard.png",
-    "status": "missing"
+    "status": "present",
+    "width": 1448,
+    "height": 1086,
+    "expectedSize": [
+      1600,
+      1200
+    ],
+    "sizeMatches": false,
+    "alphaRequired": false,
+    "transparentPixels": 0,
+    "alphaBounds": [
+      0,
+      0,
+      1447,
+      1085
+    ]
   },
   {
     "file": "art/dock/planet-settlements/ice-hangar.png",
-    "status": "missing"
+    "status": "present",
+    "width": 1448,
+    "height": 1086,
+    "expectedSize": [
+      1600,
+      1200
+    ],
+    "sizeMatches": false,
+    "alphaRequired": false,
+    "transparentPixels": 0,
+    "alphaBounds": [
+      0,
+      0,
+      1447,
+      1085
+    ]
   },
   {
     "file": "art/dock/planet-settlements/lava-office.png",
-    "status": "missing"
+    "status": "present",
+    "width": 1448,
+    "height": 1086,
+    "expectedSize": [
+      1600,
+      1200
+    ],
+    "sizeMatches": false,
+    "alphaRequired": false,
+    "transparentPixels": 0,
+    "alphaBounds": [
+      0,
+      0,
+      1447,
+      1085
+    ]
   },
   {
     "file": "art/dock/planet-settlements/lava-trader.png",
-    "status": "missing"
+    "status": "present",
+    "width": 1448,
+    "height": 1086,
+    "expectedSize": [
+      1600,
+      1200
+    ],
+    "sizeMatches": false,
+    "alphaRequired": false,
+    "transparentPixels": 0,
+    "alphaBounds": [
+      0,
+      0,
+      1447,
+      1085
+    ]
   },
   {
     "file": "art/dock/planet-settlements/lava-shipyard.png",
-    "status": "missing"
+    "status": "present",
+    "width": 1448,
+    "height": 1086,
+    "expectedSize": [
+      1600,
+      1200
+    ],
+    "sizeMatches": false,
+    "alphaRequired": false,
+    "transparentPixels": 0,
+    "alphaBounds": [
+      0,
+      0,
+      1447,
+      1085
+    ]
   },
   {
     "file": "art/dock/planet-settlements/lava-hangar.png",
-    "status": "missing"
+    "status": "present",
+    "width": 1448,
+    "height": 1086,
+    "expectedSize": [
+      1600,
+      1200
+    ],
+    "sizeMatches": false,
+    "alphaRequired": false,
+    "transparentPixels": 0,
+    "alphaBounds": [
+      0,
+      0,
+      1447,
+      1085
+    ]
   },
   {
     "file": "art/dock/planet-settlements/jungle-office.png",
-    "status": "missing"
+    "status": "present",
+    "width": 1448,
+    "height": 1086,
+    "expectedSize": [
+      1600,
+      1200
+    ],
+    "sizeMatches": false,
+    "alphaRequired": false,
+    "transparentPixels": 0,
+    "alphaBounds": [
+      0,
+      0,
+      1447,
+      1085
+    ]
   },
   {
     "file": "art/dock/planet-settlements/jungle-trader.png",
-    "status": "missing"
+    "status": "present",
+    "width": 1448,
+    "height": 1086,
+    "expectedSize": [
+      1600,
+      1200
+    ],
+    "sizeMatches": false,
+    "alphaRequired": false,
+    "transparentPixels": 0,
+    "alphaBounds": [
+      0,
+      0,
+      1447,
+      1085
+    ]
   },
   {
     "file": "art/dock/planet-settlements/jungle-shipyard.png",
-    "status": "missing"
+    "status": "present",
+    "width": 1448,
+    "height": 1086,
+    "expectedSize": [
+      1600,
+      1200
+    ],
+    "sizeMatches": false,
+    "alphaRequired": false,
+    "transparentPixels": 0,
+    "alphaBounds": [
+      0,
+      0,
+      1447,
+      1085
+    ]
   },
   {
     "file": "art/dock/planet-settlements/jungle-hangar.png",
-    "status": "missing"
+    "status": "present",
+    "width": 1448,
+    "height": 1086,
+    "expectedSize": [
+      1600,
+      1200
+    ],
+    "sizeMatches": false,
+    "alphaRequired": false,
+    "transparentPixels": 0,
+    "alphaBounds": [
+      0,
+      0,
+      1447,
+      1085
+    ]
   },
   {
     "file": "art/dock/planet-settlements/barren-office.png",
-    "status": "missing"
+    "status": "present",
+    "width": 1448,
+    "height": 1086,
+    "expectedSize": [
+      1600,
+      1200
+    ],
+    "sizeMatches": false,
+    "alphaRequired": false,
+    "transparentPixels": 0,
+    "alphaBounds": [
+      0,
+      0,
+      1447,
+      1085
+    ]
   },
   {
     "file": "art/dock/planet-settlements/barren-trader.png",
-    "status": "missing"
+    "status": "present",
+    "width": 1448,
+    "height": 1086,
+    "expectedSize": [
+      1600,
+      1200
+    ],
+    "sizeMatches": false,
+    "alphaRequired": false,
+    "transparentPixels": 0,
+    "alphaBounds": [
+      0,
+      0,
+      1447,
+      1085
+    ]
   },
   {
     "file": "art/dock/planet-settlements/barren-shipyard.png",
-    "status": "missing"
+    "status": "present",
+    "width": 1448,
+    "height": 1086,
+    "expectedSize": [
+      1600,
+      1200
+    ],
+    "sizeMatches": false,
+    "alphaRequired": false,
+    "transparentPixels": 0,
+    "alphaBounds": [
+      0,
+      0,
+      1447,
+      1085
+    ]
   },
   {
     "file": "art/dock/planet-settlements/barren-hangar.png",
-    "status": "missing"
+    "status": "present",
+    "width": 1448,
+    "height": 1086,
+    "expectedSize": [
+      1600,
+      1200
+    ],
+    "sizeMatches": false,
+    "alphaRequired": false,
+    "transparentPixels": 0,
+    "alphaBounds": [
+      0,
+      0,
+      1447,
+      1085
+    ]
   },
   {
     "file": "art/dock/planet-settlements/orbital-platform-office.png",
-    "status": "missing"
+    "status": "present",
+    "width": 1448,
+    "height": 1086,
+    "expectedSize": [
+      1600,
+      1200
+    ],
+    "sizeMatches": false,
+    "alphaRequired": false,
+    "transparentPixels": 0,
+    "alphaBounds": [
+      0,
+      0,
+      1447,
+      1085
+    ]
   },
   {
     "file": "art/dock/planet-settlements/orbital-platform-trader.png",
-    "status": "missing"
+    "status": "present",
+    "width": 1448,
+    "height": 1086,
+    "expectedSize": [
+      1600,
+      1200
+    ],
+    "sizeMatches": false,
+    "alphaRequired": false,
+    "transparentPixels": 0,
+    "alphaBounds": [
+      0,
+      0,
+      1447,
+      1085
+    ]
   },
   {
     "file": "art/dock/planet-settlements/orbital-platform-shipyard.png",
-    "status": "missing"
+    "status": "present",
+    "width": 1448,
+    "height": 1086,
+    "expectedSize": [
+      1600,
+      1200
+    ],
+    "sizeMatches": false,
+    "alphaRequired": false,
+    "transparentPixels": 0,
+    "alphaBounds": [
+      0,
+      0,
+      1447,
+      1085
+    ]
   },
   {
     "file": "art/dock/planet-settlements/orbital-platform-hangar.png",
-    "status": "missing"
+    "status": "present",
+    "width": 1448,
+    "height": 1086,
+    "expectedSize": [
+      1600,
+      1200
+    ],
+    "sizeMatches": false,
+    "alphaRequired": false,
+    "transparentPixels": 0,
+    "alphaBounds": [
+      0,
+      0,
+      1447,
+      1085
+    ]
   },
   {
     "file": "art/dock/landings/landing-terran.png",
-    "status": "missing"
+    "status": "present",
+    "width": 1448,
+    "height": 1086,
+    "expectedSize": [
+      1600,
+      1200
+    ],
+    "sizeMatches": false,
+    "alphaRequired": false,
+    "transparentPixels": 0,
+    "alphaBounds": [
+      0,
+      0,
+      1447,
+      1085
+    ]
   },
   {
     "file": "art/dock/landings/landing-desert.png",

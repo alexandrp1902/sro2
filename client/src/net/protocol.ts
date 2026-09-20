@@ -314,6 +314,8 @@ export interface SystemDto {
   pirateBase?: PirateBaseDto | null;
   /** Картинка станции (M11); нет — по опасности системы. */
   stationSprite?: string | null;
+  /** Свой набор фонов дока (M12): ranger…; нет — общие сцены станции. */
+  dockScene?: string | null;
   /** Регион галактики (M11). */
   region?: string | null;
 }

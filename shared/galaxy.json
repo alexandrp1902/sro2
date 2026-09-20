@@ -921,7 +921,9 @@
         { "to": "nova", "x": -1775, "y": -2663 },
         { "to": "aldebaran", "x": 1775, "y": -2663 }
       ],
-      "stationSprite": "ranger"
+      "stationSprite": "ranger",
+      // Пост рейнджеров: у офиса свой фон — брифинг-зал со звёздной картой (M12-арт).
+      "dockScene": "ranger"
     },
     "sigma": {
       "name": "Sigma",
