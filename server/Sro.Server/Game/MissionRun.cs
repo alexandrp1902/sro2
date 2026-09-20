@@ -33,4 +33,13 @@ public sealed class MissionRun(int id, int playerId, string kind)
 
     /// <summary>Патруль: к какой точке идёт звено.</summary>
     public int Point;
+
+    /// <summary>
+    /// Патруль: на какой точке маршрута ждут пираты. Бой один на весь патруль, но обязательный: без него
+    /// это был бы облёт точек за деньги (M14).
+    /// </summary>
+    public int FightAt;
+
+    /// <summary>Патруль: пираты уже вызваны. Точка не засчитывается, пока их не перебьют.</summary>
+    public bool Engaged;
 }

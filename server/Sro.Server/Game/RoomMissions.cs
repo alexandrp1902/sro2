@@ -155,6 +155,9 @@ public sealed partial class Room
 
         run.Points.AddRange(PatrolRoute(offer.Count));
         if (run.Points.Count == 0) return false;
+        // Где именно засели пираты, пилот заранее не знает: на любой точке маршрута, кроме первой,
+        // чтобы бой не начинался прямо у станции.
+        run.FightAt = run.Points.Count > 1 ? 1 + _ai.Next(run.Points.Count - 1) : 0;
 
         var npc = Balance.Npc;
         var first = run.Points[0];
@@ -187,8 +190,8 @@ public sealed partial class Room
         }
         player.Connection?.Send(new NoticeMsg(Protocol.WingNotice));
         _log.LogInformation(
-            "Player {Id} patrols with {Wing} × {Type} Ур.{Level} over {Points} points",
-            player.Id, template.Wing, template.Npc, level, run.Points.Count);
+            "Player {Id} patrols with {Wing} × {Type} Ур.{Level} over {Points} points, pirates at #{Fight}",
+            player.Id, template.Wing, template.Npc, level, run.Points.Count, run.FightAt + 1);
         return true;
     }
 
@@ -253,25 +256,41 @@ public sealed partial class Room
     }
 
     /// <summary>
-    /// Патруль: точка засчитывается, только когда до неё дошли и звено, и пилот. Звено ждёт — это решение
-    /// M14: со строгим поводком тяжёлый корпус не смог бы взять эту работу вовсе.
+    /// Патруль: на точке ждут пилота и идут дальше, а на одной из них — той, где засели пираты, — сначала
+    /// дерутся. Звено ждёт — это решение M14: со строгим поводком тяжёлый корпус не смог бы взять эту работу
+    /// вовсе. Бой один на весь маршрут, но обязательный: без него патруль был бы облётом точек за деньги.
     /// </summary>
     private void StepPatrol(MissionRun run, Player player, ActiveMission active)
     {
         var wing = 0;
+        var foes = 0;
         var arrived = false;
         var (wx, wy) = run.Points[Math.Min(run.Point, run.Points.Count - 1)];
-        foreach (var ranger in _pirates)
+        foreach (var npc in _pirates)
         {
-            if (ranger.MissionId != run.Id || ranger.IsDead || ranger.Gone) continue;
+            if (npc.MissionId != run.Id || npc.IsDead || npc.Gone) continue;
+            // Свои и чужие этого прогона различаются фракцией: звено — рейнджеры, вызванные на точку — пираты.
+            if (npc.Type.IsPirate)
+            {
+                foes++;
+                continue;
+            }
             wing++;
-            var rx = ranger.Ship.X - wx;
-            var ry = ranger.Ship.Y - wy;
+            var rx = npc.Ship.X - wx;
+            var ry = npc.Ship.Y - wy;
             if (rx * rx + ry * ry <= WingArrive * WingArrive) arrived = true;
         }
         if (wing == 0)
         {
             Fail(player, Protocol.WingFail);
+            return;
+        }
+        // Бой начался — точка не засчитывается, пока его не кончат. Убежать от него нельзя: пираты
+        // задания не отступают, а звено без пилота их не вытянет.
+        if (run.Engaged)
+        {
+            if (foes > 0) return;
+            Advance(run, player, active);
             return;
         }
         if (!arrived || player.Docked || player.IsDead) return;
@@ -281,15 +300,44 @@ public sealed partial class Room
         var py = player.Ship.Y - wy;
         if (px * px + py * py > offer.Radius * offer.Radius) return;
 
+        // Пираты ждут на одной точке из всех; на остальных патруль просто отмечается и летит дальше.
+        // Пусто в ambush — драться не с кем: точка засчитывается сразу, а не запирает задание навсегда.
+        run.Engaged = true;
+        if (run.Point != run.FightAt || SpawnPatrolFoes(run, wx, wy) == 0)
+        {
+            Advance(run, player, active);
+            return;
+        }
+        player.Connection?.Send(new NoticeMsg(Protocol.AmbushNotice));
+        BroadcastPlayers();
+        SendMissions(player);
+    }
+
+    /// <summary>Точка пройдена: звено идёт к следующей, а последняя закрывает задание.</summary>
+    private void Advance(MissionRun run, Player player, ActiveMission active)
+    {
         run.Point++;
+        run.Engaged = false;
         player.Missions.Active = active with { Progress = run.Point };
-        if (run.Point >= offer.Count)
+        if (run.Point >= active.Offer.Count)
         {
             Complete(player);
             return;
         }
         MoveWing(run);
         SendMissions(player);
+    }
+
+    /// <summary>
+    /// Пираты на точке патруля: самая злая волна из тех, что заведены для засад. Бой на весь патруль один,
+    /// и звено помогает — значит, он должен быть настоящим. Встают прямо на точке: драка начинается сразу.
+    /// </summary>
+    /// <returns>Сколько пиратов вызвано; 0 — волн в балансе нет.</returns>
+    private int SpawnPatrolFoes(MissionRun run, double x, double y)
+    {
+        var waves = Balance.Missions.AmbushList;
+        if (waves.Count == 0) return 0;
+        return SpawnWave(waves[^1], (x, y), invasionId: 0, missionId: run.Id, onSite: true);
     }
 
     /// <summary>
@@ -301,7 +349,7 @@ public sealed partial class Room
         var (x, y) = run.Points[Math.Min(run.Point, run.Points.Count - 1)];
         foreach (var ranger in _pirates)
         {
-            if (ranger.MissionId != run.Id || ranger.IsDead || ranger.Gone) continue;
+            if (ranger.MissionId != run.Id || ranger.IsDead || ranger.Gone || !ranger.Type.IsRanger) continue;
             ranger.HomeX = x;
             ranger.HomeY = y;
             ranger.HasWaypoint = false;
@@ -399,7 +447,7 @@ public sealed partial class Room
             if (_players.GetValueOrDefault(run.PlayerId) is not { } player) continue;
             var alive = run.Kind == MissionRules.EscortKind
                 ? _ships.GetValueOrDefault(run.TraderId) is Trader { IsDead: false }
-                : _pirates.Any(p => p.MissionId == run.Id && !p.IsDead && !p.Gone);
+                : _pirates.Any(p => p.MissionId == run.Id && p.Type.IsRanger && !p.IsDead && !p.Gone);
             if (!alive) Fail(player, run.Kind == MissionRules.EscortKind ? Protocol.TraderFail : Protocol.WingFail);
         }
     }

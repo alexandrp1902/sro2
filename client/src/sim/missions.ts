@@ -59,7 +59,7 @@ export function offerNote(offer: MissionOffer): string {
     case 'escort':
       return `держитесь рядом; в пути засад: ${offer.count}`;
     case 'patrol':
-      return 'звено ждёт вас на каждой точке';
+      return 'где-то на маршруте засада; звено ждёт вас';
     case 'courier':
       return offer.seconds
         ? `срок ${Math.round(offer.seconds / 60)} мин; место в трюме не занимает`

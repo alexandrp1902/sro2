@@ -83,11 +83,17 @@ public sealed class MissionTests : IDisposable
         Escort: [new EscortTemplate(1, 1, 300, 200, Radius: 900, AwaySeconds: 2)],
         Ambush: [[new InvasionGroup("pirate", 1, 1)]]);
 
-    /// <summary>Патруль из двух точек: путь короче, а правило «звено ждёт» проверяется тем же.</summary>
+    /// <summary>Патруль из двух точек без засад: правило «звено ждёт» проверяется и без боя.</summary>
     private static readonly MissionRules PatrolOnly = new(
         DangerBonus: 0,
         Tutorial: Tutorial,
         Patrol: [new PatrolTemplate(2, 2, 300, 160, Wing: 2, Radius: 700)]);
+
+    /// <summary>Тот же патруль, но с пиратами: на двух точках засада всегда на второй.</summary>
+    private static readonly MissionRules PatrolFight = PatrolOnly with
+    {
+        Ambush = [[new InvasionGroup("pirate", 1, 2)]],
+    };
 
     /// <summary>Камни для охоты: сами не появляются — тест запускает их руками, куда ему надо.</summary>
     private static readonly MeteorRules Meteors = new(
@@ -234,12 +240,22 @@ public sealed class MissionTests : IDisposable
     private Trader? Convoy(FakeConnection connection) =>
         RoomOf(connection).Traders.FirstOrDefault(t => t.MissionId != 0);
 
-    /// <summary>Живые корабли задания: звено патруля или засада на конвой — смотря какое задание идёт.</summary>
+    /// <summary>Живое звено рейнджеров этого задания.</summary>
     private List<Pirate> Wing(FakeConnection connection) =>
-        RoomOf(connection).Pirates.Where(p => p.MissionId != 0 && !p.IsDead && !p.Gone).ToList();
+        RoomOf(connection).Pirates.Where(p => p.MissionId != 0 && p.Type.IsRanger && !p.IsDead && !p.Gone).ToList();
 
-    /// <summary>То же самое под именем по месту: у сопровождения корабли задания — это засада.</summary>
-    private List<Pirate> Ambush(FakeConnection connection) => Wing(connection);
+    /// <summary>Живые пираты, вызванные заданием: засада на конвой или те, кто ждал патруль на точке.</summary>
+    private List<Pirate> Ambush(FakeConnection connection) =>
+        RoomOf(connection).Pirates.Where(p => p.MissionId != 0 && p.Type.IsPirate && !p.IsDead && !p.Gone).ToList();
+
+    /// <summary>Гонит звено и пилота к текущей метке: в тесте важно правило, а не дорога.</summary>
+    private void ReachWaypoint(FakeConnection connection)
+    {
+        var mark = Missions(connection).Mark!;
+        foreach (var ranger in Wing(connection)) ranger.Ship = new ShipState { X = mark.X, Y = mark.Y };
+        Place(connection, mark.X, mark.Y);
+        Steps(2);
+    }
 
     /// <summary>Берёт живое задание и вылетает: конвой и звено появляются именно на вылете.</summary>
     private void Launch(FakeConnection connection, string kind)
@@ -730,18 +746,41 @@ public sealed class MissionTests : IDisposable
         Launch(a, MissionRules.PatrolKind);
         var credits = Credits(a);
 
-        for (var point = 0; point < 2; point++)
-        {
-            // Звено гоним к точке вручную: лететь ему в тесте незачем, проверяется правило, а не дорога.
-            var mark = Missions(a).Mark!;
-            foreach (var ranger in Wing(a)) ranger.Ship = new ShipState { X = mark.X, Y = mark.Y };
-            GoToMark(a);
-            Steps(2);
-        }
+        for (var point = 0; point < 2; point++) ReachWaypoint(a);
 
         Assert.Null(Missions(a).Active);
         Assert.Equal(credits + 300 + 2 * 160, Credits(a));
         Assert.Empty(Wing(a)); // звено больше не наше — уходит из системы
+    }
+
+    [Fact]
+    public void Patrol_CannotBeWalkedThrough_TheAmbushHasToBeCleared()
+    {
+        _galaxy = New(PatrolFight);
+        var a = Veteran();
+        Launch(a, MissionRules.PatrolKind);
+        var credits = Credits(a);
+
+        // Первая точка проходится с ходу: засада ждёт дальше по маршруту.
+        ReachWaypoint(a);
+        Assert.Equal(1, Missions(a).Active?.Progress);
+        Assert.Empty(Ambush(a));
+
+        // Вторая — с пиратами, и она не засчитывается, пока они живы.
+        ReachWaypoint(a);
+        var foes = Ambush(a);
+        Assert.Equal(2, foes.Count);
+        Assert.Equal(Protocol.AmbushNotice, a.Last<NoticeMsg>().Code);
+        Assert.Equal(1, Missions(a).Active?.Progress);
+
+        // Стоять на точке и ждать бесполезно — и сбежать тоже: бой надо кончить.
+        Steps(3 * SimConfig.TickRate);
+        Assert.Equal(1, Missions(a).Active?.Progress);
+
+        foreach (var foe in foes) foe.Hp = 0;
+        Steps(2);
+        Assert.Null(Missions(a).Active);
+        Assert.Equal(credits + 300 + 2 * 160, Credits(a));
     }
 
     [Fact]
