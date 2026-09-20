@@ -26,6 +26,16 @@ ALPHA_CUT = 24
 MIN_BLOB = 0.002
 QUALITY = 88
 
+# Листы, нарисованные носом вверх. В игре снаряд поворачивается по курсу (rotation = atan2(dy, dx)),
+# то есть кадр обязан смотреть вправо; эти четыре пришли из генератора вертикальными, и без поворота
+# снаряд летел боком, да ещё и растягивался по короткой стороне. Поворачиваем один раз, при нарезке.
+NOSE_UP = {
+    "weapon-effects/weapon-shots-rail",
+    "weapon-effects/weapon-shots-ion",
+    "weapon-effects/weapon-shots-torpedo",
+    "weapon-effects/weapon-shots-flak",
+}
+
 # лист, колонок, строк, имена по порядку (слева направо, сверху вниз; None — не нужен), длинная сторона, режим
 SHEETS = [
     ("ships", 2, 2, ["light", "medium", "heavy", "pirate"], 256, "ship"),
@@ -196,7 +206,11 @@ def main() -> None:
             if name is None:
                 continue
             key = f"{prefix}-{name}"
-            img = fit(sheet.crop(box), longest)
+            cell = sheet.crop(box)
+            # -90° — по часовой стрелке: нос с верха кадра уезжает вправо.
+            if sheet_name in NOSE_UP:
+                cell = cell.rotate(-90, expand=True)
+            img = fit(cell, longest)
             entry = {"w": img.width, "h": img.height}
             if mode == "ship":
                 hull, flame, bottom = split_ship(img)

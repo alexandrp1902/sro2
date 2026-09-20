@@ -244,52 +244,52 @@
     "h": 179
   },
   "weapon-shots-rail": {
-    "w": 31,
-    "h": 192
+    "w": 192,
+    "h": 31
   },
   "weapon-shots-rail-flash": {
-    "w": 134,
-    "h": 192
+    "w": 192,
+    "h": 134
   },
   "weapon-shots-rail-hit": {
-    "w": 178,
-    "h": 192
-  },
-  "weapon-shots-ion": {
-    "w": 87,
-    "h": 192
-  },
-  "weapon-shots-ion-flash": {
-    "w": 155,
-    "h": 192
-  },
-  "weapon-shots-ion-hit": {
     "w": 192,
     "h": 178
   },
-  "weapon-shots-torpedo": {
-    "w": 43,
+  "weapon-shots-ion": {
+    "w": 192,
+    "h": 87
+  },
+  "weapon-shots-ion-flash": {
+    "w": 192,
+    "h": 155
+  },
+  "weapon-shots-ion-hit": {
+    "w": 178,
     "h": 192
+  },
+  "weapon-shots-torpedo": {
+    "w": 192,
+    "h": 43
   },
   "weapon-shots-torpedo-flash": {
-    "w": 105,
-    "h": 192
+    "w": 192,
+    "h": 105
   },
   "weapon-shots-torpedo-hit": {
-    "w": 180,
-    "h": 192
+    "w": 192,
+    "h": 180
   },
   "weapon-shots-flak": {
-    "w": 39,
-    "h": 192
+    "w": 192,
+    "h": 39
   },
   "weapon-shots-flak-flash": {
-    "w": 92,
-    "h": 192
+    "w": 192,
+    "h": 92
   },
   "weapon-shots-flak-hit": {
-    "w": 182,
-    "h": 192
+    "w": 192,
+    "h": 182
   },
   "ships-ranger": {
     "w": 237,

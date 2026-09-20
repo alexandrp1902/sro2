@@ -20,8 +20,12 @@ const FLIGHT_MS: Record<string, number> = { bolt: 150, orb: 320, beam: 0, rail: 
 const BEAM_MS = 140;
 /** Длина снаряда в мире; у плазмы — сгусток с хвостом. */
 const PROJECTILE_LENGTH: Record<string, number> = { bolt: 42, orb: 34, rail: 90, ion: 40, flak: 26 };
-/** Где на картинке снаряда его голова (доля ширины): она и летит в цель. */
-const PROJECTILE_HEAD: Record<string, number> = { bolt: 0.9, orb: 0.78, rail: 0.95, ion: 0.8, flak: 0.85 };
+/**
+ * Где на картинке снаряда его голова (доля ширины): она и летит в цель.
+ * Кадры рельсы, иона и зенитки пришли от генератора носом вверх и поворачиваются при нарезке
+ * (NOSE_UP в tools/sprites.py); прежние доли подбирались под ту, боком летевшую, картинку.
+ */
+const PROJECTILE_HEAD: Record<string, number> = { bolt: 0.9, orb: 0.78, rail: 0.95, ion: 0.9, flak: 0.9 };
 /** Толщина луча лазера. */
 const BEAM_WIDTH = 12;
 /** Вспышка у ствола и вспышка попадания — в размерах корабля. */
