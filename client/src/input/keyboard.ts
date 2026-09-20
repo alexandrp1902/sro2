@@ -1,3 +1,4 @@
+import { insideScrollable } from './gestures';
 import { localVelocity, type HullParams, type ShipState } from '../sim/movement';
 import type { Controls } from './controls';
 import { MOVE_ACTIONS, keymap as defaultKeymap, type KeyAction, type Keymap } from './keymap';
@@ -134,6 +135,8 @@ export function bindKeyboard(keyboard: KeyboardControls, keys: Keymap = defaultK
     'wheel',
     (e) => {
       if (e.ctrlKey) return; // Ctrl+колесо и щипок тачпада — зум (zoom.ts)
+      // Над списком дока, карты или управления колесо прокручивает список: preventDefault здесь гасил бы прокрутку.
+      if (insideScrollable(e.target)) return;
       e.preventDefault();
       const scale = e.deltaMode === WheelEvent.DOM_DELTA_LINE ? 33 : e.deltaMode === WheelEvent.DOM_DELTA_PAGE ? 400 : 1;
       keyboard.wheel(e.deltaY * scale);

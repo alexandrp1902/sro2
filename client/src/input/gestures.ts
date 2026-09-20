@@ -1,5 +1,13 @@
-/** Где палец может прокручивать: списки экрана станции. */
-const SCROLLABLE = '.dock-body';
+/**
+ * Где прокрутка — дело списка, а не игры: тело дока, карта галактики и окно управления.
+ * Сюда же смотрит обработчик колеса в keyboard.ts: колесо над списком крутит список, а не тягу.
+ */
+export const SCROLLABLE = '.dock-body, .galaxy-card, .controls-card';
+
+/** Событие пришло из прокручиваемого окна (или из поля ввода) — браузер должен обработать его сам. */
+export function insideScrollable(target: EventTarget | null): boolean {
+  return target instanceof HTMLInputElement || (target instanceof Element && target.closest(SCROLLABLE) !== null);
+}
 
 /**
  * iOS Safari: системный зум, двойной тап и «резинка» страницы мешают игровому управлению.
@@ -13,8 +21,7 @@ export function preventBrowserGestures(): void {
   document.addEventListener(
     'touchmove',
     (e) => {
-      if (e.target instanceof HTMLInputElement) return;
-      if (e.target instanceof Element && e.target.closest(SCROLLABLE)) return;
+      if (insideScrollable(e.target)) return;
       e.preventDefault();
     },
     { passive: false },

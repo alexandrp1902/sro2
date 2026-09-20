@@ -13,6 +13,8 @@ import type { MissionNames } from '../sim/missions';
 import type { ReputationRules } from '../sim/reputation';
 import type { ShopRules } from '../sim/shop';
 import { Weapons } from '../sim/weapons';
+import { Controls } from '../input/controls';
+import { KeyboardControls, bindKeyboard } from '../input/keyboard';
 import { CargoHud } from './cargoHud';
 import { CombatHud } from './combatHud';
 import { ConfirmCard, logoutLines } from './confirm';
@@ -88,6 +90,8 @@ const NAMES: MissionNames = {
 };
 
 export function runDemo(screen: string): void {
+  // Те же обработчики ввода, что в игре: колесо тяги и блокировка жестов должны не мешать прокрутке списков.
+  bindKeyboard(new KeyboardControls(new Controls()));
   const hulls = new Hulls();
   const weapons = new Weapons();
   const modules = new Modules();
