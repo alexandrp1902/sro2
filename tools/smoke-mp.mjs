@@ -3,7 +3,7 @@
 // Нужен запущенный сервер и Node 24 (встроенный WebSocket).
 //   node tools/smoke-mp.mjs [ws://localhost:5000/ws]
 
-import { openSocket } from './wire.mjs';
+import { openSocket, undock } from './wire.mjs';
 
 const url = process.argv[2] ?? 'ws://localhost:5000/ws';
 const INPUT_INTERVAL_MS = 50;
@@ -75,6 +75,10 @@ class Client {
   }
 
   /** Ждёт, пока условие станет истинным; проверяется на каждом сообщении. */
+  send(message) {
+    this.ws.send(JSON.stringify(message));
+  }
+
   until(predicate, timeoutMs, what) {
     return new Promise((resolve, reject) => {
       const cleanup = () => {
@@ -114,7 +118,9 @@ async function main() {
   const a = new Client(NAME, tokenA);
   const b = new Client(NAME, token());
   await a.connect();
+  await undock(a, 'a');
   await b.connect();
+  await undock(b, 'b');
   const idA = a.welcome.id;
   const idB = b.welcome.id;
 
@@ -135,6 +141,7 @@ async function main() {
 
   const a2 = new Client(NAME, tokenA);
   await a2.connect();
+  await undock(a2, 'a2');
   check(`A resumed as the same ship #${a2.welcome.id}`, a2.welcome.resumed === true && a2.welcome.id === idA);
   await b.until(() => b.player(idA)?.online === true, 2000, 'A back online');
   check(`A is online again as '${b.player(idA).name}'`, b.player(idA).name === NAME);
@@ -148,6 +155,7 @@ async function main() {
 
   const duplicate = new Client(NAME, tokenA);
   await duplicate.connect();
+  await undock(duplicate, 'duplicate');
   await a2.until(() => a2.closeCode !== null, 2000, 'old connection closed');
   check(
     `duplicate session takes the ship over, old connection closed with ${a2.closeCode}`,

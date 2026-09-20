@@ -61,6 +61,7 @@ public sealed class GalaxyTests : IDisposable
     {
         var connection = new FakeConnection(++_nextConnection);
         _galaxy.Join(connection, token, name, null, weapon);
+        _galaxy.Undock(connection); // вход теперь в доке (M15.6), а здесь нужен корабль в космосе
         return connection;
     }
 
@@ -70,6 +71,7 @@ public sealed class GalaxyTests : IDisposable
         Assert.True(login.Ok);
         var connection = new FakeConnection(++_nextConnection);
         _galaxy.JoinAccount(connection, login.Id, login.Name);
+        _galaxy.Undock(connection); // вход теперь в доке (M15.6), а здесь нужен корабль в космосе
         return connection;
     }
 

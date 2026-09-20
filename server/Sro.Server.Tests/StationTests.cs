@@ -41,7 +41,16 @@ public sealed class StationTests : IDisposable
         if (Directory.Exists(_dir)) Directory.Delete(_dir, recursive: true);
     }
 
+    /// <summary>Пилот в космосе: вход с M15.6 всегда в доке, и почти всем здешним тестам нужен вылет.</summary>
     private FakeConnection Pilot(string name = "Alice")
+    {
+        var connection = PilotInDock(name);
+        _room.Undock(connection);
+        return connection;
+    }
+
+    /// <summary>Пилот как есть, сразу после входа: в доке. Тем тестам, для которых это и есть предмет.</summary>
+    private FakeConnection PilotInDock(string name = "Alice")
     {
         var login = _accounts.Login(name, Password);
         Assert.True(login.Ok);
@@ -55,6 +64,7 @@ public sealed class StationTests : IDisposable
     {
         var connection = new FakeConnection(++_nextConnection);
         _room.Join(connection, null, "Guest", null);
+        _room.Undock(connection); // вход теперь в доке (M15.6), а здесь нужен корабль в космосе
         return connection;
     }
 
@@ -357,7 +367,7 @@ public sealed class StationTests : IDisposable
         _room.Disconnect(a);
         Steps(20);
 
-        var back = Pilot();
+        var back = PilotInDock();
 
         Assert.True(back.Last<HangarMsg>().Docked);
         Assert.Null(_room.Entity(IdOf(back)));
@@ -370,6 +380,7 @@ public sealed class StationTests : IDisposable
         var intruder = new FakeConnection(++_nextConnection);
 
         _room.Join(intruder, AccountOf(a), "Mallory", null);
+        _room.Undock(intruder); // вход теперь в доке (M15.6), а здесь нужен корабль в космосе
 
         Assert.NotEqual(IdOf(a), IdOf(intruder));
         Assert.Null(a.ClosedWith);

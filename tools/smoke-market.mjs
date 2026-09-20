@@ -4,7 +4,7 @@
 // Нужен запущенный сервер и Node 24 (встроенный WebSocket). Идёт ~15 с.
 //   node tools/smoke-market.mjs [ws://localhost:5000/ws]
 
-import { openSocket, stationAt } from './wire.mjs';
+import { openSocket, stationAt, undock } from './wire.mjs';
 
 const url = process.argv[2] ?? 'ws://localhost:5000/ws';
 const INPUT_INTERVAL_MS = 50;
@@ -130,6 +130,7 @@ const total = (items) => Object.values(items ?? {}).reduce((sum, n) => sum + n, 
 async function main() {
   const a = new Client(`Smoke-Market-${RUN}`);
   await a.connect();
+  await undock(a, 'a');
 
   const market = a.welcome.market;
   const goods = Object.keys(market?.goods ?? {});

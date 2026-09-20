@@ -40,6 +40,7 @@ public class PirateTests
     {
         var connection = new FakeConnection(++_nextConnection);
         _room.Join(connection, token, name, null, weapon);
+        _room.Undock(connection); // вход теперь в доке (M15.6), а здесь нужен корабль в космосе
         return connection;
     }
 

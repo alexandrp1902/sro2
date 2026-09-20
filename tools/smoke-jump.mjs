@@ -4,7 +4,7 @@
 // Нужен запущенный сервер и Node 24 (встроенный WebSocket). Идёт ~70 с: два перелёта к вратам и к станции.
 //   node tools/smoke-jump.mjs [ws://localhost:5000/ws]
 
-import { aroundSun, openSocket, stationAt } from './wire.mjs';
+import { aroundSun, openSocket, stationAt, undock } from './wire.mjs';
 
 const url = process.argv[2] ?? 'ws://localhost:5000/ws';
 const INPUT_INTERVAL_MS = 50;
@@ -144,7 +144,9 @@ async function main() {
   const a = new Client(`Smoke-J-${RUN}`);
   const b = new Client(`Smoke-W-${RUN}`);
   await a.connect();
+  await undock(a, 'a');
   await b.connect();
+  await undock(b, 'b');
   a.start();
   b.start();
   await a.until(() => a.hangar && a.me, 3000, 'hangar and own ship');

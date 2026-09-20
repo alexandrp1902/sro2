@@ -64,6 +64,7 @@ public sealed class DefendTests
     {
         var connection = new FakeConnection(++_nextConnection);
         _galaxy.Join(connection, null, "Alice", null);
+        _galaxy.Undock(connection); // вход теперь в доке (M15.6), а здесь нужен корабль в космосе
         return connection;
     }
 

@@ -4,7 +4,7 @@
 // Нужен запущенный сервер и Node 24 (встроенный WebSocket). Идёт около минуты.
 //   node tools/smoke-fitting.mjs [ws://localhost:5000/ws]
 
-import { aroundSun, openSocket } from './wire.mjs';
+import { aroundSun, openSocket, undock } from './wire.mjs';
 
 const url = process.argv[2] ?? 'ws://localhost:5000/ws';
 const INPUT_INTERVAL_MS = 50;
@@ -101,6 +101,20 @@ class Client {
     this.steer = () => [0, -1, 0];
   }
 
+  /**
+   * Держать нос на цели, не двигаясь. Ракетнице нужен сектор ±90° от носа (arc 90), и без этого проверка
+   * зависела от того, куда корабль смотрел, когда добрался до дрона, — а дрон к тому же успевал погибнуть
+   * и появиться в другом месте.
+   */
+  faceTarget(target) {
+    this.steer = () => {
+      const me = this.ship(this.id);
+      const to = target();
+      if (!me || !to) return [0, -1, 0];
+      return [to.x - me.x, to.y - me.y, 0];
+    };
+  }
+
   until(predicate, timeoutMs, what) {
     return new Promise((resolve, reject) => {
       const cleanup = () => {
@@ -164,6 +178,7 @@ const guns = (hangar) => hangar.fit.weapons.map((w) => w ?? '—').join(', ');
 async function main() {
   const a = new Client({ name: `Smoke-Fit-${RUN}`, hull: 'light', weapon: 'pulse', token: `smoke-fitting-${RUN}-token` });
   await a.connect();
+  await undock(a, 'a');
   await a.until(() => a.hangar && a.players, 3000, 'hangar and roster');
   const { weapons, modules, hulls } = a.welcome;
   check(`modules.json in welcome: ${Object.keys(modules ?? {}).length} modules`, Object.keys(modules ?? {}).length >= 15);
@@ -207,6 +222,10 @@ async function main() {
 
   // Ракетница и пушка по тому же дрону: ракета летит сама и бьёт при касании.
   await a.until(() => !a.ship(drone.id)?.rt, 15000, 'the drone is back');
+  // Дрон, погибнув, появился заново — возможно, в другой точке: подлетаем снова и держим нос на нём.
+  await a.flyTo(() => a.ship(drone.id), 450, 60000);
+  a.faceTarget(() => a.ship(drone.id));
+  await new Promise((resolve) => setTimeout(resolve, 1500)); // дать кораблю довернуть
   since = a.snapshot.tick;
   a.send({ t: 'target', id: drone.id });
   a.send({ t: 'fire', on: true });

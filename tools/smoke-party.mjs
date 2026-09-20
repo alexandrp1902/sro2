@@ -3,7 +3,7 @@
 // Нужен запущенный сервер и Node 24 (встроенный WebSocket).
 //   node tools/smoke-party.mjs [ws://localhost:5000/ws]
 
-import { PROTOCOL_VERSION, openSocket } from './wire.mjs';
+import { PROTOCOL_VERSION, openSocket, undock } from './wire.mjs';
 
 const url = process.argv[2] ?? 'ws://localhost:5000/ws';
 
@@ -75,7 +75,9 @@ async function main() {
   const a = new Client(`PartyA-${suffix}`);
   const b = new Client(`PartyB-${suffix}`);
   await a.connect();
+  await undock(a, 'a');
   await b.connect();
+  await undock(b, 'b');
   const idA = a.welcome.id;
   const idB = b.welcome.id;
   check(`protocol ${a.welcome.version}`, a.welcome.version === PROTOCOL_VERSION);

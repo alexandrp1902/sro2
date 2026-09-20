@@ -6,6 +6,17 @@ import { SnapshotDecoder } from '../client/src/net/snapshotCodec.ts';
 // каждый этап, и падение смоука перестаёт что-либо значить.
 export { PROTOCOL_VERSION } from '../client/src/net/protocol.ts';
 
+/**
+ * Вылет сразу после входа: с M15.6 вход всегда в доке (Room.Enter), а смоукам нужен корабль в космосе.
+ * Клиент у каждого скрипта свой, поэтому здесь используются только send/until/hangar — они есть у всех.
+ */
+export async function undock(client, name = 'ship') {
+  client.send({ t: 'dock', on: false });
+  // Ждать подтверждения можно только там, где скрипт слушает hangar: у части смоуков его нет вовсе,
+  // и им довольно того, что дальше они сами ждут свой корабль в снапшоте.
+  if ('hangar' in client) await client.until(() => client.hangar && !client.hangar.docked, 3000, `${name} out of the dock`);
+}
+
 /** WebSocket, который отдаёт бинарные кадры как ArrayBuffer, и функция чтения его сообщений. */
 export function openSocket(url) {
   const ws = new WebSocket(url);

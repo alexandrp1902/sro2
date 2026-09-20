@@ -56,6 +56,7 @@ public sealed class ReputationTests : IDisposable
         Assert.True(login.Ok);
         var connection = new FakeConnection(++_nextConnection);
         _room.JoinAccount(connection, login.Id, login.Name);
+        _room.Undock(connection); // вход теперь в доке (M15.6), а здесь нужен корабль в космосе
         _ids[connection] = login.Id;
         return connection;
     }
@@ -268,6 +269,7 @@ public sealed class ReputationTests : IDisposable
     {
         var guest = new FakeConnection(++_nextConnection);
         _room.Join(guest, null, "Guest", null);
+        _room.Undock(guest); // вход теперь в доке (M15.6), а здесь нужен корабль в космосе
         var player = _room.Pilot(guest.Last<WelcomeMsg>().Id)!;
 
         SetRep(player, Sys, 20);

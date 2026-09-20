@@ -3,7 +3,7 @@
 // Нужен запущенный сервер и Node 24 (встроенный WebSocket). Идёт ~40–60 с: полёт к логову и обратно.
 //   node tools/smoke-pve.mjs [ws://localhost:5000/ws]
 
-import { openSocket, stationAt } from './wire.mjs';
+import { openSocket, stationAt, undock } from './wire.mjs';
 
 const url = process.argv[2] ?? 'ws://localhost:5000/ws';
 const INPUT_INTERVAL_MS = 50;
@@ -132,6 +132,7 @@ const distance = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
 async function main() {
   const a = new Client(`Smoke-PvE-${RUN}`);
   await a.connect();
+  await undock(a, 'a');
   const npcs = a.welcome.npcs;
   check('welcome carries the shelter radius and the sun', npcs?.stationSafeRadius > 0 && Boolean(a.welcome.system?.sun));
 

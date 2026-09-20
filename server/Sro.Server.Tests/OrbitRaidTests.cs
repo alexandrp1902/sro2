@@ -44,6 +44,7 @@ public class OrbitRaidTests
     {
         var connection = new FakeConnection(++_nextConnection);
         room.Join(connection, null, "Pilot", null);
+        room.Undock(connection); // вход теперь в доке (M15.6), а здесь нужен корабль в космосе
         return connection;
     }
 

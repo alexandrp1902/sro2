@@ -374,10 +374,15 @@ public sealed partial class Room
     /// </summary>
     private void Enter(Player player, IClientConnection connection)
     {
+        // Точка появления нужна и тому, кто входит в док: из неё считается DockOffset, и в неё же будет вылет.
         SpawnHere(player);
         player.Attach(connection);
         _players[player.Id] = player;
-        if (HomePlaceOf(player) is { } home && Balance.Missions.Step(player.Career, player.Missions.Tutorial)?.Id == MissionRules.UndockStep)
+        // С M15.6 вход всегда в доке: корабль стоит там, где его оставили (AccountProfile.Place).
+        // Возврат после обрыва связи — не вход: там корабль так и висел в космосе, см. Resume.
+        // Док, закрытый для тебя (M13), не должен быть местом, где ты просыпаешься, — враг входит в полёте.
+        var enemy = IsEnemy(player);
+        if (HomePlaceOf(player) is { } home && !enemy)
         {
             player.Docked = true;
             player.DockedPlace = home.Key;
@@ -394,9 +399,21 @@ public sealed partial class Room
         BroadcastPlayers();
         SendCargo(player); // трюм пуст, но клиенту нужна ёмкость корпуса
         SendHangar(player);
+        if (player.Docked)
+        {
+            MakeRumours(player); // что здесь рассказывают — как при стыковке
+            SendShop(player);    // витрина места, а не главного места системы
+            SendMarket(player);  // иначе вкладка рынка откроется пустой
+        }
+        else if (enemy)
+        {
+            connection.Send(new NoticeMsg(Protocol.DockClosedNotice));
+        }
         SendMissions(player);
         SendRep(player);
-        _log.LogInformation("Player {Id} '{Name}' joined as {Hull}, online {Count}", player.Id, player.Name, player.HullId, OnlineCount);
+        _log.LogInformation(
+            "Player {Id} '{Name}' joined as {Hull} {Where}, online {Count}",
+            player.Id, player.Name, player.HullId, player.Docked ? $"docked at {player.DockedPlace}" : "in space", OnlineCount);
     }
 
     /// <summary>Возврат к кораблю, который ждал после обрыва связи.</summary>
@@ -415,6 +432,12 @@ public sealed partial class Room
         BroadcastPlayers();
         SendCargo(player); // иначе вернувшийся видел бы пустой трюм до первого подбора
         SendHangar(player); // в том числе — что корабль всё ещё в доке
+        // Вернулся в док — ему нужны и здешняя витрина, и здешние цены: без них вкладки пустые.
+        if (player.Docked)
+        {
+            SendShop(player);
+            SendMarket(player);
+        }
         SendMissions(player);
         SendRep(player);
         _log.LogInformation("Player {Id} '{Name}' resumed, online {Count}", player.Id, player.Name, OnlineCount);

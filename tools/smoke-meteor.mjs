@@ -4,7 +4,7 @@
 // Нужен запущенный сервер и Node 24 (встроенный WebSocket). Идёт до ~2 минут: ждём подходящий камень.
 //   node tools/smoke-meteor.mjs [ws://localhost:5000/ws]
 
-import { openSocket } from './wire.mjs';
+import { openSocket, undock } from './wire.mjs';
 
 const url = process.argv[2] ?? 'ws://localhost:5000/ws';
 const INPUT_INTERVAL_MS = 50;
@@ -144,6 +144,7 @@ function passDistance(rules, m) {
 async function main() {
   const a = new Client(`Smoke-Meteor-${RUN}`);
   await a.connect();
+  await undock(a, 'a');
 
   const rules = a.welcome.meteors;
   const sizes = Object.entries(rules?.sizes ?? {});

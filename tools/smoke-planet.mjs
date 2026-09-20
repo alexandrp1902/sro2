@@ -4,7 +4,7 @@
 // Нужен запущенный сервер и Node 24 (встроенный WebSocket). Идёт ~40 с.
 //   node tools/smoke-planet.mjs [ws://localhost:5000/ws]
 
-import { aroundSun, openSocket, orbitAt, stationAt } from './wire.mjs';
+import { aroundSun, openSocket, orbitAt, stationAt, undock } from './wire.mjs';
 
 const url = process.argv[2] ?? 'ws://localhost:5000/ws';
 const INPUT_INTERVAL_MS = 50;
@@ -128,6 +128,7 @@ function check(text, pass) {
 async function main() {
   const a = new Client(`Smoke-Planet-${RUN}`);
   await a.connect();
+  await undock(a, 'a');
 
   const system = a.welcome.system;
   const planets = system.planets ?? [];

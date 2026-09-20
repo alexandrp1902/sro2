@@ -4,7 +4,7 @@
 // Нужен запущенный сервер и Node 24 (встроенный WebSocket). Идёт ~60 с: перелёт к вратам и конец защиты.
 //   node tools/smoke-combat.mjs [ws://localhost:5000/ws]
 
-import { aroundSun, openSocket } from './wire.mjs';
+import { aroundSun, openSocket, undock } from './wire.mjs';
 
 const url = process.argv[2] ?? 'ws://localhost:5000/ws';
 const INPUT_INTERVAL_MS = 50;
@@ -163,7 +163,9 @@ async function main() {
   const a = new Client(`Smoke-A-${RUN}`);
   const b = new Client(`Smoke-B-${RUN}`);
   await a.connect();
+  await undock(a, 'a');
   await b.connect();
+  await undock(b, 'b');
   const { combat: rules, weapons, hulls } = a.welcome;
   const idA = a.id;
   const idB = b.id;
@@ -174,6 +176,7 @@ async function main() {
   // Бой — в системе, где PvP есть хотя бы вне станции: в стартовой его нет (GDD §34).
   const c = new Client(`Smoke-C-${RUN}`);
   await c.connect();
+  await undock(c, 'c');
   const start = a.welcome.system;
   check(`start system ${start?.name}: PvP ${start?.pvp}`, start?.pvp === 'off');
   const arena = start.gates.find((g) => g.to === 'vega') ?? start.gates[0];

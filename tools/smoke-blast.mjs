@@ -4,7 +4,7 @@
 // Нужен запущенный сервер и Node 24 (встроенный WebSocket). Идёт ~1 мин: перелёт к вратам и конец защиты.
 //   node tools/smoke-blast.mjs [ws://localhost:5000/ws]
 
-import { aroundSun, openSocket } from './wire.mjs';
+import { aroundSun, openSocket, undock } from './wire.mjs';
 
 const url = process.argv[2] ?? 'ws://localhost:5000/ws';
 const INPUT_INTERVAL_MS = 50;
@@ -156,8 +156,11 @@ async function main() {
   const b = new Client(`Blast-B-${RUN}`);
   const c = new Client(`Blast-C-${RUN}`);
   await a.connect();
+  await undock(a, 'a');
   await b.connect();
+  await undock(b, 'b');
   await c.connect();
+  await undock(c, 'c');
   const { weapons, combat: rules } = a.welcome;
 
   const plasma = weapons.plasma;

@@ -174,7 +174,9 @@ public class SnapshotCodecTests
         var a = new FakeConnection(1);
         var b = new FakeConnection(2);
         room.Join(a, null, "A", null);
+        room.Undock(a); // вход теперь в доке (M15.6), а здесь нужен корабль в космосе
         room.Join(b, null, "B", null);
+        room.Undock(b); // вход теперь в доке (M15.6), а здесь нужен корабль в космосе
         var bId = b.Last<WelcomeMsg>().Id;
         room.Step();
 
@@ -200,7 +202,13 @@ public class SnapshotCodecTests
     {
         var room = new Room(TestBalance.Create(), NullLogger.Instance);
         var connections = Enumerable.Range(1, 10).Select(i => new FakeConnection(i)).ToList();
-        foreach (var c in connections) room.Join(c, null, $"P{c.Id}", null);
+        // Вылет обязателен: вход с M15.6 всегда в доке, а в доке корабля в снапшоте нет вовсе,
+        // и мерить было бы нечего — тест прошёл бы, ничего не измерив.
+        foreach (var c in connections)
+        {
+            room.Join(c, null, $"P{c.Id}", null);
+            room.Undock(c);
+        }
         for (var tick = 0; tick < 100; tick++)
         {
             foreach (var c in connections) room.Input(c, tick + 1, new MoveInput(Math.Cos(tick * 0.1 + c.Id), Math.Sin(tick * 0.1 + c.Id), 1));

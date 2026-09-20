@@ -52,6 +52,7 @@ public sealed class MarketTests
         var room = NewRoom(market);
         var connection = new FakeConnection(1);
         room.Join(connection, null, "Trader", null);
+        room.Undock(connection); // вход теперь в доке (M15.6), а здесь нужен корабль в космосе
         var player = room.Pilot(connection.Last<WelcomeMsg>().Id)!;
         player.Ship = new ShipState { X = 0, Y = 50 };
         room.Dock(connection, true);
@@ -215,6 +216,7 @@ public sealed class MarketTests
         var room = NewRoom();
         var a = new FakeConnection(1);
         room.Join(a, null, "Trader", null);
+        room.Undock(a); // вход теперь в доке (M15.6), а здесь нужен корабль в космосе
 
         room.BuyGoods(a, Food, 1);
 
@@ -304,6 +306,7 @@ public sealed class MarketTests
             NullLogger.Instance);
         var a = new FakeConnection(1);
         room.Join(a, null, "Trader", null);
+        room.Undock(a); // вход теперь в доке (M15.6), а здесь нужен корабль в космосе
         var player = room.Pilot(a.Last<WelcomeMsg>().Id)!;
         player.Ship = new ShipState { X = 0, Y = 50 };
         room.Dock(a, true);

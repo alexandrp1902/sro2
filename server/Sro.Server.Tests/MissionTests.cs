@@ -155,6 +155,17 @@ public sealed class MissionTests : IDisposable
         Assert.True(login.Ok);
         var connection = new FakeConnection(++_nextConnection);
         _galaxy.JoinAccount(connection, login.Id, login.Name);
+        _galaxy.Undock(connection); // вход теперь в доке (M15.6), а здесь нужен корабль в космосе
+        return connection;
+    }
+
+    /// <summary>Пилот как есть, сразу после входа: в доке. Обучение начинается именно оттуда.</summary>
+    private FakeConnection PilotInDock(string name = "Alice")
+    {
+        var login = _accounts.Login(name, Password);
+        Assert.True(login.Ok);
+        var connection = new FakeConnection(++_nextConnection);
+        _galaxy.JoinAccount(connection, login.Id, login.Name);
         return connection;
     }
 
@@ -171,6 +182,7 @@ public sealed class MissionTests : IDisposable
     {
         var connection = new FakeConnection(++_nextConnection);
         _galaxy.Join(connection, null, "Guest", null);
+        _galaxy.Undock(connection); // вход теперь в доке (M15.6), а здесь нужен корабль в космосе
         return connection;
     }
 
@@ -277,7 +289,7 @@ public sealed class MissionTests : IDisposable
     [Fact]
     public void NewPilot_StartsDocked_AndWalksTheTutorial()
     {
-        var a = Pilot();
+        var a = PilotInDock();
         Assert.True(a.Last<HangarMsg>().Docked);
         Assert.Equal(new TutorialDto(0, 5, MissionRules.UndockStep, "Вылетите", ""), Missions(a).Tutorial);
 
@@ -334,7 +346,7 @@ public sealed class MissionTests : IDisposable
     [Fact]
     public void SkipTutorial_EndsItWithoutRewards()
     {
-        var a = Pilot();
+        var a = PilotInDock();
         Do(a, r => r.Mission(a, Protocol.SkipTutorial, null));
         Assert.Null(Missions(a).Tutorial);
         Assert.Equal(1000, Credits(a));
@@ -345,16 +357,17 @@ public sealed class MissionTests : IDisposable
     public void ProfileOlderThanM8_HasNoTutorial()
     {
         _accounts.Save(AccountId(), new AccountProfile(500, "light", "pulse", ["light"], ["pulse"], new Dictionary<string, int>()));
-        var a = Pilot();
-        Assert.False(a.Last<HangarMsg>().Docked);
+        var a = PilotInDock();
+        // В доке, как и всякий вход с M15.6, но без обучения: его шаг не с чего начинать.
+        Assert.True(a.Last<HangarMsg>().Docked);
         Assert.Null(Missions(a).Tutorial);
     }
 
     [Fact]
     public void Guest_HasNoTutorial_ButSeesTheBoard()
     {
+        // Guest() уже вылетел: гость, как и пилот, входит в доке (M15.6), просто учить его некому.
         var a = Guest();
-        Assert.False(a.Last<HangarMsg>().Docked);
         Assert.Null(Missions(a).Tutorial);
         Assert.Equal(4, Missions(a).Offers.Count);
     }

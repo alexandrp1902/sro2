@@ -25,6 +25,8 @@ ws.onmessage = (e) => {
   if (message.t === 'welcome') {
     playerId = message.id;
     hull = message.hulls[HULL];
+    // Вход с M15.6 всегда в доке, а мерить разгон надо в космосе.
+    ws.send(JSON.stringify({ t: 'dock', on: false }));
     started = performance.now();
     timer = setInterval(sendInput, INPUT_INTERVAL_MS);
     setTimeout(finish, TOTAL_MS);

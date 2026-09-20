@@ -5,7 +5,7 @@
 // Нужен запущенный сервер и Node 24 (встроенный WebSocket). Идёт ~40–60 с: полёт к контейнеру и к станции.
 //   node tools/smoke-loot.mjs [ws://localhost:5000/ws]
 
-import { openSocket, stationAt } from './wire.mjs';
+import { openSocket, stationAt, undock } from './wire.mjs';
 
 const url = process.argv[2] ?? 'ws://localhost:5000/ws';
 const INPUT_INTERVAL_MS = 50;
@@ -88,6 +88,7 @@ class Client {
     this.cargo = null;
     await new Promise((resolve) => setTimeout(resolve, 400));
     await this.connect();
+    await undock(this, 'the reconnected pilot');
     this.start();
   }
 
@@ -141,6 +142,7 @@ const total = (items) => Object.values(items ?? {}).reduce((sum, n) => sum + n, 
 async function main() {
   const a = new Client(`Smoke-Loot-${RUN}`);
   await a.connect();
+  await undock(a, 'a');
 
   const loot = a.welcome.loot;
   const items = Object.keys(loot?.items ?? {});

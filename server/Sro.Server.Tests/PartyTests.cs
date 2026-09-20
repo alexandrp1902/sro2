@@ -52,6 +52,7 @@ public sealed class PartyTests
     {
         var connection = new FakeConnection(++_nextConnection);
         _galaxy.Join(connection, null, name, null);
+        _galaxy.Undock(connection); // вход теперь в доке (M15.6), а здесь нужен корабль в космосе
         return connection;
     }
 
