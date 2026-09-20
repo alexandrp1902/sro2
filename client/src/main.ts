@@ -375,7 +375,8 @@ async function main(): Promise<void> {
    */
   let pvpOn = storage.get(PVP_KEY) === '1';
   const pvpButton = el('pvp') as HTMLButtonElement;
-  const peaceful = (t: object) => 'kind' in t && (t.kind === 'player' || t.kind === 'trader' || t.kind === 'ranger');
+  const peaceful = (t: object) =>
+    'kind' in t && (t.kind === 'player' || t.kind === 'trader' || t.kind === 'ranger' || t.kind === 'convoy' || t.kind === 'wing');
   const sendPvp = () => {
     if (isOnline()) connection!.send({ t: 'pvp', on: pvpOn });
   };

@@ -1,6 +1,8 @@
-// Сквозная проверка обучения и заданий без браузера (M8): новый пилот начинает в доке, проходит пять шагов обучения —
-// вылет, учебный дрон, подбор его груза, продажа на станции, прыжок в Vega, — получает награды; затем берёт задание
-// на станции Vega: доставку в Sol везёт и сдаёт, любое другое берёт и бросает.
+// Сквозная проверка обучения и заданий без браузера (M8, дополнена в M14): новый пилот начинает в доке,
+// проходит пять шагов обучения — вылет, учебный дрон, подбор его груза, продажа на станции, прыжок в Vega, —
+// получает награды; затем берёт задание на станции Vega: доставку в Sol везёт и сдаёт, любое другое берёт и бросает.
+// Дальше — задания M14: письмо (срок, трюм не занимает, платит получатель), провал по сроку и живое задание
+// (сопровождение или патруль): вылет с ним поднимает в системе конвой или звено и даёт метку цели.
 // Нужен запущенный сервер и Node 24 (встроенный WebSocket). Заводит аккаунт smk-<число>. Идёт 1–3 минуты.
 //   node tools/smoke-missions.mjs [ws://localhost:5000/ws]
 
@@ -138,6 +140,7 @@ class Client {
 
   /** Долететь до станции, пристыковаться. */
   async dock() {
+    if (this.hangar?.docked) return; // уже на станции: лететь к ней неоткуда
     await this.until(() => this.snapshot, 3000, 'a snapshot');
     await this.flyTo(() => stationAt(this.welcome.system, this.snapshot.tick), 60, 90000);
     this.send({ t: 'dock', on: true });
@@ -151,6 +154,27 @@ class Client {
     this.send({ t: 'jump', to });
     await this.until(() => this.welcome.system.id === to, 8000, `jump to ${to}`);
     await this.until(() => this.me, 3000, 'own ship after the jump');
+  }
+
+  /**
+   * Ищет на доске предложение нужного вида, обновляя её: доска сменяется на каждом взятии, поэтому
+   * «взять и бросить» — единственный способ её перетряхнуть. Пилот должен быть в доке.
+   * @returns предложение или null, если за tries обновлений оно так и не выпало
+   */
+  async reroll(match, what, tries = 20) {
+    for (let i = 0; i < tries; i++) {
+      const found = this.missions.offers.find(match);
+      if (found) return found;
+      const any = this.missions.offers[0];
+      if (!any) return null;
+      const seen = this.missions.offers.map((o) => o.id).join();
+      this.send({ t: 'mission', action: 'accept', id: any.id });
+      await this.until(() => this.missions.active !== null, 3000, `reroll for ${what}`);
+      this.send({ t: 'mission', action: 'abandon' });
+      await this.until(() => this.missions.active === null && this.missions.offers.map((o) => o.id).join() !== seen,
+        3000, `board after reroll for ${what}`);
+    }
+    return null;
   }
 
   close() {
@@ -250,6 +274,46 @@ async function main() {
     a.send({ t: 'mission', action: 'abandon' });
     await a.until(() => a.missions.active === null, 3000, 'abandoned');
     check('no delivery to Sol on the board: took another one and abandoned it', true);
+  }
+
+  // Письмо (M14): срок идёт по часам, трюм не занимает, платит станция-получатель.
+  await a.dock();
+  await a.until(() => a.missions.offers.length > 0, 3000, 'board for the letter');
+  const courier = await a.reroll((o) => o.kind === 'courier', 'courier');
+  if (courier) {
+    a.send({ t: 'mission', action: 'accept', id: courier.id });
+    await a.until(() => a.missions.active?.offer.id === courier.id, 3000, 'letter taken');
+    const left = a.missions.active.until - Date.now() / 1000;
+    check(
+      `letter to ${courier.system}: ${Math.round(left)} s left, hold reserve ${a.cargo.reserved}`,
+      left > 0 && a.cargo.reserved === 0,
+    );
+    a.send({ t: 'mission', action: 'abandon' });
+    await a.until(() => a.missions.active === null, 3000, 'letter abandoned');
+  } else {
+    check('no courier offer came up in 20 rerolls — check the weights in missions.json', false);
+  }
+
+  // Живое задание (M14): конвой или звено поднимается в системе на вылете, и у задания появляется метка.
+  const live = await a.reroll((o) => o.kind === 'escort' || o.kind === 'patrol', 'escort or patrol');
+  if (live) {
+    a.send({ t: 'mission', action: 'accept', id: live.id });
+    await a.until(() => a.missions.active?.offer.id === live.id, 3000, 'live mission taken');
+    check(`took ${live.kind} for ${live.reward} credits; no marker while docked`, !a.missions.mark);
+    a.send({ t: 'dock', on: false });
+    await a.until(() => a.missions.mark, 5000, 'mission marker after undocking');
+    const mark = a.missions.mark;
+    const actors = (a.players?.players ?? []).filter((p) => p.kind === 'convoy' || p.kind === 'wing');
+    check(
+      `${live.kind} started: ${actors.length} ship(s) of its own, marker ${mark.ship ? `on ship ${mark.ship}` : `at (${Math.round(mark.x)}, ${Math.round(mark.y)})`}`,
+      actors.length > 0,
+    );
+    a.send({ t: 'mission', action: 'abandon' });
+    await a.until(() => a.missions.active === null, 3000, 'live mission abandoned');
+    await sleep(400);
+    check('abandoned: the mission ships are released', !(a.players?.players ?? []).some((p) => p.kind === 'wing'));
+  } else {
+    check('no escort or patrol offer came up in 20 rerolls — check the weights in missions.json', false);
   }
 
   a.close();

@@ -45,7 +45,7 @@ export async function loadSprites(): Promise<void> {
 }
 
 /** Чей корабль, если не пилота: у пиратов, торговцев, рейнджеров и дронов свои картинки. */
-export type ShipRole = 'pirate' | 'trader' | 'ranger' | 'drone';
+export type ShipRole = 'pirate' | 'trader' | 'ranger' | 'drone' | 'convoy' | 'wing';
 
 /**
  * Картинки NPC (M11): свои силуэты, чтобы их не путали с кораблями пилотов — те летают на scout, frigate
@@ -56,6 +56,9 @@ const ROLE_SPRITES: Record<ShipRole, SpriteName> = {
   trader: 'ships-trader-hauler',
   ranger: 'ships-ranger',
   drone: 'ships-drone',
+  // Корабли заданий M14: конвой и звено отличаются от рядового трафика уже силуэтом.
+  convoy: 'ships-trader-convoy',
+  wing: 'ships-ranger-heavy',
 };
 
 /** Спрайт корабля по корпусу и виду: у NPC свои корабли, у пилотов — по корпусу; размер — всегда по корпусу. */

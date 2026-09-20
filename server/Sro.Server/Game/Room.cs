@@ -2205,13 +2205,15 @@ public sealed partial class Room
             {
                 Player p => new PlayerDto(p.Id, p.Name, p.Connection is not null),
                 Drone d => new PlayerDto(d.Id, d.Name, Online: true, Npc: true, Ceiling(d.Spec.Hp), Ceiling(d.Spec.Shield), Protocol.DroneKind),
+                // Звено патруля и конвой задания — свои корабли на экране: их должно быть видно среди прочих (M14).
                 Pirate p => new PlayerDto(
                     p.Id, p.Name, Online: true, Npc: true,
                     Ceiling(p.MaxHp(p.Hull(Hulls))), Ceiling(p.MaxShield(p.Hull(Hulls))),
-                    p.Type.IsRanger ? Protocol.RangerKind : Protocol.PirateKind),
+                    p.Type.IsRanger ? p.MissionId != 0 ? Protocol.WingKind : Protocol.RangerKind : Protocol.PirateKind),
                 Trader t => new PlayerDto(
                     t.Id, t.Name, Online: true, Npc: true,
-                    Ceiling(t.MaxHp(t.Hull(Hulls))), Ceiling(t.MaxShield(t.Hull(Hulls))), Protocol.TraderKind),
+                    Ceiling(t.MaxHp(t.Hull(Hulls))), Ceiling(t.MaxShield(t.Hull(Hulls))),
+                    t.MissionId != 0 ? Protocol.ConvoyKind : Protocol.TraderKind),
                 _ => new PlayerDto(s.Id, s.Name, Online: true, Npc: true),
             })
             .ToList();

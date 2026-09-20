@@ -19,6 +19,8 @@ const COLORS = {
   drone: '#9ccf9a',
   trader: '#e8c95a',
   ranger: '#6fe0c8',
+  convoy: '#e8c95a',
+  wing: '#6fe0c8',
   party: '#b6ff6a',
   invasion: '#ff3b2f',
   missile: '#ff4a3a',
@@ -35,7 +37,7 @@ export interface MinimapShip {
   id: number;
   x: number;
   y: number;
-  kind: 'player' | 'pirate' | 'drone' | 'trader' | 'ranger' | 'party';
+  kind: 'player' | 'pirate' | 'drone' | 'trader' | 'ranger' | 'party' | 'convoy' | 'wing';
   dead: boolean;
 }
 

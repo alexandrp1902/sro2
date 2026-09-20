@@ -48,10 +48,13 @@
     { "min": 3, "max": 8, "perUnit": 20, "perJump": 150, "weight": 2 }
   ],
 
+  // Веса новых видов (M14) вместе дают примерно 40 % доски: работа этапа должна попадаться, а не
+  // вылавливаться перебором. Приестся — резать здесь.
+
   // Сопровождение (M14). 500-900 кр в Ядре за 40-90 секунд и одну-три стычки — выше «убить», ниже дальней
   // доставки. Радиус 900 — это примерно экран: конвой должен быть виден, а не угадываться по стрелке.
   "escort": [
-    { "minWaves": 1, "maxWaves": 3, "reward": 300, "perWave": 200, "radius": 900, "awaySeconds": 25, "weight": 1.2 }
+    { "minWaves": 1, "maxWaves": 3, "reward": 300, "perWave": 200, "radius": 900, "awaySeconds": 25, "weight": 1.6 }
   ],
 
   // Патруль (M14). Самая длинная работа этапа: 3-4 точки через всю систему, с боями по дороге.
@@ -59,7 +62,7 @@
   "patrol": [
     {
       "min": 3, "max": 4, "reward": 300, "perPoint": 160,
-      "npc": "ranger", "wing": 2, "rank": 1, "radius": 700, "rep": "neutral", "weight": 1
+      "npc": "ranger", "wing": 2, "rank": 1, "radius": 700, "rep": "neutral", "weight": 1.4
     }
   ],
 
@@ -74,13 +77,13 @@
   // Запаса примерно вдвое против чистого полёта — на один бой по дороге, но не на объезд пол-галактики.
   // Стало вольготно — первым делом резать secondsPerJump, а не награду.
   "courier": [
-    { "reward": 250, "perJump": 420, "secondsPerJump": 100, "seconds": 120, "maxHops": 3, "weight": 0.8 }
+    { "reward": 250, "perJump": 420, "secondsPerJump": 100, "seconds": 120, "maxHops": 3, "weight": 1.2 }
   ],
 
   // Охота (M14). Камни идут по одному, maxAlive 8, так что шесть-десять — это полторы-три минуты.
   // Нудно — резать min/max здесь, а не крутить meteors в galaxy.json: там это меняет всю систему.
   "hunt": [
-    { "size": null, "min": 6, "max": 10, "reward": 45, "weight": 1 },
-    { "size": "large", "min": 2, "max": 3, "reward": 190, "weight": 0.6 }
+    { "size": null, "min": 6, "max": 10, "reward": 45, "weight": 1.4 },
+    { "size": "large", "min": 2, "max": 3, "reward": 190, "weight": 0.8 }
   ]
 }

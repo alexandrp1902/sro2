@@ -261,7 +261,11 @@ public sealed record PlayersMsg(IReadOnlyList<PlayerDto> Players, int Total = 0)
 /// <param name="Npc">Дрон или другой NPC: о нём не пишут в ленту и не считают в «онлайн».</param>
 /// <param name="MaxHp">Своя прочность NPC вместо корпусной; нет — как у корпуса.</param>
 /// <param name="MaxSh">Свой щит NPC вместо корпусного; нет — как у корпуса.</param>
-/// <param name="Kind">Вид NPC: <see cref="Protocol.DroneKind"/>, <see cref="Protocol.PirateKind"/>, <see cref="Protocol.RangerKind"/> или <see cref="Protocol.TraderKind"/>; у игроков нет.</param>
+/// <param name="Kind">
+/// Вид NPC: <see cref="Protocol.DroneKind"/>, <see cref="Protocol.PirateKind"/>, <see cref="Protocol.RangerKind"/>,
+/// <see cref="Protocol.TraderKind"/>, <see cref="Protocol.ConvoyKind"/> или <see cref="Protocol.WingKind"/>;
+/// у игроков нет.
+/// </param>
 public sealed record PlayerDto(
     int Id,
     string Name,
@@ -631,6 +635,9 @@ public static class Protocol
     public const string PirateKind = "pirate";
     public const string TraderKind = "trader";
     public const string RangerKind = "ranger";
+    /// <summary>Конвой задания «сопровождение» и звено задания «патруль» (M14): у них свои корабли.</summary>
+    public const string ConvoyKind = "convoy";
+    public const string WingKind = "wing";
 
     /// <summary>Что покупают в доке (<see cref="BuyMsg.Kind"/>).</summary>
     public const string HullItem = "hull";

@@ -20,6 +20,29 @@ public class MissionRulesTests
     }
 
     [Fact]
+    public void SharedMissionsJson_OffersEveryKindSomewhere()
+    {
+        var balance = Shared();
+        var kinds = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var station in balance.Galaxy.SystemMap.Where(kv => kv.Value.Station).Select(kv => kv.Key))
+        {
+            for (var seed = 0; seed < 40; seed++)
+            {
+                // Репутация «нейтрал» — с чего начинает любой пилот: патруль должен быть доступен уже ей.
+                foreach (var offer in balance.Missions.Board(balance, station, seed, repHere: 0)) kinds.Add(offer.Kind);
+            }
+        }
+        // Вид, которого нет ни на одной доске, — это вырезанный блок в missions.json, а не тонкая настройка.
+        Assert.Equal(
+            [
+                MissionRules.CollectKind, MissionRules.CourierKind, MissionRules.DeliverKind, MissionRules.EscortKind,
+                MissionRules.HuntKind, MissionRules.KillKind, MissionRules.PatrolKind,
+            ],
+            kinds.Order(StringComparer.Ordinal));
+        Assert.NotEmpty(balance.Missions.AmbushList);
+    }
+
+    [Fact]
     public void Board_IsDeterministicBySeed_AndDiffersByStation()
     {
         var balance = Shared();

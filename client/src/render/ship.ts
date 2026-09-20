@@ -10,7 +10,7 @@ const DRONE_TINT = 0xa8dca0;
 const ALLY_TINT = 0xd8ffb8;
 
 /** Чей корабль: от этого картинка (у пиратов своя) и оттенок. */
-export type ShipLook = 'own' | 'player' | 'drone' | 'pirate' | 'trader' | 'ranger';
+export type ShipLook = 'own' | 'player' | 'drone' | 'pirate' | 'trader' | 'ranger' | 'convoy' | 'wing';
 
 /** Яркость пламени: разгон — полное, круиз — вполсилы, торможение и стоп — нет. */
 export function engineGlow(state: ShipState, throttle: number, hull: HullParams): number {
