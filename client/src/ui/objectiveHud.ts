@@ -13,11 +13,17 @@ export class ObjectiveHud {
     private readonly root: HTMLElement,
     onTap: () => void,
   ) {
-    this.title = document.createElement('div');
-    this.title.className = 'objective-title';
+    // Смысл несёт точка и цвет подписи, а не цветная полоса слева (SRO Steel: warn — задание).
+    const head = document.createElement('div');
+    head.className = 'objective-head';
+    const dot = document.createElement('span');
+    dot.className = 'sro-dot sro-dot--warn';
+    this.title = document.createElement('span');
+    this.title.className = 'objective-title sro-label sro-warn';
+    head.append(dot, this.title);
     this.hint = document.createElement('div');
-    this.hint.className = 'objective-hint';
-    root.append(this.title, this.hint);
+    this.hint.className = 'objective-hint sro-muted';
+    root.append(head, this.hint);
     root.addEventListener('click', onTap);
   }
 

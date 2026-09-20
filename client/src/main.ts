@@ -66,6 +66,7 @@ import { ObjectiveHud } from './ui/objectiveHud';
 import { InviteCard, PartyBoard, PartyPanel, describeBounty, describePartyEvent } from './ui/party';
 import { PilotForm, describeDenied } from './ui/pilotForm';
 import { StatusHud } from './ui/statusHud';
+import { demoScreen, runDemo } from './ui/demo';
 import { account } from './util/account';
 import { storage } from './util/storage';
 
@@ -92,6 +93,13 @@ const PVP_KEY = 'sro.pvp';
 
 async function main(): Promise<void> {
   preventBrowserGestures();
+
+  // Витрина интерфейса (?demo=…): настоящие построители HUD и окон на фиксированных данных, без мира и сервера.
+  const demo = demoScreen(location.search);
+  if (demo !== null) {
+    runDemo(demo);
+    return;
+  }
 
   const app = await createApp();
   document.getElementById('game')!.appendChild(app.canvas);

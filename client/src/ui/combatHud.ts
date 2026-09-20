@@ -46,22 +46,32 @@ export interface DeathStatus {
   seconds: number;
 }
 
-/** Полоска «Корпус» или «Щит» с числом. */
+/**
+ * Полоска «Корпус» или «Щит» (SRO Steel: Bar): строка «подпись · число» над тонкой полоской.
+ * Без подписи (панель группы) — только полоска, ещё тоньше.
+ */
 export class Bar {
   private readonly fill: HTMLElement;
-  private readonly label: HTMLElement;
+  private readonly num: HTMLElement | null;
   private shown = '';
 
-  constructor(
-    parent: HTMLElement,
-    kind: 'hull' | 'shield',
-    private readonly title: string,
-  ) {
+  constructor(parent: HTMLElement, kind: 'hull' | 'shield', title: string) {
+    if (title) {
+      const row = document.createElement('div');
+      row.className = `sro-bar-row sro-bar-row--${kind}`;
+      const label = document.createElement('span');
+      label.className = 'sro-label';
+      label.textContent = title;
+      this.num = document.createElement('span');
+      this.num.className = 'sro-num';
+      row.append(label, this.num);
+      parent.append(row);
+    } else this.num = null;
     const bar = document.createElement('div');
-    bar.className = `bar bar-${kind}`;
-    this.fill = document.createElement('i');
-    this.label = document.createElement('span');
-    bar.append(this.fill, this.label);
+    bar.className = `sro-bar sro-bar--${kind}${title ? '' : ' sro-bar--thin'}`;
+    this.fill = document.createElement('div');
+    this.fill.className = 'sro-bar__fill';
+    bar.append(this.fill);
     parent.append(bar);
   }
 
@@ -71,7 +81,7 @@ export class Bar {
     this.shown = key;
     const share = max > 0 ? Math.max(0, Math.min(1, value / max)) : 0;
     this.fill.style.width = `${share * 100}%`;
-    this.label.textContent = max > 0 ? `${this.title} ${Math.ceil(value)} / ${Math.round(max)}` : `${this.title} —`;
+    if (this.num) this.num.textContent = max > 0 ? `${Math.ceil(value)} / ${Math.round(max)}` : '—';
   }
 }
 
@@ -103,16 +113,16 @@ export class CombatHud {
   ) {
     this.ownHull = new Bar(shipEl, 'hull', 'Корпус');
     this.ownShield = new Bar(shipEl, 'shield', 'Щит');
-    this.ownProtect = div(shipEl, 'protect');
-    this.ownThreat = div(shipEl, 'threat');
+    this.ownProtect = div(shipEl, 'protect sro-muted');
+    this.ownThreat = div(shipEl, 'threat sro-danger');
 
-    const head = div(targetEl, 'target-head');
-    this.targetName = div(head, 'target-name');
-    this.targetClass = div(head, 'target-class');
+    const head = div(targetEl, 'target-head sro-target__head');
+    this.targetName = div(head, 'target-name sro-target__name');
+    this.targetClass = div(head, 'target-class sro-target__class');
     // Позвать пилота в группу — прямо с карточки: так удобно и на телефоне.
     this.invite = document.createElement('button');
     this.invite.type = 'button';
-    this.invite.className = 'target-invite';
+    this.invite.className = 'target-invite sro-btn sro-btn--xs';
     this.invite.textContent = 'В группу';
     this.invite.hidden = true;
     this.invite.addEventListener('click', () => {
@@ -122,7 +132,7 @@ export class CombatHud {
     head.append(this.invite);
     const close = document.createElement('button');
     close.type = 'button';
-    close.className = 'target-close';
+    close.className = 'target-close sro-target__close';
     close.textContent = '✕';
     close.setAttribute('aria-label', 'Снять цель');
     close.addEventListener('click', () => {
@@ -132,12 +142,12 @@ export class CombatHud {
     head.append(close);
     this.targetHull = new Bar(targetEl, 'hull', 'Корпус');
     this.targetShield = new Bar(targetEl, 'shield', 'Щит');
-    this.targetInfo = div(targetEl, 'target-info');
-    div(targetEl, 'target-fire').textContent = 'ОГОНЬ ПО ГОТОВНОСТИ';
+    this.targetInfo = div(targetEl, 'target-info sro-target__info sro-num');
+    div(targetEl, 'target-fire sro-target__fire').textContent = 'ОГОНЬ ПО ГОТОВНОСТИ';
 
-    div(deathEl, 'death-title').textContent = 'КОРАБЛЬ УНИЧТОЖЕН';
+    div(deathEl, 'death-title title-death').textContent = 'Корабль уничтожен';
     this.deathBy = div(deathEl, 'death-by');
-    this.deathTimer = div(deathEl, 'death-timer');
+    this.deathTimer = div(deathEl, 'death-timer sro-num');
   }
 
   update(own: OwnStatus | null, target: TargetStatus | null, death: DeathStatus | null): void {

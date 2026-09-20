@@ -99,12 +99,12 @@ export class GalaxyMap {
     if (!state) return;
     const { galaxy, current } = state;
 
-    const card = el('div', 'galaxy-card');
-    const head = el('div', 'galaxy-head');
-    head.append(el('div', 'galaxy-title', 'Карта галактики'));
+    const card = el('div', 'galaxy-card sro-pane sro-pane--window');
+    const head = el('div', 'galaxy-head sro-head');
+    head.append(el('div', 'galaxy-title sro-head__title', 'Карта галактики'));
     const close = document.createElement('button');
     close.type = 'button';
-    close.className = 'galaxy-close';
+    close.className = 'galaxy-close sro-btn sro-btn--icon';
     close.setAttribute('aria-label', 'Закрыть карту');
     close.textContent = '✕';
     close.addEventListener('click', () => this.hide());
@@ -199,10 +199,10 @@ export class GalaxyMap {
     card.append(
       el(
         'div',
-        'galaxy-legend',
+        'galaxy-legend sro-muted',
         `${regions ? `Регионы: ${regions}. ` : ''}Цвет — опасность, квадрат — станция, кольцо — отношение властей ` +
           `(✖ — док закрыт, ♦ — вас тут ценят), ⌂ — где вы появитесь после гибели, ★ — цель задания, ` +
-          `⚔ — вторжение пиратов, ₪ — событие спроса. Числа — топливо на прыжок.`,
+          `⚔ — вторжение пиратов, ₪ — событие спроса.`,
       ),
     );
     this.root.replaceChildren(card);
@@ -218,7 +218,7 @@ export class GalaxyMap {
     const facts = [dangerName(system.danger), pvpName(system.pvp), system.station ? 'есть станция' : 'станции нет'];
     const region = regionName(state.galaxy, system.region);
     if (region) facts.unshift(region);
-    box.append(el('div', 'galaxy-info-facts', facts.join(' · ')));
+    box.append(el('div', 'galaxy-info-facts sro-muted', facts.join(' · ')));
     // Чем здесь торгуют (M12): «производит» — где это дёшево купить, «покупает» — куда везти.
     // Ключ места, а не системы (M15): на карте показываем станцию — поселения видно уже на месте.
     const profile = state.market?.places?.[`st:${system.id}`];
@@ -227,14 +227,14 @@ export class GalaxyMap {
         (ids ?? []).map((id) => lootItem(state.loot!, id)?.name ?? id).join(', ');
       const produces = names(profile.produces);
       const consumes = names(profile.consumes);
-      if (produces) box.append(el('div', 'galaxy-info-trade', `Производит: ${produces}`));
-      if (consumes) box.append(el('div', 'galaxy-info-trade', `Покупает: ${consumes}`));
+      if (produces) box.append(el('div', 'galaxy-info-trade sro-muted', `Производит: ${produces}`));
+      if (consumes) box.append(el('div', 'galaxy-info-trade sro-muted', `Покупает: ${consumes}`));
     }
     // Отношение властей (M13): по нему закрывается док и звереют рейнджеры.
     const repValue = state.rep?.[system.id];
     if (repValue !== undefined && state.repRules) {
       const level = levelOf(state.repRules, repValue);
-      const line = el('div', 'galaxy-info-trade', `Отношение: ${repLabel(level, repValue)}`);
+      const line = el('div', 'galaxy-info-trade sro-muted', `Отношение: ${repLabel(level, repValue)}`);
       line.style.color = levelColor(level);
       box.append(line);
     }

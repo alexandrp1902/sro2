@@ -127,7 +127,7 @@ class RowView {
     this.name = document.createElement('span');
     this.name.className = 'party-name';
     this.where = document.createElement('span');
-    this.where.className = 'party-where';
+    this.where.className = 'party-where sro-num sro-muted';
     head.append(this.name, this.where);
     this.el.append(head);
     this.hull = new Bar(this.el, 'hull', '');
@@ -159,10 +159,11 @@ export class PartyPanel {
     const head = document.createElement('div');
     head.className = 'party-title';
     const title = document.createElement('span');
-    title.textContent = 'ГРУППА';
+    title.className = 'sro-label';
+    title.textContent = 'Группа';
     const leave = document.createElement('button');
     leave.type = 'button';
-    leave.className = 'party-leave';
+    leave.className = 'party-leave sro-btn sro-btn--ghost sro-btn--xs';
     leave.textContent = 'Выйти';
     leave.addEventListener('click', () => {
       leave.blur();
@@ -197,18 +198,18 @@ export class InviteCard {
     onAnswer: (accept: boolean, from: number) => void,
   ) {
     this.text = document.createElement('div');
-    this.text.className = 'invite-text';
+    this.text.className = 'invite-text sro-dialog__title';
     this.timer = document.createElement('div');
-    this.timer.className = 'invite-timer';
+    this.timer.className = 'invite-timer sro-dialog__text sro-num';
     const buttons = document.createElement('div');
-    buttons.className = 'invite-buttons';
+    buttons.className = 'invite-buttons sro-dialog__actions';
     for (const [label, accept] of [
       ['Принять', true],
       ['Отклонить', false],
     ] as const) {
       const button = document.createElement('button');
       button.type = 'button';
-      button.className = accept ? 'invite-accept' : 'invite-decline';
+      button.className = accept ? 'invite-accept sro-btn sro-btn--primary' : 'invite-decline sro-btn';
       button.textContent = label;
       button.addEventListener('click', () => {
         button.blur();

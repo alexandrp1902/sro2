@@ -188,7 +188,7 @@ export class PilotForm {
       return;
     }
     const title = document.createElement('div');
-    title.className = 'connect-label';
+    title.className = 'connect-label sro-field';
     title.textContent = 'Новый пилот: с чего начнёте';
     const row = document.createElement('div');
     row.className = 'connect-career-row';

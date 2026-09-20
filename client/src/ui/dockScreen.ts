@@ -534,31 +534,31 @@ export class DockScreen {
     this.root.hidden = false;
     const credits = this.cargo?.credits ?? 0;
 
-    const card = el('div', 'dock-card');
+    const card = el('div', 'dock-card sro-pane sro-pane--window');
     // Шапка в три зоны (M15.5): «Вылет» — главное, ради чего сюда заходят, и стоит по центру.
-    const head = el('div', 'dock-head');
-    const left = el('div', 'dock-head-left');
-    const title = el('div', 'dock-title', this.station);
+    const head = el('div', 'dock-head sro-head');
+    const left = el('div', 'dock-head-left sro-head__left');
+    const title = el('div', 'dock-title sro-head__title', this.station);
     // Подпись магазина станции (M11): «Военная станция Nova» — по ней видно, чем здесь торгуют.
     if (this.shop.title) title.append(el('span', 'dock-shop-title', this.shop.title));
-    left.append(title, el('div', 'dock-credits', formatCredits(credits)));
-    const right = el('div', 'dock-head-right');
-    const burger = button('☰', 'menu-open dock-menu', () => this.handlers.onMenu(burger.getBoundingClientRect()));
+    left.append(title, el('div', 'dock-credits sro-credits', formatCredits(credits)));
+    const right = el('div', 'dock-head-right sro-head__right');
+    const burger = button('☰', 'menu-open dock-menu sro-btn sro-btn--icon', () => this.handlers.onMenu(burger.getBoundingClientRect()));
     burger.title = 'Меню';
     burger.setAttribute('aria-label', 'Меню');
     right.append(burger);
-    head.append(left, button('Вылет', 'dock-undock', () => this.handlers.onUndock()), right);
+    head.append(left, button('Вылет', 'dock-undock sro-btn sro-btn--primary', () => this.handlers.onUndock()), right);
     card.append(head);
     card.append(this.scene(hangar));
     card.append(this.shipLine(hangar, credits));
     const rep = this.repLine();
     if (rep) card.append(rep);
 
-    const tabs = el('div', 'dock-tabs');
+    const tabs = el('div', 'dock-tabs sro-tabs');
     for (const { id, label } of TABS) {
       // Верфь есть не в каждом поселении (M15): нет — нет и вкладки, менять корабль тут негде.
       if (id === 'hulls' && !this.shipyard) continue;
-      const tab = button(label, 'dock-tab', () => {
+      const tab = button(label, 'dock-tab sro-tab', () => {
         this.tab = id;
         this.render();
       });
@@ -605,10 +605,10 @@ export class DockScreen {
       const chip = repChip(this.repRules, value);
       const box = el('span', 'rep-chip');
       box.style.color = chip.color;
-      box.append(el('span', 'rep-chip-what', label), el('span', 'rep-chip-level', chip.text));
+      box.append(el('span', 'rep-chip-what sro-muted', label), el('span', 'rep-chip-level', chip.text));
       row.append(box);
     }
-    if (this.repLog.length > 0) row.append(el('span', 'rep-more', this.repOpen ? '▴' : '▾'));
+    if (this.repLog.length > 0) row.append(el('span', 'rep-more sro-muted', this.repOpen ? '▴' : '▾'));
     line.append(row);
 
     if (this.repOpen && this.repLog.length > 0) {
@@ -689,7 +689,7 @@ export class DockScreen {
       const caption = el('div', 'dock-scene-caption');
       // Торговец вместо приветствия рассказывает, что слышал: подсказка ценнее вежливости.
       const line = this.tab === 'cargo' ? (this.rumour() ?? scene.line) : scene.line;
-      caption.append(el('div', 'dock-scene-who', scene.who), el('div', 'dock-scene-line', line));
+      caption.append(el('div', 'dock-scene-who sro-label', scene.who), el('div', 'dock-scene-line', line));
       view.append(caption);
     }
     return view;
@@ -707,12 +707,12 @@ export class DockScreen {
     const line = el('div', 'dock-ship');
     const hull = this.hulls.get(hangar.hull);
     const guns = hangar.fit.weapons.filter((id): id is string => !!id).map((id) => this.weapons.get(id).name);
-    line.append(el('div', 'dock-ship-name', [hull.name, ...guns].join(' · ')));
-    line.append(el('div', 'dock-ship-hp', `Корпус ${hangar.hp} / ${hangar.maxHp}`));
+    line.append(el('div', 'dock-ship-name sro-strong', [hull.name, ...guns].join(' · ')));
+    line.append(el('div', 'dock-ship-hp sro-num sro-muted', `Корпус ${hangar.hp} / ${hangar.maxHp}`));
     const missing = hangar.maxHp - hangar.hp;
     if (missing > 0) {
       const cost = this.repCost(repairCost(this.shop, missing, hangar.maxHp, price(this.shop.hulls, hangar.hull) ?? 0));
-      const repair = button(cost > 0 ? `Ремонт · ${formatCredits(cost)}` : 'Ремонт бесплатно', 'dock-buy', () =>
+      const repair = button(cost > 0 ? `Ремонт · ${formatCredits(cost)}` : 'Ремонт бесплатно', 'dock-buy sro-btn sro-btn--sm', () =>
         this.handlers.onRepair(),
       );
       repair.disabled = cost > credits;
@@ -774,17 +774,17 @@ export class DockScreen {
     if (!cargo || !rules) return;
     // Событие спроса (M15.5) — первой строкой: за ним сюда и летели.
     const demand = demandLine(this.quotes?.demand, (good) => lootItem(rules, good)?.name ?? good);
-    if (demand) body.append(el('div', 'dock-demand', demand));
-    body.append(el('div', 'dock-note', `Трюм ${round(cargo.used)} / ${round(cargo.max)}`));
-    if (cargo.reserved > 0) body.append(el('div', 'dock-note', `Из них груз задания — ${cargo.reserved} ед.: не продаётся`));
+    if (demand) body.append(el('div', 'dock-demand sro-pane sro-pane--warn', demand));
+    body.append(el('div', 'dock-note sro-muted', `Трюм ${round(cargo.used)} / ${round(cargo.max)}`));
+    if (cargo.reserved > 0) body.append(el('div', 'dock-note sro-muted', `Из них груз задания — ${cargo.reserved} ед.: не продаётся`));
     if (!rules.stationUnload) {
-      body.append(el('div', 'dock-note', 'Станция сейчас груз не принимает'));
+      body.append(el('div', 'dock-note sro-muted', 'Станция сейчас груз не принимает'));
       return;
     }
 
     const rows = this.marketRows(cargo.credits);
     if (rows.length === 0) {
-      body.append(el('div', 'dock-empty', 'Трюм пуст, и торговать здесь нечем. Груз добывают с пиратов, метеоритов и из контейнеров.'));
+      body.append(el('div', 'dock-empty sro-muted', 'Трюм пуст, и торговать здесь нечем. Груз добывают с пиратов, метеоритов и из контейнеров.'));
       return;
     }
     // Та же реплика торговца, что стоит под его картинкой, — для телефона, где сцены нет совсем.
@@ -802,7 +802,7 @@ export class DockScreen {
       for (const r of sellable) {
         total += tradeCost(this.local, r.id, lootItem(rules, r.id)?.price ?? 0, r.quote!.stock, r.have, false);
       }
-      body.append(button(`Продать всё · ${formatCredits(total)}`, 'dock-buy dock-sell-all', () => this.handlers.onSell()));
+      body.append(button(`Продать всё · ${formatCredits(total)}`, 'dock-buy dock-sell-all sro-btn sro-btn--sm', () => this.handlers.onSell()));
     }
     for (const row of rows) body.append(this.marketRow(row, rules));
   }
@@ -810,17 +810,17 @@ export class DockScreen {
   private marketRow(row: MarketRow, rules: LootRules): HTMLElement {
     const item = lootItem(rules, row.id);
     const basePrice = item?.price ?? 0;
-    const view = el('div', 'dock-row dock-market-row');
+    const view = el('div', 'dock-row dock-market-row sro-row');
     view.append(icon(itemSprite(row.id)));
 
-    const name = el('div', 'dock-name', item?.name ?? row.id);
+    const name = el('div', 'dock-name sro-row__name', item?.name ?? row.id);
     name.style.color = color(rarityColor(rules, row.id));
-    if (row.have > 0) name.append(el('span', 'dock-market-have', ` в трюме ${row.have}`));
+    if (row.have > 0) name.append(el('span', 'dock-market-have sro-row__meta', ` в трюме ${row.have}`));
     view.append(name);
 
     if (!row.quote) {
       // Товар есть, но станция им не торгует: чужой регион или контрабанда.
-      view.append(el('div', 'dock-tag', 'Здесь этим не торгуют'));
+      view.append(el('div', 'dock-tag sro-row__meta', 'Здесь этим не торгуют'));
       return view;
     }
 
@@ -832,15 +832,15 @@ export class DockScreen {
     if (row.maxBuy > 0) {
       const count = Math.min(row.qty, row.maxBuy);
       const cost = tradeCost(this.local, row.id, basePrice, row.quote.stock, count, true);
-      actions.append(button(`Купить ${count} · ${formatCredits(cost)}`, 'dock-buy', () => this.handlers.onBuyGoods(row.id, count)));
+      actions.append(button(`Купить ${count} · ${formatCredits(cost)}`, 'dock-buy sro-btn sro-btn--sm', () => this.handlers.onBuyGoods(row.id, count)));
     } else if (row.sells) {
       // Продают, но прямо сейчас нельзя: пусто на складе, нет места или не хватает кредитов.
-      actions.append(el('div', 'dock-tag', row.quote.stock <= 0 ? 'Склад пуст' : 'Не по карману'));
+      actions.append(el('div', 'dock-tag sro-row__meta', row.quote.stock <= 0 ? 'Склад пуст' : 'Не по карману'));
     }
     if (row.maxSell > 0) {
       const count = Math.min(row.qty, row.maxSell);
       const gain = tradeCost(this.local, row.id, basePrice, row.quote.stock, count, false);
-      actions.append(button(`Продать ${count} · ${formatCredits(gain)}`, 'dock-buy', () => this.handlers.onSell(row.id, count)));
+      actions.append(button(`Продать ${count} · ${formatCredits(gain)}`, 'dock-buy sro-btn sro-btn--sm', () => this.handlers.onSell(row.id, count)));
     }
     if (actions.childElementCount > 0) view.append(actions);
     return view;
@@ -848,14 +848,14 @@ export class DockScreen {
 
   /** Цена штуки, стрелка «дороже/дешевле обычного» и намёк на склад станции. */
   private priceLine(quote: MarketItemDto, basePrice: number): HTMLElement {
-    const line = el('div', 'dock-stats dock-market-price');
+    const line = el('div', 'dock-stats dock-market-price sro-row__meta');
     const where = trend(quote.buy, quote.sell, basePrice);
     const arrow = where === 'up' ? '▲' : where === 'down' ? '▼' : '';
     const price = el('span', 'dock-market-rate', `${formatCredits(quote.sell)} / ${formatCredits(quote.buy)}`);
     price.title = 'Станция покупает / продаёт за штуку';
     line.append(price);
     if (arrow) {
-      const mark = el('span', `dock-market-trend dock-market-${where}`, ` ${arrow}`);
+      const mark = el('span', `dock-market-trend dock-market-${where} sro-trend-${where}`, ` ${arrow}`);
       mark.title = where === 'up' ? 'Дороже обычного' : 'Дешевле обычного';
       line.append(mark);
     }
@@ -868,16 +868,16 @@ export class DockScreen {
 
   /** Счётчик количества: значение живёт на экране, разметка строится из него заново на каждой перерисовке. */
   private stepper(row: MarketRow, max: number): HTMLElement {
-    const box = el('div', 'dock-qty');
+    const box = el('div', 'dock-qty sro-stepper');
     const set = (value: number): void => {
       this.qty.set(row.id, clampQty(value, max));
       this.render();
     };
-    box.append(button('−', 'dock-qty-step', () => set(row.qty - 1)));
-    box.append(el('div', 'dock-qty-value', String(row.qty)));
-    box.append(button('+', 'dock-qty-step', () => set(row.qty + 1)));
-    if (max > 10) box.append(button('+10', 'dock-qty-step', () => set(row.qty + 10)));
-    box.append(button('Макс', 'dock-qty-step', () => set(max)));
+    box.append(button('−', 'dock-qty-step sro-btn', () => set(row.qty - 1)));
+    box.append(el('div', 'dock-qty-value sro-stepper__value', String(row.qty)));
+    box.append(button('+', 'dock-qty-step sro-btn', () => set(row.qty + 1)));
+    if (max > 10) box.append(button('+10', 'dock-qty-step sro-btn', () => set(row.qty + 10)));
+    box.append(button('Макс', 'dock-qty-step sro-btn', () => set(max)));
     return box;
   }
 
@@ -888,12 +888,12 @@ export class DockScreen {
     const tutorial = missions.tutorial;
     if (tutorial) {
       const box = el('div', 'dock-mission dock-tutorial');
-      box.append(el('div', 'dock-mission-head', `Обучение · шаг ${tutorial.step + 1} из ${tutorial.total}`));
-      box.append(el('div', 'dock-name', tutorial.title));
-      if (tutorial.hint) box.append(el('div', 'dock-stats', keyHint(tutorial.hint, keymap)));
+      box.append(el('div', 'dock-mission-head sro-label sro-warn', `Обучение · шаг ${tutorial.step + 1} из ${tutorial.total}`));
+      box.append(el('div', 'dock-name sro-row__name', tutorial.title));
+      if (tutorial.hint) box.append(el('div', 'dock-stats sro-row__meta', keyHint(tutorial.hint, keymap)));
       const actions = el('div', 'dock-mission-actions');
-      if (tutorial.id === 'undock') actions.append(button('Вылет', 'dock-buy', () => this.handlers.onUndock()));
-      actions.append(button('Пропустить обучение', 'dock-link', () => this.handlers.onSkipTutorial()));
+      if (tutorial.id === 'undock') actions.append(button('Вылет', 'dock-buy sro-btn sro-btn--sm', () => this.handlers.onUndock()));
+      actions.append(button('Пропустить обучение', 'dock-link sro-btn sro-btn--ghost sro-btn--sm', () => this.handlers.onSkipTutorial()));
       box.append(actions);
       body.append(box);
     }
@@ -901,46 +901,46 @@ export class DockScreen {
     const active = missions.active;
     if (active) {
       const box = el('div', 'dock-mission');
-      box.append(el('div', 'dock-mission-head', `Задание · награда ${formatCredits(active.offer.reward)}`));
-      box.append(el('div', 'dock-name', activeLine(active, this.names)));
-      box.append(el('div', 'dock-stats', activeHint(active, this.here, hangar.docked, this.names)));
+      box.append(el('div', 'dock-mission-head sro-label sro-warn', `Задание · награда ${formatCredits(active.offer.reward)}`));
+      box.append(el('div', 'dock-name sro-row__name', activeLine(active, this.names)));
+      box.append(el('div', 'dock-stats sro-row__meta', activeHint(active, this.here, hangar.docked, this.names)));
       if (active.until) {
         // Срок идёт, пока пилот торгуется на станции: цифра живая, её двигает tick().
-        this.timer = el('div', 'dock-timer');
+        this.timer = el('div', 'dock-timer sro-num sro-warn');
         box.append(this.timer);
         this.tick(Date.now());
       }
       const actions = el('div', 'dock-mission-actions');
       if (active.offer.kind === 'collect') {
-        const give = button('Сдать', 'dock-buy', () => this.handlers.onComplete());
+        const give = button('Сдать', 'dock-buy sro-btn sro-btn--sm', () => this.handlers.onComplete());
         give.disabled = active.progress < active.offer.count;
         actions.append(give);
       }
-      actions.append(button('Отказаться', 'dock-link', () => this.handlers.onAbandon()));
+      actions.append(button('Отказаться', 'dock-link sro-btn sro-btn--ghost sro-btn--sm', () => this.handlers.onAbandon()));
       box.append(actions);
       body.append(box);
     }
 
     if (missions.offers.length === 0) {
-      if (!active) body.append(el('div', 'dock-empty', 'Заданий на этой станции нет.'));
+      if (!active) body.append(el('div', 'dock-empty sro-muted', 'Заданий на этой станции нет.'));
       return;
     }
-    body.append(el('div', 'dock-note', active ? 'Доска станции: сначала сдайте или бросьте своё задание' : 'Доска станции'));
+    body.append(el('div', 'dock-note sro-muted', active ? 'Доска станции: сначала сдайте или бросьте своё задание' : 'Доска станции'));
     for (const offer of missions.offers) body.append(this.missionRow(offer, active !== null));
   }
 
   private missionRow(offer: MissionOffer, busy: boolean): HTMLElement {
-    const row = el('div', 'dock-row');
+    const row = el('div', 'dock-row sro-row');
     row.dataset.state = busy ? 'poor' : 'buy';
-    row.append(el('div', 'dock-name', offerTitle(offer, this.names)), el('div', 'dock-stats', offerNote(offer, this.names)));
-    const take = button(`Взять · ${formatCredits(offer.reward)}`, 'dock-buy', () => this.handlers.onAccept(offer.id));
+    row.append(el('div', 'dock-name sro-row__name', offerTitle(offer, this.names)), el('div', 'dock-stats sro-row__meta', offerNote(offer, this.names)));
+    const take = button(`Взять · ${formatCredits(offer.reward)}`, 'dock-buy sro-btn sro-btn--sm', () => this.handlers.onAccept(offer.id));
     take.disabled = busy;
     row.append(take);
     return row;
   }
 
   private renderHulls(body: HTMLElement, hangar: HangarMsg, credits: number): void {
-    if (this.modules.enabled) body.append(el('div', 'dock-note', 'Щит, радар и двигатель — модули: они переходят на новый корпус'));
+    if (this.modules.enabled) body.append(el('div', 'dock-note sro-muted', 'Щит, радар и двигатель — модули: они переходят на новый корпус'));
     let shown = 0;
     for (const id of this.hulls.ids()) {
       const hull = this.hulls.get(id);
@@ -962,7 +962,7 @@ export class DockScreen {
       const name = hull.role ? `${hull.name} — ${hull.role}` : hull.name;
       body.append(this.offer(id, name, stats, state));
     }
-    if (shown === 0) body.append(el('div', 'dock-empty', 'Здесь корпуса не продают — только чинят и меняют на свои.'));
+    if (shown === 0) body.append(el('div', 'dock-empty sro-muted', 'Здесь корпуса не продают — только чинят и меняют на свои.'));
   }
 
   /**
@@ -970,20 +970,20 @@ export class DockScreen {
    * это сведения; сесть в них и сдвинуть их можно только там, где есть верфь: это уже услуга.
    */
   private renderShips(body: HTMLElement, hangar: HangarMsg, credits: number): void {
-    body.append(el('div', 'dock-note', 'Мой ангар'));
+    body.append(el('div', 'dock-note sro-muted', 'Мой ангар'));
     const at = hangar.ships ?? {};
     const here = this.placeKey;
     const jumps = this.galaxy && this.here ? hops(this.galaxy, this.here) : null;
     const owned = hangar.guest ? [hangar.hull] : hangar.hulls;
     for (const id of owned) {
       const hull = this.hulls.get(id);
-      const row = el('div', 'dock-row');
+      const row = el('div', 'dock-row sro-row');
       row.addEventListener('mouseenter', () => this.previewHull(id));
       row.addEventListener('mouseleave', () => this.previewHull(null));
       row.append(icon(shipSprite(id)));
-      row.append(el('div', 'dock-name', hull.role ? `${hull.name} — ${hull.role}` : hull.name));
+      row.append(el('div', 'dock-name sro-row__name', hull.role ? `${hull.name} — ${hull.role}` : hull.name));
       const where = at[id] ?? null;
-      row.append(el('div', 'dock-stats', where === null ? 'под вами' : this.whereLine(where)));
+      row.append(el('div', 'dock-stats sro-row__meta', where === null ? 'под вами' : this.whereLine(where)));
       row.append(this.shipAction(id, where, here, jumps, credits));
       body.append(row);
     }
@@ -1008,16 +1008,16 @@ export class DockScreen {
     jumps: ReadonlyMap<string, number> | null,
     credits: number,
   ): HTMLElement {
-    if (where === null) return el('div', 'dock-tag', 'На корабле');
+    if (where === null) return el('div', 'dock-tag sro-row__meta', 'На корабле');
     // Двигать корабли — работа верфи: где её нет, ангар можно только посмотреть.
-    if (!this.shipyard) return el('div', 'dock-tag', 'Нужна верфь');
-    if (where === here) return button('Сесть', 'dock-buy', () => this.handlers.onEquip(id));
+    if (!this.shipyard) return el('div', 'dock-tag sro-row__meta', 'Нужна верфь');
+    if (where === here) return button('Сесть', 'dock-buy sro-btn sro-btn--sm', () => this.handlers.onEquip(id));
     const system = this.placeIndex().get(where)?.system;
     const hops_ = system !== undefined ? jumps?.get(system) : undefined;
-    if (hops_ === undefined) return el('div', 'dock-tag', 'Отсюда туда нет пути');
+    if (hops_ === undefined) return el('div', 'dock-tag sro-row__meta', 'Отсюда туда нет пути');
     const cost = transportCost(this.shop, price(this.shop.hulls, id) ?? 0, hops_);
-    if (cost === null) return el('div', 'dock-tag', 'Перевозки здесь не заказать');
-    const order = button(`Перевезти · ${formatCredits(cost)}`, 'dock-buy', () => this.handlers.onTransport(id));
+    if (cost === null) return el('div', 'dock-tag sro-row__meta', 'Перевозки здесь не заказать');
+    const order = button(`Перевезти · ${formatCredits(cost)}`, 'dock-buy sro-btn sro-btn--sm', () => this.handlers.onTransport(id));
     order.disabled = cost > credits;
     return order;
   }
@@ -1031,21 +1031,25 @@ export class DockScreen {
     const powerMax = hangar.powerMax ?? 0;
     if (powerMax > 0) {
       const power = hangar.power ?? 0;
-      const bar = el('div', 'dock-power');
-      const fill = el('div', 'dock-power-fill');
+      const box = el('div', 'dock-power');
+      const row = el('div', 'sro-bar-row');
+      row.append(el('span', 'sro-label', 'Энергия'), el('span', 'sro-num', `${power} / ${powerMax}`));
+      const bar = el('div', 'sro-bar');
+      const fill = el('div', 'sro-bar__fill');
       fill.style.width = `${Math.min(100, (100 * power) / powerMax)}%`;
-      bar.append(fill, el('div', 'dock-power-text', `Энергия ${power} / ${powerMax}`));
-      body.append(bar);
+      bar.append(fill);
+      box.append(row, bar);
+      body.append(box);
     }
 
-    body.append(el('div', 'dock-note', `Оружие · слотов ${hullSlots(hull).length}`));
+    body.append(el('div', 'dock-note sro-muted', `Оружие · слотов ${hullSlots(hull).length}`));
     hullSlots(hull).forEach((slotClass, i) => this.slotRow(body, hangar, credits, weaponSlot(i), `Слот ${i + 1} · ${slotClass}`));
     if (this.modules.enabled) {
-      body.append(el('div', 'dock-note', `Модули · класс корпуса ${hull.class ?? 'L'}`));
+      body.append(el('div', 'dock-note sro-muted', `Модули · класс корпуса ${hull.class ?? 'L'}`));
       for (const slot of MODULE_SLOTS) this.slotRow(body, hangar, credits, slot, SLOT_NAMES[slot]);
       const utility = hullUtilitySlots(hull);
       if (utility > 0) {
-        body.append(el('div', 'dock-note', `Вспомогательные · слотов ${utility}`));
+        body.append(el('div', 'dock-note sro-muted', `Вспомогательные · слотов ${utility}`));
         for (let i = 0; i < utility; i++) {
           this.slotRow(body, hangar, credits, utilitySlot(i), `${SLOT_NAMES[UTILITY]} ${i + 1}`);
         }
@@ -1054,21 +1058,21 @@ export class DockScreen {
 
     const stored = Object.entries(hangar.storage ?? {}).filter(([, count]) => count > 0);
     if (hangar.guest) return;
-    body.append(el('div', 'dock-note', 'Склад станции'));
+    body.append(el('div', 'dock-note sro-muted', 'Склад станции'));
     if (stored.length === 0) {
-      body.append(el('div', 'dock-empty', 'Пусто. Снятое с корабля и купленное про запас лежит здесь.'));
+      body.append(el('div', 'dock-empty sro-muted', 'Пусто. Снятое с корабля и купленное про запас лежит здесь.'));
       return;
     }
     for (const [id, count] of stored) {
-      const row = el('div', 'dock-row');
+      const row = el('div', 'dock-row sro-row');
       const picture = this.picture(id);
       if (picture) row.append(icon(picture));
-      const stock = el('div', 'dock-name', `${this.itemName(id)} ×${count}`);
+      const stock = el('div', 'dock-name sro-row__name', `${this.itemName(id)} ×${count}`);
       const mark = tierBadge(id);
       if (mark) stock.append(el('span', 'dock-tier', mark));
-      row.append(stock, el('div', 'dock-stats', this.itemLabel(id)));
+      row.append(stock, el('div', 'dock-stats sro-row__meta', this.itemLabel(id)));
       const cost = sellPrice(this.shop, id);
-      row.append(button(cost > 0 ? `Продать · ${formatCredits(cost)}` : 'Выбросить', 'dock-buy', () => this.handlers.onSellItem(id)));
+      row.append(button(cost > 0 ? `Продать · ${formatCredits(cost)}` : 'Выбросить', 'dock-buy sro-btn sro-btn--sm', () => this.handlers.onSellItem(id)));
       body.append(row);
     }
   }
@@ -1078,16 +1082,16 @@ export class DockScreen {
     const hull = this.hulls.get(hangar.hull);
     const current = fitGet(hangar.fit, slot);
     const open = this.slot === slot;
-    const row = el('div', 'dock-row dock-slot');
+    const row = el('div', 'dock-row dock-slot sro-row');
     row.dataset.state = open ? 'active' : current ? 'owned' : 'none';
     const picture = current ? this.picture(current) : null;
     if (picture) row.append(icon(picture));
     row.append(
-      el('div', 'dock-name', `${label}: ${current ? this.itemName(current) : 'пусто'}`),
-      el('div', 'dock-stats', current ? this.itemLabel(current) : 'Свободный слот'),
+      el('div', 'dock-name sro-row__name', `${label}: ${current ? this.itemName(current) : 'пусто'}`),
+      el('div', 'dock-stats sro-row__meta', current ? this.itemLabel(current) : 'Свободный слот'),
     );
     row.append(
-      button(open ? 'Закрыть' : current ? 'Сменить' : 'Выбрать', 'dock-buy', () => {
+      button(open ? 'Закрыть' : current ? 'Сменить' : 'Выбрать', 'dock-buy sro-btn sro-btn--sm', () => {
         this.slot = open ? null : slot;
         this.render();
       }),
@@ -1097,7 +1101,7 @@ export class DockScreen {
 
     const list = el('div', 'dock-slot-list');
     if (current && !(REQUIRED_SLOTS as string[]).includes(slot)) {
-      list.append(button('Снять на склад', 'dock-link', () => this.handlers.onFit(slot, null)));
+      list.append(button('Снять на склад', 'dock-link sro-btn sro-btn--ghost sro-btn--sm', () => this.handlers.onFit(slot, null)));
     }
     const weaponsCatalog = this.weapons.config;
     const modules = this.modules.catalog;
@@ -1115,7 +1119,7 @@ export class DockScreen {
       const cost = listed === null || locked ? null : this.repCost(listed);
       const offer = slotOffer(id === current, stored, cost, credits, problem);
       if (offer.action === 'none' && !locked) continue;
-      const item = el('div', 'dock-row');
+      const item = el('div', 'dock-row sro-row');
       item.dataset.state =
         offer.action === 'installed' ? 'active'
         : offer.action === 'install' ? 'owned'
@@ -1125,30 +1129,30 @@ export class DockScreen {
       const picture = this.picture(id);
       if (picture) item.append(icon(picture));
       const name = offer.action === 'install' && Number.isFinite(stored) ? `${this.itemName(id)} · на складе ${stored}` : this.itemName(id);
-      const title = el('div', 'dock-name', name);
+      const title = el('div', 'dock-name sro-row__name', name);
       const badge = tierBadge(id);
       if (badge) title.append(el('span', 'dock-tier', badge));
-      item.append(title, el('div', 'dock-stats', this.itemLabel(id)));
+      item.append(title, el('div', 'dock-stats sro-row__meta', this.itemLabel(id)));
       switch (offer.action) {
         case 'installed':
-          item.append(el('div', 'dock-tag', 'Стоит'));
+          item.append(el('div', 'dock-tag sro-row__meta', 'Стоит'));
           break;
         case 'install': {
-          const put = button(offer.problem ? describeFitProblem(offer.problem) : 'Поставить', 'dock-buy', () => this.handlers.onFit(slot, id));
+          const put = button(offer.problem ? describeFitProblem(offer.problem) : 'Поставить', 'dock-buy sro-btn sro-btn--sm', () => this.handlers.onFit(slot, id));
           put.disabled = offer.problem !== null;
           item.append(put);
           break;
         }
         case 'buy': {
           const text = offer.problem ? describeFitProblem(offer.problem) : `Купить · ${formatCredits(offer.cost)}`;
-          const buy = button(text, 'dock-buy', () => this.handlers.onBuy('item', id, slot));
+          const buy = button(text, 'dock-buy sro-btn sro-btn--sm', () => this.handlers.onBuy('item', id, slot));
           buy.disabled = offer.poor || offer.problem !== null;
           item.append(buy);
           break;
         }
         case 'none':
           // Витрину не прячем: пусть видно, что здесь есть и чего это стоит добиться.
-          item.append(el('div', 'dock-tag', repGateNote(this.repRules, this.rep?.here?.level, id, false) ?? 'Только для своих'));
+          item.append(el('div', 'dock-tag sro-row__meta', repGateNote(this.repRules, this.rep?.here?.level, id, false) ?? 'Только для своих'));
           break;
       }
       list.append(item);
@@ -1174,29 +1178,29 @@ export class DockScreen {
   }
 
   private offer(id: string, name: string, stats: string, state: OfferState): HTMLElement {
-    const row = el('div', 'dock-row');
+    const row = el('div', 'dock-row sro-row');
     row.dataset.state = state;
     row.addEventListener('mouseenter', () => this.previewHull(id));
     row.addEventListener('mouseleave', () => this.previewHull(null));
     row.append(icon(shipSprite(id)));
-    row.append(el('div', 'dock-name', name), el('div', 'dock-stats', stats));
+    row.append(el('div', 'dock-name sro-row__name', name), el('div', 'dock-stats sro-row__meta', stats));
     const cost = this.repCost(price(this.shop.hulls, id) ?? 0);
     switch (state) {
       case 'active':
-        row.append(el('div', 'dock-tag', 'На корабле'));
+        row.append(el('div', 'dock-tag sro-row__meta', 'На корабле'));
         break;
       case 'owned':
-        row.append(button('Поставить', 'dock-buy', () => this.handlers.onEquip(id)));
+        row.append(button('Поставить', 'dock-buy sro-btn sro-btn--sm', () => this.handlers.onEquip(id)));
         break;
       case 'buy':
       case 'poor': {
-        const buy = button(`Купить · ${formatCredits(cost)}`, 'dock-buy', () => this.handlers.onBuy('hull', id));
+        const buy = button(`Купить · ${formatCredits(cost)}`, 'dock-buy sro-btn sro-btn--sm', () => this.handlers.onBuy('hull', id));
         buy.disabled = state === 'poor';
         row.append(buy);
         break;
       }
       case 'locked':
-        row.append(el('div', 'dock-tag', repGateNote(this.repRules, this.rep?.here?.level, id, true) ?? 'Только для своих'));
+        row.append(el('div', 'dock-tag sro-row__meta', repGateNote(this.repRules, this.rep?.here?.level, id, true) ?? 'Только для своих'));
         break;
     }
     return row;

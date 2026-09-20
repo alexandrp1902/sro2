@@ -3,6 +3,8 @@ import { PROTOCOL_VERSION } from '../net/protocol';
 
 const LABELS = { connecting: 'подключение…', online: 'онлайн', offline: 'нет связи' } as const;
 const RENDER_INTERVAL_MS = 250;
+/** Цвет точки — единственный цвет в строке: зелёный только у живой связи. */
+const DOT = { connecting: 'sro-dot--connecting', online: 'sro-dot--ok', offline: 'sro-dot--off' } as const;
 
 /**
  * Строка статуса в левом верхнем углу. Тап по ней открывает окно «Пилот»: вход и сервер,
@@ -10,11 +12,17 @@ const RENDER_INTERVAL_MS = 250;
  */
 export class StatusHud {
   private lastRender = 0;
+  private readonly dot: HTMLElement;
+  private readonly text: HTMLElement;
 
   constructor(
     private readonly el: HTMLElement,
     onTap: () => void,
   ) {
+    this.dot = document.createElement('span');
+    this.dot.className = 'sro-dot sro-dot--off';
+    this.text = document.createElement('span');
+    el.replaceChildren(this.dot, this.text);
     el.addEventListener('click', onTap);
   }
 
@@ -47,6 +55,7 @@ export class StatusHud {
     parts.push(`${Math.round(fps)} FPS`);
 
     this.el.dataset.state = state;
-    this.el.textContent = parts.join(' · ');
+    this.dot.className = `sro-dot ${DOT[state]}`;
+    this.text.textContent = parts.join(' · ');
   }
 }

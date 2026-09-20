@@ -33,17 +33,18 @@ export class ConfirmCard {
 
   constructor(private readonly root: HTMLElement) {
     this.title = document.createElement('div');
-    this.title.className = 'confirm-title';
+    this.title.className = 'confirm-title sro-dialog__title';
     this.text = document.createElement('div');
-    this.text.className = 'confirm-text';
+    this.text.className = 'confirm-text sro-dialog__text';
     const buttons = document.createElement('div');
-    buttons.className = 'confirm-buttons';
+    buttons.className = 'confirm-buttons sro-dialog__actions';
+    // Опасная кнопка слева, «Отмена» справа; красная — потому что действие не отменить.
     this.yes = document.createElement('button');
     this.yes.type = 'button';
-    this.yes.className = 'confirm-yes';
+    this.yes.className = 'confirm-yes sro-btn sro-btn--danger';
     this.no = document.createElement('button');
     this.no.type = 'button';
-    this.no.className = 'confirm-no';
+    this.no.className = 'confirm-no sro-btn';
     this.yes.addEventListener('click', () => {
       this.yes.blur();
       const answer = this.answer;

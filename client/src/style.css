@@ -1,11 +1,26 @@
 /*
  * Раскладка и игровая специфика. Внешний вид — в design/tokens.css и design/components.css (классы sro-*),
  * подключённых раньше этого файла: при равной специфичности правило раскладки отсюда побеждает дефолт компонента.
+ * Порядок: страница → верхний ряд HUD → три колонки → низ (стик, бой) → окна (вход, док, карта, управление, меню).
  */
 
 /* Компоненты задают display; атрибут hidden должен побеждать их всегда. Единственный !important в игре. */
 [hidden] {
   display: none !important;
+}
+
+:root {
+  /* Размеры раскладки игры — не часть дизайн-системы: ширины её колонок берутся из tokens.css. */
+  --minimap-size: 110px;
+  /* Таблетка статуса и строки полёта: 4 + 18 + 4 и рамка. */
+  --pill-h: 28px;
+  --hud-top: calc(env(safe-area-inset-top) + var(--hud-inset));
+  --hud-row2: calc(var(--hud-top) + var(--pill-h) + var(--space-2));
+  /* Стик (§27): отступ от низа и зона захвата шире основания. */
+  --stick-bottom: 16px;
+  --stick-grab: 48px;
+  /* Центр стика от низа экрана — на этой же высоте стоит центр кнопки огня. */
+  --pad-centre: calc(env(safe-area-inset-bottom) + var(--stick-bottom) + var(--stick-r, 64px) + var(--stick-grab) / 2);
 }
 
 html,
@@ -30,64 +45,340 @@ body {
   inset: 0;
 }
 
+/* Мир под HUD ловит касания сам: сквозь панели проходит всё, чему не выдан pointer-events: auto. */
 #hud {
   position: fixed;
   inset: 0;
   pointer-events: none;
 }
 
+/* ---------- Верхний ряд: статус слева, полёт справа ---------- */
+
 .status {
   position: absolute;
-  top: calc(env(safe-area-inset-top) + 8px);
-  left: calc(env(safe-area-inset-left) + 10px);
-  padding: 4px 10px 4px 8px;
-  border-radius: 12px;
-  background: rgba(10, 16, 28, 0.6);
-  font-size: 13px;
-  line-height: 18px;
-  white-space: nowrap;
+  top: var(--hud-top);
+  left: calc(env(safe-area-inset-left) + var(--hud-inset));
   pointer-events: auto;
   cursor: pointer;
-}
-
-.status::before {
-  content: '';
-  display: inline-block;
-  width: 8px;
-  height: 8px;
-  margin-right: 6px;
-  border-radius: 50%;
-  background: #e0524a;
-  vertical-align: 1px;
-}
-
-.status[data-state='connecting']::before {
-  background: #e0b04a;
-}
-
-.status[data-state='online']::before {
-  background: #4ae07a;
 }
 
 .flight {
   position: absolute;
-  top: calc(env(safe-area-inset-top) + 8px);
-  right: calc(env(safe-area-inset-right) + 10px);
-  padding: 4px 10px;
-  border-radius: 12px;
-  background: rgba(10, 16, 28, 0.6);
-  font-size: 13px;
-  line-height: 18px;
-  font-variant-numeric: tabular-nums;
-  white-space: nowrap;
+  top: var(--hud-top);
+  right: calc(env(safe-area-inset-right) + var(--hud-inset));
   pointer-events: auto;
   cursor: pointer;
 }
 
-.dev {
+/* ---------- Три колонки HUD ---------- */
+
+.hud-left,
+.hud-right,
+.hud-centre {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.hud-left,
+.hud-right {
   position: absolute;
-  top: calc(env(safe-area-inset-top) + 36px);
-  right: calc(env(safe-area-inset-right) + 10px);
+}
+
+.hud-left {
+  top: var(--hud-row2);
+  left: calc(env(safe-area-inset-left) + var(--hud-inset));
+  width: var(--hud-col);
+}
+
+.hud-right {
+  top: var(--hud-row2);
+  right: calc(env(safe-area-inset-right) + var(--hud-inset));
+  width: var(--hud-side);
+  align-items: flex-end;
+}
+
+.hud-right > .objective,
+.hud-right > .event {
+  width: 100%;
+}
+
+/* Центр — карточка цели, лента, карточка предмета. Вложен в левую колонку, но на ПК вынесен на середину экрана. */
+.hud-centre {
+  position: fixed;
+  top: var(--hud-top);
+  /* Посередине без transform: трансформированный предок стал бы опорой для fixed-карточки предмета внизу. */
+  left: max(10px, calc(50% - 210px));
+  align-items: center;
+  width: min(calc(100vw - 20px), 420px);
+}
+
+/* Угол: миникарта, слева от неё бургер над PvP, по нижнему краю карты. Пока всё скрыто — угла нет. */
+.hud-corner {
+  display: flex;
+  justify-content: flex-end;
+  align-items: flex-end;
+  gap: var(--space-2);
+}
+
+.hud-corner:not(:has(:not([hidden]))) {
+  display: none;
+}
+
+.hud-corner-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+/* Миникарта (GDD §43): холст рисует только метки, панель из стекла — здесь. Тап — карта галактики. */
+.minimap {
+  width: var(--minimap-size);
+  height: var(--minimap-size);
+  box-sizing: border-box;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  background: var(--bg-pane);
+  box-shadow: var(--shadow-pane);
+  backdrop-filter: blur(var(--blur-pane));
+  -webkit-backdrop-filter: blur(var(--blur-pane));
+  pointer-events: auto;
+  cursor: pointer;
+}
+
+.menu-open,
+.pvp-toggle {
+  pointer-events: auto;
+}
+
+/* Переключатель PvP: серый — по игрокам и торговцам огонь не идёт; включён — красный (data-on ведёт компонент). */
+.pvp-toggle {
+  flex-direction: column;
+  gap: 0;
+  line-height: 1.1;
+}
+
+.pvp-toggle small {
+  display: block;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-muted);
+}
+
+.pvp-toggle[data-on='true'] small {
+  color: inherit;
+}
+
+/* ---------- Левая колонка: свои полоски и трюм ---------- */
+
+/* Защита после появления и «под атакой» — строками под полосками. */
+.protect,
+.threat {
+  margin-top: var(--space-1);
+  font-size: 11px;
+  line-height: 14px;
+}
+
+.threat {
+  font-weight: 600;
+}
+
+.protect:empty,
+.threat:empty {
+  display: none;
+}
+
+/* Трюм (GDD §21): тап по панели разворачивает список. */
+.cargo {
+  font-size: 12px;
+  pointer-events: auto;
+  cursor: pointer;
+}
+
+/* Перегруз после пересадки на корпус поменьше: груз цел, но новое не влезет — предупреждение, не тревога. */
+.cargo[data-over='true'] {
+  border-color: var(--warn-line);
+}
+
+.cargo-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: var(--space-2);
+  line-height: 16px;
+}
+
+.cargo > .sro-bar {
+  margin-top: 6px;
+}
+
+.cargo-list {
+  margin-top: var(--space-2);
+  line-height: 18px;
+}
+
+/* Свёрнутый вид: только полоска и «12 / 20». */
+.cargo[data-open='false'] .cargo-list {
+  display: none;
+}
+
+.cargo-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* Выбросить стопку за борт (M15.1): прижата к правому краю строки, заметна только под курсором. */
+.cargo-drop {
+  margin-left: auto;
+  padding: 0 6px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-muted);
+  font: inherit;
+  line-height: 1.4;
+  cursor: pointer;
+  opacity: 0.55;
+}
+
+.cargo-drop:hover,
+.cargo-drop:focus-visible {
+  background: var(--danger-tint);
+  color: var(--danger-text);
+  opacity: 1;
+}
+
+/* Редкость предмета — цвет данных, приходит инлайном. */
+.cargo-dot {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.cargo-icon {
+  width: 18px;
+  height: 18px;
+  object-fit: contain;
+}
+
+.cargo-mission {
+  color: var(--warn);
+}
+
+/* ---------- Центр: карточка цели и лента ---------- */
+
+/* Карточка цели (GDD §9): сквозь неё кликают по миру, ловят касания только кнопки. */
+.target {
+  pointer-events: none;
+}
+
+.target-close,
+.target-invite {
+  pointer-events: auto;
+}
+
+/* Участник своей группы — стальная кромка: по нему не стреляют. */
+.target[data-member='true'] {
+  border-color: var(--steel-line);
+}
+
+/* На телефоне плашку «ОГОНЬ ПО ГОТОВНОСТИ» показывает сама кнопка огня. */
+@media (pointer: coarse) {
+  .target[data-fire='true'] .target-fire {
+    display: none;
+  }
+}
+
+/* Лента событий: вход, выход, обрыв связи, отказы, тревоги. */
+.feed {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-1);
+  max-width: 100%;
+}
+
+/* Плашка огня висит под карточкой абсолютно — лента уступает ей место (только с мышью, на телефоне плашки нет). */
+.hud-centre:has(> .target[data-fire='true']:not([hidden])) > .feed {
+  margin-top: 28px;
+}
+
+@media (pointer: coarse) {
+  .hud-centre:has(> .target[data-fire='true']:not([hidden])) > .feed {
+    margin-top: 0;
+  }
+}
+
+/* ---------- Правая колонка: трекер цели, табло вторжения, dev ---------- */
+
+/* Трекер цели (GDD §36, §54): точка и подпись — жёлтые, как маркер цели в мире. Тап — карта галактики. */
+.objective {
+  font-size: 13px;
+  line-height: 18px;
+  pointer-events: auto;
+  cursor: pointer;
+}
+
+.objective-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.objective-hint {
+  margin-top: 2px;
+  font-size: 12px;
+  line-height: 16px;
+}
+
+/* Табло вторжения пиратов (GDD §38): красное (sro-pane--alert), пока вторжение объявлено или идёт. */
+.event {
+  font-size: 13px;
+  line-height: 18px;
+  pointer-events: auto;
+  cursor: pointer;
+}
+
+.event-title {
+  color: var(--text);
+}
+
+.event-hint {
+  margin-top: 2px;
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--text-muted);
+}
+
+.event[data-alert='true'] .event-title,
+.event[data-alert='true'] .event-hint {
+  color: inherit;
+}
+
+.event-results {
+  margin-top: var(--space-1);
+  font-size: 11px;
+  line-height: 15px;
+}
+
+.event-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 6px;
+  color: var(--text-muted);
+}
+
+.event-row span:first-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Dev-панель остаётся как есть: моноширинная, своя. Стоит в правой колонке под табло. */
+.dev {
   max-width: min(calc(100vw - 20px), 380px);
   box-sizing: border-box;
   padding: 8px 10px;
@@ -95,10 +386,6 @@ body {
   background: rgba(10, 16, 28, 0.82);
   font: 12px/1.45 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   pointer-events: auto;
-}
-
-.dev[hidden] {
-  display: none;
 }
 
 .dev pre {
@@ -128,382 +415,77 @@ body {
   background: #2f7ad6;
 }
 
-/* Лента событий: вход, выход, обрыв связи. */
-.feed {
+/* ---------- Плавающие панели: группа, приглашение, подтверждение, предмет, гибель ---------- */
+
+/* Панель группы (GDD §37): ПК — слева внизу, там пусто; телефон — слева над стиком. Цвета роли у группы нет. */
+.party {
   position: absolute;
-  top: calc(env(safe-area-inset-top) + 8px);
-  left: 50%;
-  transform: translateX(-50%);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 4px;
-  max-width: min(calc(100vw - 20px), 420px);
-}
-
-.feed-item {
-  max-width: 100%;
-  padding: 3px 10px;
-  border-radius: 10px;
-  background: rgba(10, 16, 28, 0.6);
-  font-size: 13px;
-  line-height: 18px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  transition: opacity 0.4s;
-}
-
-/* Тревога — SOS торговца. */
-.feed-alert {
-  background: rgba(120, 24, 18, 0.75);
-  color: #ffd9d4;
-  font-weight: 600;
-}
-
-.feed-out {
-  opacity: 0;
-}
-
-/* Свои корпус и щит (GDD §41): левая колонка под строкой статуса. */
-.ship-hud {
-  position: absolute;
-  top: calc(env(safe-area-inset-top) + 36px);
-  left: calc(env(safe-area-inset-left) + 10px);
-  width: 170px;
-  box-sizing: border-box;
-  padding: 5px 7px;
-  border-radius: 10px;
-  background: rgba(10, 16, 28, 0.6);
-}
-
-.ship-hud[hidden],
-.target[hidden],
-.death[hidden],
-.cargo[hidden],
-.loot-card[hidden] {
-  display: none;
-}
-
-/* Трюм (GDD §21): под своими полосками. Тап по панели разворачивает список. */
-.cargo {
-  position: absolute;
-  top: calc(env(safe-area-inset-top) + 118px);
-  left: calc(env(safe-area-inset-left) + 10px);
-  width: 170px;
-  box-sizing: border-box;
-  padding: 5px 7px 6px;
-  border-radius: 10px;
-  background: rgba(10, 16, 28, 0.6);
+  left: calc(env(safe-area-inset-left) + var(--hud-inset));
+  bottom: calc(env(safe-area-inset-bottom) + 14px);
+  width: var(--hud-col);
   font-size: 12px;
   pointer-events: auto;
-  cursor: pointer;
 }
 
-/* Перегруз после пересадки на корпус поменьше: груз цел, но новое не влезет. */
-.cargo[data-over='true'] {
-  border: 1px solid rgba(224, 82, 74, 0.6);
-  padding: 4px 6px 5px;
-}
-
-.cargo-head {
+.party-title {
   display: flex;
   justify-content: space-between;
-  gap: 8px;
-  line-height: 16px;
-  font-variant-numeric: tabular-nums;
-}
-
-.cargo-credits {
-  color: #9ee08a;
-}
-
-.cargo-bar {
-  height: 4px;
-  margin: 3px 0 0;
-  border-radius: 2px;
-  background: rgba(255, 255, 255, 0.08);
-  overflow: hidden;
-}
-
-.cargo-bar-fill {
-  height: 100%;
-  background: #4a9be0;
-  transition: width 0.15s;
-}
-
-.cargo[data-over='true'] .cargo-bar-fill {
-  background: #e0524a;
-}
-
-.cargo-list {
-  margin-top: 4px;
-  line-height: 17px;
-}
-
-/* Свёрнутый вид: только полоска и «12 / 20». */
-.cargo[data-open='false'] .cargo-list {
-  display: none;
-}
-
-.cargo-item {
-  display: flex;
   align-items: center;
-  gap: 6px;
 }
 
-/* Выбросить стопку за борт (M15.1): прижата к правому краю строки, заметна только под курсором. */
-.cargo-drop {
-  margin-left: auto;
-  padding: 0 6px;
-  border: 0;
-  border-radius: 6px;
-  background: transparent;
-  color: #7f97b8;
-  font: inherit;
-  line-height: 1.4;
-  cursor: pointer;
+.party-row {
+  margin-top: 6px;
+}
+
+.party-row[data-status='off'] {
   opacity: 0.55;
 }
 
-.cargo-drop:hover,
-.cargo-drop:focus-visible {
-  background: #3a2230;
-  color: #ff9d9d;
-  opacity: 1;
-}
-
-.cargo-dot {
-  display: inline-block;
-  width: 7px;
-  height: 7px;
-  margin-right: 5px;
-  border-radius: 50%;
-  vertical-align: 0;
-}
-
-.cargo-icon {
-  width: 18px;
-  height: 18px;
-  margin-right: 5px;
-  object-fit: contain;
-  vertical-align: -4px;
-}
-
-/* Выбранный предмет — отдельно от карточки цели: «куда лечу» и «во что стреляю» путать нельзя. */
-.loot-card {
-  position: absolute;
-  top: calc(env(safe-area-inset-top) + 78px);
-  left: 50%;
-  transform: translateX(-50%);
+.party-head {
   display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 4px 6px 4px 10px;
-  border: 1px solid rgba(111, 211, 255, 0.55);
-  border-radius: 10px;
-  background: rgba(10, 16, 28, 0.72);
-  font-size: 12px;
-  line-height: 18px;
-  white-space: nowrap;
-  pointer-events: auto;
-}
-
-/* Выбранная станция — зелёная рамка, как круг дока. */
-.loot-card[data-kind='station'] {
-  border-color: rgba(111, 224, 138, 0.55);
-}
-
-.loot-hint {
-  color: #9ee08a;
-}
-
-.loot-distance {
-  color: #9aa4b4;
-  font-variant-numeric: tabular-nums;
-}
-
-.loot-clear {
-  padding: 0 4px;
-  border: 0;
-  border-radius: 6px;
-  background: transparent;
-  color: #9aa4b4;
-  font: inherit;
-  line-height: 18px;
-  cursor: pointer;
-}
-
-@media (max-width: 520px) {
-  .cargo {
-    top: calc(env(safe-area-inset-top) + 138px);
-  }
-
-  /* Лента уезжает ниже трюма: левая колонка и без него занята почти целиком. */
-  #cargo:not([hidden]) ~ .feed {
-    top: calc(env(safe-area-inset-top) + 196px);
-  }
-
-  /* Сверху по центру лента, справа внизу кнопки боя — карточке предмета остаётся низ по центру. */
-  .loot-card {
-    top: auto;
-    bottom: calc(env(safe-area-inset-bottom) + 14px);
-  }
-}
-
-.bar {
-  position: relative;
-  height: 13px;
-  margin: 2px 0;
-  border-radius: 3px;
-  background: rgba(255, 255, 255, 0.08);
-  overflow: hidden;
-}
-
-.bar i {
-  position: absolute;
-  inset: 0 auto 0 0;
-  width: 100%;
-  background: #c8733a;
-  transition: width 0.15s;
-}
-
-.bar-shield i {
-  background: #3f86c9;
-}
-
-.bar span {
-  position: relative;
-  display: block;
-  padding-left: 5px;
-  font-size: 10px;
-  line-height: 13px;
-  font-variant-numeric: tabular-nums;
-  white-space: nowrap;
-  color: #fff;
-  text-shadow: 0 0 2px #000;
-}
-
-.protect {
-  margin-top: 2px;
-  color: #9fd0ff;
-  font-size: 11px;
-}
-
-.protect:empty {
-  display: none;
-}
-
-/* Сколько пиратов целится в меня. */
-.threat {
-  margin-top: 2px;
-  color: #ff8a7a;
-  font-size: 11px;
-  font-weight: 600;
-}
-
-.threat:empty {
-  display: none;
-}
-
-
-/* Карточка цели (GDD §9): сверху по центру, лента событий уходит под неё. */
-.target {
-  position: absolute;
-  top: calc(env(safe-area-inset-top) + 8px);
-  left: 50%;
-  transform: translateX(-50%);
-  width: 240px;
-  box-sizing: border-box;
-  padding: 5px 8px 6px;
-  border: 1px solid rgba(224, 176, 74, 0.55);
-  border-radius: 10px;
-  background: rgba(10, 16, 28, 0.72);
-  font-size: 12px;
-}
-
-.target[data-state='ready'] {
-  border-color: rgba(74, 224, 122, 0.75);
-}
-
-.target[data-state='dead'] {
-  border-color: rgba(138, 143, 153, 0.6);
-}
-
-.target-head {
-  display: flex;
-  align-items: baseline;
+  justify-content: space-between;
   gap: 6px;
-  margin-bottom: 2px;
+  line-height: 16px;
 }
 
-.target-name {
-  max-width: 120px;
+.party-name {
   font-weight: 600;
-  white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-}
-
-.target-class {
-  flex: 1;
-  color: #8fb4e8;
   white-space: nowrap;
 }
 
-.target-close {
-  padding: 0 2px 0 10px;
-  border: 0;
-  background: transparent;
-  color: #cfe3ff;
-  font-size: 16px;
-  line-height: 16px;
-  cursor: pointer;
+.party-row[data-self='true'] .party-name {
+  color: var(--text-strong);
+}
+
+.party .sro-bar {
+  margin-top: 3px;
+}
+
+/* Приглашение в группу и вопрос «точно?»: посередине экрана — там, где ни одна колонка HUD не стоит. */
+.invite,
+.confirm {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
   pointer-events: auto;
 }
 
-.target-info {
-  margin-top: 3px;
-  font-variant-numeric: tabular-nums;
-  white-space: nowrap;
+.confirm {
+  max-width: min(360px, calc(100vw - 32px));
 }
 
-#target:not([hidden]) ~ .feed {
-  top: calc(env(safe-area-inset-top) + 94px);
-}
-
-/* Огонь включён — плашка под карточкой цели (ПК: там нет кнопки «ОГОНЬ», которая бы это показала). */
-.target-fire {
-  display: none;
-  position: absolute;
-  top: 100%;
+/* Выбранный предмет — на ПК внизу по центру, отдельно от карточки цели: «куда лечу» и «во что стреляю» путать нельзя. */
+.loot-card {
+  position: fixed;
   left: 50%;
+  bottom: calc(env(safe-area-inset-bottom) + 14px);
   transform: translateX(-50%);
-  margin-top: 6px;
-  padding: 3px 12px;
-  border: 2px solid #ff5a4a;
-  border-radius: 8px;
-  background: rgba(60, 12, 10, 0.8);
-  color: #ff8a7a;
+  max-width: calc(100vw - 20px);
   font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  white-space: nowrap;
-  box-shadow: 0 0 10px rgba(255, 90, 70, 0.5);
-}
-
-.target[data-fire='true'] .target-fire {
-  display: block;
-}
-
-#target[data-fire='true']:not([hidden]) ~ .feed {
-  top: calc(env(safe-area-inset-top) + 128px);
-}
-
-@media (pointer: coarse) {
-  .target[data-fire='true'] .target-fire {
-    display: none;
-  }
+  pointer-events: auto;
 }
 
 /* Экран уничтожения (GDD §24). */
@@ -513,22 +495,16 @@ body {
   top: 38%;
   transform: translate(-50%, -50%);
   padding: 14px 22px;
-  border: 1px solid rgba(224, 82, 74, 0.6);
-  border-radius: 14px;
-  background: rgba(10, 6, 8, 0.75);
   text-align: center;
   white-space: nowrap;
 }
 
 .death-title {
-  color: #ff8a7a;
-  font-size: 20px;
-  font-weight: 700;
-  letter-spacing: 0.06em;
+  color: var(--danger-text-strong);
 }
 
 .death-by {
-  margin-top: 4px;
+  margin-top: var(--space-1);
   font-size: 13px;
 }
 
@@ -539,149 +515,84 @@ body {
 .death-timer {
   margin-top: 6px;
   font-size: 14px;
-  font-variant-numeric: tabular-nums;
 }
 
-/* На узком вертикальном экране статус и строка полёта в один ряд не помещаются. */
-@media (max-width: 520px) {
-  .flight {
-    top: calc(env(safe-area-inset-top) + 36px);
-    right: auto;
-    left: calc(env(safe-area-inset-left) + 10px);
-  }
-
-  .ship-hud {
-    top: calc(env(safe-area-inset-top) + 64px);
-  }
-
-  /* Лента — в левой колонке под своими полосками; правая сторона остаётся игре. */
-  .feed,
-  #target:not([hidden]) ~ .feed {
-    top: calc(env(safe-area-inset-top) + 124px);
-    left: calc(env(safe-area-inset-left) + 10px);
-    transform: none;
-    align-items: flex-start;
-  }
-
-  /* Карточка цели — справа над кнопками боя (их верх — r + 82 px от низа). */
-  .target {
-    top: auto;
-    bottom: calc(env(safe-area-inset-bottom) + var(--stick-r, 64px) + 94px);
-    left: auto;
-    right: calc(env(safe-area-inset-right) + 10px);
-    transform: none;
-    width: min(220px, 60vw);
-  }
-
-  .dev {
-    top: calc(env(safe-area-inset-top) + 124px);
-    right: auto;
-    left: calc(env(safe-area-inset-left) + 10px);
-  }
-}
+/* ---------- Низ: стик и кнопки боя (телефон) ---------- */
 
 /* Стик (§27): слева внизу, над зоной свайпа home-indicator. Зона захвата шире основания. */
 .stick {
   --stick-r: 64px;
   position: fixed;
   left: calc(env(safe-area-inset-left) + 8px);
-  bottom: calc(env(safe-area-inset-bottom) + 16px);
+  bottom: calc(env(safe-area-inset-bottom) + var(--stick-bottom));
   display: flex;
   align-items: center;
   justify-content: center;
-  width: calc(var(--stick-r) * 2 + 48px);
-  height: calc(var(--stick-r) * 2 + 48px);
+  width: calc(var(--stick-r) * 2 + var(--stick-grab));
+  height: calc(var(--stick-r) * 2 + var(--stick-grab));
   touch-action: none;
 }
 
-.stick[hidden] {
-  display: none;
-}
-
 .stick-base {
-  position: relative;
-  width: calc(var(--stick-r) * 2);
-  height: calc(var(--stick-r) * 2);
   box-sizing: border-box;
-  border: 2px solid rgba(143, 180, 232, 0.35);
-  border-radius: 50%;
-  background: rgba(20, 32, 52, 0.35);
 }
 
 .stick-dead,
 .stick-handle {
-  position: absolute;
-  left: 50%;
-  top: 50%;
-  border-radius: 50%;
   pointer-events: none;
 }
 
 .stick-dead {
+  position: absolute;
+  left: 50%;
+  top: 50%;
   width: calc(var(--stick-r) * 0.2);
   height: calc(var(--stick-r) * 0.2);
   margin: calc(var(--stick-r) * -0.1) 0 0 calc(var(--stick-r) * -0.1);
-  background: rgba(143, 180, 232, 0.25);
+  border-radius: 50%;
+  background: var(--bg-raised-hover);
 }
 
+/* Ручка светлеет с тягой. */
 .stick-handle {
-  width: calc(var(--stick-r) * 0.84);
-  height: calc(var(--stick-r) * 0.84);
-  margin: calc(var(--stick-r) * -0.42) 0 0 calc(var(--stick-r) * -0.42);
-  background: #7fd4ff;
-  box-shadow: 0 0 12px rgba(127, 212, 255, 0.5);
-  opacity: calc(0.45 + var(--stick-power, 0) * 0.45);
+  opacity: calc(0.55 + var(--stick-power, 0) * 0.45);
 }
 
 /*
- * Кнопки боя телефона (GDD §8): < предыдущая цель, ОГОНЬ, > следующая. Справа на высоте стика: центр кнопки огня
- * (84 px) — на уровне центра стика: 16 + (2r + 48) / 2 − 42 = r − 2 px от низа. Радиус задаёт stick.ts под экран.
+ * Кнопки боя телефона (GDD §8): < предыдущая цель, ОГОНЬ, > следующая. Справа, центр кнопки огня —
+ * на высоте центра стика. Радиус стика задаёт stick.ts под экран.
  */
 .combat-pad {
   position: fixed;
   right: calc(env(safe-area-inset-right) + 12px);
-  bottom: calc(env(safe-area-inset-bottom) + var(--stick-r, 64px) - 2px);
+  bottom: calc(var(--pad-centre) - var(--fire-size) / 2);
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: var(--space-1);
   pointer-events: none;
 }
 
-.combat-pad[hidden] {
-  display: none;
-}
-
-/* Стрелки выбора цели — голубой шеврон, стороны под 45° (прямой угол у вершины), без кружка; зона нажатия больше рисунка. */
+/* Стрелки выбора цели — шеврон без кружка, стороны под 45°; зона нажатия больше рисунка. */
 .target-step {
-  display: flex;
-  align-items: center;
-  justify-content: center;
   width: 48px;
   height: 64px;
   padding: 0;
   border: 0;
   background: transparent;
+  color: var(--text);
   touch-action: none;
   pointer-events: auto;
 }
 
-/*
- * Левая стрелка — на полширины левее: пальцу просторнее. Огонь — ровно посередине между стрелками:
- * центры стрелок в 0 и 164 px от левого края ряда, центр огня — в 82 вместо 94.
- */
-#target-prev {
-  transform: translateX(-24px);
-}
-
-#fire {
-  transform: translateX(-12px);
+.target-step:hover {
+  background: transparent;
 }
 
 .target-step svg {
   width: 36px;
   height: 31px;
   fill: none;
-  stroke: #7fd4ff;
+  stroke: currentColor;
   stroke-width: 4.5;
   stroke-linecap: round;
   stroke-linejoin: round;
@@ -689,38 +600,14 @@ body {
 }
 
 .target-step:active svg {
-  stroke: #ffa53a;
+  stroke: var(--text-strong);
 }
 
-/* Огонь — переключатель: тусклая «выкл», горит и пульсирует «вкл». */
+/* Огонь — переключатель; вид «вкл», «готово» и «взять» ведёт компонент по data-active и data-aim. */
 .fire {
   --reload: 1;
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  width: 84px;
-  height: 84px;
-  box-sizing: border-box;
-  border: 2px solid rgba(255, 150, 130, 0.45);
-  border-radius: 50%;
-  background: rgba(60, 20, 20, 0.45);
-  color: #ffd6cc;
-  font-size: 13px;
-  font-weight: 700;
-  letter-spacing: 0.04em;
   touch-action: none;
   pointer-events: auto;
-  cursor: pointer;
-}
-
-.fire-state {
-  margin-top: 1px;
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.08em;
-  opacity: 0.75;
 }
 
 /* «ВЗЯТЬ» и «ДОК» — одно нажатие, а не переключатель: «вкл/выкл» под ними сбивает с толку. */
@@ -728,30 +615,12 @@ body {
   display: none;
 }
 
-.fire[data-aim='ready'] {
-  border-color: rgba(74, 224, 122, 0.85);
-}
-
 .fire[data-aim='none'][data-active='false'] {
   opacity: 0.6;
 }
 
-.fire[data-active='true'] {
-  border-color: #ffb09c;
-  background: rgba(230, 70, 58, 0.9);
-  color: #fff;
-  box-shadow: 0 0 18px rgba(255, 90, 70, 0.75);
-  animation: fire-on 1s ease-in-out infinite;
-}
-
-.fire[data-active='true'] .fire-state {
-  opacity: 1;
-}
-
-@keyframes fire-on {
-  50% {
-    box-shadow: 0 0 6px rgba(255, 90, 70, 0.4);
-  }
+.fire span {
+  pointer-events: none;
 }
 
 /* Кольцо перезарядки: заполняется от выстрела до готовности следующего. */
@@ -759,15 +628,101 @@ body {
   position: absolute;
   inset: -7px;
   border-radius: 50%;
-  background: conic-gradient(rgba(255, 214, 160, 0.9) calc(var(--reload) * 1turn), rgba(255, 214, 160, 0.12) 0);
+  background: conic-gradient(var(--text) calc(var(--reload) * 1turn), var(--line) 0);
   -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 4px), #000 calc(100% - 3px));
   mask: radial-gradient(farthest-side, transparent calc(100% - 4px), #000 calc(100% - 3px));
   pointer-events: none;
 }
 
-.fire span {
-  pointer-events: none;
+.fire[data-active='true'] .fire-ring {
+  background: conic-gradient(var(--danger-text) calc(var(--reload) * 1turn), var(--danger-line) 0);
 }
+
+/* ---------- Телефон: узкий вертикальный экран ---------- */
+
+@media (max-width: 520px) {
+  /* Статус и строка полёта в один ряд не помещаются: полёт уходит во второй ряд слева. */
+  .flight {
+    top: var(--hud-row2);
+    right: auto;
+    left: calc(env(safe-area-inset-left) + var(--hud-inset));
+  }
+
+  .hud-left {
+    top: calc(var(--hud-row2) + var(--pill-h) + var(--space-2));
+  }
+
+  /* Справа от строки полёта встаёт миникарта поменьше; колонка уже — ей делить ширину с левой. */
+  .hud-right {
+    --minimap-size: 96px;
+    width: min(170px, 44vw);
+  }
+
+  .objective,
+  .event {
+    font-size: 12px;
+    line-height: 16px;
+  }
+
+  /* Статус длиннее экрана: режем многоточием, а не вылезаем за край. */
+  .status {
+    max-width: calc(100vw - 20px);
+  }
+
+  .status > span:last-child {
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  /* Лента и карточка предмета — в левой колонке под трюмом, потоком (правая сторона остаётся игре). */
+  .hud-centre {
+    position: static;
+    transform: none;
+    align-items: flex-start;
+    width: auto;
+  }
+
+  .feed {
+    align-items: flex-start;
+  }
+
+  /* В узкой колонке таблетка предмета становится карточкой: строки переносятся. */
+  .loot-card {
+    position: static;
+    transform: none;
+    flex-wrap: wrap;
+    max-width: 100%;
+    border-radius: var(--radius-md);
+    white-space: normal;
+  }
+
+  /* Карточка цели — справа над кнопками боя. */
+  .target {
+    position: fixed;
+    top: auto;
+    bottom: calc(var(--pad-centre) + var(--fire-size) / 2 + var(--space-2));
+    left: auto;
+    right: calc(env(safe-area-inset-right) + var(--hud-inset));
+    transform: none;
+    width: min(220px, 60vw);
+  }
+
+  /* Над стиком: он занимает низ слева на 2r + захват. */
+  .party {
+    bottom: calc(env(safe-area-inset-bottom) + var(--stick-bottom) + 2 * var(--stick-r, 64px) + var(--stick-grab) + var(--space-2));
+    width: min(150px, 40vw);
+  }
+
+  /* Dev-панели в узкой правой колонке не место — влево, под строку полёта. */
+  .hud-right > .dev {
+    position: fixed;
+    top: calc(var(--hud-row2) + var(--pill-h) + var(--space-2));
+    left: calc(env(safe-area-inset-left) + var(--hud-inset));
+    right: auto;
+  }
+}
+
+/* ---------- Вход: окно «Пилот» ---------- */
 
 .connect {
   position: fixed;
@@ -776,58 +731,36 @@ body {
   align-items: center;
   justify-content: center;
   padding: 0 16px;
-  background: rgba(3, 5, 10, 0.7);
-}
-
-.connect[hidden] {
-  display: none;
+  background: rgba(8, 9, 11, 0.7);
 }
 
 .connect-card {
   width: 100%;
   max-width: 360px;
   padding: 18px;
-  border: 1px solid #1f3350;
-  border-radius: 12px;
-  background: #0b1322;
 }
 
 .connect-title {
-  margin-bottom: 4px;
-  font-size: 16px;
-  font-weight: 600;
+  margin-bottom: var(--space-1);
+  color: var(--text-strong);
 }
 
-.connect-label {
-  display: block;
-  margin: 10px 0 4px;
-  color: #8fb4e8;
+.connect-hint {
+  margin-bottom: 6px;
   font-size: 13px;
-}
-
-.connect input {
-  box-sizing: border-box;
-  width: 100%;
-  padding: 10px 12px;
-  border: 1px solid #2a4468;
-  border-radius: 8px;
-  background: #050a14;
-  color: #e6f0ff;
-  font-size: 16px; /* меньше 16px — и iOS зумит страницу при фокусе */
-  user-select: text;
-  -webkit-user-select: text;
+  line-height: 18px;
 }
 
 /* Ряд путей (M15.5): виден, только когда ник свободен, — то есть когда заводится аккаунт. */
-.connect-careers[hidden] {
-  display: none;
-}
-
 .connect-career-row {
   display: flex;
-  gap: 8px;
+  gap: var(--space-2);
 }
 
+/*
+ * Карточка пути — не sro-btn: у компонента aria-pressed значит «красный вкл» (огонь, PvP),
+ * а здесь выбранный путь — стальная кромка, как выбранная вкладка.
+ */
 .connect .connect-career {
   display: flex;
   flex: 1 1 0;
@@ -835,19 +768,33 @@ body {
   flex-direction: column;
   gap: 3px;
   padding: 10px;
-  border: 1px solid #1f3350;
-  background: rgba(10, 16, 28, 0.6);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--bg-raised);
+  color: var(--text);
+  font: inherit;
   text-align: left;
+  cursor: pointer;
+}
+
+.connect .connect-career:hover {
+  background: var(--bg-raised-hover);
 }
 
 .connect .connect-career[aria-pressed='true'] {
-  border-color: #7fd4ff;
-  background: #14293f;
+  border-color: var(--steel-line);
+  background: var(--steel-tint);
+  color: var(--text-strong);
 }
 
 .connect .connect-career:disabled {
-  opacity: 0.45;
+  opacity: var(--opacity-disabled);
   cursor: default;
+}
+
+.connect .connect-career:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
 }
 
 .connect-career-name {
@@ -856,47 +803,37 @@ body {
 }
 
 .connect-career-hint {
-  color: #8fa3c4;
+  color: var(--text-muted);
   font-size: 12px;
+  line-height: 16px;
 }
 
 .connect-error {
   min-height: 18px;
   margin: 6px 0;
-  color: #ff7a70;
   font-size: 13px;
+  line-height: 18px;
 }
 
 .connect-actions {
   display: flex;
-  gap: 8px;
+  gap: var(--space-2);
   justify-content: flex-end;
+  margin-top: var(--space-2);
 }
 
-.connect button {
-  padding: 9px 14px;
-  border: 0;
-  border-radius: 8px;
-  background: #1d3a60;
-  color: #e6f0ff;
-  font-size: 15px;
+.connect .connect-logout {
+  margin-right: auto;
 }
 
-.connect button[type='submit'] {
-  background: #2f7ad6;
-}
+/* ---------- Док: во весь экран поверх мира, стика и кнопки огня — и на телефоне, и на ПК ---------- */
 
-/* Экран дока: во весь экран поверх мира, стика и кнопки огня — и на телефоне, и на ПК. */
 .dock {
   position: fixed;
   inset: 0;
   display: flex;
-  background: #0b1322;
+  background: var(--bg-space);
   touch-action: manipulation;
-}
-
-.dock[hidden] {
-  display: none;
 }
 
 /* Окно занимает весь экран, длинный список прокручивается внутри. Вырезы телефона — отступами внутри окна. */
@@ -906,10 +843,17 @@ body {
   width: 100%;
   height: 100%;
   box-sizing: border-box;
-  padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom)
-    env(safe-area-inset-left);
-  background: #0b1322;
-  overflow: hidden;
+  padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+/* Внутри окна стеклу нечего размывать: панели там плоские. */
+.dock-body .sro-pane {
+  box-shadow: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
 }
 
 /* Сцена дока (корабль в ангаре, торговец, диспетчер) — только на ПК, на телефоне её нет совсем. */
@@ -919,7 +863,7 @@ body {
 
 /*
  * ПК и планшет: слева сцена, справа панель с вкладками. Телефон в альбомной ориентации сюда не попадает —
- * он низкий. Фон сцены — картинка из --scene-art поверх заливки: пока арта нет, видна заливка.
+ * он низкий. Фон сцены — картинка из --scene-art поверх нейтральной заливки: настроение несёт арт, не цвет.
  */
 @media (min-width: 900px) and (min-height: 500px) {
   .dock-card {
@@ -952,11 +896,14 @@ body {
   .dock-ship,
   .dock-tabs,
   .dock-body {
-    border-left: 1px solid #1f3350;
+    border-left: 1px solid var(--line-soft);
+  }
+
+  .dock-tabs {
+    padding-left: 16px;
   }
 
   .dock-scene {
-    --scene-fill: radial-gradient(ellipse at 50% 75%, rgba(47, 122, 214, 0.35), transparent 60%);
     grid-area: scene;
     position: relative;
     display: flex;
@@ -966,21 +913,9 @@ body {
     overflow: hidden;
     background:
       var(--scene-art) center / cover no-repeat,
-      var(--scene-fill),
-      repeating-linear-gradient(90deg, rgba(31, 51, 80, 0.35) 0 1px, transparent 1px 80px),
-      linear-gradient(#0b1322, #050912);
-  }
-
-  .dock-scene[data-scene='trader'] {
-    --scene-fill: radial-gradient(ellipse at 50% 70%, rgba(255, 209, 102, 0.28), transparent 60%);
-  }
-
-  .dock-scene[data-scene='office'] {
-    --scene-fill: radial-gradient(ellipse at 50% 40%, rgba(127, 212, 255, 0.22), transparent 60%);
-  }
-
-  .dock-scene[data-scene='shipyard'] {
-    --scene-fill: radial-gradient(ellipse at 50% 75%, rgba(111, 224, 138, 0.22), transparent 60%);
+      radial-gradient(ellipse at 50% 72%, var(--steel-tint), transparent 60%),
+      repeating-linear-gradient(90deg, var(--line-soft) 0 1px, transparent 1px 80px),
+      linear-gradient(var(--bg-window), var(--bg-space));
   }
 
   /* Свой корабль (или тот, что на витрине верфи) носом вверх, посреди ангара. */
@@ -992,6 +927,7 @@ body {
     pointer-events: none;
   }
 
+  /* Реплика собеседника — стеклянная панель поверх сцены. */
   .dock-scene-caption {
     position: absolute;
     left: 24px;
@@ -999,20 +935,18 @@ body {
     bottom: 24px;
     max-width: 560px;
     padding: 12px 16px;
-    border-left: 3px solid #ffd166;
-    border-radius: 8px;
-    background: rgba(5, 9, 18, 0.78);
-  }
-
-  .dock-scene-who {
-    color: #ffd166;
-    font-size: 13px;
-    font-weight: 600;
+    border: 1px solid var(--line);
+    border-radius: var(--radius-md);
+    background: var(--bg-pane);
+    box-shadow: var(--shadow-pane);
+    backdrop-filter: blur(var(--blur-pane));
+    -webkit-backdrop-filter: blur(var(--blur-pane));
   }
 
   .dock-scene-line {
-    margin-top: 4px;
-    font-size: 15px;
+    margin-top: var(--space-1);
+    font-size: 14px;
+    line-height: 20px;
   }
 
   /* Историю торговца говорит подпись под картинкой — над списком товаров она была бы вторым разом. */
@@ -1022,26 +956,12 @@ body {
 }
 
 /*
- * Три зоны (M15.5): слева место и кредиты, по центру «Вылет», справа бургер. Колонки 1fr auto 1fr —
- * боковые равны по построению, поэтому кнопка стоит ровно посередине строки, как бы ни было длинно
- * название места. Флексом с margin-left: auto так не получится.
+ * Три зоны шапки (M15.5): слева место и кредиты, по центру «Вылет», справа бургер. Сетку 1fr auto 1fr даёт
+ * sro-head — боковые колонки равны по построению, и кнопка стоит ровно посередине при любой длине названия.
  */
-.dock-head {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
-  align-items: center;
-  gap: 12px;
-  padding: 12px 14px;
-  border-bottom: 1px solid #1f3350;
-}
-
 .dock-head-left {
-  display: flex;
-  min-width: 0;
-  align-items: baseline;
-  overflow: hidden;
   grid-column: 1;
-  gap: 10px;
+  overflow: hidden;
 }
 
 .dock-head > .dock-undock {
@@ -1049,15 +969,10 @@ body {
 }
 
 .dock-head-right {
-  display: flex;
-  justify-content: flex-end;
   grid-column: 3;
 }
 
-/*
- * На узком экране трём зонам в одну строку тесно, и название места резалось бы многоточием
- * на первом же слове. Тогда «Вылет» уходит на свою строку — и остаётся крупным и по центру.
- */
+/* На узком экране трём зонам тесно: «Вылет» уходит на свою строку во всю ширину — крупный и по центру. */
 @media (max-width: 560px) {
   .dock-head {
     display: flex;
@@ -1074,82 +989,56 @@ body {
     flex: 0 0 auto;
   }
 
-  /* Своя строка во всю ширину: на телефоне в неё легко попасть большим пальцем, и она не спорит с названием. */
   .dock-head > .dock-undock {
     order: 3;
     flex: 1 0 100%;
   }
 }
 
-.dock-title {
-  min-width: 0;
-  overflow: hidden;
-  font-size: 17px;
-  font-weight: 600;
-  /* Длинное «Поселение «Пепельный Приют»» ужимается многоточием, а не двигает «Вылет». */
-  white-space: nowrap;
-  text-overflow: ellipsis;
+/* Чем торгует эта станция — строкой под её именем. */
+.dock-shop-title {
+  display: block;
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 16px;
 }
 
-.dock-credits {
-  color: #ffd166;
-  font-size: 15px;
-  font-variant-numeric: tabular-nums;
-  white-space: nowrap;
-}
-
+/* Свой корабль: корпус, пушки, прочность и ремонт. */
 .dock-ship {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: 4px 12px;
-  padding: 10px 14px;
-  border-bottom: 1px solid #1f3350;
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--line-soft);
   font-size: 13px;
 }
 
 .dock-ship-name {
-  font-weight: 600;
-}
-
-.dock-ship-hp {
-  color: #8fb4e8;
+  font-weight: 700;
 }
 
 .dock-ship .dock-buy {
   margin-left: auto;
 }
 
+/* Вкладки — сегментный переключатель (sro-tabs). */
 .dock-tabs {
-  display: flex;
-  border-bottom: 1px solid #1f3350;
+  margin: 10px 16px 0;
 }
 
+/* Пять вкладок с «Ангаром» (M15.6): на 360 px на каждую остаётся 66 px — без переноса и без упора в длину слова. */
 .dock-tab {
-  flex: 1;
-  /* Пятая вкладка — «Ангар» (M15.6): на 360 px на каждую остаётся 72 px, поэтому кегль меньше,
-     перенос запрещён, и min-width не даёт flex-элементу упереться в длину своего слова. */
   min-width: 0;
-  padding: 11px 2px;
-  border: 0;
-  border-bottom: 2px solid transparent;
-  background: transparent;
-  color: #8fb4e8;
-  font: inherit;
-  font-size: 13px;
+  padding: 0 2px;
   white-space: nowrap;
-  cursor: pointer;
-}
-
-.dock-tab[aria-pressed='true'] {
-  border-bottom-color: #2f7ad6;
-  color: #e6f0ff;
 }
 
 .dock-body {
   flex: 1;
   min-height: 0;
-  padding: 6px 14px 14px;
+  padding: 6px 16px 16px;
   overflow-y: auto;
   overscroll-behavior: contain;
   -webkit-overflow-scrolling: touch;
@@ -1158,18 +1047,15 @@ body {
 
 .dock-note,
 .dock-empty {
-  margin: 8px 0;
-  color: #8fb4e8;
+  margin: 10px 0 4px;
   font-size: 13px;
+  line-height: 18px;
 }
 
+/* Строка витрины (sro-row): по умолчанию текст слева, кнопка справа на обе строки. */
 .dock-row {
-  display: grid;
   grid-template-columns: 1fr auto;
-  align-items: center;
-  gap: 2px 10px;
-  padding: 10px 0;
-  border-bottom: 1px solid rgba(31, 51, 80, 0.6);
+  gap: 2px 12px;
 }
 
 .dock-row:last-child {
@@ -1200,14 +1086,8 @@ body {
   grid-column: 3;
 }
 
-.dock-name {
-  font-size: 15px;
-}
-
 .dock-stats {
   grid-column: 1;
-  color: #7f97b8;
-  font-size: 12px;
 }
 
 .dock-row > .dock-buy,
@@ -1216,73 +1096,52 @@ body {
   grid-row: 1 / span 2;
 }
 
+/* Открытый слот и то, что стоит на корабле, — сильным текстом, без цвета. */
 .dock-row[data-state='active'] .dock-name {
-  color: #7fd4ff;
+  color: var(--text-strong);
+}
+
+/* Товар под замком репутации: видно, что он тут есть, но кнопки нет. */
+.dock-row[data-state='locked'] {
+  opacity: 0.6;
 }
 
 .dock-tag {
-  color: #7f97b8;
   font-size: 13px;
 }
 
 /* Событие спроса (M15.5) над рынком: за ним сюда и летели, поэтому строка заметная. */
 .dock-demand {
-  margin-bottom: 8px;
-  padding: 8px 10px;
-  border-left: 3px solid #ffd166;
-  border-radius: 8px;
-  background: rgba(255, 209, 102, 0.12);
-  color: #ffd166;
+  margin: 8px 0;
   font-size: 14px;
   font-weight: 600;
 }
 
-.dock-buy,
-.dock-undock {
-  padding: 8px 12px;
-  border: 0;
-  border-radius: 8px;
-  background: #1d3a60;
-  color: #e6f0ff;
-  font: inherit;
-  font-size: 14px;
-  white-space: nowrap;
-  cursor: pointer;
-}
-
-.dock-buy:disabled {
-  opacity: 0.45;
-  cursor: default;
-}
-
-.dock-undock {
-  background: #2f7ad6;
-  font-weight: 600;
-}
-
-/* На телефоне «Вылет» остаётся крупным: к краю он и так не липнет — стоит в средней колонке. */
+/* На телефоне «Вылет» — не меньше пальца. */
 @media (pointer: coarse) {
   .dock-undock {
-    min-height: 44px;
-    padding: 10px 18px;
+    min-height: var(--touch);
   }
 }
 
-/*
- * Реплика торговца (M12) на телефоне: сцены с его картинкой здесь нет, а история нужна.
- * На ПК ту же строку показывает подпись под картинкой, поэтому там эта скрыта (см. медиазапрос сцены).
- */
+/* Кнопка стоит первой в списке рынка — отступ снизу, а не сверху. */
+.dock-sell-all {
+  display: flex;
+  width: 100%;
+  margin: 4px 0 10px;
+}
+
+/* Реплика торговца (M12) на телефоне: сцены с его картинкой здесь нет, а история нужна. */
 .dock-rumour {
   margin: 2px 0 10px;
-  color: #cfe0f5;
+  color: var(--text-muted);
   font-size: 13px;
-  font-style: italic;
-  line-height: 1.4;
+  line-height: 18px;
 }
 
 /* Репутация (M13): плашки станции и системы под кораблём, журнал разворачивается тапом. */
 .dock-rep {
-  padding: 0 14px 8px;
+  padding: 0 16px 8px;
 }
 
 .dock-rep-row {
@@ -1290,6 +1149,7 @@ body {
   align-items: center;
   gap: 14px;
   width: 100%;
+  min-height: 34px;
   padding: 6px 0;
   border: 0;
   background: none;
@@ -1299,15 +1159,12 @@ body {
   cursor: pointer;
 }
 
+/* Цвет ступени — из reputation.json, инлайном. */
 .rep-chip {
   display: flex;
   align-items: baseline;
   gap: 6px;
   font-size: 13px;
-}
-
-.rep-chip-what {
-  color: #7f97b8;
 }
 
 .rep-chip-level {
@@ -1316,38 +1173,25 @@ body {
 
 .rep-more {
   margin-left: auto;
-  color: #7f97b8;
 }
 
 .dock-rep-log {
-  padding: 6px 10px;
-  border-left: 3px solid #1f3350;
-  border-radius: 8px;
-  background: rgba(31, 51, 80, 0.25);
+  padding: 8px 12px;
+  border-radius: var(--radius-sm);
+  background: var(--bg-raised);
 }
 
 .dock-rep-entry {
   font-size: 12px;
-  line-height: 1.5;
+  line-height: 18px;
 }
 
 .dock-rep-entry[data-sign='up'] {
-  color: #6fe08a;
+  color: var(--gain);
 }
 
 .dock-rep-entry[data-sign='down'] {
-  color: #e07a6f;
-}
-
-/* Товар под замком репутации: видно, что он тут есть, но кнопки нет. */
-.dock-row[data-state='locked'] {
-  opacity: 0.6;
-}
-
-/* Кольцо отношения вокруг узла на карте галактики. */
-.galaxy-rep {
-  fill: none;
-  stroke-width: 1.2;
+  color: var(--danger-text);
 }
 
 /* Вкладка «Рынок» (M12): цена, склад станции, счётчик и две кнопки в одной строке. */
@@ -1362,109 +1206,66 @@ body {
 }
 
 .dock-market-have {
-  color: #7f97b8;
   font-size: 13px;
+  font-weight: 500;
 }
 
 .dock-market-price {
   display: flex;
   align-items: baseline;
-  gap: 8px;
+  gap: var(--space-2);
 }
 
 .dock-market-rate {
-  color: #b9cbe4;
+  color: var(--text);
 }
 
-/* Дороже обычного — сюда везут, дешевле — здесь берут. */
+/* Дороже обычного — сюда везут, дешевле — здесь берут (цвет у sro-trend-*). */
 .dock-market-trend {
   font-size: 13px;
 }
 
-.dock-market-up {
-  color: #8ede9a;
-}
-
-.dock-market-down {
-  color: #ff9d7a;
-}
-
 .dock-market-stock[data-level='low'] {
-  color: #ffd166;
+  color: var(--warn);
 }
 
 .dock-market-stock[data-level='high'] {
-  color: #7f97b8;
+  color: var(--text-muted);
 }
 
 .dock-qty {
-  display: flex;
-  align-items: center;
-  gap: 6px;
   margin: 4px 0;
-}
-
-.dock-qty-step {
-  min-width: 34px;
-  padding: 5px 8px;
-  border: 1px solid #25415f;
-  border-radius: 7px;
-  background: #16263c;
-  color: #cfe0f5;
-  font: inherit;
-  font-size: 13px;
-  cursor: pointer;
-}
-
-.dock-qty-step:hover {
-  background: #1d3a60;
-}
-
-.dock-qty-value {
-  min-width: 42px;
-  color: #e6f0ff;
-  font-size: 15px;
-  font-variant-numeric: tabular-nums;
-  text-align: center;
 }
 
 .dock-market-actions {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: var(--space-2);
   margin-top: 2px;
 }
 
-/* Вкладка «Задания»: обучение и своё задание — карточками над доской станции. */
+/* Вкладка «Задания»: обучение и своё задание — приподнятыми карточками над доской станции. */
 .dock-mission {
   margin: 8px 0;
   padding: 10px 12px;
-  border-left: 3px solid #ffd166;
-  border-radius: 8px;
-  background: rgba(255, 209, 102, 0.07);
+  border: 1px solid var(--line-soft);
+  border-radius: var(--radius-md);
+  background: var(--bg-raised);
 }
 
 .dock-mission .dock-name {
   margin: 2px 0;
 }
 
-.dock-mission-head {
-  color: #ffd166;
-  font-size: 12px;
-  font-weight: 600;
-}
-
 /* Срок письма (M14): идёт, пока пилот в доке, и краснеет на последней минуте. */
 .dock-timer {
-  margin-top: 4px;
-  color: #ffd166;
+  margin-top: var(--space-1);
   font-size: 13px;
-  font-variant-numeric: tabular-nums;
 }
 
 .dock-timer[data-low='true'] {
-  color: #ff8a70;
-  font-weight: 600;
+  color: var(--danger-text);
+  font-weight: 700;
 }
 
 .dock-mission-actions {
@@ -1472,180 +1273,41 @@ body {
   flex-wrap: wrap;
   align-items: center;
   gap: 8px 14px;
-  margin-top: 8px;
+  margin-top: var(--space-2);
 }
 
-.dock-link {
-  padding: 6px 0;
-  border: 0;
-  background: transparent;
-  color: #8fb4e8;
-  font: inherit;
-  font-size: 13px;
-  text-decoration: underline;
-  cursor: pointer;
+/* Вкладка «Оснащение»: энергия генератора (GDD §18) — полоска над слотами. */
+.dock-power {
+  margin: 10px 0 4px;
 }
 
-.cargo-mission {
-  color: #ffd166;
+/* Открытый слот: что туда встаёт — со сдвигом под строкой слота. */
+.dock-slot-list {
+  margin: 0 0 6px 16px;
+  padding-left: 10px;
+  border-left: 2px solid var(--line-soft);
 }
 
-/* Кнопка стоит первой в списке рынка — отступ снизу, а не сверху. */
-.dock-sell-all {
-  display: block;
-  width: 100%;
-  margin-bottom: 10px;
-  background: rgba(111, 224, 138, 0.18);
-  color: #b6f0a8;
-}
-
-.connect-hint {
-  margin-bottom: 6px;
-  color: #7f97b8;
-  font-size: 13px;
-}
-
-.connect button[hidden] {
-  display: none;
-}
-
-.connect .connect-logout {
-  margin-right: auto;
-  background: transparent;
-  color: #ff9a90;
-}
-
-/* Миникарта (GDD §43): вся система под строкой полёта; тап — карта галактики. */
-.minimap {
-  position: absolute;
-  top: calc(env(safe-area-inset-top) + 36px);
-  right: calc(env(safe-area-inset-right) + 10px);
-  width: 128px;
-  height: 128px;
-  pointer-events: auto;
-  cursor: pointer;
-}
-
-.minimap[hidden] {
-  display: none;
-}
-
-/*
- * Переключатель PvP — слева от миникарты, по её нижнему краю. Выключен — серый: по игрокам, торговцам и рейнджерам
- * огонь не включается. Включён — красный.
- */
-.pvp-toggle {
-  position: absolute;
-  top: calc(env(safe-area-inset-top) + 36px + 128px - 44px);
-  right: calc(env(safe-area-inset-right) + 10px + 128px + 8px);
+.dock-slot-list > .dock-link {
   display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  width: 52px;
-  height: 44px;
-  padding: 0;
-  border: 1px solid rgba(143, 180, 232, 0.35);
-  border-radius: 8px;
-  background: rgba(10, 14, 24, 0.7);
-  color: #8fa3c4;
-  font: 600 13px/1.1 system-ui, sans-serif;
-  pointer-events: auto;
-  touch-action: manipulation;
-  cursor: pointer;
+  justify-content: flex-start;
+  margin: 6px 0;
 }
 
-.pvp-toggle small {
+/* Значок тира на строке снаряжения (M11): «Mk2» рядом с названием. */
+.dock-tier {
+  margin-left: 6px;
+  padding: 1px 6px;
+  border-radius: var(--radius-sm);
+  background: var(--bg-raised);
+  color: var(--text-muted);
   font-size: 11px;
-  font-weight: 400;
-}
-
-.pvp-toggle[data-on='true'] {
-  border-color: rgba(255, 90, 80, 0.8);
-  background: rgba(90, 16, 14, 0.75);
-  color: #ff8a80;
-}
-
-.pvp-toggle[hidden] {
-  display: none;
-}
-
-/* Dev-панель — под миникартой, а не поверх неё. */
-#minimap:not([hidden]) ~ .dev {
-  top: calc(env(safe-area-inset-top) + 172px);
-}
-
-/* Трекер цели (GDD §36, §54): справа под миникартой, золотой — как маркер цели в мире. */
-.objective {
-  position: absolute;
-  top: calc(env(safe-area-inset-top) + 172px);
-  right: calc(env(safe-area-inset-right) + 10px);
-  width: 200px;
-  box-sizing: border-box;
-  padding: 6px 8px;
-  border-left: 3px solid #ffd166;
-  border-radius: 8px;
-  background: rgba(10, 16, 28, 0.66);
-  font-size: 13px;
-  line-height: 17px;
-  pointer-events: auto;
-  cursor: pointer;
-}
-
-.objective[hidden],
-.objective-hint[hidden] {
-  display: none;
-}
-
-.objective-title {
-  color: #ffd166;
   font-weight: 600;
+  vertical-align: middle;
 }
 
-.objective-hint {
-  margin-top: 2px;
-  color: #b8c6da;
-  font-size: 12px;
-  line-height: 15px;
-}
+/* ---------- Карта галактики и окно управления: поверх всего, тап мимо карточки закрывает ---------- */
 
-/* Трекер занял место под миникартой — dev-панель ещё ниже. */
-#minimap:not([hidden]) ~ #objective:not([hidden]) ~ .dev {
-  top: calc(env(safe-area-inset-top) + 270px);
-}
-
-@media (max-width: 520px) {
-  /* На телефоне строка полёта уехала влево, во второй ряд: справа от неё и встаёт миникарта. Первый ряд — статусу. */
-  .minimap {
-    top: calc(env(safe-area-inset-top) + 36px);
-    width: 96px;
-    height: 96px;
-  }
-
-  .pvp-toggle {
-    top: calc(env(safe-area-inset-top) + 36px + 96px - 44px);
-    right: calc(env(safe-area-inset-right) + 10px + 96px + 8px);
-  }
-
-  #minimap:not([hidden]) ~ .dev {
-    top: calc(env(safe-area-inset-top) + 124px);
-  }
-
-  /* Лента слева не заходит под трекер справа. */
-  #objective:not([hidden]) ~ .feed {
-    max-width: calc(100vw - min(170px, 44vw) - 30px);
-  }
-
-  /* На телефоне правая колонка свободна до карточки цели внизу — трекер под миникартой, поуже. */
-  .objective {
-    top: calc(env(safe-area-inset-top) + 140px);
-    width: min(170px, 44vw);
-    font-size: 12px;
-    line-height: 15px;
-  }
-}
-
-/* Карта галактики (GDD §55): поверх всего, как док; тап мимо карточки закрывает. */
 .galaxy {
   position: fixed;
   inset: 0;
@@ -1654,49 +1316,23 @@ body {
   justify-content: center;
   padding: calc(env(safe-area-inset-top) + 12px) calc(env(safe-area-inset-right) + 12px)
     calc(env(safe-area-inset-bottom) + 12px) calc(env(safe-area-inset-left) + 12px);
-  background: rgba(3, 5, 10, 0.72);
+  background: rgba(8, 9, 11, 0.72);
   touch-action: manipulation;
 }
 
-.galaxy[hidden] {
-  display: none;
-}
-
-.galaxy-card {
+.galaxy-card,
+.controls-card {
   display: flex;
   flex-direction: column;
   width: 100%;
   max-width: 560px;
   max-height: 100%;
-  border: 1px solid #1f3350;
-  border-radius: 12px;
-  background: #0b1322;
   overflow: auto;
 }
 
+/* Шапка окна: заголовок слева, крестик справа — двух колонок хватает. */
 .galaxy-head {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 12px 14px;
-  border-bottom: 1px solid #1f3350;
-}
-
-.galaxy-title {
-  font-size: 17px;
-  font-weight: 600;
-}
-
-.galaxy-close {
-  margin-left: auto;
-  padding: 4px 10px;
-  border: 0;
-  border-radius: 8px;
-  background: #1d3a60;
-  color: #e6f0ff;
-  font: inherit;
-  font-size: 16px;
-  cursor: pointer;
+  grid-template-columns: minmax(0, 1fr) auto;
 }
 
 .galaxy-svg {
@@ -1708,12 +1344,12 @@ body {
 }
 
 .galaxy-link {
-  stroke: #36507a;
+  stroke: var(--line);
   stroke-width: 0.5;
 }
 
 .galaxy-link-open {
-  stroke: #b58cff;
+  stroke: var(--steel-soft);
   stroke-width: 0.8;
 }
 
@@ -1723,47 +1359,50 @@ body {
 
 .galaxy-here {
   fill: none;
-  stroke: #7fd4ff;
+  stroke: var(--steel);
   stroke-width: 0.7;
 }
 
 .galaxy-selected {
   fill: none;
-  stroke: #ffffff;
+  stroke: var(--text-strong);
   stroke-width: 0.5;
   stroke-dasharray: 1 0.8;
 }
 
-/* Система задания — золотое кольцо, как маркер цели в мире. */
+/* Система задания — жёлтое кольцо, как маркер цели в мире. */
 .galaxy-objective {
   fill: none;
-  stroke: #ffd166;
+  stroke: var(--warn);
   stroke-width: 0.7;
 }
 
-/*
- * Кольца событий вокруг системы: ⚔ — вторжение, ₪ — спрос (M15.5). Без fill: none круг заливается
- * чёрным и закрывает узел — у вторжения так и было, пока не понадобилось второе кольцо.
- */
+/* Кольца событий вокруг системы: ⚔ — вторжение, ₪ — спрос. Без fill: none круг закрыл бы узел. */
 .galaxy-invasion {
   fill: none;
-  stroke: #ff3b2f;
+  stroke: var(--danger);
   stroke-width: 0.7;
 }
 
 .galaxy-demand {
   fill: none;
-  stroke: #ffd166;
+  stroke: var(--warn);
   stroke-width: 0.7;
   stroke-dasharray: 2 1.6;
 }
 
+/* Кольцо отношения вокруг узла — цвет ступени из reputation.json. */
+.galaxy-rep {
+  fill: none;
+  stroke-width: 1.2;
+}
+
 .galaxy-station {
-  fill: #0b1322;
+  fill: var(--bg-window);
 }
 
 .galaxy-name {
-  fill: #dce9ff;
+  fill: var(--text);
   font-size: 3.6px;
   text-anchor: middle;
 }
@@ -1772,482 +1411,53 @@ body {
   fill: transparent;
 }
 
-.galaxy-info {
-  padding: 10px 14px 4px;
-  border-top: 1px solid #1f3350;
+/* Регионы галактики (M11): бледная подложка под системами и подпись в её углу — цвета из galaxy.json. */
+.galaxy-region {
+  opacity: var(--opacity-region);
 }
 
+.galaxy-region-name {
+  font-size: 2.6px;
+  opacity: 0.75;
+}
+
+.galaxy-info {
+  padding: 10px 16px 4px;
+  border-top: 1px solid var(--line-soft);
+}
+
+/* Имя системы окрашено опасностью — инлайном, из данных. */
 .galaxy-info-name {
   font-size: 16px;
-  font-weight: 600;
+  line-height: 22px;
+  font-weight: 700;
 }
 
 .galaxy-info-facts,
 .galaxy-info-jump {
-  margin-top: 4px;
+  margin-top: var(--space-1);
   font-size: 14px;
-  color: #b8cbe6;
+  line-height: 20px;
 }
 
 /* Чем торгует станция (M12): где дёшево купить и куда это везти. */
 .galaxy-info-trade {
   margin-top: 3px;
   font-size: 13px;
-  color: #7f97b8;
+  line-height: 18px;
 }
 
 .galaxy-legend {
-  padding: 6px 14px 12px;
+  padding: 6px 16px 12px;
   font-size: 12px;
-  color: #7f93b0;
-}
-
-/* Вкладка «Оснащение»: энергия генератора (GDD §18) — полоса над слотами. */
-.dock-power {
-  position: relative;
-  height: 22px;
-  margin: 8px 0;
-  overflow: hidden;
-  border-radius: 6px;
-  background: rgba(31, 51, 80, 0.7);
-}
-
-.dock-power-fill {
-  position: absolute;
-  inset: 0 auto 0 0;
-  background: linear-gradient(90deg, #2f7ad6, #6fd3ff);
-}
-
-.dock-power-text {
-  position: relative;
-  padding: 3px 8px;
-  color: #e6f0ff;
-  font-size: 13px;
-}
-
-/* Открытый слот: что туда встаёт — со сдвигом под строкой слота. */
-.dock-slot-list {
-  margin: 0 0 6px 16px;
-  padding-left: 10px;
-  border-left: 2px solid rgba(127, 212, 255, 0.35);
-}
-
-.dock-slot-list > .dock-link {
-  display: block;
-}
-
-/* Табло вторжения пиратов (GDD §38): справа под трекером цели; красное, пока вторжение объявлено или идёт. */
-.event {
-  position: absolute;
-  top: calc(env(safe-area-inset-top) + 172px);
-  right: calc(env(safe-area-inset-right) + 10px);
-  width: 200px;
-  box-sizing: border-box;
-  padding: 6px 8px;
-  border-left: 3px solid #8fb4e8;
-  border-radius: 8px;
-  background: rgba(10, 16, 28, 0.72);
-  font-size: 13px;
-  line-height: 17px;
-  pointer-events: auto;
-  cursor: pointer;
-}
-
-.event[data-alert='true'] {
-  border-left-color: #ff5a4a;
-  background: rgba(60, 14, 12, 0.78);
-}
-
-.event[hidden],
-.event-results[hidden] {
-  display: none;
-}
-
-.event-title {
-  color: #ff8a7a;
-  font-weight: 700;
-  letter-spacing: 0.03em;
-}
-
-.event[data-alert='false'] .event-title {
-  color: #cfe3ff;
-}
-
-.event-hint {
-  margin-top: 2px;
-  color: #e6d6d4;
-  font-size: 12px;
-  line-height: 15px;
-  font-variant-numeric: tabular-nums;
-}
-
-.event-results {
-  margin-top: 4px;
-  font-size: 11px;
-  line-height: 15px;
-  font-variant-numeric: tabular-nums;
-}
-
-.event-row {
-  display: flex;
-  justify-content: space-between;
-  gap: 6px;
-  color: #b8c6da;
-}
-
-.event-row span:first-child {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.event-self {
-  color: #ffd166;
-  font-weight: 600;
-}
-
-#objective:not([hidden]) ~ #event {
-  top: calc(env(safe-area-inset-top) + 236px);
-}
-
-/* Табло справа заняло место — dev-панель ещё ниже. */
-#minimap:not([hidden]) ~ #event:not([hidden]) ~ .dev {
-  top: calc(env(safe-area-inset-top) + 330px);
-}
-
-/* Панель группы (GDD §37): ПК — слева внизу, там пусто; телефон — слева над стиком. */
-.party {
-  position: absolute;
-  left: calc(env(safe-area-inset-left) + 10px);
-  bottom: calc(env(safe-area-inset-bottom) + 14px);
-  width: 170px;
-  box-sizing: border-box;
-  padding: 5px 7px 6px;
-  border-left: 3px solid #b6ff6a;
-  border-radius: 8px;
-  background: rgba(10, 16, 28, 0.66);
-  font-size: 12px;
-  pointer-events: auto;
-}
-
-.party[hidden] {
-  display: none;
-}
-
-.party-title {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  color: #b6ff6a;
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-}
-
-.party-leave {
-  padding: 1px 7px;
-  border: 1px solid rgba(182, 255, 106, 0.4);
-  border-radius: 6px;
-  background: transparent;
-  color: #d8ffb8;
-  font: inherit;
-  font-weight: 400;
-  letter-spacing: 0;
-  cursor: pointer;
-}
-
-.party-row {
-  margin-top: 4px;
-}
-
-.party-row[data-status='off'] {
-  opacity: 0.55;
-}
-
-.party-head {
-  display: flex;
-  justify-content: space-between;
-  gap: 6px;
-  line-height: 15px;
-}
-
-.party-name {
-  color: #d8ffb8;
-  font-weight: 600;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.party-row[data-self='true'] .party-name {
-  color: #7fd4ff;
-}
-
-.party-where {
-  color: #9aa4b4;
-  font-variant-numeric: tabular-nums;
-  white-space: nowrap;
-}
-
-.party .bar {
-  height: 5px;
-  margin: 1px 0;
-}
-
-.party .bar span {
-  display: none;
-}
-
-/* Кнопка «В группу» на карточке цели. */
-.target-invite {
-  padding: 0 7px;
-  border: 1px solid rgba(182, 255, 106, 0.55);
-  border-radius: 6px;
-  background: rgba(40, 70, 20, 0.5);
-  color: #d8ffb8;
-  font: inherit;
-  font-size: 11px;
   line-height: 16px;
-  white-space: nowrap;
-  cursor: pointer;
-  pointer-events: auto;
 }
 
-.target-invite[hidden] {
-  display: none;
-}
-
-.target[data-member='true'] {
-  border-color: rgba(182, 255, 106, 0.7);
-}
-
-/* Приглашение в группу: по центру, над игрой; отвечать не обязательно — само пропадёт. */
-.invite {
-  position: absolute;
-  top: 30%;
-  left: 50%;
-  transform: translateX(-50%);
-  min-width: 220px;
-  box-sizing: border-box;
-  padding: 10px 14px;
-  border: 1px solid rgba(182, 255, 106, 0.6);
-  border-radius: 12px;
-  background: rgba(10, 16, 28, 0.88);
-  text-align: center;
-  pointer-events: auto;
-}
-
-.invite[hidden] {
-  display: none;
-}
-
-.invite-text {
-  font-size: 14px;
-  font-weight: 600;
-}
-
-.invite-timer {
-  margin-top: 2px;
-  color: #9aa4b4;
-  font-size: 12px;
-  font-variant-numeric: tabular-nums;
-}
-
-.invite-buttons {
-  display: flex;
-  justify-content: center;
-  gap: 10px;
-  margin-top: 8px;
-}
-
-.invite-buttons button {
-  min-width: 90px;
-  padding: 7px 10px;
-  border: 0;
-  border-radius: 8px;
-  font: inherit;
-  font-size: 13px;
-  cursor: pointer;
-}
-
-.invite-accept {
-  background: #3f7a22;
-  color: #eaffda;
-}
-
-.invite-decline {
-  background: #2a3346;
-  color: #cfe3ff;
-}
-
-@media (max-width: 520px) {
-  .event {
-    top: calc(env(safe-area-inset-top) + 140px);
-    width: min(170px, 44vw);
-    font-size: 12px;
-    line-height: 15px;
-  }
-
-  #objective:not([hidden]) ~ #event {
-    top: calc(env(safe-area-inset-top) + 196px);
-  }
-
-  #event:not([hidden]) ~ .feed {
-    max-width: calc(100vw - min(170px, 44vw) - 30px);
-  }
-
-  /* Над стиком: он занимает низ слева на 2r + 64 px. */
-  .party {
-    bottom: calc(env(safe-area-inset-bottom) + 2 * 64px + 72px);
-    width: min(150px, 40vw);
-  }
-}
-
-/*
- * Бургер (M15.5): в доке справа в шапке, в полёте — на месте прежней шестерёнки у миникарты.
- * Сам он виден везде; «нечего переназначать на телефоне» решает menuItems, а не медиазапрос,
- * иначе на телефоне пропал бы и выход.
- */
-.menu-open {
-  border: 1px solid rgba(143, 180, 232, 0.35);
-  border-radius: 8px;
-  background: rgba(10, 14, 24, 0.7);
-  color: #8fa3c4;
-  font: 18px/1 system-ui, sans-serif;
-  cursor: pointer;
-  pointer-events: auto;
-}
-
-.hud-menu {
-  position: absolute;
-  top: calc(env(safe-area-inset-top) + 36px + 128px - 44px - 52px);
-  right: calc(env(safe-area-inset-right) + 10px + 128px + 8px);
-  width: 52px;
-  height: 44px;
-  padding: 0;
-}
-
-.dock-menu {
-  padding: 6px 10px;
-  background: #1d3a60;
-  color: #e6f0ff;
-}
-
-.menu-open[hidden] {
-  display: none;
-}
-
-/* Подложка на весь экран: щелчок мимо карточки закрывает меню. */
-.menu {
-  position: fixed;
-  z-index: 40;
-  inset: 0;
-}
-
-.menu[hidden] {
-  display: none;
-}
-
-.menu-card {
-  position: absolute;
-  display: flex;
-  min-width: 160px;
-  flex-direction: column;
-  overflow: hidden;
-  border: 1px solid rgba(143, 180, 232, 0.35);
-  border-radius: 10px;
-  background: rgba(10, 16, 28, 0.96);
-}
-
-.menu-item {
-  padding: 12px 16px;
-  border: 0;
-  background: none;
-  color: #e6f0ff;
-  font: 15px/1.2 system-ui, sans-serif;
-  text-align: left;
-  cursor: pointer;
-}
-
-.menu-item + .menu-item {
-  border-top: 1px solid #1f3350;
-}
-
-.menu-item:hover {
-  background: #1d3a60;
-}
-
-/* Вопрос «точно?» поверх HUD (M15.5): выход из полёта оставляет корабль в космосе. */
-.confirm {
-  position: absolute;
-  top: 30%;
-  left: 50%;
-  min-width: 260px;
-  max-width: min(360px, calc(100vw - 32px));
-  box-sizing: border-box;
-  padding: 12px 16px;
-  border: 1px solid rgba(143, 180, 232, 0.5);
-  border-radius: 12px;
-  background: rgba(10, 16, 28, 0.94);
-  text-align: center;
-  transform: translateX(-50%);
-  pointer-events: auto;
-}
-
-.confirm[hidden] {
-  display: none;
-}
-
-.confirm-title {
-  font-size: 15px;
-  font-weight: 600;
-}
-
-.confirm-text {
-  margin-top: 4px;
-  color: #9aa4b4;
-  font-size: 13px;
-}
-
-.confirm-buttons {
-  display: flex;
-  justify-content: center;
-  gap: 10px;
-  margin-top: 10px;
-}
-
-.confirm-buttons button {
-  min-width: 100px;
-  padding: 8px 12px;
-  border: 1px solid rgba(143, 180, 232, 0.35);
-  border-radius: 8px;
-  background: #1d3a60;
-  color: #e6f0ff;
-  font: 14px/1 system-ui, sans-serif;
-  cursor: pointer;
-}
-
-.confirm-yes {
-  border-color: rgba(255, 107, 107, 0.6) !important;
-  background: #5a2230 !important;
-}
-
-.controls-card {
-  display: flex;
-  flex-direction: column;
-  width: 100%;
-  max-width: 560px;
-  max-height: 100%;
-  border: 1px solid #1f3350;
-  border-radius: 12px;
-  background: #0b1322;
-  overflow: auto;
-}
-
+/* Окно «Управление» (M10.5). */
 .controls-table {
   display: grid;
-  gap: 4px;
-  padding: 10px 14px;
+  gap: var(--space-1);
+  padding: 10px 16px;
 }
 
 .controls-row {
@@ -2258,38 +1468,27 @@ body {
 }
 
 .controls-action {
-  color: #c9d8ee;
   font-size: 14px;
 }
 
-.controls-key {
-  padding: 6px 8px;
-  border: 1px solid #28446a;
-  border-radius: 6px;
-  background: #13213a;
-  color: #e6f0ff;
-  font: inherit;
-  font-size: 13px;
-  cursor: pointer;
-}
-
 .controls-key[data-empty='true'] {
-  color: #5d7291;
+  color: var(--text-faint);
 }
 
+/* Ждём клавишу — жёлтая кромка: предупреждение, не тревога. */
 .controls-key[data-waiting='true'] {
-  border-color: #ffd166;
-  color: #ffd166;
+  border-color: var(--warn-line);
+  color: var(--warn);
 }
 
 .controls-note {
-  padding: 4px 14px 10px;
-  color: #7f97b8;
+  padding: 4px 16px 10px;
   font-size: 13px;
+  line-height: 18px;
 }
 
 .controls-note[data-warn='true'] {
-  color: #ffb4a8;
+  color: var(--warn);
 }
 
 .controls-note button {
@@ -2299,64 +1498,39 @@ body {
 .controls-foot {
   display: flex;
   justify-content: flex-end;
-  padding: 10px 14px;
-  border-top: 1px solid #1f3350;
+  padding: 10px 16px;
+  border-top: 1px solid var(--line-soft);
 }
 
-.controls-reset,
-.controls-swap,
-.controls-cancel {
-  padding: 6px 12px;
-  border: 0;
-  border-radius: 8px;
-  background: #1d3a60;
-  color: #e6f0ff;
-  font: inherit;
-  font-size: 13px;
-  cursor: pointer;
+/* ---------- Бургер-меню (M15.5) ---------- */
+
+/* Подложка на весь экран: щелчок мимо карточки закрывает меню. Карточка — под кнопкой, координаты ставит menu.ts. */
+.menu {
+  position: fixed;
+  z-index: 40;
+  inset: 0;
 }
 
-/* Регионы галактики (M11): бледная подложка под системами и подпись в её углу. */
-.galaxy-region {
-  opacity: 0.1;
+.menu-card {
+  position: absolute;
+  /* Меню — окно на мгновение: сквозь него не смотрят, поэтому оно плотное, а не стеклянное. */
+  background: var(--bg-window);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
 }
 
-.galaxy-region-name {
-  font-size: 2.6px;
-  opacity: 0.75;
-}
-
-/* Значок тира на строке снаряжения (M11): «Mk2» рядом с названием. */
-.dock-tier {
-  margin-left: 6px;
-  padding: 1px 5px;
-  border-radius: 6px;
-  background: #23406b;
-  color: #cfe3ff;
-  font-size: 11px;
-  font-weight: 600;
-  vertical-align: middle;
-}
-
-/* Чем торгует эта станция — строкой под её именем. */
-.dock-shop-title {
-  display: block;
-  color: #7f97b8;
-  font-size: 12px;
-  font-weight: 400;
-}
+/* ---------- Снижение на планету (M15) ---------- */
 
 /*
- * Снижение на планету (M15): полноэкранный кадр из кабины, который проступает и растворяется,
- * пока за ним открывается экран поселения. Кадр нарисован пока только для земных планет —
- * без него остаётся то же затемнение, и посадка всё равно читается как спуск, а не как стыковка.
+ * Полноэкранный кадр из кабины, который проступает и растворяется, пока за ним открывается экран поселения.
+ * Кадр нарисован пока только для земных планет — без него остаётся то же затемнение.
  */
 .landing {
   position: fixed;
   inset: 0;
   z-index: 60;
   pointer-events: none;
-  background-color: #05080f;
+  background-color: var(--bg-space);
   background-image: var(--landing-art, none);
   background-size: cover;
   background-position: center;
@@ -2385,6 +1559,8 @@ body {
   }
 }
 
+/* ---------- Доступность ---------- */
+
 /* Кому важнее покой, чем спуск: кадр просто мигает и уходит. */
 @media (prefers-reduced-motion: reduce) {
   .landing-run {
@@ -2398,5 +1574,18 @@ body {
     100% {
       opacity: 0;
     }
+  }
+}
+
+/* Слабое устройство или запрос без прозрачности: стекло остаётся читаемым на bg-pane и без размытия. */
+@media (prefers-reduced-transparency: reduce) {
+  .sro-pane,
+  .sro-msg,
+  .sro-fire,
+  .sro-stick,
+  .minimap,
+  .dock-scene-caption {
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
   }
 }

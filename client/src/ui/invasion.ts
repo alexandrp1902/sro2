@@ -127,11 +127,11 @@ export class InvasionHud {
     onTap: () => void,
   ) {
     this.title = document.createElement('div');
-    this.title.className = 'event-title';
+    this.title.className = 'event-title sro-label';
     this.hint = document.createElement('div');
-    this.hint.className = 'event-hint';
+    this.hint.className = 'event-hint sro-num';
     this.results = document.createElement('div');
-    this.results.className = 'event-results';
+    this.results.className = 'event-results sro-num';
     root.append(this.title, this.hint, this.results);
     root.addEventListener('click', onTap);
     root.hidden = true;
@@ -144,13 +144,14 @@ export class InvasionHud {
     this.root.hidden = !lines;
     if (!lines) return;
     this.root.dataset.alert = String(lines.alert);
+    this.root.classList.toggle('sro-pane--alert', lines.alert);
     this.title.textContent = lines.title;
     this.hint.textContent = lines.hint;
     this.results.replaceChildren();
     this.results.hidden = !lines.results?.length;
     for (const r of lines.results ?? []) {
       const row = document.createElement('div');
-      row.className = r.self ? 'event-row event-self' : 'event-row';
+      row.className = r.self ? 'event-row event-self sro-strong' : 'event-row';
       const name = document.createElement('span');
       name.textContent = `${r.place > 0 ? `${r.place}. ` : ''}${r.name}`;
       const numbers = document.createElement('span');

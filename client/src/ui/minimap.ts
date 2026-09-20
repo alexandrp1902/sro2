@@ -3,9 +3,8 @@ import { WORLD_HALF_SIZE } from '../sim/movement';
 
 const RENDER_INTERVAL_MS = 100;
 
+/** Цвета меток — как у маркеров в мире; фон и рамка панели — у CSS (.minimap — стеклянная панель). */
 const COLORS = {
-  background: 'rgba(10, 16, 28, 0.72)',
-  border: 'rgba(143, 180, 232, 0.35)',
   radar: 'rgba(111, 168, 255, 0.10)',
   radarEdge: 'rgba(111, 168, 255, 0.45)',
   station: '#6fa8ff',
@@ -97,15 +96,8 @@ export class Minimap {
     const dpr = size / this.canvas.clientWidth || 1;
 
     ctx.clearRect(0, 0, size, size);
-    ctx.fillStyle = COLORS.background;
-    roundRect(ctx, 0, 0, size, size, 10 * dpr);
-    ctx.fill();
-    ctx.strokeStyle = COLORS.border;
-    ctx.lineWidth = dpr;
-    ctx.stroke();
-
     ctx.save();
-    roundRect(ctx, 0, 0, size, size, 10 * dpr);
+    roundRect(ctx, 0, 0, size, size, 12 * dpr); // тот же радиус, что --radius-md у панели
     ctx.clip();
 
     if (frame.own) {

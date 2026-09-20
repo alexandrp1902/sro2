@@ -57,13 +57,6 @@ export function planetHint(card: PlanetCardState): string {
 
 export type SelectionCardState = LootCardState | StationCardState | GateCardState | PlanetCardState;
 
-/** Зелёный, как круг дока. */
-const STATION_COLOR = 0x6fe08a;
-/** Фиолетовый, как сами врата. */
-const GATE_COLOR = 0xb58cff;
-/** Как подпись планеты в мире. */
-const PLANET_COLOR = 0x9fc7a8;
-
 /** Подсказка под именем врат: что сейчас мешает прыжку. Топлива прыжок не стоит (M15.6). */
 export function gateHint(card: GateCardState): string {
   if (card.charging !== null) return `прыжок через ${Math.ceil(card.charging)} с`;
@@ -147,23 +140,24 @@ export class CargoHud {
             : `station|${card.inRange}`;
     if (key !== this.cardKey) {
       this.cardKey = key;
-      this.distanceEl = row('loot-distance', '');
+      this.distanceEl = row('loot-distance sro-num sro-muted', '');
       this.lootRoot.replaceChildren();
       if (card.kind === 'loot') {
         const item = lootItem(rules!, card.item);
         const count = card.count > 1 ? ` ×${card.count}` : '';
-        this.lootRoot.append(row('loot-name', `${item?.name ?? card.item}${count}`, color(rarityColor(rules!, card.item))));
+        // Редкость — цвет данных, он остаётся; станция, врата и планета зовутся просто сильным текстом.
+        this.lootRoot.append(row('loot-name sro-strong', `${item?.name ?? card.item}${count}`, color(rarityColor(rules!, card.item))));
         this.lootRoot.append(this.distanceEl);
       } else if (card.kind === 'planet') {
         const name = card.settlement ? `Поселение «${card.settlement}»` : `Планета ${card.name}`;
-        this.lootRoot.append(row('loot-name', name, color(PLANET_COLOR)), this.distanceEl);
-        this.lootRoot.append(row('loot-hint', planetHint(card)));
+        this.lootRoot.append(row('loot-name sro-strong', name), this.distanceEl);
+        this.lootRoot.append(row(hintClass(!!card.settlement && card.inRange), planetHint(card)));
       } else if (card.kind === 'gate') {
-        this.lootRoot.append(row('loot-name', `Врата → ${card.name}`, color(GATE_COLOR)), this.distanceEl);
-        this.lootRoot.append(row('loot-hint', gateHint(card)));
+        this.lootRoot.append(row('loot-name sro-strong', `Врата → ${card.name}`), this.distanceEl);
+        this.lootRoot.append(row(hintClass(card.inRange && card.charging === null), gateHint(card)));
       } else {
-        this.lootRoot.append(row('loot-name', 'Станция', color(STATION_COLOR)), this.distanceEl);
-        this.lootRoot.append(row('loot-hint', card.inRange ? 'можно в док' : 'подлетите ближе, чтобы пристыковаться'));
+        this.lootRoot.append(row('loot-name sro-strong', 'Станция'), this.distanceEl);
+        this.lootRoot.append(row(hintClass(card.inRange), card.inRange ? 'можно в док' : 'подлетите ближе, чтобы пристыковаться'));
       }
       this.lootRoot.append(clearButton(this.onClearSelection));
       this.lootRoot.dataset.kind = card.kind;
@@ -191,14 +185,14 @@ export class CargoHud {
 
     const head = document.createElement('div');
     head.className = 'cargo-head';
-    head.append(row('cargo-title', `Трюм ${round(state.used)} / ${round(state.max)}`));
-    head.append(row('cargo-credits', formatCredits(state.credits)));
+    head.append(row('cargo-title sro-label', `Трюм ${round(state.used)} / ${round(state.max)}`));
+    head.append(row('cargo-credits sro-num sro-gain', formatCredits(state.credits)));
     this.root.append(head);
 
     const bar = document.createElement('div');
-    bar.className = 'cargo-bar';
+    bar.className = state.used > state.max ? 'sro-bar sro-bar--thin sro-bar--over' : 'sro-bar sro-bar--thin sro-bar--cargo';
     const fill = document.createElement('div');
-    fill.className = 'cargo-bar-fill';
+    fill.className = 'sro-bar__fill';
     fill.style.width = `${Math.min(100, state.max > 0 ? (state.used / state.max) * 100 : 0)}%`;
     bar.append(fill);
     this.root.append(bar);
@@ -265,10 +259,15 @@ function row(className: string, text: string, textColor?: string): HTMLElement {
   return div;
 }
 
+/** Подсказка карточки: зелёная («ok») только когда цель готова — можно в док, прыгать, садиться. */
+function hintClass(ready: boolean): string {
+  return ready ? 'loot-hint sro-ok' : 'loot-hint sro-muted';
+}
+
 function clearButton(onClear: () => void): HTMLElement {
   const button = document.createElement('button');
   button.type = 'button';
-  button.className = 'loot-clear';
+  button.className = 'loot-clear sro-btn sro-btn--ghost sro-btn--xs';
   button.setAttribute('aria-label', 'Снять выбор');
   button.textContent = '✕';
   button.addEventListener('click', onClear);

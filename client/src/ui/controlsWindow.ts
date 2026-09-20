@@ -80,10 +80,10 @@ export class ControlsWindow {
   }
 
   private render(): void {
-    const card = el('div', 'controls-card');
-    const head = el('div', 'galaxy-head');
-    head.append(el('div', 'galaxy-title', 'Управление'));
-    const close = button('✕', 'galaxy-close', () => this.hide());
+    const card = el('div', 'controls-card sro-pane sro-pane--window');
+    const head = el('div', 'galaxy-head sro-head');
+    head.append(el('div', 'galaxy-title sro-head__title', 'Управление'));
+    const close = button('✕', 'galaxy-close sro-btn sro-btn--icon', () => this.hide());
     close.setAttribute('aria-label', 'Закрыть');
     head.append(close);
     card.append(head);
@@ -96,7 +96,7 @@ export class ControlsWindow {
         const binding = this.keys.bindings[id][slot];
         const waiting = this.capture?.action === id && this.capture.slot === slot;
         const text = waiting ? 'нажмите клавишу…' : binding ? bindingLabel(binding) : '—';
-        const cell = button(text, 'controls-key', () => this.setCapture(waiting ? null : { action: id, slot, pending: null }));
+        const cell = button(text, 'controls-key sro-btn sro-btn--sm', () => this.setCapture(waiting ? null : { action: id, slot, pending: null }));
         cell.dataset.waiting = String(waiting);
         cell.dataset.empty = String(!binding);
         row.append(cell);
@@ -105,7 +105,7 @@ export class ControlsWindow {
     }
     card.append(table);
 
-    const note = el('div', 'controls-note');
+    const note = el('div', 'controls-note sro-muted');
     const pending = this.capture?.pending;
     if (pending && this.capture) {
       const taken = this.keys.conflict(pending, this.capture)!;
@@ -114,11 +114,11 @@ export class ControlsWindow {
       note.append(el('span', '', `«${bindingLabel(pending)}» уже занята: ${takenLabel}. `));
       const capture = this.capture;
       note.append(
-        button('Поменять местами', 'controls-swap', () => {
+        button('Поменять местами', 'controls-swap sro-btn sro-btn--sm', () => {
           this.keys.assign(capture.action, capture.slot, pending);
           this.setCapture(null);
         }),
-        button('Отмена', 'controls-cancel', () => this.setCapture(null)),
+        button('Отмена', 'controls-cancel sro-btn sro-btn--ghost sro-btn--sm', () => this.setCapture(null)),
       );
     } else if (this.capture) {
       note.textContent = 'Нажмите клавишу (можно с Shift). Esc — отмена, Backspace — очистить ячейку.';
@@ -128,7 +128,7 @@ export class ControlsWindow {
     card.append(note);
 
     const foot = el('div', 'controls-foot');
-    foot.append(button('Сбросить по умолчанию', 'controls-reset', () => {
+    foot.append(button('Сбросить по умолчанию', 'controls-reset sro-btn sro-btn--sm', () => {
       this.capture = null;
       this.keys.capturing = false;
       this.keys.reset();

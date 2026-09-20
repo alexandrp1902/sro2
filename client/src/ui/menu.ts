@@ -34,7 +34,7 @@ export class BurgerMenu {
     private readonly onPick: (id: MenuAction) => void,
   ) {
     this.card = document.createElement('div');
-    this.card.className = 'menu-card';
+    this.card.className = 'menu-card sro-pane sro-menu';
     root.append(this.card);
     root.hidden = true;
     // Щелчок мимо карточки закрывает меню — как у окна «Управление» и карты галактики.
@@ -69,7 +69,7 @@ export class BurgerMenu {
     const items = menuItems(coarsePointer()).map((item) => {
       const button = document.createElement('button');
       button.type = 'button';
-      button.className = 'menu-item';
+      button.className = 'menu-item sro-menu__item';
       button.textContent = item.label;
       button.addEventListener('click', () => {
         button.blur();

@@ -14,43 +14,62 @@
   <body class="sro-root">
     <div id="game"></div>
 
+    <!--
+      HUD (SRO Steel): статус и строка полёта — в верхнем ряду, дальше три колонки. Панели внутри колонки
+      стоят потоком друг под другом, поэтому высоты никто не считает: спряталась одна — остальные поднимаются.
+      Скрипты ищут узлы по id, обёртки для них невидимы.
+    -->
     <div id="hud">
-      <div id="status" class="status" data-state="offline">…</div>
-      <div id="flight" class="flight">…</div>
-      <canvas id="minimap" class="minimap" aria-label="Миникарта: тап — карта галактики" hidden></canvas>
-      <button id="pvp" class="pvp-toggle" type="button" data-on="false" aria-pressed="false" hidden>PvP<small>выкл</small></button>
-      <button id="menu-open" class="menu-open hud-menu" type="button" title="Меню" aria-label="Меню" hidden>☰</button>
-      <div id="objective" class="objective" hidden></div>
-      <div id="event" class="event" hidden></div>
-      <div id="ship" class="ship-hud" hidden></div>
-      <div id="cargo" class="cargo" data-open="false" hidden></div>
-      <div id="party" class="party" hidden></div>
-      <div id="target" class="target" hidden></div>
-      <div id="invite" class="invite" hidden></div>
-      <div id="confirm" class="confirm" hidden></div>
-      <div id="loot" class="loot-card" hidden></div>
-      <div id="feed" class="feed"></div>
-      <div id="dev" class="dev" hidden></div>
-      <div id="death" class="death" hidden></div>
+      <div id="status" class="status sro-pane sro-pane--pill" data-state="offline">…</div>
+      <div id="flight" class="flight sro-pane sro-pane--pill sro-num">…</div>
+
+      <div class="hud-left">
+        <div id="ship" class="ship-hud sro-pane" hidden></div>
+        <div id="cargo" class="cargo sro-pane" data-open="false" hidden></div>
+        <!-- Центр живёт в левой колонке: на ПК он fixed посередине экрана, на телефоне течёт под трюмом. -->
+        <div class="hud-centre">
+          <div id="target" class="target sro-pane sro-target" hidden></div>
+          <div id="feed" class="feed"></div>
+          <div id="loot" class="loot-card sro-pane sro-pane--pill" hidden></div>
+        </div>
+      </div>
+
+      <div class="hud-right">
+        <div class="hud-corner">
+          <div class="hud-corner-buttons">
+            <button id="menu-open" class="menu-open hud-menu sro-btn sro-btn--icon" type="button" title="Меню" aria-label="Меню" hidden>☰</button>
+            <button id="pvp" class="pvp-toggle sro-btn sro-btn--icon" type="button" data-on="false" aria-pressed="false" hidden>PvP<small>выкл</small></button>
+          </div>
+          <canvas id="minimap" class="minimap" aria-label="Миникарта: тап — карта галактики" hidden></canvas>
+        </div>
+        <div id="objective" class="objective sro-pane" hidden></div>
+        <div id="event" class="event sro-pane" hidden></div>
+        <div id="dev" class="dev" hidden></div>
+      </div>
+
+      <div id="party" class="party sro-pane" hidden></div>
+      <div id="invite" class="invite sro-pane sro-dialog" hidden></div>
+      <div id="confirm" class="confirm sro-pane sro-dialog" hidden></div>
+      <div id="death" class="death sro-pane sro-pane--alert" hidden></div>
     </div>
 
     <div id="stick" class="stick" hidden>
-      <div class="stick-base">
+      <div class="stick-base sro-stick">
         <div class="stick-dead"></div>
-        <div class="stick-handle"></div>
+        <div class="stick-handle sro-stick__handle"></div>
       </div>
     </div>
 
     <div id="combat-pad" class="combat-pad" hidden>
-      <button id="target-prev" class="target-step" type="button" aria-label="Предыдущая цель">
+      <button id="target-prev" class="target-step sro-btn sro-btn--ghost" type="button" aria-label="Предыдущая цель">
         <svg viewBox="0 0 40 34" aria-hidden="true"><polyline points="27,3 13,17 27,31" /></svg>
       </button>
-      <div id="fire" class="fire" role="button" aria-pressed="false" data-aim="none" data-active="false">
+      <div id="fire" class="fire sro-fire" role="button" aria-pressed="false" data-aim="none" data-active="false">
         <div class="fire-ring"></div>
-        <span class="fire-label">ОГОНЬ</span>
-        <span class="fire-state">выкл</span>
+        <span class="fire-label sro-fire__label">ОГОНЬ</span>
+        <span class="fire-state sro-fire__state">выкл</span>
       </div>
-      <button id="target-next" class="target-step" type="button" aria-label="Следующая цель">
+      <button id="target-next" class="target-step sro-btn sro-btn--ghost" type="button" aria-label="Следующая цель">
         <svg viewBox="0 0 40 34" aria-hidden="true"><polyline points="13,3 27,17 13,31" /></svg>
       </button>
     </div>
@@ -66,12 +85,13 @@
 
     <div id="connect" class="connect" hidden>
       <!-- onsubmit: пока скрипт не загрузился (или упал), браузер не должен уводить ник и пароль в адрес страницы. -->
-      <form class="connect-card" onsubmit="return false">
-        <div class="connect-title">Пилот</div>
-        <div class="connect-hint">Новый ник с паролем заводит аккаунт. Тот же ник и пароль — на любом устройстве.</div>
-        <label class="connect-label" for="pilot-name">Ник</label>
+      <form class="connect-card sro-pane sro-pane--window" onsubmit="return false">
+        <div class="connect-title title-dialog">Пилот</div>
+        <div class="connect-hint sro-muted">Новый ник с паролем заводит аккаунт. Тот же ник и пароль — на любом устройстве.</div>
+        <label class="connect-label sro-field" for="pilot-name">Ник</label>
         <input
           id="pilot-name"
+          class="sro-input"
           name="name"
           type="text"
           maxlength="16"
@@ -79,13 +99,14 @@
           autocapitalize="off"
           spellcheck="false"
         />
-        <label class="connect-label" for="pilot-password">Пароль</label>
-        <input id="pilot-password" name="password" type="password" maxlength="64" autocomplete="current-password" />
+        <label class="connect-label sro-field" for="pilot-password">Пароль</label>
+        <input id="pilot-password" class="sro-input" name="password" type="password" maxlength="64" autocomplete="current-password" />
         <!-- Карточки пути (M15.5): видны, только когда ник свободен, — то есть когда заводится аккаунт. -->
         <div class="connect-careers" hidden></div>
-        <label class="connect-label" for="pilot-server">Игровой сервер</label>
+        <label class="connect-label sro-field" for="pilot-server">Игровой сервер</label>
         <input
           id="pilot-server"
+          class="sro-input"
           name="server"
           type="text"
           inputmode="url"
@@ -94,11 +115,11 @@
           spellcheck="false"
           placeholder="abc-def.trycloudflare.com"
         />
-        <div class="connect-error"></div>
+        <div class="connect-error sro-warn"></div>
         <div class="connect-actions">
-          <button type="button" class="connect-logout" hidden>Выйти</button>
-          <button type="button" class="connect-cancel">Отмена</button>
-          <button type="submit">Войти</button>
+          <button type="button" class="connect-logout sro-btn sro-btn--danger" hidden>Выйти</button>
+          <button type="button" class="connect-cancel sro-btn">Отмена</button>
+          <button type="submit" class="sro-btn sro-btn--primary">Войти</button>
         </div>
       </form>
     </div>
