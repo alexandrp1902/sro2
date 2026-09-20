@@ -130,8 +130,16 @@ public sealed record ReputationRules(
         return value > 0 ? Math.Max(0, value - step) : Math.Min(0, value + step);
     }
 
-    /// <summary>Цена с учётом отношения; округляется как в магазине, чтобы дока и сервер сошлись до кредита.</summary>
-    public int Price(int basePrice, double value) => ShopRules.Round(basePrice * Level(value).Price);
+    /// <summary>
+    /// Цена с учётом отношения; округляется как в магазине, чтобы дока и сервер сошлись до кредита.
+    /// Множитель ровно 1 (нейтрал, шкалы нет) возвращает цену как есть: округление — часть скидки,
+    /// а не бесплатная добавка, иначе ремонт за 101 кр стоил бы 100 и без всякой репутации.
+    /// </summary>
+    public int Price(int basePrice, double value)
+    {
+        var mul = Level(value).Price;
+        return mul == 1 ? basePrice : ShopRules.Round(basePrice * mul);
+    }
 
     /// <summary>Продаётся ли это только своим: старший тир снаряжения или корпус из списка.</summary>
     public bool Gated(string id, bool hull)

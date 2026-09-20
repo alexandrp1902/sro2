@@ -17,9 +17,11 @@ public sealed partial class Room
     {
         if (victim is not Pirate { Type.IsPirate: true } pirate)
         {
+            NoteKillRep(killer, victim);
             CountKill(killer, victim);
             return;
         }
+        var events = Balance.Reputation.Event;
         var team = Team(killer, pirate);
         var share = Balance.Party.Share(Balance.Npc.Bounty(pirate.Type, pirate.Level), team.Count);
         foreach (var member in team)
@@ -32,6 +34,34 @@ public sealed partial class Room
                 member.Connection?.Send(new BountyMsg(share, team.Count, pirate.Name));
             }
             CountKill(member, pirate);
+            // Голова пирата красит пилота в глазах системы — но мало и с потолком за час:
+            // исправлять репутацию надо делом, а не отстрелом ближайшего логова.
+            AddSystemRep(member, events.PirateKill, Protocol.RepPirate, events.PirateHourly);
+        }
+    }
+
+    /// <summary>
+    /// Кого пилот сбил, кроме пирата. Торговец и рейнджер — это преступление в глазах властей;
+    /// игрок — только там, где драка не разрешена системой.
+    /// </summary>
+    private void NoteKillRep(Player killer, ShipEntity? victim)
+    {
+        var events = Balance.Reputation.Event;
+        switch (victim)
+        {
+            case Trader trader:
+                AddSystemRep(killer, events.TraderKill, Protocol.RepTraderKill);
+                // И той станции, что ждала груз: конвой до неё не дошёл.
+                if (trader.Destination(SystemId) is { } destination && Balance.Galaxy.System(destination) is { Station: true })
+                    AddRep(killer, Reputation.Station(destination), events.TraderPlace, Protocol.RepTraderKill);
+                break;
+            case Pirate { Type.IsRanger: true }:
+                AddSystemRep(killer, events.RangerKill, Protocol.RepRangerKill);
+                break;
+            // В free-системах драка согласованная: там за убийство игрока не спрашивают.
+            case Player when Balance.SystemDef.Pvp != GalaxyRules.PvpFree:
+                AddSystemRep(killer, events.PlayerKill, Protocol.RepPlayerKill);
+                break;
         }
     }
 

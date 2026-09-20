@@ -157,6 +157,7 @@ public sealed record PvpMsg(bool On) : ClientMessage;
 [JsonDerivedType(typeof(BountyMsg), "bounty")]
 [JsonDerivedType(typeof(InvasionMsg), "invasion")]
 [JsonDerivedType(typeof(MarketMsg), "market")]
+[JsonDerivedType(typeof(RepMsg), "rep")]
 public abstract record ServerMessage;
 
 /// <param name="Id">Id своего корабля в снапшотах.</param>
@@ -191,7 +192,8 @@ public sealed record WelcomeMsg(
     SystemDto? System = null,
     GalaxyDto? Galaxy = null,
     IReadOnlyDictionary<string, ModuleParams>? Modules = null,
-    MarketRules? Market = null) : ServerMessage;
+    MarketRules? Market = null,
+    ReputationRules? Reputation = null) : ServerMessage;
 
 /// <summary>Врата в системе: куда ведут, как называется та система и сколько топлива стоит прыжок.</summary>
 public sealed record GateDto(string To, string Name, double X, double Y, int Cost);
@@ -281,7 +283,8 @@ public sealed record ConfigMsg(
     SystemDto? System = null,
     GalaxyDto? Galaxy = null,
     IReadOnlyDictionary<string, ModuleParams>? Modules = null,
-    MarketRules? Market = null) : ServerMessage;
+    MarketRules? Market = null,
+    ReputationRules? Reputation = null) : ServerMessage;
 
 /// <summary>Вход принят. Приходит раньше <see cref="WelcomeMsg"/>.</summary>
 /// <param name="Name">Ник аккаунта так, как он записан на сервере.</param>
@@ -376,6 +379,47 @@ public sealed record MarketMsg(
     string System,
     IReadOnlyList<MarketItemDto> Items,
     IReadOnlyList<RumourDto>? Rumours = null) : ServerMessage;
+
+/// <summary>Отношение к пилоту здесь и сейчас (M13); null — в этой системе станции нет.</summary>
+/// <param name="Place">Ключ станции, например «st:vega».</param>
+/// <param name="Value">Очки станции.</param>
+/// <param name="Level">Ступень станции: по ней идёт скидка или наценка на снаряжение и ремонт.</param>
+/// <param name="Gate">
+/// Ступень, по которой решают, что выложить на витрину: лучшее из станции и среднего по региону.
+/// Считает сервер — клиенту незачем повторять региональную арифметику, разойтись в ней проще, чем сойтись.
+/// </param>
+/// <param name="System">Очки системы.</param>
+/// <param name="SystemLevel">Ступень системы: по ней закрывается док и звереют рейнджеры.</param>
+/// <param name="Region">Среднее по региону, округлённое.</param>
+public sealed record RepHereDto(
+    string Place,
+    int Value,
+    string Level,
+    string Gate,
+    int System,
+    string SystemLevel,
+    int Region);
+
+/// <summary>Одна строка журнала: «−15 Vega: атака торговца». Текст собирает клиент по Code (M13).</summary>
+/// <param name="Code">Повод: <see cref="Protocol.RepTraderKill"/> и соседние.</param>
+/// <param name="Delta">На сколько изменилось; 0 сюда не попадает.</param>
+/// <param name="Key">Чьё отношение: «sys:vega» или «st:vega».</param>
+/// <param name="Value">Сколько стало.</param>
+public sealed record RepChangeDto(string Code, int Delta, string Key, int Value);
+
+/// <summary>
+/// Репутация пилота (M13) — только своему соединению: она у игрока, а не у системы. Отдельным сообщением,
+/// а не полем ангара: цвет систем на карте и предупреждение «Враг» нужны и в полёте, а ангар шлётся
+/// только по событиям дока.
+/// </summary>
+/// <param name="Systems">Очки по системам; только ненулевые — из них красится карта галактики.</param>
+/// <param name="Places">Очки по станциям; только ненулевые.</param>
+/// <param name="Change">Что только что изменилось; null — это полное состояние без повода.</param>
+public sealed record RepMsg(
+    IReadOnlyDictionary<string, int> Systems,
+    IReadOnlyDictionary<string, int> Places,
+    RepHereDto? Here = null,
+    RepChangeDto? Change = null) : ServerMessage;
 
 /// <summary>Текущий шаг обучения (GDD §54).</summary>
 /// <param name="Step">Номер шага с нуля.</param>
@@ -558,10 +602,10 @@ public static class Protocol
     /// 10 — звезда, орбиты и налёты; 11 — задания и обучение, M8; 12 — слоты, модули, ракеты, торговцы, M9; 13 — SOS торговцев;
     /// 14 — группы, награда за голову и вторжения, M10;
     /// 15 — переключатель PvP; 16 — регионы, тиры Mk1–Mk3, utility-слоты, новое оружие и замедление, M11;
-    /// 17 — рынок товаров, покупка груза, живые цены, M12).
+    /// 17 — рынок товаров, покупка груза, живые цены, M12; 18 — репутация систем и станций, M13).
     /// Зеркало PROTOCOL_VERSION в client/src/net/protocol.ts.
     /// </summary>
-    public const int Version = 17;
+    public const int Version = 18;
 
     public const string DroneKind = "drone";
     public const string PirateKind = "pirate";
@@ -594,6 +638,22 @@ public static class Protocol
     public const string NoGoodsNotice = "noGoods";
     /// <summary>На складе станции столько нет (M12).</summary>
     public const string NoStockNotice = "noStock";
+    /// <summary>Док закрыт: в этой системе пилота считают врагом (M13).</summary>
+    public const string DockClosedNotice = "dockClosed";
+    /// <summary>Это продают только своим — не хватает репутации места (M13).</summary>
+    public const string NeedRepNotice = "needRep";
+
+    /// <summary>За что начислена или снята репутация (<see cref="RepChangeDto.Code"/>; M13).</summary>
+    public const string RepMissionDone = "missionDone";
+    public const string RepMissionAbandon = "missionAbandon";
+    public const string RepPirate = "pirate";
+    public const string RepSos = "sos";
+    public const string RepInvasion = "invasion";
+    public const string RepTraderAttack = "traderAttack";
+    public const string RepTraderKill = "traderKill";
+    public const string RepRangerAttack = "rangerAttack";
+    public const string RepRangerKill = "rangerKill";
+    public const string RepPlayerKill = "playerKill";
 
     /// <summary>Состояния SOS торговца (<see cref="SosMsg.State"/>).</summary>
     public const string SosOn = "on";

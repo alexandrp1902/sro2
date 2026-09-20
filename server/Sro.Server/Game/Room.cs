@@ -73,6 +73,9 @@ public sealed partial class Room
     private long _nextTraderTick;
     /// <summary>Торговцы этого баланса вместе с их типом — тоже по тексту.</summary>
     private string _tradersJson = "";
+    /// <summary>Игроки — враги властей этой системы: рейнджеры идут на них, пираты не трогают (M13).</summary>
+    private readonly HashSet<int> _outlaws = [];
+
     /// <summary>Кто напал на торговца — id корабля и до какого тика рейнджеры идут на него (<see cref="OffenderTicks"/>).</summary>
     private readonly Dictionary<int, long> _offenders = [];
     private readonly List<int> _forgiven = [];
@@ -270,6 +273,8 @@ public sealed partial class Room
         player.Missions.Active = profile?.Mission;
         player.Missions.Seed = profile?.MissionSeed ?? Random.Shared.Next();
         player.Cargo.Reserved = Reserve(player.Missions.Active);
+        // Репутация тает по часам: распад за время отсутствия применяется прямо здесь, на входе.
+        player.Rep.Load(profile?.Reputation, profile?.RepAt, NowSeconds, Balance.Reputation);
         Enter(player, connection);
         if (profile is null || profile.Fit is null) Save(player);
     }
@@ -314,6 +319,7 @@ public sealed partial class Room
         SendCargo(player); // трюм пуст, но клиенту нужна ёмкость корпуса
         SendHangar(player);
         SendMissions(player);
+        SendRep(player);
         _log.LogInformation("Player {Id} '{Name}' joined as {Hull}, online {Count}", player.Id, player.Name, player.HullId, OnlineCount);
     }
 
@@ -334,6 +340,7 @@ public sealed partial class Room
         SendCargo(player); // иначе вернувшийся видел бы пустой трюм до первого подбора
         SendHangar(player); // в том числе — что корабль всё ещё в доке
         SendMissions(player);
+        SendRep(player);
         _log.LogInformation("Player {Id} '{Name}' resumed, online {Count}", player.Id, player.Name, OnlineCount);
     }
 
@@ -388,6 +395,7 @@ public sealed partial class Room
             connection.Send(Welcome(player, resumed: true));
             SendCargo(player);
             SendHangar(player);
+            SendRep(player); // «здесь» — уже другая система
         }
         // Доска — уже этой системы. Прыжок — шаг обучения; засчитывается после welcome, чтобы строка в ленте
         // пришла уже в новую систему.
@@ -729,7 +737,7 @@ public sealed partial class Room
 
         var message = Protocol.Encode(new ConfigMsg(
             balance.Hulls, balance.Weapons, balance.Rules, balance.Npc, balance.Loot, balance.Meteors, balance.Shop,
-            SystemInfo(), GalaxyInfo(balance.Galaxy), balance.Modules, balance.MarketSet));
+            SystemInfo(), GalaxyInfo(balance.Galaxy), balance.Modules, balance.MarketSet, balance.ReputationSet));
         foreach (var player in _players.Values)
         {
             player.Connection?.SendRaw(message);
@@ -737,6 +745,8 @@ public sealed partial class Room
             SendHangar(player); // корпус, пушку или модуль могли убрать из баланса
             SendMissions(player); // шаги обучения и шаблоны доски
             if (player.Docked) SendMarket(player); // цены станции могли поехать вместе с профилем
+            player.Rep.Scrub(balance.Galaxy); // системы могли пропасть из галактики — их очки больше ни к чему
+            SendRep(player); // ступени, цены и гейт могли уехать вместе с reputation.json
         }
 
         if (!old.Rules.DroneList.SequenceEqual(balance.Rules.DroneList))
@@ -765,9 +775,17 @@ public sealed partial class Room
         foreach (var pirate in _pirates)
         {
             if (pirate.IsDead) continue;
+            // До Think: он сбрасывает LastAttackerId, взяв обидчика на прицел, и выстрел остался бы незамеченным.
+            // Заодно чинится старая дырка: раньше стрелявший по рейнджеру не становился нарушителем для остальных.
+            if (pirate.Type.IsRanger && pirate.LastAttackerId != 0)
+                Offend(pirate.LastAttackerId, Balance.Reputation.Event.RangerAttack, Protocol.RepRangerAttack);
             Scavenge(pirate);
             var before = pirate.TargetId;
-            PirateBrain.Think(pirate, _ships, _pirates, Balance, Tick, _ai, _log, StationPosition, _offenders);
+            var chasing = pirate.TargetId;
+            PirateBrain.Think(pirate, _ships, _pirates, Balance, Tick, _ai, _log, StationPosition, _offenders, _outlaws);
+            // Пират, уже сидевший на хвосте у врага властей, отпускает его: иначе бой тянулся бы до поводка.
+            if (!pirate.Type.IsRanger && chasing != 0 && _outlaws.Contains(chasing) && pirate.TargetId == chasing)
+                pirate.TargetId = 0;
             if (pirate.Type.IsRanger && pirate.State == PirateState.Attack && pirate.TargetId != before &&
                 _ships.GetValueOrDefault(pirate.TargetId) is Player { Connection: { } connection } && _offenders.ContainsKey(pirate.TargetId))
                 connection.Send(new NoticeMsg(Protocol.RangersNotice));
@@ -784,7 +802,7 @@ public sealed partial class Room
                 // Напавший на торговца — обидчик: рейнджеры системы идут на него. А торговец зовёт на помощь.
                 if (trader.LastAttackerId != 0)
                 {
-                    _offenders[trader.LastAttackerId] = Tick + OffenderTicks;
+                    Offend(trader.LastAttackerId, Balance.Reputation.Event.TraderAttack, Protocol.RepTraderAttack);
                     Distress(trader, trader.LastAttackerId, traders);
                 }
                 TraderBrain.Think(
@@ -1113,9 +1131,32 @@ public sealed partial class Room
         return (radius * Math.Cos(angle), radius * Math.Sin(angle));
     }
 
-    /// <summary>Обидчики, которых рейнджеры уже забыли, и корабли, которых больше нет в системе.</summary>
+    /// <summary>
+    /// Отметить нарушителя: рейнджеры идут на него <see cref="OffenderTicks"/>. Репутация снимается только
+    /// при переходе «не был нарушителем → стал»: пока метка держится, очередное попадание — то же нападение,
+    /// а не новое, иначе очки капали бы каждый тик, пока палец на гашетке.
+    /// </summary>
+    private void Offend(int id, double delta, string code)
+    {
+        var fresh = !_offenders.ContainsKey(id);
+        _offenders[id] = Tick + OffenderTicks;
+        if (fresh && _players.GetValueOrDefault(id) is { } player) AddSystemRep(player, delta, code);
+    }
+
+    /// <summary>
+    /// Обидчики, которых рейнджеры уже забыли, и корабли, которых больше нет в системе.
+    /// Врага системы прощать нечего: он остаётся в реестре, пока не исправит репутацию, — так вся
+    /// цепочка агро рейнджеров работает без единой правки в их ИИ.
+    /// </summary>
     private void ForgiveOffenders()
     {
+        _outlaws.Clear();
+        foreach (var player in _players.Values)
+        {
+            if (player.IsDead || player.Docked || !IsEnemy(player)) continue;
+            _outlaws.Add(player.Id);
+            _offenders[player.Id] = Tick + OffenderTicks;
+        }
         if (_offenders.Count == 0) return;
         _forgiven.Clear();
         foreach (var (id, until) in _offenders) if (Tick >= until || !_ships.ContainsKey(id)) _forgiven.Add(id);
@@ -1153,11 +1194,12 @@ public sealed partial class Room
     private void SpawnTrader(TraderRules rules, bool midway)
     {
         if (!Balance.Npc.TypeMap.TryGetValue(rules.Type, out var type)) return;
-        var stops = new List<(double X, double Y, bool Station)>();
+        // To — система за вратами: по ней репутация знает, кого подвели, если конвой не дошёл (M13).
+        var stops = new List<(double X, double Y, bool Station, string? To)>();
         if (Balance.HasStation)
         {
             var (sx, sy) = Balance.StationPath.ToWorld(OrbitSeconds, SimConfig.SpawnX, SimConfig.SpawnY);
-            stops.Add((sx, sy, true));
+            stops.Add((sx, sy, true, null));
         }
         var arrival = Balance.Galaxy.ArrivalOffset;
         foreach (var gate in Balance.SystemDef.GateList)
@@ -1165,7 +1207,7 @@ public sealed partial class Room
             // Из врат — чуть ближе к центру, как игрок после прыжка.
             var r = Math.Sqrt(gate.X * gate.X + gate.Y * gate.Y);
             var k = r > arrival ? (r - arrival) / r : 1;
-            stops.Add((gate.X * k, gate.Y * k, false));
+            stops.Add((gate.X * k, gate.Y * k, false, gate.To));
         }
         if (stops.Count < 2) return;
 
@@ -1187,6 +1229,7 @@ public sealed partial class Room
             ToStation = to.Station,
             DestX = to.X,
             DestY = to.Y,
+            Gate = to.To,
         };
         trader.Ship = new ShipState { X = x, Y = y, Rot = Math.Atan2(to.X - x, -(to.Y - y)) };
         trader.Revive(trader.Effective(Balance), 0);
@@ -1279,6 +1322,7 @@ public sealed partial class Room
                 player.Credits += paid;
                 SendCargo(player);
                 Save(player);
+                AddSystemRep(player, Balance.Reputation.Event.SosHelp, Protocol.RepSos);
             }
             player.Connection?.Send(new SosMsg(
                 trader.Id, trader.Name, trader.Ship.X, trader.Ship.Y, saved ? Protocol.SosSaved : Protocol.SosLost, paid));
@@ -1447,7 +1491,7 @@ public sealed partial class Room
     private WelcomeMsg Welcome(Player player, bool resumed) =>
         new(player.Id, SimConfig.TickRate, Protocol.Version, Hulls, Balance.Weapons, Balance.Rules, resumed,
             Balance.Npc, Balance.Loot, Balance.Meteors, Balance.Shop, SystemInfo(), GalaxyInfo(Balance.Galaxy), Balance.Modules,
-            Balance.MarketSet);
+            Balance.MarketSet, Balance.ReputationSet);
 
     /// <summary>Эта система для клиента: небо, станция, укрытие, врата с именами соседей и ценой прыжка.</summary>
     private SystemDto SystemInfo()
@@ -1634,6 +1678,12 @@ public sealed partial class Room
                 connection.Send(new NoticeMsg(Protocol.TooFarNotice));
                 return;
             }
+            // Врагу станция не открывает шлюз: ни торговли, ни ремонта, ни заданий, пока не исправится.
+            if (IsEnemy(player))
+            {
+                connection.Send(new NoticeMsg(Protocol.DockClosedNotice));
+                return;
+            }
             player.Docked = true;
             player.DockOffset = Balance.StationPath.ToLocal(OrbitSeconds, player.Ship.X, player.Ship.Y);
             player.Ship.Vx = player.Ship.Vy = 0;
@@ -1649,6 +1699,7 @@ public sealed partial class Room
             // Груз доставки сдаётся сам, стоит пристыковаться к нужной станции.
             MakeRumours(player); // что здесь рассказывают — услышано один раз, на входе
             SendMarket(player); // цены станции нужны сразу: с ними открывается вкладка рынка
+            SendRep(player); // и отношение: от него цены на витрине и что вообще выложат
             if (player.Missions.Active?.Offer is { Kind: MissionRules.DeliverKind } deliver && deliver.System == SystemId)
                 Complete(player);
         }
@@ -1682,13 +1733,22 @@ public sealed partial class Room
             Protocol.ItemKind when IsItem(id) => shop.SellsItem(id) ? shop.ItemPrice(id) : null,
             _ => null,
         };
-        if (price is not { } cost)
+        if (price is not { } listed)
         {
             // Здесь этого нет: за крейсером и Mk3 надо лететь на Рубеж (M11).
             if (kind == Protocol.HullItem ? Hulls.ContainsKey(id) && !player.OwnsHull(id) : IsItem(id))
                 connection.Send(new NoticeMsg(Protocol.NotSoldNotice));
             return;
         }
+        // Товар на витрине есть, но не для всякого: Mk3 и топовые корпуса продают только своим (M13).
+        var rep = Balance.Reputation;
+        if (!rep.Allows(GateRep(player), id, hull: kind == Protocol.HullItem))
+        {
+            connection.Send(new NoticeMsg(Protocol.NeedRepNotice));
+            return;
+        }
+        // Цена — по станции: сюда регион не вмешивается, иначе штраф растворялся бы в среднем по соседям.
+        var cost = rep.Price(listed, PlaceRep(player));
         if (kind == Protocol.ItemKind)
         {
             if (slot is null)
@@ -1750,7 +1810,9 @@ public sealed partial class Room
         var maxHp = player.MaxHp(hull);
         var maxShield = player.MaxShield(hull);
         if (player.Hp >= maxHp && player.Shield >= maxShield) return;
-        var cost = Balance.Shop.RepairCost(maxHp - player.Hp, maxHp, Balance.Shop.HullPrice(player.HullId) ?? 0);
+        var cost = Balance.Reputation.Price(
+            Balance.Shop.RepairCost(maxHp - player.Hp, maxHp, Balance.Shop.HullPrice(player.HullId) ?? 0),
+            PlaceRep(player));
         if (player.Credits < cost)
         {
             connection.Send(new NoticeMsg(Protocol.NoCreditsNotice));
@@ -1826,8 +1888,21 @@ public sealed partial class Room
             player.Missions.Active,
             player.Missions.Seed,
             player.Fit,
-            new SortedDictionary<string, int>(player.Storage, StringComparer.Ordinal)));
+            new SortedDictionary<string, int>(player.Storage, StringComparer.Ordinal),
+            SaveRep(player),
+            player.Rep.At));
     }
+
+    /// <summary>Очки в профиль: сперва догоняем их до «сейчас», иначе на диск уехало бы вчерашнее число.</summary>
+    private Dictionary<string, double>? SaveRep(Player player)
+    {
+        player.Rep.Touch(NowSeconds, Balance.Reputation);
+        var values = player.Rep.Values;
+        return values.Count == 0 ? null : new Dictionary<string, double>(values, StringComparer.Ordinal);
+    }
+
+    /// <summary>Часы для репутации: она тает по реальному времени, а не по тикам комнаты.</summary>
+    private static long NowSeconds => (long)Now();
 
     /// <summary>
     /// Задания (GDD §36): взять с доски и сдать «собрать» — в доке, бросить — где угодно; пропустить обучение (§54).
@@ -1866,10 +1941,14 @@ public sealed partial class Room
                 break;
             }
             case Protocol.AbandonMission:
-                if (log.Active is null) return;
+            {
+                if (log.Active is not { } dropped) return;
                 log.Active = null;
                 player.Cargo.Reserved = 0;
+                // Бьёт по станции, выдавшей задание, а не по той, где пилот сейчас: бросил — подвёл заказчика.
+                AddRep(player, Reputation.Station(dropped.Offer.From), Balance.Reputation.Event.MissionAbandon, Protocol.RepMissionAbandon);
                 break;
+            }
             case Protocol.CompleteMission:
             {
                 if (log.Active?.Offer is not { Kind: MissionRules.CollectKind, Item: { } item } collect) return;
@@ -1944,6 +2023,10 @@ public sealed partial class Room
         SendCargo(player);
         SendMissions(player, new MissionDoneDto(Protocol.MissionDone, active.Offer.Reward, Mission: active.Offer));
         Save(player);
+        // Станции, выдавшей задание, — много; её системе — мало: система в основном штрафная шкала.
+        var events = Balance.Reputation.Event;
+        AddRep(player, Reputation.Station(active.Offer.From), events.MissionPlace, Protocol.RepMissionDone);
+        AddRep(player, Reputation.System(active.Offer.From), events.MissionSystem, Protocol.RepMissionDone);
         _log.LogInformation(
             "Player {Id} completed a {Kind} mission for {Reward} credits", player.Id, active.Offer.Kind, active.Offer.Reward);
     }
@@ -1959,8 +2042,17 @@ public sealed partial class Room
         active?.Offer is { Kind: MissionRules.DeliverKind } deliver ? deliver.Count : 0;
 
     /// <summary>Доска станции этой системы для пилота; без станции — пусто.</summary>
-    private IReadOnlyList<MissionOffer> Board(Player player) =>
-        Balance.HasStation ? Balance.Missions.Board(Balance, SystemId, player.Missions.Seed) : [];
+    private IReadOnlyList<MissionOffer> Board(Player player)
+    {
+        if (!Balance.HasStation) return [];
+        var rep = Balance.Reputation;
+        if (!rep.Any) return Balance.Missions.Board(Balance, SystemId, player.Missions.Seed);
+        // Магазин и доска смотрят на одни и те же очки: имя, заработанное в регионе, открывает и работу.
+        // Доска — дело станции: ей решать, сколько работы доверить и давать ли особый контракт.
+        var here = PlaceRep(player);
+        return Balance.Missions.Board(
+            Balance, SystemId, player.Missions.Seed, rep.Offers(here, Balance.Missions.Offers), rep.Elite(here), rep.EliteReward);
+    }
 
     /// <summary>Обучение и задания — личное дело пилота, как и трюм.</summary>
     private void SendMissions(Player player, MissionDoneDto? done = null)

@@ -17,6 +17,11 @@ namespace Sro.Server.Accounts;
 /// <param name="MissionSeed">Сид доски заданий; null — любой.</param>
 /// <param name="Fit">Оснащение корабля: пушки по слотам и модули; null — профиль старше M9.</param>
 /// <param name="Storage">Склад: пушки и модули, которые не стоят; null — пуст (или профиль старше M9).</param>
+/// <param name="Reputation">Очки по системам и станциям (M13); null — профиль старше M13, репутация нулевая.</param>
+/// <param name="RepAt">
+/// Когда репутацию в последний раз приводили к текущему времени, unix-секунды. Она тает по часам, а не по
+/// тикам, поэтому без этой отметки пропущенное время было бы не из чего посчитать.
+/// </param>
 public sealed record AccountProfile(
     int Credits,
     string Hull,
@@ -30,4 +35,6 @@ public sealed record AccountProfile(
     Sro.Sim.ActiveMission? Mission = null,
     int? MissionSeed = null,
     Sro.Sim.ShipFit? Fit = null,
-    IReadOnlyDictionary<string, int>? Storage = null);
+    IReadOnlyDictionary<string, int>? Storage = null,
+    IReadOnlyDictionary<string, double>? Reputation = null,
+    long? RepAt = null);

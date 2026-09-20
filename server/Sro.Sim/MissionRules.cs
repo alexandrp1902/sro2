@@ -41,7 +41,9 @@ public sealed record MissionOffer(
     string? Item,
     int Count,
     int Reward,
-    string From);
+    string From,
+    /// <summary>Особый контракт доски: даётся только друзьям станции и платит больше обычного (M13).</summary>
+    bool Elite = false);
 
 /// <summary>Взятое задание: что и сколько уже сделано. Хранится в аккаунте пилота.</summary>
 /// <param name="Progress">Kill — сколько уничтожено; у collect и deliver не растёт: их сдают на станции целиком.</param>
@@ -187,10 +189,23 @@ public sealed record MissionRules(
     /// пока не возьмёт или не сдаст задание — тогда сид сменится. Шаблон, которому негде сбыться
     /// (пиратов такого типа рядом нет, другой станции нет), не выпадает.
     /// </summary>
-    public IReadOnlyList<MissionOffer> Board(Balance balance, string station, int seed)
+    /// <param name="offers">Сколько предложений; null — <see cref="Offers"/>. Репутация ужимает доску недоверенным (M13).</param>
+    /// <param name="elite">
+    /// Последнее предложение — особый контракт: та же работа по верхней границе шаблона и за повышенную плату.
+    /// Даётся только друзьям станции (M13).
+    /// </param>
+    /// <param name="eliteReward">Во сколько раз особый контракт дороже обычного.</param>
+    public IReadOnlyList<MissionOffer> Board(
+        Balance balance,
+        string station,
+        int seed,
+        int? offers = null,
+        bool elite = false,
+        double eliteReward = 1)
     {
         var galaxy = balance.Galaxy;
-        if (Offers <= 0 || galaxy.System(station) is not { Station: true }) return [];
+        var count = offers ?? Offers;
+        if (count <= 0 || galaxy.System(station) is not { Station: true }) return [];
 
         var candidates = new List<(double Weight, Func<Random, string, MissionOffer> Make)>();
         var near = Near(galaxy, station);
@@ -242,8 +257,8 @@ public sealed record MissionRules(
         // Сид смешан с системой: у каждой станции своя доска при том же сиде пилота.
         var rng = new Random(unchecked(seed * 31 + StableHash(station)));
         var total = candidates.Sum(c => c.Weight);
-        var board = new List<MissionOffer>(Offers);
-        for (var i = 0; i < Offers; i++)
+        var board = new List<MissionOffer>(count);
+        for (var i = 0; i < count; i++)
         {
             var x = rng.NextDouble() * total;
             var pick = candidates[^1];
@@ -256,7 +271,11 @@ public sealed record MissionRules(
                     break;
                 }
             }
-            board.Add(pick.Make(rng, $"{seed}-{i}"));
+            var offer = pick.Make(rng, $"{seed}-{i}");
+            // Особый контракт — последним в списке: он виден как «лучшее, что тут есть», а не теряется в середине.
+            if (elite && i == count - 1 && eliteReward > 1)
+                offer = offer with { Reward = (int)Math.Round(offer.Reward * eliteReward), Elite = true };
+            board.Add(offer);
         }
         return board;
     }

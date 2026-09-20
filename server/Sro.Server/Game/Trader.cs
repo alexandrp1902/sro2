@@ -25,6 +25,15 @@ public sealed class Trader(int id, string typeId, NpcType type, NpcRules rules) 
     public double DestX;
     public double DestY;
 
+    /// <summary>Система за вратами, к которым он идёт; null — летит к здешней станции.</summary>
+    public string? Gate;
+
+    /// <summary>
+    /// В какую систему он вёз груз: к станции — в эту же, к вратам — в соседнюю (M13, репутация).
+    /// null — назначение неизвестно.
+    /// </summary>
+    public string? Destination(string here) => ToStation ? here : Gate;
+
     /// <summary>Готовит прыжок у врат и уйдёт в этот тик; 0 — ещё летит.</summary>
     public long LeaveAtTick;
     /// <summary>Под огнём: дальше до цели — на полной тяге.</summary>

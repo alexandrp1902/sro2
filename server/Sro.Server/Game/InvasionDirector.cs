@@ -185,12 +185,17 @@ public sealed class InvasionDirector
         var ranked = _scores.OrderByDescending(kv => kv.Value.Damage).ThenBy(kv => kv.Key).ToList();
         var shares = rules.Shares([.. ranked.Select(kv => kv.Value.Damage)], won);
         var rewards = new Dictionary<int, int>();
+        var total = shares.Sum();
         for (var i = 0; i < ranked.Count; i++)
         {
             var (id, _) = ranked[i];
             rewards[id] = shares[i];
             // Кто ушёл из игры до конца — доли не получает: платить некуда.
-            if (galaxy.FindPilot(id) is { } found) found.Room.Pay(found.Player, shares[i]);
+            if (galaxy.FindPilot(id) is not { } found) continue;
+            found.Room.Pay(found.Player, shares[i]);
+            // Репутацию пишем системе, которую обороняли, а не той, где пилот оказался к подсчёту:
+            // он мог уже прыгнуть дальше, а спасибо ему должны здесь.
+            if (won && room is not null) found.Room.AwardInvasionRep(found.Player, room.SystemId, shares[i], total);
         }
         var results = ranked.Take(MaxResults)
             .Select((kv, i) => new InvasionScoreDto(kv.Value.Name, (int)Math.Round(kv.Value.Damage), shares[i]))

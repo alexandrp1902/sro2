@@ -61,7 +61,8 @@ internal static class PirateBrain
         Random rng,
         ILogger log,
         (double X, double Y) station = default,
-        IReadOnlyDictionary<int, long>? offenders = null)
+        IReadOnlyDictionary<int, long>? offenders = null,
+        IReadOnlySet<int>? outlaws = null)
     {
         var npc = balance.Npc;
         var shelter = new Shelter(station.X, station.Y, npc.StationSafeRadius);
@@ -152,7 +153,7 @@ internal static class PirateBrain
         }
 
         // Патруль: сначала — не пора ли в бой.
-        if (Acquire(pirate, attacker, ships, pirates, balance, shelter, tick, offenders) is { } found)
+        if (Acquire(pirate, attacker, ships, pirates, balance, shelter, tick, offenders, outlaws) is { } found)
         {
             if (pirate.Hp <= pirate.MaxHp(hull) * pirate.RetreatHp)
             {
@@ -249,11 +250,13 @@ internal static class PirateBrain
     /// Кого NPC ищет сам, без нападения на него: пират — пилотов и торговцев (GDD §31); рейнджер — тех, кто недавно
     /// напал на торговца, пилот это или пират.
     /// </summary>
-    private static bool Wants(Pirate self, ShipEntity ship, long tick, IReadOnlyDictionary<int, long>? offenders)
+    private static bool Wants(Pirate self, ShipEntity ship, long tick, IReadOnlyDictionary<int, long>? offenders, IReadOnlySet<int>? outlaws)
     {
         if (!CanFight(self, ship, tick)) return false;
         if (ship is Pirate) return true; // CanFight уже проверил: чужая фракция — враг с первого взгляда
         if (self.Type.IsRanger) return offenders is not null && offenders.GetValueOrDefault(ship.Id) > tick;
+        // Кого власти объявили врагом, того пираты считают своим и не трогают (M13).
+        if (ship is Player && outlaws?.Contains(ship.Id) == true) return false;
         return ship is Player or Trader;
     }
 
@@ -321,7 +324,8 @@ internal static class PirateBrain
         Balance balance,
         Shelter shelter,
         long tick,
-        IReadOnlyDictionary<int, long>? offenders)
+        IReadOnlyDictionary<int, long>? offenders,
+        IReadOnlySet<int>? outlaws)
     {
         var npc = balance.Npc;
         if (ships.GetValueOrDefault(attackerId) is { } attacker && IsCandidate(pirate, attacker, tick, shelter) && Distance(pirate, attacker) <= npc.DropRange)
@@ -331,7 +335,7 @@ internal static class PirateBrain
         var nearestDistance = Math.Max(npc.AggroRange, pirate.Type.DefendRange);
         foreach (var ship in ships.Values)
         {
-            if (!IsCandidate(pirate, ship, tick, shelter) || !Wants(pirate, ship, tick, offenders)) continue;
+            if (!IsCandidate(pirate, ship, tick, shelter) || !Wants(pirate, ship, tick, offenders, outlaws)) continue;
             if (IsOutmatched(pirate, ship, pirates, balance)) continue; // на сильную стаю сам не лезет
             var distance = Distance(pirate, ship);
             if (distance > nearestDistance) continue;
