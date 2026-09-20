@@ -214,4 +214,40 @@ public class PlacesTests
         Assert.Empty(sol.ShopAt("pl:nowhere").Stock!);
         Assert.False(sol.MarketAt("pl:nowhere").Any);
     }
+
+    [Fact]
+    public void AMissionTakenBeforeM15_LearnsThatItsEmployerIsAPlace()
+    {
+        // Так задание лежит в профилях, сохранённых до M15: заказчик и адрес — голые id систем.
+        var old = new ActiveMission(new MissionOffer("m1", MissionRules.DeliverKind, "vega", null, null, 3, 500, "sol"));
+
+        var now = MissionRules.Upgrade(old);
+
+        Assert.Equal("st:sol", now.Offer.From);
+        Assert.Equal("st:vega", now.Offer.Place);
+        Assert.Equal("st:vega", now.Offer.Destination);
+        Assert.Equal("st:sol", now.Offer.Payer);
+    }
+
+    [Fact]
+    public void AMissionWithNowhereToDeliver_KeepsItsEmployerAsTheAddress()
+    {
+        var old = new ActiveMission(new MissionOffer("m2", MissionRules.KillKind, "vega", "pirate", null, 3, 200, "sol"));
+
+        var now = MissionRules.Upgrade(old);
+
+        Assert.Equal("st:sol", now.Offer.From);
+        Assert.Null(now.Offer.Place);
+        // Убивать летят в vega, а отчитываться — туда, где взяли.
+        Assert.Equal("st:sol", now.Offer.Destination);
+    }
+
+    [Fact]
+    public void AMissionAlreadyKeyedByPlace_IsLeftAlone()
+    {
+        var taken = new ActiveMission(
+            new MissionOffer("m3", MissionRules.CourierKind, "vega", null, null, 1, 900, "pl:terra", Place: "st:vega"));
+
+        Assert.Same(taken, MissionRules.Upgrade(taken));
+    }
 }

@@ -857,7 +857,7 @@ export class DockScreen {
   private missionRow(offer: MissionOffer, busy: boolean): HTMLElement {
     const row = el('div', 'dock-row');
     row.dataset.state = busy ? 'poor' : 'buy';
-    row.append(el('div', 'dock-name', offerTitle(offer, this.names)), el('div', 'dock-stats', offerNote(offer)));
+    row.append(el('div', 'dock-name', offerTitle(offer, this.names)), el('div', 'dock-stats', offerNote(offer, this.names)));
     const take = button(`Взять · ${formatCredits(offer.reward)}`, 'dock-buy', () => this.handlers.onAccept(offer.id));
     take.disabled = busy;
     row.append(take);

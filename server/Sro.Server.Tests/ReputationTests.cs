@@ -138,7 +138,7 @@ public sealed class ReputationTests : IDisposable
 
         _room.Mission(a, Protocol.AbandonMission, null);
 
-        Assert.Equal(-5, Rep(player, "st:" + offer.From), 6);
+        Assert.Equal(-5, Rep(player, offer.From), 6); // From — уже ключ места (M15)
         Assert.Equal(Protocol.RepMissionAbandon, a.Last<RepMsg>().Change!.Code);
     }
 

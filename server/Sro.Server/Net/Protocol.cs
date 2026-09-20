@@ -241,7 +241,24 @@ public sealed record SystemDto(
 
 /// <summary>Система на карте галактики (GDD §55).</summary>
 /// <param name="Region">Регион (M11): ядро, пограничье, рубеж; null — регионов нет.</param>
-public sealed record GalaxySystemDto(string Id, string Name, int Danger, string Pvp, bool Station, double X, double Y, string? Region = null);
+/// <param name="Station">В системе есть станция. Не то же, что «сюда можно сесть»: см. <paramref name="Places"/>.</param>
+/// <param name="Places">
+/// Места системы (M15): станция и поселения. Нужны, чтобы назвать адрес доставки словами и чтобы карта
+/// не врала «дока нет» там, где есть поселение. Пусто — сесть в системе негде.
+/// </param>
+public sealed record GalaxySystemDto(
+    string Id,
+    string Name,
+    int Danger,
+    string Pvp,
+    bool Station,
+    double X,
+    double Y,
+    string? Region = null,
+    IReadOnlyList<PlaceNameDto>? Places = null);
+
+/// <summary>Имя места для карты и текста заданий (M15).</summary>
+public sealed record PlaceNameDto(string Key, string Name);
 
 /// <summary>Регион галактики на карте (M11).</summary>
 public sealed record RegionDto(string Id, string Name, string Color);

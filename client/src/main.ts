@@ -243,6 +243,14 @@ async function main(): Promise<void> {
     system: (id) => galaxy?.systems.find((s) => s.id === id)?.name ?? id,
     npc: (type) => npcRules?.types?.[type]?.name ?? type,
     item: (id) => lootRules.items?.[id]?.name ?? id,
+    // Имена мест приходят вместе с картой галактики: адрес доставки бывает и в другой системе (M15).
+    place: (key) => {
+      for (const system of galaxy?.systems ?? []) {
+        const found = system.places?.find((p) => p.key === key);
+        if (found) return found.name;
+      }
+      return key.slice(key.indexOf(':') + 1);
+    },
   };
 
   // Прицел один на всё: он на противнике, на грузе, на станции или на вратах. Наводка на предмет снимает цель и гасит огонь.

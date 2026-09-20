@@ -365,7 +365,7 @@ public sealed class MissionTests : IDisposable
     {
         var a = Veteran();
         var board = Missions(a).Offers;
-        Assert.All(board, o => Assert.Equal(("wild", "home"), (o.System, o.From))); // пираты есть только в wild
+        Assert.All(board, o => Assert.Equal(("wild", "st:home"), (o.System, o.From))); // пираты есть только в wild
         Dock(a);
         Assert.Equal(board, Missions(a).Offers);
 

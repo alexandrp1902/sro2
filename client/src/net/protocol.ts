@@ -351,6 +351,14 @@ export interface GalaxySystemDto {
   y: number;
   /** Регион галактики (M11); нет — регионов нет. */
   region?: string | null;
+  /** Места системы (M15): станция и поселения. Пусто — сесть тут негде. */
+  places?: PlaceNameDto[] | null;
+}
+
+/** Имя места для карты и текста заданий (M15). */
+export interface PlaceNameDto {
+  key: string;
+  name: string;
 }
 
 /** Регион галактики (M11): Ядро, Пограничье, Дальний рубеж. */
@@ -602,6 +610,8 @@ export interface MissionOffer {
   reward: number;
   /** Где выдали. */
   from: string;
+  /** Ключ места назначения (M15): куда везти груз или письмо; нет — сдавать там же, где взяли. */
+  place?: string | null;
   /** Особый контракт доски: только друзьям станции и платит больше обычного (M13). */
   elite?: boolean;
   /** hunt: какой размер камня засчитывается; нет — любой (M14). */

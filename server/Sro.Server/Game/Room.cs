@@ -278,7 +278,9 @@ public sealed partial class Room
         // Обучение — только новому пилоту (GDD §54): профиль старше M8 считается прошедшим его.
         player.Missions.Tutorial = profile is null ? 0 : profile.Tutorial ?? MissionLog.Finished;
         // Живое задание в комнату не возвращается: его конвой и звено остались в прошлом вылете (M14).
-        player.Missions.Active = profile?.Mission is { } taken && !MissionRules.IsLive(taken.Offer.Kind) ? taken : null;
+        // Профиль старше M15 зовёт заказчика и адрес по системе — переводим в ключи мест.
+        player.Missions.Active =
+            profile?.Mission is { } taken && !MissionRules.IsLive(taken.Offer.Kind) ? MissionRules.Upgrade(taken) : null;
         player.Missions.Seed = profile?.MissionSeed ?? Random.Shared.Next();
         player.Cargo.Reserved = Reserve(player.Missions.Active);
         // Репутация тает по часам: распад за время отсутствия применяется прямо здесь, на входе.
@@ -1562,7 +1564,8 @@ public sealed partial class Room
     public static GalaxyDto GalaxyInfo(GalaxyRules galaxy) => new(
         [.. galaxy.SystemMap.Select(kv => new GalaxySystemDto(
             kv.Key, kv.Value.Name, kv.Value.Danger, kv.Value.Pvp, kv.Value.Station,
-            kv.Value.Map?.X ?? 0, kv.Value.Map?.Y ?? 0, kv.Value.Region))],
+            kv.Value.Map?.X ?? 0, kv.Value.Map?.Y ?? 0, kv.Value.Region,
+            [.. kv.Value.Places(kv.Key, 0).Select(p => new PlaceNameDto(p.Key, p.Name))]))],
         [.. galaxy.LinkList.Select(l => new LinkDto(l.A, l.B, galaxy.Cost(l)))],
         galaxy.Regions is null ? null : [.. galaxy.RegionMap.Select(kv => new RegionDto(kv.Key, kv.Value.Name, kv.Value.Color))]);
 
@@ -1746,9 +1749,10 @@ public sealed partial class Room
             SendRep(player); // и отношение: от него цены на витрине и что вообще выложат
             // Ушёл в док, бросив конвой посреди системы, — это и есть «отстал» (M14).
             if (RunOf(player)?.Kind == MissionRules.EscortKind) Fail(player, Protocol.AwayFail);
-            // Груз доставки и письмо сдаются сами, стоит пристыковаться к нужной станции.
+            // Груз доставки и письмо сдаются сами, стоит встать в нужном месте. Именно в месте, а не
+            // в системе: с M15 их в системе несколько, и доставка на планету не засчитывается на станции.
             if (player.Missions.Active?.Offer is { Kind: MissionRules.DeliverKind or MissionRules.CourierKind } errand &&
-                errand.System == SystemId)
+                errand.Destination == target.Key)
                 Complete(player);
         }
         else
@@ -2120,8 +2124,9 @@ public sealed partial class Room
         // Станции, которая ждала работу, — много; её системе — мало: система в основном штрафная шкала.
         // Ждала не всегда та, что выдала: письму платит получатель (M14).
         var events = Balance.Reputation.Event;
-        AddRep(player, Reputation.Station(active.Offer.Payer), events.MissionPlace, Protocol.RepMissionDone);
-        AddRep(player, Reputation.System(active.Offer.Payer), events.MissionSystem, Protocol.RepMissionDone);
+        AddRep(player, active.Offer.Payer, events.MissionPlace, Protocol.RepMissionDone);
+        if (Balance.Galaxy.SystemOfPlace(active.Offer.Payer) is { } paid)
+            AddRep(player, Reputation.System(paid), events.MissionSystem, Protocol.RepMissionDone);
         _log.LogInformation(
             "Player {Id} completed a {Kind} mission for {Reward} credits", player.Id, active.Offer.Kind, active.Offer.Reward);
     }
@@ -2142,12 +2147,12 @@ public sealed partial class Room
         SendCargo(player);
         SendMissions(player, new MissionDoneDto(Protocol.MissionFailed, 0, Mission: active.Offer, Reason: code));
         Save(player);
-        AddRep(player, Reputation.Station(active.Offer.Payer), Balance.Reputation.Event.MissionFail, Protocol.RepMissionFail);
+        AddRep(player, active.Offer.Payer, Balance.Reputation.Event.MissionFail, Protocol.RepMissionFail);
         _log.LogInformation("Player {Id} failed a {Kind} mission: {Code}", player.Id, active.Offer.Kind, code);
     }
 
     /// <summary>
-    /// Пилот отказался от задания. Бьёт по станции, выдавшей работу, а не по той, где пилот сейчас:
+    /// Пилот отказался от задания. Бьёт по месту, выдавшему работу, а не по тому, где пилот сейчас:
     /// бросил — подвёл заказчика. Отказ дешевле провала: работу он вернул, а не потерял.
     /// </summary>
     /// <returns>false — отказываться было не от чего.</returns>
@@ -2157,7 +2162,7 @@ public sealed partial class Room
         EndRun(player.Id);
         player.Missions.Active = null;
         player.Cargo.Reserved = 0;
-        AddRep(player, Reputation.Station(dropped.Offer.From), Balance.Reputation.Event.MissionAbandon, Protocol.RepMissionAbandon);
+        AddRep(player, dropped.Offer.From, Balance.Reputation.Event.MissionAbandon, Protocol.RepMissionAbandon);
         return true;
     }
 
@@ -2174,15 +2179,16 @@ public sealed partial class Room
     /// <summary>Доска станции этой системы для пилота; без станции — пусто.</summary>
     private IReadOnlyList<MissionOffer> Board(Player player)
     {
-        if (!Balance.HasStation) return [];
+        // Доска — дело места (M15): у станции и у поселения под ней работа своя, и репутация тоже.
+        if (PlaceKeyOf(player) is not { } place) return [];
         var rep = Balance.Reputation;
-        if (!rep.Any) return Balance.Missions.Board(Balance, SystemId, player.Missions.Seed);
+        if (!rep.Any) return Balance.Missions.Board(Balance, place, player.Missions.Seed);
         // Магазин и доска смотрят на одни и те же очки: имя, заработанное в регионе, открывает и работу.
-        // Доска — дело станции: ей решать, сколько работы доверить и давать ли особый контракт.
+        // Сколько работы доверить и давать ли особый контракт — решает место.
         var here = PlaceRep(player);
         return Balance.Missions.Board(
-            Balance, SystemId, player.Missions.Seed, rep.Offers(here, Balance.Missions.Offers), rep.Elite(here), rep.EliteReward,
-            // Патруль рейнджеры доверяют не всякому — им важна система, а не станция (M14).
+            Balance, place, player.Missions.Seed, rep.Offers(here, Balance.Missions.Offers), rep.Elite(here), rep.EliteReward,
+            // Патруль рейнджеры доверяют не всякому — им важна система, а не место (M14).
             SystemRep(player));
     }
 

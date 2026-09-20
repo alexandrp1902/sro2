@@ -5,6 +5,7 @@ import { nearestStation, nextHop } from './galaxy';
 import {
   activeHint,
   activeLine,
+  destination,
   doneLines,
   objective,
   objectiveSystem,
@@ -36,13 +37,17 @@ const names: MissionNames = {
   system: (id) => galaxy.systems.find((s) => s.id === id)?.name ?? id,
   npc: (type) => (type === 'heavyPirate' ? 'Тяжёлый пират' : 'Пират'),
   item: (id) => (id === 'titanium' ? 'Титан' : id),
+  place: (key) =>
+    key === 'pl:terra'
+      ? 'Новый Порт'
+      : `Станция ${galaxy.systems.find((s) => s.id === key.slice(3))?.name ?? key.slice(3)}`,
 };
 
 const offer = (o: Partial<MissionOffer> & Pick<MissionOffer, 'kind'>): MissionOffer => ({
   id: '1-0',
   count: 4,
   reward: 300,
-  from: 'sol',
+  from: 'st:sol',
   ...o,
 });
 
@@ -81,7 +86,13 @@ describe('mission text', () => {
       'Уничтожить: Тяжёлый пират ×2 · Nova',
     );
     expect(offerTitle(offer({ kind: 'collect', item: 'titanium' }), names)).toBe('Собрать: Титан ×4');
-    expect(offerTitle(offer({ kind: 'deliver', system: 'nova', count: 6 }), names)).toBe('Доставить груз в Nova · 6 ед.');
+    expect(offerTitle(offer({ kind: 'deliver', system: 'nova', place: 'st:nova', count: 6 }), names)).toBe(
+      'Доставить груз: Станция Nova · 6 ед.',
+    );
+    // Адрес — место, а не система: на планете той же системы своя доска и своя репутация (M15).
+    expect(offerTitle(offer({ kind: 'deliver', system: 'sol', place: 'pl:terra', count: 6 }), names)).toBe(
+      'Доставить груз: Новый Порт · 6 ед.',
+    );
   });
 
   it('tracks progress and says what to do next', () => {
@@ -140,13 +151,15 @@ describe('M14 missions', () => {
     expect(offerTitle(offer({ kind: 'patrol', system: 'sol', npc: 'ranger', count: 4 }), names)).toBe(
       'Патруль с рейнджерами: 4 точки маршрута',
     );
-    expect(offerTitle(offer({ kind: 'courier', system: 'nova', count: 1 }), names)).toBe('Важное письмо в Nova');
+    expect(offerTitle(offer({ kind: 'courier', system: 'nova', place: 'st:nova', count: 1 }), names)).toBe(
+      'Важное письмо: Станция Nova',
+    );
     expect(offerTitle(offer({ kind: 'hunt', system: 'vega', count: 8 }), names)).toBe('Охота: метеориты ×8 · Vega');
     expect(offerTitle(offer({ kind: 'hunt', system: 'vega', count: 3, size: 'large' }), names)).toBe(
       'Охота: крупные метеориты ×3 · Vega',
     );
-    expect(offerNote(offer({ kind: 'courier', seconds: 300 }))).toContain('срок 5 мин');
-    expect(offerNote(offer({ kind: 'escort', count: 2 }))).toContain('засад: 2');
+    expect(offerNote(offer({ kind: 'courier', seconds: 300 }), names)).toContain('срок 5 мин');
+    expect(offerNote(offer({ kind: 'escort', count: 2 }), names)).toContain('засад: 2');
   });
 
   it('tracks progress and says what to do next', () => {
@@ -160,7 +173,7 @@ describe('M14 missions', () => {
     // На последней точке счётчик не убегает за край.
     expect(activeLine({ offer: offer({ kind: 'patrol', count: 4 }), progress: 4 }, names)).toBe('Патруль: точка 4/4');
 
-    const courier = withActive({ offer: offer({ kind: 'courier', system: 'nova' }), progress: 0, until: at(310) });
+    const courier = withActive({ offer: offer({ kind: 'courier', system: 'nova', place: 'st:nova' }), progress: 0, until: at(310) });
     expect(activeLine(courier.active!, names, now)).toBe('Письмо в Nova · 5:10');
     expect(activeHint(courier.active!, 'nova', false, names)).toBe('пристыкуйтесь к станции');
 
@@ -188,7 +201,7 @@ describe('M14 missions', () => {
   });
 
   it('routes the letter and the hunt like any other errand', () => {
-    const courier = withActive({ offer: offer({ kind: 'courier', system: 'nova' }), progress: 0 });
+    const courier = withActive({ offer: offer({ kind: 'courier', system: 'nova', place: 'st:nova' }), progress: 0 });
     expect(objective(courier, 'sol', galaxy, false)).toEqual({ kind: 'gate', to: 'vega' });
     expect(objective(courier, 'nova', galaxy, false)).toEqual({ kind: 'station' });
     expect(objectiveSystem(courier, 'sol', galaxy)).toBe('nova');
@@ -211,7 +224,7 @@ describe('objective', () => {
   });
 
   it('points at the next gate until the target system, then at the target', () => {
-    const deliver = withActive({ offer: offer({ kind: 'deliver', system: 'nova' }), progress: 0 });
+    const deliver = withActive({ offer: offer({ kind: 'deliver', system: 'nova', place: 'st:nova' }), progress: 0 });
     expect(objective(deliver, 'sol', galaxy, false)).toEqual({ kind: 'gate', to: 'vega' });
     expect(objective(deliver, 'nova', galaxy, false)).toEqual({ kind: 'station' });
     expect(objectiveSystem(deliver, 'sol', galaxy)).toBe('nova');
@@ -239,5 +252,22 @@ describe('startTab', () => {
     expect(startTab(collect, { titanium: 3 })).toBe('cargo');
     expect(startTab(collect, { titanium: 4 })).toBe('missions');
     expect(startTab(null, {})).toBe('cargo');
+  });
+});
+
+describe('M15 deliveries', () => {
+  it('tells you to land when the address is a settlement', () => {
+    const toPlanet = withActive({ offer: offer({ kind: 'deliver', system: 'sol', place: 'pl:terra' }), progress: 0 });
+    const toStation = withActive({ offer: offer({ kind: 'deliver', system: 'sol', place: 'st:sol' }), progress: 0 });
+
+    expect(activeHint(toPlanet.active!, 'sol', false, names)).toBe('садитесь в поселении');
+    expect(activeHint(toStation.active!, 'sol', false, names)).toBe('пристыкуйтесь к станции');
+    // Пока не долетели — разницы нет: сперва надо попасть в систему.
+    expect(activeHint(toPlanet.active!, 'vega', false, names)).toBe('летите в Sol');
+  });
+
+  it('falls back to the employer when a mission has no address of its own', () => {
+    expect(destination(offer({ kind: 'kill', system: 'vega' }))).toBe('st:sol');
+    expect(destination(offer({ kind: 'deliver', system: 'nova', place: 'st:nova' }))).toBe('st:nova');
   });
 });

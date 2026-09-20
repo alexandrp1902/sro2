@@ -24,7 +24,7 @@ public class MissionRulesTests
     {
         var balance = Shared();
         var kinds = new HashSet<string>(StringComparer.Ordinal);
-        foreach (var station in balance.Galaxy.SystemMap.Where(kv => kv.Value.Station).Select(kv => kv.Key))
+        foreach (var station in balance.Galaxy.PlaceKeys)
         {
             for (var seed = 0; seed < 40; seed++)
             {
@@ -43,14 +43,15 @@ public class MissionRulesTests
     }
 
     [Fact]
-    public void Board_IsDeterministicBySeed_AndDiffersByStation()
+    public void Board_IsDeterministicBySeed_AndDiffersByPlace()
     {
         var balance = Shared();
         var missions = balance.Missions;
-        Assert.Equal(missions.Board(balance, "sol", 42), missions.Board(balance, "sol", 42));
-        Assert.NotEqual(missions.Board(balance, "sol", 42), missions.Board(balance, "sol", 43));
-        Assert.NotEqual(missions.Board(balance, "sol", 42), missions.Board(balance, "vega", 42));
-        Assert.Empty(missions.Board(balance, "tau", 42)); // станции нет
+        Assert.Equal(missions.Board(balance, "st:sol", 42), missions.Board(balance, "st:sol", 42));
+        Assert.NotEqual(missions.Board(balance, "st:sol", 42), missions.Board(balance, "st:sol", 43));
+        Assert.NotEqual(missions.Board(balance, "st:sol", 42), missions.Board(balance, "st:vega", 42));
+        Assert.Empty(missions.Board(balance, "st:tau", 42)); // станции в tau нет…
+        Assert.NotEmpty(missions.Board(balance, "pl:tauPrima", 42)); // …а поселение работу даёт (M15)
     }
 
     [Fact]
@@ -60,11 +61,12 @@ public class MissionRulesTests
         var galaxy = balance.Galaxy;
         foreach (var station in new[] { "sol", "vega", "nova" })
         {
+            var place = PlaceKey.Station(station);
             for (var seed = 0; seed < 50; seed++)
             {
-                foreach (var offer in balance.Missions.Board(balance, station, seed))
+                foreach (var offer in balance.Missions.Board(balance, place, seed))
                 {
-                    Assert.Equal(station, offer.From);
+                    Assert.Equal(place, offer.From);
                     Assert.True(offer.Reward > 0);
                     if (offer.Kind != MissionRules.CourierKind) Assert.Equal(offer.From, offer.Payer);
                     switch (offer.Kind)
@@ -74,13 +76,15 @@ public class MissionRulesTests
                             Assert.Contains(offer.Npc ?? "pirate", MissionRules.PiratesIn(balance, offer.System!));
                             break;
                         case MissionRules.DeliverKind:
+                            // Везут в другую систему, в место с настоящим адресом — станцию или поселение (M15).
                             Assert.NotEqual(station, offer.System);
-                            Assert.True(galaxy.System(offer.System)!.Station);
+                            Assert.True(galaxy.HasPlace(offer.Place));
+                            Assert.Equal(offer.System, galaxy.SystemOfPlace(offer.Place));
                             break;
                         case MissionRules.CollectKind:
                             Assert.True(balance.Loot.ItemMap.ContainsKey(offer.Item!));
                             // Купить это здесь же и тут же сдать нельзя: станция такого не продаёт (M12).
-                            Assert.False(balance.ForSystem(station).MainMarket.Sells(offer.Item!), offer.Item);
+                            Assert.False(balance.ForSystem(station).MarketAt(place).Sells(offer.Item!), offer.Item);
                             break;
                         case MissionRules.EscortKind:
                             // Конвой идёт к вратам своей системы, и вести его есть кому.
@@ -97,12 +101,12 @@ public class MissionRulesTests
                             break;
                         case MissionRules.CourierKind:
                             Assert.NotEqual(station, offer.System);
-                            Assert.True(galaxy.System(offer.System)!.Station);
+                            Assert.True(galaxy.HasPlace(offer.Place));
                             Assert.True(MissionRules.Hops(galaxy, station, offer.System!) <= MissionRules.MaxHopsLimit);
                             Assert.Equal(1, offer.Count);
                             Assert.True(offer.Seconds > 0);
-                            // Письму платит получатель, а не заказчик (M14).
-                            Assert.Equal(offer.System, offer.Payer);
+                            // Письму платит получатель, а не заказчик (M14) — и это место, а не система (M15).
+                            Assert.Equal(offer.Place, offer.Payer);
                             break;
                         case MissionRules.HuntKind:
                             Assert.Contains(offer.System!, MissionRules.Near(galaxy, station));
@@ -138,7 +142,7 @@ public class MissionRulesTests
         var balance = Shared();
         var rules = OnlyNew(balance.Missions);
         bool HasPatrol(double rep) => Enumerable.Range(0, 30)
-            .SelectMany(seed => rules.Board(balance, "sol", seed, repHere: rep))
+            .SelectMany(seed => rules.Board(balance, "st:sol", seed, repHere: rep))
             .Any(o => o.Kind == MissionRules.PatrolKind);
         Assert.True(HasPatrol(0));    // нейтрал — берут
         Assert.False(HasPatrol(-60)); // враг системы — звено с ним не полетит
@@ -153,7 +157,7 @@ public class MissionRulesTests
         var kinds = new HashSet<string>(StringComparer.Ordinal);
         for (var seed = 0; seed < 60; seed++)
         {
-            foreach (var offer in rules.Board(balance, "sol", seed, repHere: 0))
+            foreach (var offer in rules.Board(balance, "st:sol", seed, repHere: 0))
             {
                 kinds.Add(offer.Kind);
                 // Письмо дальше maxHops не носят — здесь это два прыжка.
@@ -186,7 +190,7 @@ public class MissionRulesTests
         };
         var rules = OnlyNew(stripped.Missions);
         var kinds = Enumerable.Range(0, 30)
-            .SelectMany(seed => rules.Board(stripped, "sol", seed, repHere: 0))
+            .SelectMany(seed => rules.Board(stripped, "st:sol", seed, repHere: 0))
             .Select(o => o.Kind)
             .Distinct()
             .ToList();

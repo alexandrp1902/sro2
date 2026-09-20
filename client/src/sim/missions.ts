@@ -6,6 +6,18 @@ export interface MissionNames {
   system(id: string): string;
   npc(type: string): string;
   item(id: string): string;
+  /** Имя места по ключу («st:vega», «pl:terra»); с M15 в системе их несколько. */
+  place(key: string): string;
+}
+
+/** Куда сдавать: место назначения, а если его нет — там же, где взяли. */
+export function destination(offer: MissionOffer): string {
+  return offer.place ?? offer.from;
+}
+
+/** Это поселение на планете, а не станция: от этого «сядьте» вместо «пристыкуйтесь». */
+function onAPlanet(key: string | null | undefined): boolean {
+  return !!key?.startsWith('pl:');
 }
 
 type Active = NonNullable<MissionsMsg['active']>;
@@ -35,27 +47,27 @@ export function offerTitle(offer: MissionOffer, names: MissionNames): string {
     case 'collect':
       return `Собрать: ${names.item(offer.item ?? '')} ×${offer.count}`;
     case 'deliver':
-      return `Доставить груз в ${names.system(offer.system ?? '')} · ${offer.count} ед.`;
+      return `Доставить груз: ${names.place(destination(offer))} · ${offer.count} ед.`;
     case 'escort':
       return `Сопровождение: конвой к вратам на ${names.system(offer.system ?? '')}`;
     case 'patrol':
       return `Патруль с рейнджерами: ${offer.count} точки маршрута`;
     case 'courier':
-      return `Важное письмо в ${names.system(offer.system ?? '')}`;
+      return `Важное письмо: ${names.place(destination(offer))}`;
     case 'hunt':
       return `Охота: ${rocks(offer.size)} ×${offer.count} · ${names.system(offer.system ?? '')}`;
   }
 }
 
 /** Подробность под строкой на доске: где и как сдаётся. */
-export function offerNote(offer: MissionOffer): string {
+export function offerNote(offer: MissionOffer, names: MissionNames): string {
   switch (offer.kind) {
     case 'kill':
       return 'награда — сразу за последнего';
     case 'collect':
-      return 'сдать на любой станции';
+      return 'сдать в любом доке';
     case 'deliver':
-      return `груз займёт ${offer.count} ед. трюма`;
+      return `${names.system(offer.system ?? '')} · груз займёт ${offer.count} ед. трюма`;
     case 'escort':
       return `держитесь рядом; в пути засад: ${offer.count}`;
     case 'patrol':
@@ -104,13 +116,21 @@ export function activeHint(active: Active, here: string | null, docked: boolean,
       if (progress < offer.count) return 'добудьте в космосе';
       return docked ? 'сдайте на вкладке «Задания»' : 'сдайте на любой станции';
     case 'deliver':
-      return here === offer.system ? 'пристыкуйтесь к станции' : `летите в ${names.system(offer.system ?? '')}`;
+      return here === offer.system
+        ? onAPlanet(destination(offer))
+          ? 'садитесь в поселении'
+          : 'пристыкуйтесь к станции'
+        : `летите в ${names.system(offer.system ?? '')}`;
     case 'escort':
       return docked ? 'вылетайте: конвой ждёт' : 'держитесь рядом с конвоем';
     case 'patrol':
       return docked ? 'вылетайте: звено ждёт' : 'подойдите к точке маршрута';
     case 'courier':
-      return here === offer.system ? 'пристыкуйтесь к станции' : `летите в ${names.system(offer.system ?? '')}`;
+      return here === offer.system
+        ? onAPlanet(destination(offer))
+          ? 'садитесь в поселении'
+          : 'пристыкуйтесь к станции'
+        : `летите в ${names.system(offer.system ?? '')}`;
     case 'hunt':
       return here === offer.system ? 'расстреливайте камни' : `летите в ${names.system(offer.system ?? '')}`;
   }

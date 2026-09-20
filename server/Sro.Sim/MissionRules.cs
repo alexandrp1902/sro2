@@ -109,21 +109,30 @@ public sealed record MissionOffer(
     string? Item,
     int Count,
     int Reward,
+    /// <summary>Ключ места, которое дало работу (M15): «st:vega», «pl:terra». Оно же платит и помнит.</summary>
     string From,
-    /// <summary>Особый контракт доски: даётся только друзьям станции и платит больше обычного (M13).</summary>
+    /// <summary>Особый контракт доски: даётся только друзьям места и платит больше обычного (M13).</summary>
     bool Elite = false,
     /// <summary>Hunt: какой размер камня засчитывается (meteors.json); null — любой (M14).</summary>
     string? Size = null,
     /// <summary>Courier: сколько секунд на доставку от взятия; 0 — срока нет (M14).</summary>
     int Seconds = 0,
     /// <summary>Escort: в каком радиусе держаться у конвоя; patrol: как близко подойти к точке (M14).</summary>
-    double Radius = 0)
+    double Radius = 0,
+    /// <summary>
+    /// Ключ места назначения (M15): куда везти груз или письмо. null — задание не про доставку,
+    /// и сдавать его надо там же, где взяли. В системе мест теперь несколько, и «та же система» больше не адрес.
+    /// </summary>
+    string? Place = null)
 {
     /// <summary>
-    /// Кому «спасибо» за выполнение и с кого спрос за провал. Обычно — станции заказа; письму платит
-    /// получатель: заказчик своё уже отдал, ждут его на том конце (M14).
+    /// Кому «спасибо» за выполнение и с кого спрос за провал — ключ места. Обычно это заказчик; письму
+    /// платит получатель: заказчик своё уже отдал, ждут его на том конце (M14).
     /// </summary>
-    [JsonIgnore] public string Payer => Kind == MissionRules.CourierKind ? System ?? From : From;
+    [JsonIgnore] public string Payer => Kind == MissionRules.CourierKind ? Place ?? From : From;
+
+    /// <summary>Где сдавать: место назначения, а если его нет — там же, где взяли.</summary>
+    [JsonIgnore] public string Destination => Place ?? From;
 }
 
 /// <summary>Взятое задание: что и сколько уже сделано. Хранится в аккаунте пилота.</summary>
@@ -177,6 +186,23 @@ public sealed record MissionRules(
     /// а у живых заданий вместе с вылетом пропадают актёры. Груз доставки и счёт убитых гибель переживают.
     /// </summary>
     public static bool DiesWithTheShip(string? kind) => IsLive(kind) || kind == CourierKind;
+
+    /// <summary>
+    /// Взятое задание из профиля старше M15: тогда заказчиком звался голый id системы, а адресом доставки —
+    /// её же id. И то и другое становится ключом станции: поселений в те времена не было.
+    /// Без этого выполненная доставка платила бы репутацию в ключ «sol» — строку, которую никто не читает.
+    /// </summary>
+    public static ActiveMission Upgrade(ActiveMission taken)
+    {
+        var offer = taken.Offer;
+        var from = PlaceKey.Upgrade(offer.From);
+        var place = offer.Place is { } known ? PlaceKey.Upgrade(known)
+            : offer.Kind is DeliverKind or CourierKind && offer.System is { } to ? PlaceKey.Station(to)
+            : null;
+        return from == offer.From && place == offer.Place
+            ? taken
+            : taken with { Offer = offer with { From = from, Place = place } };
+    }
 
     /// <summary>Шаги обучения: вылететь, уничтожить дрон, подобрать груз, продать, прыгнуть через врата.</summary>
     public const string UndockStep = "undock";
@@ -400,7 +426,7 @@ public sealed record MissionRules(
     /// </param>
     public IReadOnlyList<MissionOffer> Board(
         Balance balance,
-        string station,
+        string place,
         int seed,
         int? offers = null,
         bool elite = false,
@@ -409,13 +435,13 @@ public sealed record MissionRules(
     {
         var galaxy = balance.Galaxy;
         var count = offers ?? Offers;
-        if (count <= 0 || galaxy.System(station) is not { Station: true }) return [];
+        // Доску просят для места (M15), а не для системы: в одной системе их теперь несколько,
+        // и у станции с поселением работа разная.
+        if (count <= 0 || galaxy.SystemOfPlace(place) is not { } station) return [];
 
         var candidates = new List<(double Weight, Func<Random, string, MissionOffer> Make)>();
         var near = Near(galaxy, station);
-        // Доску просят для названной станции, а не обязательно для той, чей это вид баланса.
-        // Рынок с M15 ключуется местом, а доска пока зовётся по системе: здесь это станция системы.
-        var market = balance.MarketSet?.Local(PlaceKey.Station(station), galaxy.System(station)?.Region);
+        var market = balance.MarketSet?.Local(place, galaxy.System(station)?.Region);
         foreach (var t in KillList)
         {
             var targets = near.Where(s => PiratesIn(balance, s).Any(type => t.Npc is null || type == t.Npc)).ToList();
@@ -426,7 +452,7 @@ public sealed record MissionRules(
                 var count = rng.Next(t.Min, t.Max + 1);
                 var danger = galaxy.System(system)?.Danger ?? 1;
                 var reward = (int)Math.Round(t.Reward * count * (1 + DangerBonus * (danger - 1)));
-                return new MissionOffer(id, KillKind, system, t.Npc, null, count, reward, station);
+                return new MissionOffer(id, KillKind, system, t.Npc, null, count, reward, place);
             }));
         }
         foreach (var t in CollectList)
@@ -439,21 +465,26 @@ public sealed record MissionRules(
             {
                 var count = rng.Next(t.Min, t.Max + 1);
                 var reward = (int)Math.Round(Math.Max(1, price) * count * t.Factor);
-                return new MissionOffer(id, CollectKind, null, null, t.Item, count, reward, station);
+                return new MissionOffer(id, CollectKind, null, null, t.Item, count, reward, place);
             }));
         }
-        var stations = galaxy.SystemMap.Where(kv => kv.Value.Station && kv.Key != station && Hops(galaxy, station, kv.Key) is not null)
-            .Select(kv => kv.Key).Order(StringComparer.Ordinal).ToList();
-        if (stations.Count > 0)
+        // Куда можно везти: любое место другой системы, до которого есть дорога. Поселения годятся так же,
+        // как станции, — этим и открываются доставки в tau, sigma и edge, где раньше адреса не было (M15).
+        var abroad = galaxy.SystemMap
+            .Where(kv => kv.Key != station && Hops(galaxy, station, kv.Key) is not null)
+            .SelectMany(kv => kv.Value.Places(kv.Key, 0))
+            .OrderBy(p => p.Key, StringComparer.Ordinal)
+            .ToList();
+        if (abroad.Count > 0)
         {
             foreach (var t in DeliverList)
             {
                 candidates.Add((t.Weight, (rng, id) =>
                 {
-                    var to = stations[rng.Next(stations.Count)];
+                    var to = abroad[rng.Next(abroad.Count)];
                     var count = rng.Next(t.Min, t.Max + 1);
-                    var reward = t.PerUnit * count + t.PerJump * (Hops(galaxy, station, to) ?? 1);
-                    return new MissionOffer(id, DeliverKind, to, null, null, count, reward, station);
+                    var reward = t.PerUnit * count + t.PerJump * (Hops(galaxy, station, to.SystemId) ?? 1);
+                    return new MissionOffer(id, DeliverKind, to.SystemId, null, null, count, reward, place, Place: to.Key);
                 }));
             }
         }
@@ -472,7 +503,7 @@ public sealed record MissionRules(
                     var gate = home.GateList[rng.Next(home.GateList.Count)];
                     var waves = rng.Next(t.MinWaves, t.MaxWaves + 1);
                     var reward = (int)Math.Round((t.Reward + t.PerWave * waves) * bonus);
-                    return new MissionOffer(id, EscortKind, gate.To, null, null, waves, reward, station, Radius: t.Radius);
+                    return new MissionOffer(id, EscortKind, gate.To, null, null, waves, reward, place, Radius: t.Radius);
                 }));
             }
         }
@@ -487,7 +518,7 @@ public sealed record MissionRules(
             {
                 var points = rng.Next(t.Min, t.Max + 1);
                 var reward = (int)Math.Round((t.Reward + t.PerPoint * points) * bonus);
-                return new MissionOffer(id, PatrolKind, station, t.Npc, null, points, reward, station, Radius: t.Radius);
+                return new MissionOffer(id, PatrolKind, station, t.Npc, null, points, reward, place, Radius: t.Radius);
             }));
         }
 
@@ -495,15 +526,15 @@ public sealed record MissionRules(
         // платят за скорость, а не за риск.
         foreach (var t in CourierList)
         {
-            var reach = stations.Where(to => Hops(galaxy, station, to) <= t.MaxHops).ToList();
+            var reach = abroad.Where(to => Hops(galaxy, station, to.SystemId) <= t.MaxHops).ToList();
             if (reach.Count == 0) continue;
             candidates.Add((t.Weight, (rng, id) =>
             {
                 var to = reach[rng.Next(reach.Count)];
-                var hops = Hops(galaxy, station, to) ?? 1;
+                var hops = Hops(galaxy, station, to.SystemId) ?? 1;
                 return new MissionOffer(
-                    id, CourierKind, to, null, null, 1, t.Reward + t.PerJump * hops, station,
-                    Seconds: t.Seconds + t.SecondsPerJump * hops);
+                    id, CourierKind, to.SystemId, null, null, 1, t.Reward + t.PerJump * hops, place,
+                    Seconds: t.Seconds + t.SecondsPerJump * hops, Place: to.Key);
             }));
         }
 
@@ -518,7 +549,7 @@ public sealed record MissionRules(
                 var count = rng.Next(t.Min, t.Max + 1);
                 var where = galaxy.System(system)?.Danger ?? 1;
                 var reward = (int)Math.Round(t.Reward * count * (1 + DangerBonus * (where - 1)));
-                return new MissionOffer(id, HuntKind, system, null, null, count, reward, station, Size: t.Size);
+                return new MissionOffer(id, HuntKind, system, null, null, count, reward, place, Size: t.Size);
             }));
         }
 
