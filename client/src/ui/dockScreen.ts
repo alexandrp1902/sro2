@@ -226,8 +226,8 @@ export interface DockHandlers {
   onRepair(): void;
   onRefuel(): void;
   onUndock(): void;
-  /** Окно «Управление» (ПК). */
-  onControls(): void;
+  /** Бургер-меню (M15.5): открыть под кнопкой, прямоугольник которой передан. */
+  onMenu(anchor: DOMRect): void;
   /** Взять задание с доски. */
   onAccept(id: string): void;
   /** Бросить своё задание. */
@@ -474,16 +474,19 @@ export class DockScreen {
     const credits = this.cargo?.credits ?? 0;
 
     const card = el('div', 'dock-card');
+    // Шапка в три зоны (M15.5): «Вылет» — главное, ради чего сюда заходят, и стоит по центру.
     const head = el('div', 'dock-head');
+    const left = el('div', 'dock-head-left');
     const title = el('div', 'dock-title', this.station);
     // Подпись магазина станции (M11): «Военная станция Nova» — по ней видно, чем здесь торгуют.
     if (this.shop.title) title.append(el('span', 'dock-shop-title', this.shop.title));
-    head.append(title, el('div', 'dock-credits', formatCredits(credits)));
-    const gear = button('⚙', 'controls-open dock-controls', () => this.handlers.onControls());
-    gear.title = 'Управление';
-    gear.setAttribute('aria-label', 'Управление');
-    head.append(gear);
-    head.append(button('Вылет', 'dock-undock', () => this.handlers.onUndock()));
+    left.append(title, el('div', 'dock-credits', formatCredits(credits)));
+    const right = el('div', 'dock-head-right');
+    const burger = button('☰', 'menu-open dock-menu', () => this.handlers.onMenu(burger.getBoundingClientRect()));
+    burger.title = 'Меню';
+    burger.setAttribute('aria-label', 'Меню');
+    right.append(burger);
+    head.append(left, button('Вылет', 'dock-undock', () => this.handlers.onUndock()), right);
     card.append(head);
     card.append(this.scene(hangar));
     card.append(this.shipLine(hangar, credits));

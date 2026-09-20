@@ -19,7 +19,7 @@
       <div id="flight" class="flight">…</div>
       <canvas id="minimap" class="minimap" aria-label="Миникарта: тап — карта галактики" hidden></canvas>
       <button id="pvp" class="pvp-toggle" type="button" data-on="false" aria-pressed="false" hidden>PvP<small>выкл</small></button>
-      <button id="controls-open" class="controls-open hud-controls" type="button" title="Управление" aria-label="Управление" hidden>⚙</button>
+      <button id="menu-open" class="menu-open hud-menu" type="button" title="Меню" aria-label="Меню" hidden>☰</button>
       <div id="objective" class="objective" hidden></div>
       <div id="event" class="event" hidden></div>
       <div id="ship" class="ship-hud" hidden></div>
@@ -27,6 +27,7 @@
       <div id="party" class="party" hidden></div>
       <div id="target" class="target" hidden></div>
       <div id="invite" class="invite" hidden></div>
+      <div id="confirm" class="confirm" hidden></div>
       <div id="loot" class="loot-card" hidden></div>
       <div id="feed" class="feed"></div>
       <div id="dev" class="dev" hidden></div>
@@ -59,6 +60,9 @@
     <div id="galaxy" class="galaxy" hidden></div>
 
     <div id="controls" class="galaxy controls" hidden></div>
+
+    <!-- Бургер-меню (M15.5): рядом с #dock, а не внутри, — экран дока перерисовывается целиком. -->
+    <div id="menu" class="menu" hidden></div>
 
     <div id="connect" class="connect" hidden>
       <!-- onsubmit: пока скрипт не загрузился (или упал), браузер не должен уводить ник и пароль в адрес страницы. -->

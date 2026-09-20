@@ -52,6 +52,8 @@ import { Feed, describeBurn, describeKill, describeNotice, describeRepChange } f
 import { FlightHud } from './ui/flightHud';
 import { GalaxyMap } from './ui/galaxyMap';
 import { ControlsWindow } from './ui/controlsWindow';
+import { BurgerMenu } from './ui/menu';
+import { ConfirmCard, logoutLines } from './ui/confirm';
 import { keymap } from './input/keymap';
 import { InvasionBoard, InvasionHud } from './ui/invasion';
 import { Minimap } from './ui/minimap';
@@ -178,15 +180,17 @@ async function main(): Promise<void> {
 
   const feed = new Feed(el('feed'));
   // Вход (GDD §61): ник и пароль один раз, дальше — ключ устройства. Выход забывает ключ.
+  // Выход один на всех: кнопка в окне «Пилот» и пункт бургер-меню делают ровно это.
+  const logout = () => {
+    if (serverUrl) account.forget(serverUrl);
+    connection?.logout();
+  };
   const pilotForm = new PilotForm(el('connect'), {
     onLogin: (name, password) => {
       account.setName(name);
       connection?.login({ name, password });
     },
-    onLogout: () => {
-      if (serverUrl) account.forget(serverUrl);
-      connection?.logout();
-    },
+    onLogout: logout,
   });
   const showPilotForm = (error = '') =>
     pilotForm.show(
@@ -354,7 +358,7 @@ async function main(): Promise<void> {
     onRepair: () => send({ t: 'repair' }),
     onRefuel: () => send({ t: 'refuel' }),
     onUndock: () => send({ t: 'dock', on: false }),
-    onControls: () => controlsWindow.toggle(),
+    onMenu: (anchor) => menu.toggleAt(anchor),
     onAccept: (id) => send({ t: 'mission', action: 'accept', id }),
     onAbandon: () => send({ t: 'mission', action: 'abandon' }),
     onComplete: () => send({ t: 'mission', action: 'complete' }),
@@ -365,10 +369,24 @@ async function main(): Promise<void> {
   const galaxyMap = new GalaxyMap(el('galaxy'));
   // Окно «Управление» (M10.5): шестерёнка у миникарты и в доке, только на ПК — на телефоне кнопки на экране.
   const controlsWindow = new ControlsWindow(el('controls'));
-  const controlsButton = el('controls-open') as HTMLButtonElement;
-  controlsButton.addEventListener('click', () => {
-    controlsButton.blur();
-    controlsWindow.toggle();
+  // Вопрос «точно?» — пока только для выхода в полёте: корабль остаётся в космосе.
+  const confirm = new ConfirmCard(el('confirm'));
+  // Бургер (M15.5): одно меню на док и на полёт, чтобы пункты не разъезжались.
+  // Выход из меню сам показывает окно «Пилот»: кнопка в самом окне делает это за себя.
+  const leave = () => {
+    logout();
+    showPilotForm();
+  };
+  const menu = new BurgerMenu(el('menu'), (action) => {
+    if (action === 'controls') controlsWindow.toggle();
+    // В доке корабль припаркован — спрашивать не о чем; в полёте он останется в космосе.
+    else if (docked) leave();
+    else confirm.ask(logoutLines(false), leave);
+  });
+  const menuButton = el('menu-open') as HTMLButtonElement;
+  menuButton.addEventListener('click', () => {
+    menuButton.blur();
+    menu.toggleAt(menuButton.getBoundingClientRect());
   });
   const sos = new SosBoard();
   // Вторжение пиратов (GDD §38): табло справа, точка на миникарте, система на карте галактики.
@@ -532,7 +550,10 @@ async function main(): Promise<void> {
   bindCombatKeys(fire, {
     step: stepSelection,
     clear: () => {
-      if (controlsWindow.open) controlsWindow.hide();
+      // Сверху вниз: самое недавнее и наименее важное закрывается первым.
+      if (confirm.open) confirm.hide();
+      else if (menu.open) menu.hide();
+      else if (controlsWindow.open) controlsWindow.hide();
       else if (galaxyMap.open) galaxyMap.hide();
       else if (selectedLootId !== 0) setLoot(0);
       else if (markId !== 0) setMark(0);
@@ -543,7 +564,9 @@ async function main(): Promise<void> {
   // Esc закрывает окна, даже если «Снять цель» переназначена на другую клавишу.
   window.addEventListener('keydown', (e) => {
     if (e.code !== 'Escape' || keymap.capturing || keymap.actionFor(e) === 'targetClear') return;
-    if (controlsWindow.open) controlsWindow.hide();
+    if (confirm.open) confirm.hide();
+    else if (menu.open) menu.hide();
+    else if (controlsWindow.open) controlsWindow.hide();
     else if (galaxyMap.open) galaxyMap.hide();
   });
   // F — ближайший предмет: на ПК иначе до мелкого обломка не дотянуться мышью в бою.
@@ -1122,7 +1145,7 @@ async function main(): Promise<void> {
 
     minimap.hidden = !online || !system;
     pvpButton.hidden = minimap.hidden;
-    controlsButton.hidden = minimap.hidden;
+    menuButton.hidden = minimap.hidden;
     minimap.update(
       {
         sun: Boolean(system?.sun),
