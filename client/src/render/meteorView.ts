@@ -5,7 +5,7 @@ import { spriteSize, texture, type SpriteName } from './sprites';
 
 /** Девять камней с листа: вид выбирается по id, так что у всех игроков камень один и тот же. */
 const ROCKS = Array.from({ length: 9 }, (_, i) => `meteors-m${i}` as SpriteName);
-/** Картинка чуть больше радиуса попадания: у камня неровный край, круг попадания — по «телу». */
+/** Картинка чуть больше радиуса столкновения: у камня неровный край, а таран считается по «телу». */
 const ROCK_SCALE = 1.15;
 /** Кувырок: картинка сплющивается поперёк оси вращения — плоский спрайт читается как тело. */
 const TUMBLE_SQUASH = 0.12;
@@ -19,7 +19,10 @@ export interface MeteorInfo {
   y: number;
   vx: number;
   vy: number;
-  /** Радиус — как size у кораблей: по нему попадание тапом и рамка цели. */
+/**
+   * Радиус — как size у кораблей: по нему попадание тапом и рамка цели. Это радиус **картинки**, а не
+   * тела: по чему камень выглядит, по тому в него и тычут. Тараном сервер считает по своему, меньшему.
+   */
   size: number;
   sizeId: string;
   name: string;
@@ -163,7 +166,7 @@ export class MeteorField {
         y: dto.y,
         vx: dto.vx,
         vy: dto.vy,
-        size: size.radius,
+        size: size.radius * ROCK_SCALE,
         sizeId: dto.s,
         name: size.name,
         hp: dto.hp,
