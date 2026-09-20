@@ -2,6 +2,7 @@ import type { GalaxyDto, GalaxySystemDto } from '../net/protocol';
 import { dangerColor, dangerName, hops, jumpCost, jumpOutlook, pvpName, regionName, type JumpOutlook } from '../sim/galaxy';
 import { lootItem, type LootRules } from '../sim/loot';
 import type { MarketRules } from '../sim/market';
+import { levelColor, levelIndex, levelOf, repLabel, type ReputationRules } from '../sim/reputation';
 import { color } from './cargoHud';
 
 const SVG = 'http://www.w3.org/2000/svg';
@@ -22,6 +23,25 @@ export interface GalaxyMapState {
   market?: MarketRules | null;
   /** Каталог груза: названия товаров для строки «производит / покупает». */
   loot?: LootRules | null;
+  /**
+   * Отношение систем к пилоту (M13), по id системы; только ненулевые. В GalaxyDto ему не место:
+   * тот приходит в общем config и одинаков для всех, а это — личное.
+   */
+  rep?: Record<string, number> | null;
+  repRules?: ReputationRules | null;
+}
+
+/**
+ * Значок отношения у названия системы: крестик — враг (док закрыт), ромб — друг и выше.
+ * Нейтральные и просто недоверчивые системы значка не получают: иначе карта зарябит.
+ */
+function repMark(state: GalaxyMapState, id: string): string {
+  const value = state.rep?.[id];
+  if (value === undefined || !state.repRules) return '';
+  const index = levelIndex(state.repRules, value);
+  const last = (state.repRules.levels ?? []).length - 1;
+  if (index === 0) return ' ✖';
+  return index >= last - 1 && last >= 3 ? ' ♦' : '';
 }
 
 const OUTLOOK_TEXT: Record<JumpOutlook, string> = {
@@ -148,11 +168,24 @@ export class GalaxyMap {
       if (system.id === state.objective) group.append(svgEl('circle', { cx: system.x, cy: system.y, r: 7.4, class: 'galaxy-objective' }));
       if (system.id === state.invasion) group.append(svgEl('circle', { cx: system.x, cy: system.y, r: 8.6, class: 'galaxy-invasion' }));
       group.append(svgEl('circle', { cx: system.x, cy: system.y, r: 4, fill: color(dangerColor(system.danger)) }));
+      // Отношение — кольцом вокруг узла: цвет кружка занят опасностью, а она для маршрута важнее.
+      const repValue = state.rep?.[system.id];
+      if (repValue !== undefined && state.repRules) {
+        group.append(svgEl('circle', {
+          cx: system.x,
+          cy: system.y,
+          r: 6.2,
+          class: 'galaxy-rep',
+          stroke: levelColor(levelOf(state.repRules, repValue)),
+        }));
+      }
       if (system.station) {
         group.append(svgEl('rect', { x: system.x - 1.4, y: system.y - 1.4, width: 2.8, height: 2.8, class: 'galaxy-station' }));
       }
       const name = svgEl('text', { x: system.x, y: system.y + 8.2, class: 'galaxy-name' });
-      name.textContent = `${system.name}${system.id === state.home ? ' ⌂' : ''}${system.id === state.objective ? ' ★' : ''}${system.id === state.invasion ? ' ⚔' : ''}`;
+      name.textContent =
+        `${system.name}${repMark(state, system.id)}${system.id === state.home ? ' ⌂' : ''}` +
+        `${system.id === state.objective ? ' ★' : ''}${system.id === state.invasion ? ' ⚔' : ''}`;
       group.append(name);
       // Зона тапа крупнее кружка: пальцем по кружку в 8 единиц на телефоне не попасть.
       group.append(svgEl('circle', { cx: system.x, cy: system.y, r: 9, class: 'galaxy-hit' }));
@@ -169,7 +202,9 @@ export class GalaxyMap {
       el(
         'div',
         'galaxy-legend',
-        `${regions ? `Регионы: ${regions}. ` : ''}Цвет — опасность, квадрат — станция, ⌂ — где вы появитесь после гибели, ★ — цель задания, ⚔ — вторжение пиратов. Числа — топливо на прыжок.`,
+        `${regions ? `Регионы: ${regions}. ` : ''}Цвет — опасность, квадрат — станция, кольцо — отношение властей ` +
+          `(✖ — док закрыт, ♦ — вас тут ценят), ⌂ — где вы появитесь после гибели, ★ — цель задания, ` +
+          `⚔ — вторжение пиратов. Числа — топливо на прыжок.`,
       ),
     );
     this.root.replaceChildren(card);
@@ -195,6 +230,14 @@ export class GalaxyMap {
       const consumes = names(profile.consumes);
       if (produces) box.append(el('div', 'galaxy-info-trade', `Производит: ${produces}`));
       if (consumes) box.append(el('div', 'galaxy-info-trade', `Покупает: ${consumes}`));
+    }
+    // Отношение властей (M13): по нему закрывается док и звереют рейнджеры.
+    const repValue = state.rep?.[system.id];
+    if (repValue !== undefined && state.repRules) {
+      const level = levelOf(state.repRules, repValue);
+      const line = el('div', 'galaxy-info-trade', `Отношение: ${repLabel(level, repValue)}`);
+      line.style.color = levelColor(level);
+      box.append(line);
     }
     const cost = jumpCost(state.galaxy, state.current, system.id);
     const outlook = jumpOutlook(state.galaxy, state.current, system.id, state.fuel);

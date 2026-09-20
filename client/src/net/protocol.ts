@@ -7,10 +7,11 @@ import type { MarketRules } from '../sim/market';
 import type { MeteorRules } from '../sim/meteors';
 import type { HullConfig } from '../sim/movement';
 import type { NpcRules } from '../sim/npcs';
+import type { ReputationRules } from '../sim/reputation';
 import type { ShopRules } from '../sim/shop';
 
 /** Версия протокола; зеркало Protocol.Version на сервере. Сервер другой версии (или старый, без поля) — не играем. */
-export const PROTOCOL_VERSION = 17;
+export const PROTOCOL_VERSION = 18;
 
 /** Состояние ИИ пирата: патруль, бой, возврат в логово (налётчик — полёт от врат к точке), уход из системы. */
 export type AiState = 'patrol' | 'attack' | 'return' | 'leave';
@@ -237,6 +238,8 @@ export interface WelcomeMsg {
    * Живые цены приходят отдельным market; нет поля — рынка здесь нет.
    */
   market?: MarketRules | null;
+  /** Правила репутации (M13); нет — сервер без reputation.json, всё как до M13. */
+  reputation?: ReputationRules | null;
 }
 
 /** PvP в системе (GDD §34): off — нет; border — нет у станции; free — везде. */
@@ -392,6 +395,8 @@ export interface ConfigMsg {
   galaxy?: GalaxyDto;
   modules?: ModuleConfig | null;
   market?: MarketRules | null;
+  /** Правила репутации (M13); нет — сервер без reputation.json, всё как до M13. */
+  reputation?: ReputationRules | null;
 }
 
 /** Вход принят; приходит раньше welcome. */
@@ -499,6 +504,48 @@ export interface MarketMsg {
   rumours?: RumourDto[];
 }
 
+/** Отношение к пилоту здесь и сейчас (M13); нет — в этой системе станции нет. */
+export interface RepHereDto {
+  /** Ключ станции, например «st:vega». */
+  place: string;
+  /** Очки станции. */
+  value: number;
+  /** Действующая ступень магазина: лучшее из станции и среднего по региону. Считает сервер. */
+  level: string;
+  /** Очки системы. */
+  system: number;
+  /** Ступень системы: по ней закрывается док и звереют рейнджеры. */
+  systemLevel: string;
+  /** Среднее по региону. */
+  region: number;
+}
+
+/** Одна строка журнала репутации; текст собираем сами (ui/feed.ts). */
+export interface RepChangeDto {
+  /** Повод: «traderKill», «missionDone» и прочие. */
+  code: string;
+  delta: number;
+  /** Чьё отношение: «sys:vega» или «st:vega». */
+  key: string;
+  /** Сколько стало. */
+  value: number;
+}
+
+/**
+ * Репутация пилота (M13) — только своему соединению. Отдельным сообщением, а не полем ангара:
+ * цвет систем на карте и предупреждение «Враг» нужны и в полёте.
+ */
+export interface RepMsg {
+  t: 'rep';
+  /** Очки по системам, по id системы; только ненулевые. */
+  systems: Record<string, number>;
+  /** Очки по станциям, по ключу «st:<система>»; только ненулевые. */
+  places: Record<string, number>;
+  here?: RepHereDto | null;
+  /** Что только что изменилось; нет — полное состояние без повода. */
+  change?: RepChangeDto | null;
+}
+
 /** Вид задания (GDD §36). */
 export type MissionKind = 'kill' | 'collect' | 'deliver';
 
@@ -516,6 +563,8 @@ export interface MissionOffer {
   reward: number;
   /** Где выдали. */
   from: string;
+  /** Особый контракт доски: только друзьям станции и платит больше обычного (M13). */
+  elite?: boolean;
 }
 
 /** Шаг обучения (GDD §54). id — что его засчитывает. */
@@ -670,4 +719,5 @@ export type ServerMessage =
   | PartyEventMsg
   | BountyMsg
   | InvasionMsg
-  | MarketMsg;
+  | MarketMsg
+  | RepMsg;

@@ -14,6 +14,7 @@ import {
   type PartyEventMsg,
   type PartyInviteMsg,
   type PartyStateMsg,
+  type RepMsg,
   type SosMsg,
   type ServerMessage,
   type SnapshotMsg,
@@ -74,6 +75,8 @@ export class Connection {
   onCargo: ((message: CargoMsg) => void) | null = null;
   /** Живые цены станции (M12) — приходят, только пока пилот в доке. */
   onMarket: ((message: MarketMsg) => void) | null = null;
+  /** Репутация пилота (M13): полное состояние, а при изменении — ещё и его повод. */
+  onRep: ((message: RepMsg) => void) | null = null;
   onNotice: ((message: NoticeMsg) => void) | null = null;
   onAccount: ((message: AccountMsg) => void) | null = null;
   onDenied: ((code: DeniedCode) => void) | null = null;
@@ -252,6 +255,9 @@ export class Connection {
         break;
       case 'market':
         this.onMarket?.(message);
+        break;
+      case 'rep':
+        this.onRep?.(message);
         break;
       case 'notice':
         this.onNotice?.(message);

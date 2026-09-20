@@ -13,10 +13,11 @@ import { Zoom } from './input/zoom';
 import { CombatEvents, type CombatEvent } from './net/combatEvents';
 import { Connection } from './net/connection';
 import { Prediction } from './net/prediction';
-import type { GalaxyDto, MissionsMsg, ShipDto, SnapshotMsg, SystemDto } from './net/protocol';
+import type { GalaxyDto, MissionsMsg, RepMsg, ShipDto, SnapshotMsg, SystemDto } from './net/protocol';
 import { RemoteShips } from './net/remoteShips';
 import { Roster } from './net/roster';
 import { resolveServerUrl } from './net/serverUrl';
+import type { ReputationRules } from './sim/reputation';
 import { Camera } from './render/camera';
 import { CombatFx, type FxAnchor } from './render/combatFx';
 import { JumpFx, type Jumper } from './render/jumpFx';
@@ -45,7 +46,7 @@ import { CargoHud, type CargoState } from './ui/cargoHud';
 import { CombatHud } from './ui/combatHud';
 import { DevOverlay } from './ui/devOverlay';
 import { DockScreen } from './ui/dockScreen';
-import { Feed, describeBurn, describeKill, describeNotice } from './ui/feed';
+import { Feed, describeBurn, describeKill, describeNotice, describeRepChange } from './ui/feed';
 import { FlightHud } from './ui/flightHud';
 import { GalaxyMap } from './ui/galaxyMap';
 import { ControlsWindow } from './ui/controlsWindow';
@@ -119,6 +120,8 @@ async function main(): Promise<void> {
   let lootRules: LootRules = NO_LOOT;
   /** Правила рынка (M12): по ним карта галактики показывает, что где производят и скупают. */
   let marketRules: MarketRules | null = null;
+  let repRules: ReputationRules | null = null;
+  let repState: RepMsg | null = null;
   /**
    * Каталог лута вместе со снаряжением (M11): выпавшие пушки и модули подписываются именами из каталогов,
    * а цвет им даёт тир — Mk2 синий, Mk3 фиолетовый.
@@ -342,6 +345,8 @@ async function main(): Promise<void> {
             invasion: invasion.system(performance.now()),
             market: marketRules,
             loot: lootRules,
+            rep: repState?.systems ?? null,
+            repRules,
           }
         : null,
     );
@@ -678,7 +683,8 @@ async function main(): Promise<void> {
       loot.setRules(lootRules);
       cargoHud.setRules(lootRules);
       marketRules = message.market ?? null;
-      dockScreen.setRules(lootRules, message.shop, marketRules);
+      repRules = message.reputation ?? null;
+      dockScreen.setRules(lootRules, message.shop, marketRules, message.reputation);
       loot.clear();
       meteors.setRules(message.meteors);
       meteors.clear();
@@ -706,7 +712,8 @@ async function main(): Promise<void> {
       loot.setRules(lootRules);
       cargoHud.setRules(lootRules);
       marketRules = message.market ?? null;
-      dockScreen.setRules(lootRules, message.shop, marketRules);
+      repRules = message.reputation ?? null;
+      dockScreen.setRules(lootRules, message.shop, marketRules, message.reputation);
       meteors.setRules(message.meteors);
       dockScreen.refresh();
     };
@@ -723,6 +730,16 @@ async function main(): Promise<void> {
     };
     // Живые цены станции (M12): приходят, пока пилот в доке, и после каждой сделки.
     connection.onMarket = (message) => dockScreen.setMarket(message);
+    connection.onRep = (message) => {
+      repState = message;
+      dockScreen.setRep(message);
+      // Повод изменения — строкой в ленту: «−15 Vega: атака торговца».
+      if (message.change) {
+        const id = message.change.key.slice(message.change.key.indexOf(':') + 1);
+        feed.add(describeRepChange(message.change, galaxy?.systems.find((s) => s.id === id)?.name));
+      }
+      refreshGalaxyMap(); // цвет колец на карте зависит от очков
+    };
     connection.onHangar = (message) => {
       const was = docked;
       docked = message.docked;

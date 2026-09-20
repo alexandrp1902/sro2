@@ -1126,6 +1126,76 @@ body {
   line-height: 1.4;
 }
 
+/* Репутация (M13): плашки станции и системы под кораблём, журнал разворачивается тапом. */
+.dock-rep {
+  padding: 0 14px 8px;
+}
+
+.dock-rep-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  padding: 6px 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.rep-chip {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  font-size: 13px;
+}
+
+.rep-chip-what {
+  color: #7f97b8;
+}
+
+.rep-chip-level {
+  font-weight: 600;
+}
+
+.rep-more {
+  margin-left: auto;
+  color: #7f97b8;
+}
+
+.dock-rep-log {
+  padding: 6px 10px;
+  border-left: 3px solid #1f3350;
+  border-radius: 8px;
+  background: rgba(31, 51, 80, 0.25);
+}
+
+.dock-rep-entry {
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.dock-rep-entry[data-sign='up'] {
+  color: #6fe08a;
+}
+
+.dock-rep-entry[data-sign='down'] {
+  color: #e07a6f;
+}
+
+/* Товар под замком репутации: видно, что он тут есть, но кнопки нет. */
+.dock-row[data-state='locked'] {
+  opacity: 0.6;
+}
+
+/* Кольцо отношения вокруг узла на карте галактики. */
+.galaxy-rep {
+  fill: none;
+  stroke-width: 1.2;
+}
+
 /* Вкладка «Рынок» (M12): цена, склад станции, счётчик и две кнопки в одной строке. */
 .dock-market-row {
   grid-template-columns: auto 1fr;

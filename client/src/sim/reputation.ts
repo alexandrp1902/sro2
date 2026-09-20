@@ -75,8 +75,12 @@ export function priceMul(level: RepLevel): number {
 /**
  * Цена с учётом отношения. Округление — то же, что у ShopRules.Round на сервере: от сотни до десятков,
  * мелочь до кредита. Разойтись здесь нельзя: дока показывает цену, которую спишет сервер.
+ *
+ * Множитель ровно 1 (нейтрал, правил нет) возвращает цену как есть: округление — часть скидки,
+ * а не бесплатная добавка, иначе ремонт за 101 кр стоил бы 100 и без всякой репутации.
  */
 export function repPrice(basePrice: number, mul: number): number {
+  if (mul === 1) return basePrice;
   const value = basePrice * mul;
   return value >= 100 ? Math.round(value / 10) * 10 : Math.round(value);
 }
@@ -91,6 +95,19 @@ export function gated(rules: ReputationRules, id: string, hull: boolean): boolea
 /** Пускают ли пилота с такими очками к этому товару. */
 export function allows(rules: ReputationRules, value: number, id: string, hull: boolean): boolean {
   return !gated(rules, id, hull) || atLeast(rules, value, rules.gate?.level);
+}
+
+/**
+ * То же, но по названию ступени, а не по очкам: сервер присылает действующую ступень готовой
+ * (лучшее из станции и региона), и пересчитывать её из очков на клиенте значило бы повторять
+ * региональную арифметику — разойтись в ней проще, чем сойтись.
+ */
+export function allowsLevel(rules: ReputationRules, level: string | null | undefined, id: string, hull: boolean): boolean {
+  if (!gated(rules, id, hull)) return true;
+  const list = levels(rules);
+  const have = list.findIndex((l) => l.id === level);
+  const want = list.findIndex((l) => l.id === rules.gate?.level);
+  return have >= 0 && want >= 0 && have >= want;
 }
 
 /** Подпись отношения: «Друг (+42)». Ноль пишется без знака. */

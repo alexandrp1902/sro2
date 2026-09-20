@@ -1,3 +1,4 @@
+import type { RepChangeDto } from '../net/protocol';
 import type { RosterEvent } from '../net/roster';
 
 const SHOW_MS = 4000;
@@ -43,9 +44,36 @@ const NOTICES: Record<string, string> = {
   rangers: 'Рейнджеры вступились за торговца — уходите!',
   noGoods: 'Этим здесь не торгуют',
   noStock: 'На складе станции столько нет',
+  dockClosed: 'Док закрыт: здесь вас считают врагом',
+  needRep: 'Это продают только своим — здесь вас ещё не знают',
 };
 
 /** @returns текст уведомления или null, если код незнакомый (сервер новее клиента). */
+/** За что двигают репутацию — по коду с сервера (M13). */
+const REP_REASONS: Record<string, string> = {
+  missionDone: 'задание выполнено',
+  missionAbandon: 'задание брошено',
+  pirate: 'пират уничтожен',
+  sos: 'помощь торговцу',
+  invasion: 'вторжение отбито',
+  traderAttack: 'атака торговца',
+  traderKill: 'торговец уничтожен',
+  rangerAttack: 'атака рейнджера',
+  rangerKill: 'рейнджер уничтожен',
+  playerKill: 'убийство пилота',
+};
+
+/**
+ * Строка ленты об изменении репутации: «−15 Vega: атака торговца».
+ * @param name имя места; нет — берём id из ключа
+ */
+export function describeRepChange(change: RepChangeDto, name?: string | null): string {
+  const where = name ?? change.key.slice(change.key.indexOf(':') + 1);
+  const sign = change.delta > 0 ? '+' : '';
+  const why = REP_REASONS[change.code] ?? change.code;
+  return `${sign}${change.delta} ${where}: ${why}`;
+}
+
 export function describeNotice(code: string): string | null {
   return NOTICES[code] ?? null;
 }

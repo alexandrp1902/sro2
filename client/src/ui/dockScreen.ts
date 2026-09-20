@@ -1,4 +1,13 @@
-import type { BuyKind, HangarMsg, MarketItemDto, MarketMsg, MissionOffer, MissionsMsg } from '../net/protocol';
+import type {
+  BuyKind,
+  HangarMsg,
+  MarketItemDto,
+  MarketMsg,
+  MissionOffer,
+  MissionsMsg,
+  RepChangeDto,
+  RepMsg,
+} from '../net/protocol';
 import type { WeaponParams } from '../sim/combat';
 import {
   MODULE_SLOTS,
@@ -25,6 +34,17 @@ import type { Hulls } from '../sim/hulls';
 import { activeHint, activeLine, offerNote, offerTitle, type MissionNames } from '../sim/missions';
 import { lootItem, rarityColor, type LootRules } from '../sim/loot';
 import { NO_MARKET, affordable, rumourLine, stockLevel, tradeCost, trend, type MarketRules } from '../sim/market';
+import {
+  NO_REP,
+  allowsLevel,
+  levelById,
+  levelColor,
+  levelOf,
+  priceMul,
+  repLabel,
+  repPrice,
+  type ReputationRules,
+} from '../sim/reputation';
 import { NO_SHOP, formatCredits, fuelCost, price, repairCost, sells, sellPrice, type ShopRules } from '../sim/shop';
 import type { Weapons } from '../sim/weapons';
 import { color, round, type CargoState } from './cargoHud';
@@ -39,13 +59,23 @@ export type OfferState =
   | 'buy'
   /** Продаётся, но кредитов не хватает. */
   | 'poor'
+  /** Продаётся, но только своим: не хватает репутации места (M13). */
+  | 'locked'
   /** Не продаётся. */
   | 'none';
 
-export function offerState(owned: boolean, active: boolean, cost: number | null, credits: number): OfferState {
+export function offerState(
+  owned: boolean,
+  active: boolean,
+  cost: number | null,
+  credits: number,
+  locked = false,
+): OfferState {
   if (active) return 'active';
   if (owned) return 'owned';
   if (cost === null) return 'none';
+  // Замок важнее кошелька: копить на то, что тебе всё равно не продадут, — ложная цель.
+  if (locked) return 'locked';
   return cost <= credits ? 'buy' : 'poor';
 }
 
@@ -202,6 +232,49 @@ export function startTab(missions: MissionsMsg | null, cargo: Record<string, num
   return 'cargo';
 }
 
+/** Сколько строк журнала репутации помнит экран. */
+const REP_LOG_MAX = 10;
+
+/** За что начислили или сняли — по коду с сервера. */
+const REP_REASONS: Record<string, string> = {
+  missionDone: 'задание выполнено',
+  missionAbandon: 'задание брошено',
+  pirate: 'пират уничтожен',
+  sos: 'помощь торговцу',
+  invasion: 'вторжение отбито',
+  traderAttack: 'атака торговца',
+  traderKill: 'торговец уничтожен',
+  rangerAttack: 'атака рейнджера',
+  rangerKill: 'рейнджер уничтожен',
+  playerKill: 'убийство пилота',
+};
+
+/** Плашка отношения: подпись и цвет ступени. */
+export function repChip(rules: ReputationRules, value: number): { text: string; color: string } {
+  const level = levelOf(rules, value);
+  return { text: repLabel(level, value), color: levelColor(level) };
+}
+
+/**
+ * Строка журнала: «−15 Vega · атака торговца». Имя места приходит снаружи — здесь только ключ.
+ * @param name как называется место из change.key; нет — пишем сам id
+ */
+export function repLogLine(change: RepChangeDto, name?: string | null): string {
+  const where = name ?? change.key.slice(change.key.indexOf(':') + 1);
+  const sign = change.delta > 0 ? '+' : '';
+  const why = REP_REASONS[change.code] ?? change.code;
+  return `${sign}${change.delta} ${where} · ${why}`;
+}
+
+/**
+ * Почему товар недоступен; null — доступен или гейта нет.
+ * @param level действующая ступень магазина, как её прислал сервер
+ */
+export function repGateNote(rules: ReputationRules, level: string | null | undefined, id: string, hull: boolean): string | null {
+  if (allowsLevel(rules, level, id, hull)) return null;
+  return `Только для уровня «${levelById(rules, rules.gate?.level).name}»`;
+}
+
 /**
  * Экран дока станции (GDD §26, §51): поверх мира, пока корабль пристыкован. Здесь продают груз,
  * покупают и меняют корпуса и пушки, чинятся. Рисуется по событиям сервера, а не каждый кадр.
@@ -222,6 +295,12 @@ export class DockScreen {
   private scene_: string | null = null;
   /** Правила рынка этой станции (M12). */
   private market: MarketRules = NO_MARKET;
+  private repRules: ReputationRules = NO_REP;
+  private rep: RepMsg | null = null;
+  /** Последние изменения репутации; живут на экране до перезахода — серверной истории нет. */
+  private readonly repLog: RepChangeDto[] = [];
+  /** Журнал развёрнут: состояние на экране, потому что render() пересобирает карточку целиком. */
+  private repOpen = false;
   /** Живые цены станции; null — рынка здесь нет. */
   private quotes: MarketMsg | null = null;
   /**
@@ -243,10 +322,26 @@ export class DockScreen {
     return this.hangar?.docked ?? false;
   }
 
-  setRules(loot: LootRules | undefined, shop: ShopRules | undefined, market?: MarketRules | null): void {
+  setRules(
+    loot: LootRules | undefined,
+    shop: ShopRules | undefined,
+    market?: MarketRules | null,
+    reputation?: ReputationRules | null,
+  ): void {
     this.loot = loot ?? null;
     this.shop = shop ?? NO_SHOP;
     this.market = market ?? NO_MARKET;
+    this.repRules = reputation ?? NO_REP;
+    this.render();
+  }
+
+  /** Репутация пилота (M13); повод изменения копится в журнале. */
+  setRep(rep: RepMsg | null): void {
+    this.rep = rep;
+    if (rep?.change) {
+      this.repLog.unshift(rep.change);
+      if (this.repLog.length > REP_LOG_MAX) this.repLog.length = REP_LOG_MAX;
+    }
     this.render();
   }
 
@@ -313,6 +408,8 @@ export class DockScreen {
     card.append(head);
     card.append(this.scene(hangar));
     card.append(this.shipLine(hangar, credits));
+    const rep = this.repLine();
+    if (rep) card.append(rep);
 
     const tabs = el('div', 'dock-tabs');
     for (const { id, label } of TABS) {
@@ -338,6 +435,71 @@ export class DockScreen {
     const scroll = old?.dataset.tab === this.tab ? old.scrollTop : 0;
     this.root.replaceChildren(card);
     body.scrollTop = scroll;
+  }
+
+  /**
+   * Отношение станции и системы к пилоту (M13). Вся строка — кнопка: тап разворачивает журнал
+   * последних изменений. Отдельной вкладки журнал не получает: на телефоне пятая вкладка не влезает,
+   * а читают его редко.
+   */
+  private repLine(): HTMLElement | null {
+    const here = this.rep?.here;
+    if (!here || !this.repRules.levels?.length) return null;
+
+    const line = el('div', 'dock-rep');
+    const row = button('', 'dock-rep-row', () => {
+      this.repOpen = !this.repOpen;
+      this.render();
+    });
+    row.setAttribute('aria-expanded', String(this.repOpen));
+    for (const [label, value] of [
+      ['Станция', here.value],
+      ['Система', here.system],
+    ] as const) {
+      const chip = repChip(this.repRules, value);
+      const box = el('span', 'rep-chip');
+      box.style.color = chip.color;
+      box.append(el('span', 'rep-chip-what', label), el('span', 'rep-chip-level', chip.text));
+      row.append(box);
+    }
+    if (this.repLog.length > 0) row.append(el('span', 'rep-more', this.repOpen ? '▴' : '▾'));
+    line.append(row);
+
+    if (this.repOpen && this.repLog.length > 0) {
+      const log = el('div', 'dock-rep-log');
+      for (const change of this.repLog) {
+        const entry = el('div', 'dock-rep-entry', repLogLine(change, this.placeName(change.key)));
+        entry.dataset.sign = change.delta > 0 ? 'up' : 'down';
+        log.append(entry);
+      }
+      line.append(log);
+    }
+    return line;
+  }
+
+  /**
+   * Множитель цен от отношения. Ступень считает сервер (лучшее из станции и региона) и присылает готовой —
+   * дока только умножает, чтобы показать ровно то, что спишется.
+   */
+  private repMul(): number {
+    return this.rep?.here ? priceMul(levelById(this.repRules, this.rep.here.level)) : 1;
+  }
+
+  /** Цена с учётом отношения — тем же округлением, что на сервере. */
+  private repCost(base: number): number {
+    return repPrice(base, this.repMul());
+  }
+
+  /** Хватает ли репутации, чтобы это вообще продали. */
+  private repAllows(id: string, hull: boolean): boolean {
+    const here = this.rep?.here;
+    return here ? allowsLevel(this.repRules, here.level, id, hull) : true;
+  }
+
+  /** Человеческое имя места из ключа «sys:vega»; знаем только здешнюю систему — остальные по id. */
+  private placeName(key: string): string | null {
+    const id = key.slice(key.indexOf(':') + 1);
+    return id === this.here ? this.station.replace('Станция ', '') : null;
   }
 
   /**
@@ -381,7 +543,7 @@ export class DockScreen {
     line.append(el('div', 'dock-ship-hp', `Корпус ${hangar.hp} / ${hangar.maxHp}`));
     const missing = hangar.maxHp - hangar.hp;
     if (missing > 0) {
-      const cost = repairCost(this.shop, missing, hangar.maxHp, price(this.shop.hulls, hangar.hull) ?? 0);
+      const cost = this.repCost(repairCost(this.shop, missing, hangar.maxHp, price(this.shop.hulls, hangar.hull) ?? 0));
       const repair = button(cost > 0 ? `Ремонт · ${formatCredits(cost)}` : 'Ремонт бесплатно', 'dock-buy', () =>
         this.handlers.onRepair(),
       );
@@ -622,8 +784,9 @@ export class DockScreen {
         : [`щит ${hull.shield}`, hull.fuel ? `бак ${hull.fuel}` : '', hull.radar ? `радар ${hull.radar}` : ''];
       const stats = [`корпус ${hull.hp} · скорость ${hull.maxSpeed} · трюм ${hull.cargo}`, ...own.filter(Boolean)].join(' · ');
       // Здесь продают не всё (M11): чего нет в ассортименте станции, то и не купить.
-      const cost = sells(this.shop, id, this.shop.hulls) ? price(this.shop.hulls, id) : null;
-      const state = offerState(hangar.hulls.includes(id), id === hangar.hull, cost, credits);
+      const listed = sells(this.shop, id, this.shop.hulls) ? price(this.shop.hulls, id) : null;
+      const cost = listed === null ? null : this.repCost(listed);
+      const state = offerState(hangar.hulls.includes(id), id === hangar.hull, cost, credits, !this.repAllows(id, true));
       const name = hull.role ? `${hull.name} — ${hull.role}` : hull.name;
       body.append(this.offer(id, name, stats, state));
     }
@@ -716,11 +879,19 @@ export class DockScreen {
       // Чего не поставить по классу — и не показываем: список не должен тонуть в недоступном.
       if (problem === 'class' || problem === 'slot') continue;
       // Купить можно только то, что продают здесь (M11); своё со склада ставится везде.
-      const cost = sells(this.shop, id, this.shop.items) ? price(this.shop.items, id) : null;
+      const listed = sells(this.shop, id, this.shop.items) ? price(this.shop.items, id) : null;
+      // Mk3 продают только друзьям станции (M13): витрину оставляем, но с замком вместо кнопки.
+      const locked = listed !== null && !this.repAllows(id, false);
+      const cost = listed === null || locked ? null : this.repCost(listed);
       const offer = slotOffer(id === current, stored, cost, credits, problem);
-      if (offer.action === 'none') continue;
+      if (offer.action === 'none' && !locked) continue;
       const item = el('div', 'dock-row');
-      item.dataset.state = offer.action === 'installed' ? 'active' : offer.action === 'install' ? 'owned' : offer.poor || offer.problem ? 'poor' : 'buy';
+      item.dataset.state =
+        offer.action === 'installed' ? 'active'
+        : offer.action === 'install' ? 'owned'
+        : offer.action === 'none' ? 'locked'
+        : offer.poor || offer.problem ? 'poor'
+        : 'buy';
       const picture = this.picture(id);
       if (picture) item.append(icon(picture));
       const name = offer.action === 'install' && Number.isFinite(stored) ? `${this.itemName(id)} · на складе ${stored}` : this.itemName(id);
@@ -745,6 +916,10 @@ export class DockScreen {
           item.append(buy);
           break;
         }
+        case 'none':
+          // Витрину не прячем: пусть видно, что здесь есть и чего это стоит добиться.
+          item.append(el('div', 'dock-tag', repGateNote(this.repRules, this.rep?.here?.level, id, false) ?? 'Только для своих'));
+          break;
       }
       list.append(item);
     }
@@ -775,7 +950,7 @@ export class DockScreen {
     row.addEventListener('mouseleave', () => this.previewHull(null));
     row.append(icon(shipSprite(id)));
     row.append(el('div', 'dock-name', name), el('div', 'dock-stats', stats));
-    const cost = price(this.shop.hulls, id) ?? 0;
+    const cost = this.repCost(price(this.shop.hulls, id) ?? 0);
     switch (state) {
       case 'active':
         row.append(el('div', 'dock-tag', 'На корабле'));
@@ -790,6 +965,9 @@ export class DockScreen {
         row.append(buy);
         break;
       }
+      case 'locked':
+        row.append(el('div', 'dock-tag', repGateNote(this.repRules, this.rep?.here?.level, id, true) ?? 'Только для своих'));
+        break;
       case 'none':
         row.append(el('div', 'dock-tag', 'Здесь нет'));
         break;
