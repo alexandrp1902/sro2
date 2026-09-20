@@ -34,6 +34,9 @@ public sealed partial class Room
     private readonly Dictionary<int, MissionRun> _runs = [];
     private int _runCount;
 
+    /// <summary>Какой оборот доски показан сейчас; меняется — досок у всех в доке обновляется (M15.1).</summary>
+    private long _boardRound = -1;
+
     /// <summary>Идущее живое задание пилота; null — нет.</summary>
     private MissionRun? RunOf(Player player) => _runs.GetValueOrDefault(player.Id);
 
@@ -106,6 +109,12 @@ public sealed partial class Room
         {
             if (player.Missions.Active is { Until: > 0 } timed && now >= timed.Until) Fail(player, Protocol.TimeFail);
         }
+        // Доска сменилась по часам (M15.1) — показать новую тем, кто на неё сейчас смотрит.
+        // Тем, кто в космосе, слать незачем: доску они увидят, когда встанут, и она будет уже свежей.
+        var round = Balance.Missions.Round(OrbitSeconds);
+        if (round == _boardRound) return;
+        _boardRound = round;
+        foreach (var player in DockedPlayers()) SendMissions(player);
     }
 
     /// <summary>

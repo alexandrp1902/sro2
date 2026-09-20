@@ -170,9 +170,15 @@ public sealed record ActiveMission(MissionOffer Offer, int Progress = 0, long Un
 /// </summary>
 /// <param name="Offers">Сколько заданий на доске.</param>
 /// <param name="DangerBonus">Прибавка к награде за уничтожение за каждую ступень опасности выше первой.</param>
+/// <param name="RefreshMinutes">
+/// Через столько минут доска места обновляется сама, по стенным часам (M15.1); 0 — только после того,
+/// как пилот взял, сдал или бросил работу, как было раньше. Считается от unix-времени, поэтому граница
+/// у всех одна и переживает перезапуск сервера.
+/// </param>
 public sealed record MissionRules(
     int Offers = 4,
     double DangerBonus = 0.35,
+    double RefreshMinutes = 0,
     IReadOnlyList<TutorialStep>? Tutorial = null,
     IReadOnlyList<KillTemplate>? Kill = null,
     IReadOnlyList<CollectTemplate>? Collect = null,
@@ -210,6 +216,13 @@ public sealed record MissionRules(
     /// а у живых заданий вместе с вылетом пропадают актёры. Груз доставки и счёт убитых гибель переживают.
     /// </summary>
     public static bool DiesWithTheShip(string? kind) => IsLive(kind) || kind == CourierKind;
+
+    /// <summary>
+    /// Какой сейчас «оборот» доски (M15.1): номер отрезка времени длиной <see cref="RefreshMinutes"/>.
+    /// Меняется — меняются и предложения; 0 — обновления по времени нет.
+    /// Время берётся орбитальное (оно же unix-время комнаты): граница у всех мест общая и переживает перезапуск.
+    /// </summary>
+    public long Round(double seconds) => RefreshMinutes > 0 ? (long)(seconds / (RefreshMinutes * 60)) : 0;
 
     /// <summary>
     /// Взятое задание из профиля старше M15: тогда заказчиком звался голый id системы, а адресом доставки —
@@ -462,6 +475,7 @@ public sealed record MissionRules(
     /// Очки системы у этого пилота (M14): патруль рейнджеры доверяют не всякому. На остальные виды не влияет —
     /// доску ужимает и удорожает репутация станции, а она приходит отдельными аргументами выше.
     /// </param>
+    /// <param name="round">Оборот доски (<see cref="Round"/>): им она обновляется сама, без участия пилота.</param>
     public IReadOnlyList<MissionOffer> Board(
         Balance balance,
         string place,
@@ -469,7 +483,8 @@ public sealed record MissionRules(
         int? offers = null,
         bool elite = false,
         double eliteReward = 1,
-        double repHere = 0)
+        double repHere = 0,
+        long round = 0)
     {
         var galaxy = balance.Galaxy;
         var count = offers ?? Offers;
@@ -606,8 +621,9 @@ public sealed record MissionRules(
 
         if (candidates.Count == 0) return [];
 
-        // Сид смешан с ключом места: у каждого места своя доска при том же сиде пилота.
-        var rng = new Random(unchecked(seed * 31 + StableHash(place)));
+        // Сид смешан с ключом места и с оборотом доски: у каждого места своя доска при том же сиде пилота,
+        // и та же доска сама сменяется со временем.
+        var rng = new Random(unchecked(seed * 31 + StableHash(place) + (int)round * 7919));
         var total = candidates.Sum(c => c.Weight);
         var board = new List<MissionOffer>(count);
         for (var i = 0; i < count; i++)
@@ -623,7 +639,9 @@ public sealed record MissionRules(
                     break;
                 }
             }
-            var offer = pick.Make(rng, $"{seed}-{i}");
+            // Оборот — часть id: иначе после обновления «42-2» осталось бы прежним именем у другой работы,
+            // и пилот брал бы не то, что видел на экране.
+            var offer = pick.Make(rng, round == 0 ? $"{seed}-{i}" : $"{seed}.{round}-{i}");
             // Особый контракт — последним в списке: он виден как «лучшее, что тут есть», а не теряется в середине.
             if (elite && i == count - 1 && eliteReward > 1)
                 offer = offer with { Reward = (int)Math.Round(offer.Reward * eliteReward), Elite = true };

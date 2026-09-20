@@ -826,4 +826,64 @@ public sealed class MissionTests : IDisposable
         Assert.Equal(Protocol.CargoFullNotice, a.Last<NoticeMsg>().Code);
         Assert.Null(Missions(a).Active);
     }
+
+    /// <summary>Доска, которая обновляется каждую секунду: проверить смену, не ожидая двенадцати минут.</summary>
+    private static readonly MissionRules Restless = new(
+        Offers: 4,
+        DangerBonus: 0,
+        RefreshMinutes: 1.0 / 60,
+        Tutorial: Tutorial,
+        Kill: [new KillTemplate(null, 2, 2, 100)],
+        Collect: [new CollectTemplate("metal", 3, 3, 2)],
+        Deliver: [new DeliverTemplate(5, 5, 10, 100)]);
+
+    [Fact]
+    public void TheBoardRefreshesItself_ForWhoeverIsLookingAtIt()
+    {
+        _galaxy = New(Restless);
+        var a = Pilot();
+        Do(a, r => r.Mission(a, Protocol.SkipTutorial, null));
+        Dock(a);
+        var before = Missions(a).Offers.Select(o => o.Id).ToList();
+        Assert.NotEmpty(before);
+
+        // Ждём смену оборота: доска приходит сама, пилот для этого ничего не делает.
+        Steps(SimConfig.TickRate * 2);
+
+        var after = Missions(a).Offers.Select(o => o.Id).ToList();
+        Assert.NotEqual(before, after);
+        // Имя предложения живёт внутри своего оборота: иначе взяли бы не то, что видели.
+        Assert.Empty(before.Intersect(after));
+    }
+
+    [Fact]
+    public void ARefreshedBoard_DoesNotHandOutTheMissionYouNoLongerSee()
+    {
+        _galaxy = New(Restless);
+        var a = Pilot();
+        Do(a, r => r.Mission(a, Protocol.SkipTutorial, null));
+        Dock(a);
+        var stale = Missions(a).Offers[0].Id;
+
+        Steps(SimConfig.TickRate * 2);
+        Do(a, r => r.Mission(a, Protocol.AcceptMission, stale));
+
+        Assert.Null(Missions(a).Active);
+        Assert.NotEmpty(Missions(a).Offers);
+    }
+
+    [Fact]
+    public void AnIdleBoardStandsStill()
+    {
+        // Без refreshMinutes доска меняется только от того, что делает пилот, — как было до M15.1.
+        _galaxy = New(KillOnly);
+        var a = Pilot();
+        Do(a, r => r.Mission(a, Protocol.SkipTutorial, null));
+        Dock(a);
+        var before = Missions(a).Offers.Select(o => o.Id).ToList();
+
+        Steps(SimConfig.TickRate * 2);
+
+        Assert.Equal(before, Missions(a).Offers.Select(o => o.Id));
+    }
 }

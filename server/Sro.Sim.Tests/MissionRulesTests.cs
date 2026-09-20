@@ -269,4 +269,51 @@ public class MissionRulesTests
         Assert.Equal(10, settlements);
         Assert.Equal(8, stations);
     }
+
+    [Fact]
+    public void TheBoardTurnsOverOnItsOwn()
+    {
+        var balance = Shared();
+        var missions = balance.Missions;
+
+        // Одна и та же минута — одна и та же доска: обновление по часам, а не по каждому запросу.
+        Assert.Equal(missions.Board(balance, "st:sol", 42, round: 100), missions.Board(balance, "st:sol", 42, round: 100));
+        Assert.NotEqual(missions.Board(balance, "st:sol", 42, round: 100), missions.Board(balance, "st:sol", 42, round: 101));
+        // Оборот не стирает разницу между местами и между пилотами.
+        Assert.NotEqual(missions.Board(balance, "st:sol", 42, round: 100), missions.Board(balance, "st:vega", 42, round: 100));
+        Assert.NotEqual(missions.Board(balance, "st:sol", 42, round: 100), missions.Board(balance, "st:sol", 43, round: 100));
+    }
+
+    [Fact]
+    public void AnOfferKeepsItsNameOnlyWithinItsOwnRound()
+    {
+        // Иначе «42-2» после обновления назвало бы другую работу, и пилот брал бы не то, что видел.
+        var balance = Shared();
+        var before = balance.Missions.Board(balance, "st:sol", 42, round: 100).Select(o => o.Id).ToList();
+        var after = balance.Missions.Board(balance, "st:sol", 42, round: 101).Select(o => o.Id).ToList();
+
+        Assert.Empty(before.Intersect(after));
+    }
+
+    [Fact]
+    public void WithoutRefreshMinutes_TheBoardStandsStill()
+    {
+        // Ноль — поведение до M15.1: доска меняется только от того, что делает сам пилот.
+        var quiet = new MissionRules(RefreshMinutes: 0);
+        Assert.Equal(0, quiet.Round(0));
+        Assert.Equal(0, quiet.Round(999_999));
+
+        var live = new MissionRules(RefreshMinutes: 12);
+        Assert.Equal(0, live.Round(60));
+        Assert.Equal(1, live.Round(12 * 60));
+        Assert.Equal(2, live.Round(25 * 60));
+    }
+
+    [Fact]
+    public void SharedMissionsJson_RefreshesTheBoard()
+    {
+        Assert.True(Balance.TryParse(TestHulls.SharedSources(), out var balance, out var error), error);
+
+        Assert.True(balance!.Missions.RefreshMinutes > 0, "доска должна обновляться сама");
+    }
 }

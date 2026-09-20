@@ -2185,14 +2185,16 @@ public sealed partial class Room
         // Доска — дело места (M15): у станции и у поселения под ней работа своя, и репутация тоже.
         if (PlaceKeyOf(player) is not { } place) return [];
         var rep = Balance.Reputation;
-        if (!rep.Any) return Balance.Missions.Board(Balance, place, player.Missions.Seed);
+        var round = Balance.Missions.Round(OrbitSeconds); // доска сменяется и сама, по часам (M15.1)
+        if (!rep.Any) return Balance.Missions.Board(Balance, place, player.Missions.Seed, round: round);
         // Магазин и доска смотрят на одни и те же очки: имя, заработанное в регионе, открывает и работу.
         // Сколько работы доверить и давать ли особый контракт — решает место.
         var here = PlaceRep(player);
         return Balance.Missions.Board(
             Balance, place, player.Missions.Seed, rep.Offers(here, Balance.Missions.Offers), rep.Elite(here), rep.EliteReward,
             // Патруль рейнджеры доверяют не всякому — им важна система, а не место (M14).
-            SystemRep(player));
+            SystemRep(player),
+            round);
     }
 
     /// <summary>Обучение и задания — личное дело пилота, как и трюм.</summary>
