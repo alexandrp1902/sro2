@@ -15,6 +15,10 @@ public sealed record RepLevel(string Id, string Name, double From, double Price 
 /// <param name="MissionPlace">Выполнил задание станции — ей самой.</param>
 /// <param name="MissionSystem">…и системе, слабее: система в основном штрафная шкала.</param>
 /// <param name="MissionAbandon">Бросил взятое задание — станции, выдавшей его.</param>
+/// <param name="MissionFail">
+/// Провалил взятое задание — месту, которое его ждало (M14). Дороже честного отказа: там пилот вернул работу,
+/// здесь потерял конвой, звено или письмо.
+/// </param>
 /// <param name="PirateKill">Сбил пирата — системе.</param>
 /// <param name="PirateHourly">Столько очков за головы система засчитывает за час, дальше — даром.</param>
 /// <param name="SosHelp">Помог торговцу по SOS.</param>
@@ -29,6 +33,7 @@ public sealed record RepEvents(
     double MissionPlace = 0,
     double MissionSystem = 0,
     double MissionAbandon = 0,
+    double MissionFail = 0,
     double PirateKill = 0,
     double PirateHourly = 0,
     double SosHelp = 0,
