@@ -27,7 +27,6 @@ import { Nebula } from './render/nebulaView';
 import { PlayerOverlay } from './render/playerOverlay';
 import { ShipView, engineGlow } from './render/ship';
 import { loadSprites, moduleSprite, weaponSprite } from './render/sprites';
-import { RegionSky } from './render/regionSky';
 import { Starfield } from './render/starfield';
 import { WeaponArc } from './render/weaponArc';
 import { GATE_SIZE, SystemView } from './render/world';
@@ -144,8 +143,6 @@ async function main(): Promise<void> {
   let skySeed = SKY_SEED;
   let starfield = new Starfield(skySeed);
   let nebula = new Nebula(skySeed);
-  /** Дальний план региона (M11-арт): за звёздами, своя картинка у Ядра, Пограничья и Рубежа. */
-  let regionSky = new RegionSky(null);
   const world = new Container();
   const remote = new RemoteShips(hulls, roster);
   const ownShip = new ShipView('own');
@@ -169,7 +166,7 @@ async function main(): Promise<void> {
     ownShip.view,
     fx.view,
   );
-  app.stage.addChild(regionSky.view, starfield.view, world, overlay.view);
+  app.stage.addChild(starfield.view, world, overlay.view);
   const camera = new Camera();
 
   const feed = new Feed(el('feed'));
@@ -602,7 +599,7 @@ async function main(): Promise<void> {
       skySeed = seed;
       const oldStars = starfield;
       starfield = new Starfield(seed);
-      app.stage.addChildAt(starfield.view, 1); // под миром, но над дальним планом региона
+      app.stage.addChildAt(starfield.view, 0);
       app.stage.removeChild(oldStars.view);
       oldStars.destroy();
       const oldNebula = nebula;
@@ -610,14 +607,6 @@ async function main(): Promise<void> {
       world.addChildAt(nebula.view, 0);
       world.removeChild(oldNebula.view);
       oldNebula.view.destroy({ children: true, texture: true, textureSource: true });
-    }
-    // Фон меняется на границе региона, а не системы: внутри Ядра он один и тот же.
-    if (system?.region !== was?.region) {
-      const oldSky = regionSky;
-      regionSky = new RegionSky(system?.region);
-      app.stage.addChildAt(regionSky.view, 0);
-      app.stage.removeChild(oldSky.view);
-      oldSky.destroy();
     }
     dockScreen.setStation(system?.station ? system.name : null, system?.id ?? null, system?.dockScene ?? null);
     if (was?.id !== system?.id) {
@@ -952,7 +941,6 @@ async function main(): Promise<void> {
     inviteCard.tick(now);
 
     camera.follow(state.x, state.y, zoom.value).apply(world, app.screen.width, app.screen.height);
-    regionSky.update(camera.x, camera.y, camera.zoom, app.screen.width, app.screen.height, now);
     starfield.update(camera.x, camera.y, camera.zoom, app.screen.width, app.screen.height);
     nebula.update(now);
     weaponArc.update(state.x, state.y, state.rot, target && !dead && !docked ? weapon : null, aim?.state === 'ready');
