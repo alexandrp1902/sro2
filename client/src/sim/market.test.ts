@@ -215,6 +215,18 @@ describe('слухи торговца', () => {
     expect(line).toContain('порожняком');
   });
 
+  it('это слух, а не сводка: торговец за свои слова не ручается', () => {
+    const scarce = rumourLine(
+      { kind: 'route', good: 'medicine', system: 'e', name: 'Эпсилон', hops: 2, price: 120, scarce: true },
+      'Медикаменты',
+    );
+    const plain = rumourLine({ kind: 'route', good: 'food', system: 'a', name: 'Альдебаран', hops: 3, price: 64 }, 'Продовольствие');
+    const glut = rumourLine({ kind: 'glut', good: 'ore', system: 'c', name: 'Кастор', hops: 2, price: 5 }, 'Руда');
+    expect(scarce).toContain('если не врут');
+    expect(plain).toContain('слышно');
+    expect(glut).toContain('болтают');
+  });
+
   it('незнакомый товар не ломает строку', () => {
     const line = rumourLine({ kind: 'route', good: 'ghost', system: 'x', name: 'X', hops: 7, price: 10, scarce: true }, 'Нечто');
     expect(line).toContain('X');
