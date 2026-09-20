@@ -343,7 +343,12 @@ public sealed class Galaxy : IRoomHost
             if (room is null) continue;
             var arrival = jump ? Balance.Galaxy.Arrival(from.SystemId, room.SystemId) : null;
             from.Release(player);
-            if (!jump) player.Home = room.SystemId; // дом без станции (правка баланса) — домом становится стартовая
+            if (!jump)
+            {
+                // Дом, где сесть уже негде (правка баланса), — домом становится стартовая система.
+                player.Home = room.SystemId;
+                if (room.Balance.Place(player.HomePlace) is null) player.HomePlace = room.Balance.DefaultPlace?.Key;
+            }
             room.Admit(player, arrival);
             from.BroadcastPlayers();
             if (player.Connection is { } connection) _byConnection[connection.Id] = room;
@@ -355,7 +360,10 @@ public sealed class Galaxy : IRoomHost
 
     private Room Start => _rooms.GetValueOrDefault(Balance.Galaxy.StartSystem) ?? _rooms.Values.First();
 
-    /// <summary>Дом пилота: система со станцией; иначе — стартовая.</summary>
+    /// <summary>
+    /// Дом пилота: система, где есть куда сесть, — иначе стартовая. С M15 это не обязательно станция:
+    /// поселение на планете делает домом и систему без станции (tau, sigma, edge).
+    /// </summary>
     private Room Home(string? system) =>
-        system is not null && _rooms.TryGetValue(system, out var room) && room.Balance.HasStation ? room : Start;
+        system is not null && _rooms.TryGetValue(system, out var room) && room.Balance.HasDock ? room : Start;
 }

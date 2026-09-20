@@ -22,6 +22,11 @@ namespace Sro.Server.Accounts;
 /// Когда репутацию в последний раз приводили к текущему времени, unix-секунды. Она тает по часам, а не по
 /// тикам, поэтому без этой отметки пропущенное время было бы не из чего посчитать.
 /// </param>
+/// <param name="Place">
+/// Место последней стыковки (M15): «st:vega» — станция, «pl:terra» — поселение. null — профиль старше M15,
+/// тогда это станция системы <paramref name="System"/>. Сама <paramref name="System"/> остаётся заполненной:
+/// по ней выбирается комната, и откат сервера на старую версию не обнулит пилоту дом.
+/// </param>
 public sealed record AccountProfile(
     int Credits,
     string Hull,
@@ -37,4 +42,5 @@ public sealed record AccountProfile(
     Sro.Sim.ShipFit? Fit = null,
     IReadOnlyDictionary<string, int>? Storage = null,
     IReadOnlyDictionary<string, double>? Reputation = null,
-    long? RepAt = null);
+    long? RepAt = null,
+    string? Place = null);

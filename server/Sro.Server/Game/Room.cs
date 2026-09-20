@@ -271,6 +271,10 @@ public sealed partial class Room
         // Профиль старше M7 — бак полный. Дом — система, где пилот появился: её выбрала галактика по профилю.
         player.Fuel = Math.Clamp(profile?.Fuel ?? int.MaxValue, 0, Tank(player));
         player.Home = SystemId;
+        // Место последней стыковки (M15). У профиля старше M15 его нет — там домом звалась система,
+        // и это её станция; место могло и пропасть из баланса, тогда берём главное место системы.
+        var savedPlace = profile?.Place ?? (profile?.System is { } old ? PlaceKey.Station(old) : null);
+        player.HomePlace = Balance.Place(savedPlace)?.Key ?? Balance.DefaultPlace?.Key;
         // Обучение — только новому пилоту (GDD §54): профиль старше M8 считается прошедшим его.
         player.Missions.Tutorial = profile is null ? 0 : profile.Tutorial ?? MissionLog.Finished;
         // Живое задание в комнату не возвращается: его конвой и звено остались в прошлом вылете (M14).
@@ -307,10 +311,12 @@ public sealed partial class Room
         SpawnHere(player);
         player.Attach(connection);
         _players[player.Id] = player;
-        if (Balance.HasStation && Balance.Missions.Step(player.Missions.Tutorial)?.Id == MissionRules.UndockStep)
+        if (HomePlaceOf(player) is { } home && Balance.Missions.Step(player.Missions.Tutorial)?.Id == MissionRules.UndockStep)
         {
             player.Docked = true;
-            player.DockOffset = Balance.StationPath.ToLocal(OrbitSeconds, player.Ship.X, player.Ship.Y);
+            player.DockedPlace = home.Key;
+            player.HomePlace = home.Key;
+            player.DockOffset = home.Orbit.ToLocal(OrbitSeconds, player.Ship.X, player.Ship.Y);
         }
         else
         {
@@ -983,8 +989,8 @@ public sealed partial class Room
     }
 
     /// <summary>
-    /// Появление в этой системе: игрок — у станции, с защитой (GDD §25). Дрон — у своего дома, пират — в логове;
-    /// NPC без защиты.
+    /// Появление в этой системе: игрок — у своего места, с защитой (GDD §25). Дрон — у своего дома,
+    /// пират — в логове; NPC без защиты.
     /// </summary>
     private void SpawnHere(ShipEntity ship)
     {
@@ -993,6 +999,7 @@ public sealed partial class Room
         {
             Drone drone => drone.SpawnPoint,
             Pirate pirate => pirate.SpawnPoint,
+            Player player => SpawnPoint(HomePlaceOf(player)),
             _ => SpawnPoint(),
         };
         ship.Ship = new ShipState { X = x, Y = y };
@@ -1001,16 +1008,24 @@ public sealed partial class Room
     }
 
     /// <summary>
-    /// Случайная точка в круге SpawnJitter вокруг спауна — корабли не появляются друг в друге. Спаун — у станции
-    /// с внешней стороны орбиты, прочь от звезды.
+    /// Случайная точка в круге SpawnJitter вокруг спауна — корабли не появляются друг в друге. Спаун — у места
+    /// с внешней стороны его орбиты, прочь от звезды.
     /// </summary>
-    private (double X, double Y) SpawnPoint()
+    /// <param name="place">У какого места появиться; null — у главного места системы.</param>
+    private (double X, double Y) SpawnPoint(PlaceDef? place = null)
     {
         var radius = Balance.Rules.SpawnJitter * Math.Sqrt(_jitter.NextDouble());
         var angle = _jitter.NextDouble() * 2 * Math.PI;
-        var (x, y) = Balance.StationPath.ToWorld(OrbitSeconds, SimConfig.SpawnX, SimConfig.SpawnY);
+        var orbit = (place ?? Balance.DefaultPlace)?.Orbit ?? Balance.StationPath;
+        var (x, y) = orbit.ToWorld(OrbitSeconds, SimConfig.SpawnX, SimConfig.SpawnY);
         return (x + radius * Math.Cos(angle), y + radius * Math.Sin(angle));
     }
+
+    /// <summary>
+    /// Место, где пилот появляется в этой комнате: его дом, если он здесь, иначе главное место системы.
+    /// С M15 дом бывает и поселением, поэтому «у станции» больше не годится (в tau её и нет).
+    /// </summary>
+    private PlaceDef? HomePlaceOf(Player player) => Balance.Place(player.HomePlace) ?? Balance.DefaultPlace;
 
     /// <summary>Точка дрона в мире в момент seconds: в файле она задана в осях станции.</summary>
     private (double X, double Y) DroneAnchor(DroneSpec spec, double seconds) => Balance.StationPath.ToWorld(seconds, spec.X, spec.Y);
@@ -1940,7 +1955,8 @@ public sealed partial class Room
             player.Fit,
             new SortedDictionary<string, int>(player.Storage, StringComparer.Ordinal),
             SaveRep(player),
-            player.Rep.At));
+            player.Rep.At,
+            player.HomePlace));
     }
 
     /// <summary>Очки в профиль: сперва догоняем их до «сейчас», иначе на диск уехало бы вчерашнее число.</summary>

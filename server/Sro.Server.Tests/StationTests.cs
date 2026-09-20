@@ -286,6 +286,56 @@ public sealed class StationTests : IDisposable
     }
 
     [Fact]
+    public void Docking_RemembersWhichPlaceTheShipStandsAt()
+    {
+        var a = Pilot();
+
+        var player = Docked(a);
+
+        Assert.Equal("st:sol", player.DockedPlace);
+        Assert.Equal("st:sol", player.HomePlace);
+        _room.Dock(a, false);
+        Assert.Null(player.DockedPlace); // в космосе места нет…
+        Assert.Equal("st:sol", player.HomePlace); // …а дом остаётся тем же
+    }
+
+    [Fact]
+    public void AProfileOlderThanM15_LandsAtTheStationOfItsHomeSystem()
+    {
+        // До M15 в профиле было только поле System: местом звалась сама система.
+        var a = Pilot();
+        var account = AccountOf(a);
+        Docked(a);
+        _room.Disconnect(a);
+        Steps(Room.ReconnectGraceTicks + 1);
+        var saved = _accounts.Profile(account)!;
+        Assert.Equal("st:sol", saved.Place); // новые профили место пишут…
+        _accounts.Save(account, saved with { Place = null }); // …а этот притворяется старым
+
+        var back = Pilot();
+
+        var again = PlayerOf(back);
+        Assert.Equal("st:sol", again.HomePlace);
+        Assert.Equal(saved.Credits, again.Credits);
+    }
+
+    [Fact]
+    public void AProfilePointingAtAPlaceThatIsGone_FallsBackToTheMainOne()
+    {
+        var a = Pilot();
+        var account = AccountOf(a);
+        Docked(a);
+        _room.Disconnect(a);
+        Steps(Room.ReconnectGraceTicks + 1);
+        var saved = _accounts.Profile(account)!;
+        _accounts.Save(account, saved with { Place = "pl:atlantis" }); // поселение убрали из баланса
+
+        var back = Pilot();
+
+        Assert.Equal("st:sol", PlayerOf(back).HomePlace);
+    }
+
+    [Fact]
     public void SecondDevice_TakesTheShip_AndTheFirstIsClosed()
     {
         var phone = Pilot();
