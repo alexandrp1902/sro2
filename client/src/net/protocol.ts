@@ -11,7 +11,7 @@ import type { ReputationRules } from '../sim/reputation';
 import type { ShopRules } from '../sim/shop';
 
 /** Версия протокола; зеркало Protocol.Version на сервере. Сервер другой версии (или старый, без поля) — не играем. */
-export const PROTOCOL_VERSION = 19;
+export const PROTOCOL_VERSION = 20;
 
 /** Состояние ИИ пирата: патруль, бой, возврат в логово (налётчик — полёт от врат к точке), уход из системы. */
 export type AiState = 'patrol' | 'attack' | 'return' | 'leave';
@@ -58,8 +58,11 @@ export type ClientMessage =
    * а здесь — N единиц в трюм. Сервер сам урежет count до склада, кредитов и места.
    */
   | { t: 'buyGoods'; item: string; count: number }
-  /** Пристыковаться к станции или вылететь из дока. */
-  | { t: 'dock'; on: boolean }
+  /**
+   * Пристыковаться или сесть, либо вылететь из дока. place — ключ места («st:vega», «pl:terra», M15);
+   * без него сервер берёт ближайшее подходящее, как было до планет.
+   */
+  | { t: 'dock'; on: boolean; place?: string }
   /**
    * Купить в доке корпус (сразу ставится), пушку или модуль: со slot — сразу в этот слот (старое — на склад),
    * без него — в свободный подходящий слот или на склад.
@@ -273,7 +276,7 @@ export interface SunDto {
   burnDps: number;
 }
 
-/** Планета на орбите: выбирается прицелом, сквозь неё можно пролететь. */
+/** Планета на орбите: выбирается прицелом, сквозь неё можно пролететь. С поселением — ещё и место посадки (M15). */
 export interface PlanetDto {
   name: string;
   /** Вид: terran, desert, ice, gas. */
@@ -281,6 +284,20 @@ export interface PlanetDto {
   /** Радиус в мире. */
   size: number;
   orbit: OrbitDto;
+  /** Id планеты, уникальный на всю галактику; есть там, где есть поселение (M15). */
+  id?: string | null;
+  /** Поселение (M15); нет — планета необитаема, сесть нельзя. */
+  settlement?: SettlementDto | null;
+}
+
+/** Поселение на планете (M15): такое же место, как станция, — свой док, рынок, задания и репутация. */
+export interface SettlementDto {
+  /** Как зовётся поселение; нет — по имени планеты. */
+  name?: string | null;
+  /** Набор фонов дока: desert, ice, jungle, lava, barren, orbital-platform; нет — земной. */
+  scene?: string | null;
+  /** Здесь продают и меняют корпуса. Верфь есть не везде. */
+  shipyard?: boolean;
 }
 
 /** Пиратская база: отсюда вылетают налётчики пиратской системы. */
@@ -441,6 +458,24 @@ export interface HangarMsg {
   powerMax?: number;
   /** Гость: склада нет, ставить можно что угодно где угодно. */
   guest?: boolean;
+  /** Где корабль стоит (M15); нет — в космосе. */
+  place?: PlaceDto | null;
+}
+
+/**
+ * Место, где стоит корабль (M15): станция или поселение на планете. По нему выбираются фон дока,
+ * заголовок и набор вкладок; всё прочее о месте уже известно из системы.
+ */
+export interface PlaceDto {
+  /** Ключ места: «st:vega», «pl:terra». */
+  key: string;
+  /** «st» — станция, «pl» — поселение. */
+  kind: string;
+  name: string;
+  /** Набор фонов дока; нет — общий по виду места. */
+  scene?: string | null;
+  /** Здесь продают и меняют корпуса; false — вкладки верфи нет. */
+  shipyard: boolean;
 }
 
 

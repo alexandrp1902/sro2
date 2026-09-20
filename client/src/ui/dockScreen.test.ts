@@ -2,7 +2,18 @@ import { describe, expect, it } from 'vitest';
 import type { LootRules } from '../sim/loot';
 import type { MarketRules } from '../sim/market';
 import type { ReputationRules } from '../sim/reputation';
-import { clampQty, maxBuyable, offerState, repChip, repGateNote, repLogLine, slotOffer, weaponLabel } from './dockScreen';
+import {
+  clampQty,
+  maxBuyable,
+  offerState,
+  placeKind,
+  repChip,
+  repGateNote,
+  repLogLine,
+  sceneUrl,
+  slotOffer,
+  weaponLabel,
+} from './dockScreen';
 
 describe('offerState', () => {
   it('puts what is on the ship first, then the hangar', () => {
@@ -139,5 +150,33 @@ describe('репутация в доке', () => {
     expect(offerState(false, false, 6000, 100, false)).toBe('poor');
     // Своё и стоящее на корабле замок не трогает.
     expect(offerState(true, false, 6000, 100, true)).toBe('owned');
+  });
+});
+
+describe('placeKind', () => {
+  it('tells a settlement from a station by its key', () => {
+    expect(placeKind('pl:terra')).toBe('planet');
+    expect(placeKind('st:vega')).toBe('station');
+    // Места ещё нет (сервер старше M15 или корабль в космосе) — рисуем станцию, как раньше.
+    expect(placeKind(null)).toBe('station');
+  });
+});
+
+describe('sceneUrl', () => {
+  it('falls back to the shared scenes of a station or a settlement', () => {
+    expect(sceneUrl('station', 'missions')).toBe('dock/station-office.webp');
+    // Общие сцены планеты и есть земное поселение: своего набора у terran нет.
+    expect(sceneUrl('planet', 'missions')).toBe('dock/planet-office.webp');
+    expect(sceneUrl('planet', 'fitting')).toBe('dock/planet-hangar.webp');
+  });
+
+  it('uses a set only for the scenes that were drawn for it', () => {
+    expect(sceneUrl('planet', 'missions', 'lava')).toBe('dock/lava-office.webp');
+    expect(sceneUrl('planet', 'cargo', 'orbital-platform')).toBe('dock/orbital-platform-trader.webp');
+    // У поста рейнджеров нарисован только офис — остальное берётся общее.
+    expect(sceneUrl('station', 'missions', 'ranger')).toBe('dock/ranger-office.webp');
+    expect(sceneUrl('station', 'cargo', 'ranger')).toBe('dock/station-trader.webp');
+    // Незнакомый набор не должен уводить на несуществующую картинку.
+    expect(sceneUrl('planet', 'missions', 'swamp')).toBe('dock/planet-office.webp');
   });
 });

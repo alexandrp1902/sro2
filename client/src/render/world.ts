@@ -39,6 +39,10 @@ export interface PlanetInfo {
   x: number;
   y: number;
   size: number;
+  /** Ключ места поселения (M15); null — планета необитаема, сесть нельзя. */
+  place: string | null;
+  /** Как зовётся поселение: им подписана карточка посадки. */
+  placeName: string | null;
 }
 
 interface Body {
@@ -76,8 +80,17 @@ export class SystemView {
 
     for (const planet of system?.planets ?? []) {
       const sprite = centred(planetSprite(planet.kind), 0, 0, planet.size * PLANET_SCALE);
-      const text = label(planet.name, 0, 0, PLANET_COLOR, 15);
-      const info = { name: planet.name, x: 0, y: 0, size: planet.size };
+      const settled = planet.settlement && planet.id ? planet : null;
+      // У обитаемой планеты на экране стоит имя поселения: к нему и садятся.
+      const text = label(settled?.settlement?.name ?? planet.name, 0, 0, PLANET_COLOR, 15);
+      const info = {
+        name: planet.name,
+        x: 0,
+        y: 0,
+        size: planet.size,
+        place: settled ? `pl:${settled.id}` : null,
+        placeName: settled ? (settled.settlement?.name ?? planet.name) : null,
+      };
       view.addChild(sprite, text);
       this.bodies.push({ planet, sprite, label: text, info });
       this.planetsInfo.push(info);

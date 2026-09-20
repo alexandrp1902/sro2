@@ -90,8 +90,12 @@ public sealed record GrabMsg : ClientMessage;
 /// <param name="Count">Сколько штук; 0 — вся стопка. Без Item не смотрится.</param>
 public sealed record SellMsg(string? Item = null, int Count = 0) : ClientMessage;
 
-/// <summary>Пристыковаться к станции (On) или вылететь из дока.</summary>
-public sealed record DockMsg(bool On) : ClientMessage;
+/// <summary>Пристыковаться или сесть (On), либо вылететь из дока.</summary>
+/// <param name="Place">
+/// Ключ места (M15): «st:vega» — станция, «pl:terra» — поселение. null — ближайшее подходящее,
+/// как было до планет; клиент называет место, когда игрок выбрал прицелом именно его.
+/// </param>
+public sealed record DockMsg(bool On, string? Place = null) : ClientMessage;
 
 /// <summary>Купить в доке корпус, пушку или модуль (GDD §26). Корпус сразу ставится.</summary>
 /// <param name="Kind"><see cref="Protocol.HullItem"/> или <see cref="Protocol.ItemKind"/>.</param>
@@ -317,6 +321,7 @@ public sealed record DeniedMsg(string Code) : ServerMessage;
 /// <param name="Power">Сколько энергии забирает оснащение (GDD §18).</param>
 /// <param name="PowerMax">Сколько даёт генератор; 0 — энергию не считают (баланс без modules.json).</param>
 /// <param name="Guest">Гость: склада нет, ставить можно что угодно где угодно.</param>
+/// <param name="Place">Где корабль стоит (M15): ключ места; null — в космосе.</param>
 public sealed record HangarMsg(
     string Hull,
     ShipFit Fit,
@@ -330,7 +335,19 @@ public sealed record HangarMsg(
     string? Home = null,
     int Power = 0,
     int PowerMax = 0,
-    bool Guest = false) : ServerMessage;
+    bool Guest = false,
+    PlaceDto? Place = null) : ServerMessage;
+
+/// <summary>
+/// Место, где стоит корабль (M15): станция или поселение на планете. Клиент по нему выбирает фон дока,
+/// заголовок и то, какие вкладки показывать. Всё остальное о месте он уже знает из <see cref="SystemDto"/>.
+/// </summary>
+/// <param name="Key">Ключ места: «st:vega», «pl:terra».</param>
+/// <param name="Kind">«st» — станция, «pl» — поселение.</param>
+/// <param name="Name">Как его звать на экране.</param>
+/// <param name="Scene">Набор фонов дока; null — общий по виду места.</param>
+/// <param name="Shipyard">Здесь продают и меняют корпуса; false — вкладки верфи нет.</param>
+public sealed record PlaceDto(string Key, string Kind, string Name, string? Scene, bool Shipyard);
 
 /// <summary>
 /// Трюм игрока (GDD §21) — только своему соединению: снапшот один на всех, личному месту в нём нет.
@@ -626,10 +643,11 @@ public static class Protocol
     /// 14 — группы, награда за голову и вторжения, M10;
     /// 15 — переключатель PvP; 16 — регионы, тиры Mk1–Mk3, utility-слоты, новое оружие и замедление, M11;
     /// 17 — рынок товаров, покупка груза, живые цены, M12; 18 — репутация систем и станций, M13;
-    /// 19 — сопровождение, патруль, важное письмо, охота на метеориты и провал задания, M14).
+    /// 19 — сопровождение, патруль, важное письмо, охота на метеориты и провал задания, M14;
+    /// 20 — посадка на планеты: место как общее понятие дока, поселения, их рынок и репутация, M15).
     /// Зеркало PROTOCOL_VERSION в client/src/net/protocol.ts.
     /// </summary>
-    public const int Version = 19;
+    public const int Version = 20;
 
     public const string DroneKind = "drone";
     public const string PirateKind = "pirate";
@@ -667,6 +685,8 @@ public static class Protocol
     public const string NoStockNotice = "noStock";
     /// <summary>Док закрыт: в этой системе пилота считают врагом (M13).</summary>
     public const string DockClosedNotice = "dockClosed";
+    /// <summary>Здесь нет верфи: корабль меняют не в каждом поселении (M15).</summary>
+    public const string NoShipyardNotice = "noShipyard";
     /// <summary>Это продают только своим — не хватает репутации места (M13).</summary>
     public const string NeedRepNotice = "needRep";
     /// <summary>Пилот отстал от конвоя: вернуться, пока задание не провалено (M14).</summary>

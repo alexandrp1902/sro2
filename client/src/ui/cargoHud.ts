@@ -40,11 +40,21 @@ export interface GateCardState {
   charging: number | null;
 }
 
-/** Выбранная планета: как называется и далеко ли. Посадки пока нет. */
+/** Выбранная планета: как называется, далеко ли и можно ли сесть (M15). */
 export interface PlanetCardState {
   kind: 'planet';
   name: string;
   distance: number;
+  /** Имя поселения; null — планета необитаема, садиться некуда. */
+  settlement: string | null;
+  /** Достаточно близко, чтобы сесть. */
+  inRange: boolean;
+}
+
+/** Подсказка под именем планеты: можно ли сюда сесть и что для этого нужно. */
+export function planetHint(card: PlanetCardState): string {
+  if (!card.settlement) return 'поселения нет — садиться некуда';
+  return card.inRange ? 'можно на посадку' : 'подлетите ближе, чтобы сесть';
 }
 
 export type SelectionCardState = LootCardState | StationCardState | GateCardState | PlanetCardState;
@@ -135,8 +145,9 @@ export class CargoHud {
         this.lootRoot.append(row('loot-name', `${item?.name ?? card.item}${count}`, color(rarityColor(rules!, card.item))));
         this.lootRoot.append(this.distanceEl);
       } else if (card.kind === 'planet') {
-        this.lootRoot.append(row('loot-name', `Планета ${card.name}`, color(PLANET_COLOR)), this.distanceEl);
-        this.lootRoot.append(row('loot-hint', 'посадки пока нет'));
+        const name = card.settlement ? `Поселение «${card.settlement}»` : `Планета ${card.name}`;
+        this.lootRoot.append(row('loot-name', name, color(PLANET_COLOR)), this.distanceEl);
+        this.lootRoot.append(row('loot-hint', planetHint(card)));
       } else if (card.kind === 'gate') {
         this.lootRoot.append(row('loot-name', `Врата → ${card.name}`, color(GATE_COLOR)), this.distanceEl);
         this.lootRoot.append(row('loot-hint', gateHint(card)));

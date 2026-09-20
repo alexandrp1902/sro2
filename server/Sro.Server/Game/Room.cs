@@ -564,11 +564,19 @@ public sealed partial class Room
         if (_byConnection.TryGetValue(connection.Id, out var player)) player.Inputs.Enqueue(seq, input);
     }
 
-    /// <summary>Поставить корпус из ангара (GDD §51): пилоту с аккаунтом — только свой и только в доке.</summary>
+    /// <summary>
+    /// Поставить корпус из ангара (GDD §51): пилоту с аккаунтом — только свой и только в доке,
+    /// и только там, где есть верфь. В поселении без верфи корабль не меняют — в этом и разница со станцией (M15).
+    /// </summary>
     public void SetHull(IClientConnection connection, string? hullId)
     {
         if (hullId is null || !Hulls.ContainsKey(hullId) || !_byConnection.TryGetValue(connection.Id, out var player)) return;
         if (!player.IsGuest && (!player.Docked || !player.OwnsHull(hullId))) return;
+        if (PlaceOf(player) is { Shipyard: false })
+        {
+            connection.Send(new NoticeMsg(Protocol.NoShipyardNotice));
+            return;
+        }
         ChangeHull(player, hullId);
         SendCargo(player); // у нового корпуса своя ёмкость; груз при этом не выбрасывается (GDD §24)
         SendHangar(player);
@@ -1921,7 +1929,8 @@ public sealed partial class Room
             player.Home ?? SystemId,
             (int)Math.Round(Fitting.Power(player.Fit, Balance.Weapons, Balance.Modules)),
             Balance.Modules is null ? 0 : (int)Math.Round(Fitting.Output(player.Fit, Balance.Modules)),
-            player.IsGuest));
+            player.IsGuest,
+            PlaceOf(player) is { } place ? new PlaceDto(place.Key, place.Kind, place.Name, place.Scene, place.Shipyard) : null));
     }
 
     /// <summary>Кредиты пилоту за вторжение: сразу в аккаунт и клиенту.</summary>

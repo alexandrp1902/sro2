@@ -30,7 +30,7 @@ import { ShipView, engineGlow } from './render/ship';
 import { loadSprites, moduleSprite, weaponSprite } from './render/sprites';
 import { Starfield } from './render/starfield';
 import { WeaponArc } from './render/weaponArc';
-import { GATE_SIZE, SystemView } from './render/world';
+import { GATE_SIZE, SystemView, type PlanetInfo } from './render/world';
 import { DEFAULT_SECTOR_UNIT, assessBest, cooldownTicks, evasion, longestRange } from './sim/combat';
 import { Modules, effectiveHull, fitWeapons, tierOf, type ShipFit } from './sim/fitting';
 import { describeSystem, gateIndex, gateMarkId, pvpName } from './sim/galaxy';
@@ -283,6 +283,9 @@ async function main(): Promise<void> {
     }
   }
   const stationDistance = () => Math.hypot(prediction.curr.x - systemView.stationAt.x, prediction.curr.y - systemView.stationAt.y);
+  const landingDistance = (planet: PlanetInfo) => Math.hypot(prediction.curr.x - planet.x, prediction.curr.y - planet.y);
+  // Радиус посадки: как у станции, плюс радиус самой планеты — сервер считает ровно так же.
+  const landingRange = (planet: PlanetInfo) => lootRules.stationRange + planet.size;
   // Жар звезды: предупреждаем один раз при входе в зону — щит тает раньше, чем это заметно по полоскам.
   let inHeat = false;
   const warnHeat = (x: number, y: number, away: boolean) => {
@@ -464,6 +467,14 @@ async function main(): Promise<void> {
     if (markId === STATION_ID) {
       if (stationDistance() <= lootRules.stationRange) send({ t: 'dock', on: true });
       else feed.add('Подлетите ближе к станции');
+      return true;
+    }
+    const planet = selectedPlanet();
+    if (planet) {
+      // Садятся только туда, где есть поселение (M15): дикие планеты откроются вместе с мехами.
+      if (!planet.place) feed.add(`${planet.name}: садиться некуда`);
+      else if (landingDistance(planet) > landingRange(planet)) feed.add(`Подлетите ближе к поселению «${planet.placeName}»`);
+      else send({ t: 'dock', on: true, place: planet.place });
       return true;
     }
     const gate = selectedGate();
@@ -758,6 +769,7 @@ async function main(): Promise<void> {
       fuel = { fuel: message.fuel ?? 0, max: message.maxFuel ?? 0 };
       home = message.home ?? null;
       refreshGalaxyMap();
+      dockScreen.setPlace(message.place); // где именно стоим: от этого заголовок, фон и вкладки (M15)
       dockScreen.setHangar(message);
       if (docked && !was) {
         // В доке не целятся и не стреляют; после вылета корабль не рванёт с места сам.
@@ -993,8 +1005,19 @@ async function main(): Promise<void> {
     });
     fx.update(now, camera.zoom, locate);
     const gate = selectedGate();
+    const landing = selectedPlanet();
     fire.setMode(
-      markId === STATION_ID ? 'dock' : gate ? (jumping() ? 'cancel' : 'jump') : selectedLootId !== 0 ? 'grab' : 'fire',
+      markId === STATION_ID
+        ? 'dock'
+        : landing?.place
+          ? 'land'
+          : gate
+            ? jumping()
+              ? 'cancel'
+              : 'jump'
+            : selectedLootId !== 0
+              ? 'grab'
+              : 'fire',
     );
     fire.render(now, !target ? 'none' : aim?.state === 'ready' ? 'ready' : 'blocked');
 
@@ -1032,7 +1055,14 @@ async function main(): Promise<void> {
         : markId === STATION_ID
           ? { kind: 'station', distance: toStation, inRange: toStation <= lootRules.stationRange }
           : planet
-            ? { kind: 'planet', name: planet.name, distance: Math.max(0, Math.hypot(planet.x - state.x, planet.y - state.y) - planet.size) }
+            ? {
+                kind: 'planet',
+                name: planet.name,
+                // От поверхности, а не от центра: у планеты радиус до 250, и «2400 м» до Терры сбивало бы с толку.
+                distance: Math.max(0, Math.hypot(planet.x - state.x, planet.y - state.y) - planet.size),
+                settlement: planet.placeName,
+                inRange: !!planet.place && Math.hypot(planet.x - state.x, planet.y - state.y) <= landingRange(planet),
+              }
           : gate && system
             ? {
                 kind: 'gate',

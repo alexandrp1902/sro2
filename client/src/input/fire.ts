@@ -3,12 +3,19 @@ import { keymap as defaultKeymap, type Keymap } from './keymap';
 export type FireAim = 'ready' | 'blocked' | 'none';
 
 /**
- * Что делает кнопка огня: стреляет, берёт выбранный предмет, стыкует со станцией, начинает гиперпрыжок
- * у выбранных врат или отменяет его подготовку.
+ * Что делает кнопка огня: стреляет, берёт выбранный предмет, стыкует со станцией, садится на планету (M15),
+ * начинает гиперпрыжок у выбранных врат или отменяет его подготовку.
  */
-export type FireMode = 'fire' | 'grab' | 'dock' | 'jump' | 'cancel';
+export type FireMode = 'fire' | 'grab' | 'dock' | 'land' | 'jump' | 'cancel';
 
-const MODE_LABELS: Record<FireMode, string> = { fire: 'ОГОНЬ', grab: 'ВЗЯТЬ', dock: 'ДОК', jump: 'ПРЫЖОК', cancel: 'ОТМЕНА' };
+const MODE_LABELS: Record<FireMode, string> = {
+  fire: 'ОГОНЬ',
+  grab: 'ВЗЯТЬ',
+  dock: 'ДОК',
+  land: 'ПОСАДКА',
+  jump: 'ПРЫЖОК',
+  cancel: 'ОТМЕНА',
+};
 
 /**
  * Шаг выбора цели по клавише (ПК), по раскладке: по умолчанию Q, Shift+Tab — предыдущая; E, Tab — следующая.

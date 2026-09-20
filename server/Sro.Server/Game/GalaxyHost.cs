@@ -75,7 +75,7 @@ public sealed class GalaxyHost : BackgroundService
 
     public void Rename(IClientConnection connection, string? name) => With(connection, r => r.Rename(connection, name));
 
-    public void Dock(IClientConnection connection, bool on) => With(connection, r => r.Dock(connection, on));
+    public void Dock(IClientConnection connection, bool on, string? place = null) => With(connection, r => r.Dock(connection, on, place));
 
     public void Buy(IClientConnection connection, string? kind, string? id, string? slot) =>
         With(connection, r => r.Buy(connection, kind, id, slot));

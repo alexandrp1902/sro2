@@ -137,7 +137,7 @@ public sealed class WebSocketConnection(WebSocket socket, ILogger log) : IClient
                     room.JoinAccount(this, login.Id, login.Name);
                     break;
                 case DockMsg dock when joined:
-                    room.Dock(this, dock.On);
+                    room.Dock(this, dock.On, dock.Place);
                     break;
                 case BuyMsg buy when joined:
                     room.Buy(this, buy.Kind, buy.Id, buy.Slot);

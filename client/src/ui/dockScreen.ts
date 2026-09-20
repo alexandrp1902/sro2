@@ -5,6 +5,7 @@ import type {
   MarketMsg,
   MissionOffer,
   MissionsMsg,
+  PlaceDto,
   RepChangeDto,
   RepMsg,
 } from '../net/protocol';
@@ -92,8 +93,13 @@ const TABS: { id: Tab; label: string }[] = [
   { id: 'fitting', label: 'Оснащение' },
 ];
 
-/** Где стоит корабль: станция или планета (город) — от этого фон сцены. Пока док только на станциях. */
+/** Где стоит корабль: станция или поселение на планете — от этого фон сцены (M15). */
 export type Place = 'station' | 'planet';
+
+/** Вид места из ключа: «pl:terra» — поселение, всё прочее — станция. */
+export function placeKind(key: string | null | undefined): Place {
+  return key?.startsWith('pl:') ? 'planet' : 'station';
+}
 
 /** Сцена слева на ПК: у каждой вкладки своё место в доке и свой собеседник. */
 interface Scene {
@@ -114,11 +120,18 @@ const SCENES: Record<Tab, Scene> = {
 };
 
 /**
- * Свои сцены дока у отдельных станций: какие вкладки нарисованы для набора. Чего в наборе нет,
+ * Свои сцены дока у отдельных мест: какие вкладки нарисованы для набора. Чего в наборе нет,
  * берётся общая сцена места — наборы дорисовываются по одной картинке, а не пачкой.
+ * Земное поселение своего набора не имеет: общие сцены планеты (planet-*) и есть земные.
  */
 const SCENE_SETS: Record<string, readonly string[]> = {
   ranger: ['office'],
+  desert: ['office', 'trader', 'shipyard', 'hangar'],
+  ice: ['office', 'trader', 'shipyard', 'hangar'],
+  jungle: ['office', 'trader', 'shipyard', 'hangar'],
+  lava: ['office', 'trader', 'shipyard', 'hangar'],
+  barren: ['office', 'trader', 'shipyard', 'hangar'],
+  'orbital-platform': ['office', 'trader', 'shipyard', 'hangar'],
 };
 
 /** Адрес фона сцены: относительный, как и спрайты. */
@@ -288,16 +301,28 @@ export class DockScreen {
   private cargo: CargoState | null = null;
   private loot: LootRules | null = null;
   private shop: ShopRules = NO_SHOP;
+  /** Заголовок экрана: «Станция Vega», «Поселение «Терра»». */
   private station = 'Станция';
+  /** Голое имя места без слова «станция» — им подписываются задания и репутация. */
+  private placeLabel: string | null = null;
+  /** Ключ места, где стоит корабль (M15); null — место неизвестно. */
+  private placeKey: string | null = null;
   private place: Place = 'station';
+  /** Здесь продают и меняют корпуса; false — вкладки верфи нет (M15). */
+  private shipyard = true;
   private here: string | null = null;
   private missions: MissionsMsg | null = null;
   /** Надпись обратного отсчёта у письма; null — взятого письма нет (M14). */
   private timer: HTMLElement | null = null;
   /** Слот, для которого открыт список пушек или модулей; null — ни один. */
   private slot: string | null = null;
-  /** Свой набор фонов дока у этой станции; null — общие сцены места. */
+  /** Свой набор фонов дока у этого места; null — общие сцены по виду места. */
   private scene_: string | null = null;
+  /** Что сказал сервер про место, где стоит корабль (M15); null — ещё не сказал. */
+  private placeDto: PlaceDto | null = null;
+  /** Имя станции этой системы и её набор сцен — запасной вариант, пока места нет. */
+  private systemStation: string | null = null;
+  private systemScene: string | null = null;
   /** Правила рынка этой станции (M12). */
   private market: MarketRules = NO_MARKET;
   private repRules: ReputationRules = NO_REP;
@@ -369,11 +394,47 @@ export class DockScreen {
     this.render();
   }
 
-  /** Имя станции в заголовке — по системе: «Станция Vega»; scene — свой набор фонов дока (M12). */
+  /**
+   * Система, в которой стоит корабль: по ней подписываются задания и берётся запасное имя места,
+   * пока сервер не сказал точнее. scene — свой набор фонов дока у станции (M12).
+   */
   setStation(name: string | null, system: string | null = null, scene: string | null = null): void {
-    this.station = name ? `Станция ${name}` : 'Станция';
     this.here = system;
-    this.scene_ = scene;
+    this.systemStation = name;
+    this.systemScene = scene;
+    this.applyPlace();
+  }
+
+  /**
+   * Место, где стоит корабль (M15). Приходит в ангаре: заголовок, фон и набор вкладок — его,
+   * а не системы, потому что в одной системе их теперь несколько.
+   */
+  setPlace(place: PlaceDto | null | undefined): void {
+    this.placeDto = place ?? null;
+    this.applyPlace();
+  }
+
+  /** Свести место и систему в то, что рисует экран. */
+  private applyPlace(): void {
+    const dto = this.placeDto;
+    if (dto) {
+      this.placeKey = dto.key;
+      this.placeLabel = dto.name;
+      this.place = placeKind(dto.key);
+      this.station = this.place === 'planet' ? `Поселение «${dto.name}»` : `Станция ${dto.name}`;
+      this.scene_ = dto.scene ?? null;
+      this.shipyard = dto.shipyard;
+    } else {
+      // Сервер старше или корабль ещё не в доке: показываем станцию системы, как до M15.
+      this.placeKey = this.here ? `st:${this.here}` : null;
+      this.placeLabel = this.systemStation;
+      this.place = 'station';
+      this.station = this.systemStation ? `Станция ${this.systemStation}` : 'Станция';
+      this.scene_ = this.systemScene;
+      this.shipyard = true;
+    }
+    // Сели там, где верфи нет, а открыта была она: уводим на оснащение, иначе экран пустой.
+    if (this.tab === 'hulls' && !this.shipyard) this.tab = 'fitting';
     this.render();
   }
 
@@ -431,6 +492,8 @@ export class DockScreen {
 
     const tabs = el('div', 'dock-tabs');
     for (const { id, label } of TABS) {
+      // Верфь есть не в каждом поселении (M15): нет — нет и вкладки, менять корабль тут негде.
+      if (id === 'hulls' && !this.shipyard) continue;
       const tab = button(label, 'dock-tab', () => {
         this.tab = id;
         this.render();
@@ -514,10 +577,14 @@ export class DockScreen {
     return here ? allowsLevel(this.repRules, here.level, id, hull) : true;
   }
 
-  /** Человеческое имя места из ключа «sys:vega»; знаем только здешнюю систему — остальные по id. */
+  /**
+   * Человеческое имя места или системы по ключу («sys:vega», «st:vega», «pl:terra»).
+   * Знаем только то, где стоим, и свою систему — остальные зовутся по id.
+   */
   private placeName(key: string): string | null {
-    const id = key.slice(key.indexOf(':') + 1);
-    return id === this.here ? this.station.replace('Станция ', '') : null;
+    if (key === this.placeKey) return this.placeLabel;
+    const [kind, id] = [key.slice(0, key.indexOf(':')), key.slice(key.indexOf(':') + 1)];
+    return kind !== 'pl' && id === this.here ? this.systemStation : null;
   }
 
   /**
