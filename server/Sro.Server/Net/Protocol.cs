@@ -21,6 +21,7 @@ namespace Sro.Server.Net;
 [JsonDerivedType(typeof(LootTargetMsg), "loot")]
 [JsonDerivedType(typeof(GrabMsg), "grab")]
 [JsonDerivedType(typeof(SellMsg), "sell")]
+[JsonDerivedType(typeof(DropMsg), "drop")]
 [JsonDerivedType(typeof(DockMsg), "dock")]
 [JsonDerivedType(typeof(BuyMsg), "buy")]
 [JsonDerivedType(typeof(BuyGoodsMsg), "buyGoods")]
@@ -89,6 +90,13 @@ public sealed record GrabMsg : ClientMessage;
 /// <summary>Продать груз в доке; Item — что именно, null — весь трюм (всё, чем здесь торгуют).</summary>
 /// <param name="Count">Сколько штук; 0 — вся стопка. Без Item не смотрится.</param>
 public sealed record SellMsg(string? Item = null, int Count = 0) : ClientMessage;
+
+/// <summary>
+/// Выбросить груз за борт (M15.1): стопка целиком уходит в космос рядом с кораблём, и подобрать её может
+/// кто угодно, включая самого пилота. Только в полёте: в доке для этого есть рынок.
+/// </summary>
+/// <param name="Item">Что выбросить; null — ничего не делаем. Количество не спрашиваем: стопка целиком.</param>
+public sealed record DropMsg(string? Item) : ClientMessage;
 
 /// <summary>Пристыковаться или сесть (On), либо вылететь из дока.</summary>
 /// <param name="Place">
@@ -702,6 +710,8 @@ public static class Protocol
     public const string NoStockNotice = "noStock";
     /// <summary>Док закрыт: в этой системе пилота считают врагом (M13).</summary>
     public const string DockClosedNotice = "dockClosed";
+    /// <summary>Груз выброшен за борт (M15.1).</summary>
+    public const string JettisonedNotice = "jettisoned";
     /// <summary>Здесь нет верфи: корабль меняют не в каждом поселении (M15).</summary>
     public const string NoShipyardNotice = "noShipyard";
     /// <summary>Это продают только своим — не хватает репутации места (M13).</summary>

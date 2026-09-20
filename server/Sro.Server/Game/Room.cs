@@ -200,6 +200,13 @@ public sealed partial class Room
         return meteor;
     }
 
+    /// <summary>
+    /// Стопка груза в точке (x, y) — для тестов и отладки. Обычно груз появляется сам: из обломков,
+    /// из контейнеров или из трюма выброшенного за борт.
+    /// </summary>
+    public void SpillAt(string item, int count, double x, double y) =>
+        _loot.SpillOne(Balance.Loot, item, count, x, y, 0, 0, Tick);
+
     /// <summary>Гость без аккаунта: ничего не сохраняется, весь ангар открыт. Так входят тесты и смоук-скрипты.</summary>
     public void Join(IClientConnection connection, string? token, string? name, string? hull, string? weapon = null)
     {
@@ -833,6 +840,8 @@ public sealed partial class Room
                     Offend(trader.LastAttackerId, Balance.Reputation.Event.TraderAttack, Protocol.RepTraderAttack);
                     Distress(trader, trader.LastAttackerId, traders);
                 }
+                // По дороге он подбирает брошенный груз — как пират, только не сворачивая назад.
+                Scavenge(trader, trader.ToStation ? station : (trader.DestX, trader.DestY));
                 TraderBrain.Think(
                     trader, traders, Tick, Balance.Galaxy.JumpTicks, station, Balance.Loot.StationRange, heat, _ships, Balance.Npc.DropRange);
                 if (trader.Gone) _goneTraders.Add(trader);
@@ -1279,28 +1288,55 @@ public sealed partial class Room
         _ships[trader.Id] = trader;
     }
 
-    /// <summary>Сколько пират пролетит за грузом с патруля.</summary>
+    /// <summary>Сколько NPC пролетит за грузом в сторону от своей дороги.</summary>
     private const double ScavengeRange = 800;
 
     /// <summary>
-    /// Пират на патруле подбирает груз (GDD §31): подлетел — забрал, иначе выбирает ближайший, что влезет в трюм.
-    /// В бою, в пути и налётчик, уже уходящий из системы, за грузом не летают.
+    /// Корабль подбирает груз по дороге (GDD §31): подлетел — забрал, иначе намечает ближайший, что влезет
+    /// в трюм. Куда ему при этом лететь, решает его же ИИ: система лута только отдаёт груз.
     /// </summary>
-    private void Scavenge(Pirate pirate)
+    /// <param name="hunting">Сейчас он вообще смотрит по сторонам: не в бою, не убегает, не уходит из системы.</param>
+    /// <param name="anchorX">Якорь поводка: дальше leash от него за грузом не сворачивают.</param>
+    private void Scavenge<T>(T ship, bool hunting, double anchorX, double anchorY, double leash)
+        where T : ShipEntity, IScavenger
     {
         var loot = Balance.Loot;
-        var capacity = pirate.Hull(Hulls).Cargo;
-        if (pirate.LootId != 0 && _loot.TryScavenge(pirate, pirate.LootId, loot, capacity))
+        var capacity = ship.Hull(Hulls).Cargo;
+        if (ship.LootId != 0 && _loot.TryScavenge(ship, ship.LootId, loot, capacity))
         {
-            _log.LogInformation("{Pirate} picked up loot, hold {Used}", pirate, pirate.Hold.Used(loot));
-            pirate.LootId = 0;
+            _log.LogInformation("{Ship} picked up loot, hold {Used}", ship, ship.Hold.Used(loot));
+            ship.LootId = 0;
             ClearMissingLootTargets(); // пилот мог пометить этот же груз
         }
-        var drop = pirate.State == PirateState.Patrol && !pirate.Type.IsRanger
-            ? _loot.ScavengeTarget(pirate, ScavengeRange, Balance.Npc.PatrolRadius + ScavengeRange, capacity, loot)
-            : null;
-        pirate.LootId = drop?.Id ?? 0;
-        if (drop is not null) (pirate.LootX, pirate.LootY) = (drop.X, drop.Y);
+        var drop = hunting ? _loot.ScavengeTarget(ship, anchorX, anchorY, ScavengeRange, leash, capacity, loot) : null;
+        ship.LootId = drop?.Id ?? 0;
+        if (drop is not null) (ship.LootX, ship.LootY) = (drop.X, drop.Y);
+    }
+
+    /// <summary>
+    /// Пират или рейнджер на патруле: якорь — логово или пост, поводок тот же, что у самого патруля.
+    /// В бою, в пути и налётчик, уже уходящий из системы, за грузом не летают.
+    /// </summary>
+    private void Scavenge(Pirate pirate) => Scavenge(
+        pirate,
+        pirate.State == PirateState.Patrol,
+        pirate.HomeX,
+        pirate.HomeY,
+        Balance.Npc.PatrolRadius + ScavengeRange);
+
+    /// <summary>
+    /// Торговец подбирает то, что лежит по дороге. Якорь — его цель, а поводок — то, сколько ему до неё
+    /// осталось: значит, груз не дальше от цели, чем он сам, и заворачивать назад он не станет.
+    /// Под огнём и на последних метрах у цели ему не до находок.
+    /// </summary>
+    /// <param name="dest">Куда он летит сейчас: станция ходит по орбите, и её точка своя в каждом тике.</param>
+    private void Scavenge(Trader trader, (double X, double Y) dest)
+    {
+        var toDest = Math.Sqrt(
+            (dest.X - trader.Ship.X) * (dest.X - trader.Ship.X) +
+            (dest.Y - trader.Ship.Y) * (dest.Y - trader.Ship.Y));
+        var hunting = !trader.Fleeing && !trader.InDistress && trader.LeaveAtTick == 0 && toDest > ScavengeRange;
+        Scavenge(trader, hunting, dest.X, dest.Y, toDest);
     }
 
     /// <summary>Пилот погиб — трюм высыпан в космос (GDD §24): клиенту новый трюм и строка в ленту.</summary>
@@ -1699,6 +1735,33 @@ public sealed partial class Room
         Save(player);
         _log.LogInformation("Player {Id} sold {Count} cargo for {Credits} credits", player.Id, sold, credits);
         if (!Advance(player, MissionRules.SellStep)) SendCollect(player);
+    }
+
+    /// <summary>
+    /// Выбросить стопку груза за борт (M15.1). Только в полёте: груз ложится в космос рядом с кораблём,
+    /// и подобрать его может кто угодно, включая самого пилота, — выброшенное не уничтожается.
+    /// Количество не спрашивается: стопка целиком. Половинки — это ещё одно поле в сообщении и окно
+    /// с цифрами ради случая, которого в полёте не бывает: место освобождают, когда его не хватает.
+    /// Груз задания не выбрасывается — он вообще не предмет, а забронированный объём (см. Cargo.Reserved).
+    /// </summary>
+    public void Jettison(IClientConnection connection, string? item)
+    {
+        if (item is null || !_byConnection.TryGetValue(connection.Id, out var player) || player.IsDead) return;
+        if (player.Docked)
+        {
+            // В доке за борт бросать некуда, да и незачем: там за это же дают кредиты.
+            connection.Send(new NoticeMsg(Protocol.TooFarNotice));
+            return;
+        }
+        var count = player.Cargo.Count(item);
+        if (count <= 0 || !player.Cargo.Remove(item, count)) return;
+        _loot.SpillOne(Balance.Loot, item, count, player.Ship.X, player.Ship.Y, player.Ship.Vx, player.Ship.Vy, Tick);
+        player.CargoFullUntilTick = 0;
+        connection.Send(new NoticeMsg(Protocol.JettisonedNotice));
+        SendCargo(player);
+        SendCollect(player); // «собрать» считает по трюму: выбросил — счёт упал
+        Save(player);
+        _log.LogInformation("Player {Id} jettisoned {Count} {Item}", player.Id, count, item);
     }
 
     /// <summary>

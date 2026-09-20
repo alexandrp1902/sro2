@@ -825,4 +825,91 @@ public class LootTests
     }
 
     private static double Sq(double v) => v * v;
+
+    [Fact]
+    public void Jettison_PutsTheWholeStackOverboard()
+    {
+        var a = Connect();
+        var player = PlayerOf(a);
+        Place(IdOf(a), 500, 500);
+        player.Cargo.Add("metal", 4);
+        player.Cargo.Add("tech", 1);
+
+        _room.Jettison(a, "metal");
+        _room.Step();
+
+        // Стопка целиком: количество не спрашивают.
+        Assert.False(player.Cargo.Items.ContainsKey("metal"));
+        Assert.Equal(1, player.Cargo.Count("tech")); // остальное на месте
+        var loose = LootOf(a).Where(d => d.I == "metal").Sum(d => d.N);
+        Assert.Equal(4, loose);
+        Assert.Equal(Protocol.JettisonedNotice, a.Last<NoticeMsg>().Code);
+    }
+
+    [Fact]
+    public void JettisonedCargo_CanBePickedUpAgain()
+    {
+        // Выброшенное не уничтожается: это груз в космосе, и он ничей.
+        var a = Connect();
+        var player = PlayerOf(a);
+        Place(IdOf(a), 500, 500);
+        player.Cargo.Add("metal", 2);
+        _room.Jettison(a, "metal");
+        _room.Step();
+
+        var drop = LootOf(a).First(d => d.I == "metal");
+        PlaceNear(a, drop, 0);
+        Grab(a, drop.Id);
+
+        Assert.Equal(2, player.Cargo.Count("metal"));
+    }
+
+    [Fact]
+    public void Jettison_InTheDock_IsRefused()
+    {
+        // В доке груз продают: за борт там бросать некуда.
+        var a = Connect();
+        var player = PlayerOf(a);
+        Place(IdOf(a), 0, 0);
+        _room.Dock(a, true);
+        Assert.True(a.Last<HangarMsg>().Docked);
+        player.Cargo.Add("metal", 3);
+
+        _room.Jettison(a, "metal");
+
+        Assert.Equal(3, player.Cargo.Count("metal"));
+        Assert.Equal(Protocol.TooFarNotice, a.Last<NoticeMsg>().Code);
+    }
+
+    [Fact]
+    public void Jettison_OfWhatYouDoNotCarry_DoesNothing()
+    {
+        var a = Connect();
+        var player = PlayerOf(a);
+        Place(IdOf(a), 500, 500);
+        player.Cargo.Add("metal", 1);
+
+        _room.Jettison(a, "tech");
+        _room.Step();
+
+        Assert.Equal(1, player.Cargo.Count("metal"));
+        Assert.Empty(LootOf(a));
+    }
+
+    [Fact]
+    public void Jettison_LeavesMissionCargoAlone()
+    {
+        // Груз задания — не предмет, а забронированный объём: выбросить его нечем.
+        var a = Connect();
+        var player = PlayerOf(a);
+        Place(IdOf(a), 500, 500);
+        player.Cargo.Reserved = 5;
+        player.Cargo.Add("metal", 2);
+
+        _room.Jettison(a, "metal");
+        _room.Step();
+
+        Assert.Equal(5, player.Cargo.Reserved);
+        Assert.Equal(5, player.Cargo.Used(Loot()));
+    }
 }

@@ -242,6 +242,27 @@ body {
   gap: 6px;
 }
 
+/* Выбросить стопку за борт (M15.1): прижата к правому краю строки, заметна только под курсором. */
+.cargo-drop {
+  margin-left: auto;
+  padding: 0 6px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: #7f97b8;
+  font: inherit;
+  line-height: 1.4;
+  cursor: pointer;
+  opacity: 0.55;
+}
+
+.cargo-drop:hover,
+.cargo-drop:focus-visible {
+  background: #3a2230;
+  color: #ff9d9d;
+  opacity: 1;
+}
+
 .cargo-dot {
   display: inline-block;
   width: 7px;

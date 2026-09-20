@@ -142,7 +142,7 @@ internal sealed class LootSystem(Func<int> nextId, Random rng, ILogger log)
     /// <summary>
     /// Дроп с уничтоженных в этом тике. Таблица пирата ищется по его типу: имя таблицы в loot.json — это ключ типа
     /// в npcs.json, поэтому новый тип пиратов начинает ронять добычу без правок кода. У дрона таблица своя, в описании.
-    /// Трюм погибшего — игрока или пирата, подобравшего груз, — высыпается весь (GDD §24).
+    /// Трюм погибшего — игрока или NPC, подобравшего груз, — высыпается весь (GDD §24).
     /// </summary>
     public void DropFrom(IReadOnlyList<KillDto> kills, IReadOnlyDictionary<int, ShipEntity> ships, LootRules loot, long tick)
     {
@@ -151,7 +151,7 @@ internal sealed class LootSystem(Func<int> nextId, Random rng, ILogger log)
             var hold = ships.GetValueOrDefault(kill.Id) switch
             {
                 Player player => player.Cargo,
-                Pirate pirate => pirate.Hold,
+                IScavenger scavenger => scavenger.Hold,
                 _ => null,
             };
             if (hold is { IsEmpty: false })
@@ -186,6 +186,15 @@ internal sealed class LootSystem(Func<int> nextId, Random rng, ILogger log)
         hold.Clear();
     }
 
+    /// <summary>
+    /// Одна стопка за борт (M15.1): столько же куч, как при гибели, но остальной трюм остаётся на месте.
+    /// </summary>
+    public void SpillOne(LootRules loot, string item, int count, double x, double y, double vx, double vy, long tick)
+    {
+        var pile = Math.Max(1, (int)Math.Floor(PileVolume / Math.Max(loot.Volume(item), 1e-9)));
+        for (var left = count; left > 0; left -= pile) Scatter(loot, tick, x, y, vx, vy, item, Math.Min(pile, left));
+    }
+
     /// <summary>Предмет в случайной точке круга DropRadius: стопка в одной точке не разбирается тапом.</summary>
     private void Scatter(LootRules loot, long tick, double x, double y, double vx, double vy, string item, int count)
     {
@@ -203,19 +212,22 @@ internal sealed class LootSystem(Func<int> nextId, Random rng, ILogger log)
     }
 
     /// <summary>
-    /// Ближайший груз, за которым пират слетает с патруля: не дальше range от него и не дальше leash от логова,
-    /// влезает в трюм. Контейнеры — постоянные точки для пилотов: их пираты не трогают.
+    /// Ближайший груз, за которым корабль свернёт с дороги: не дальше range от него и не дальше leash
+    /// от якоря, влезает в трюм. У пирата и рейнджера якорь — логово, у торговца — его цель: так он
+    /// подбирает то, что по пути, и не разворачивается назад.
+    /// Контейнеры — постоянные точки для пилотов: их NPC не трогают.
     /// </summary>
-    public LootDrop? ScavengeTarget(Pirate pirate, double range, double leash, double capacity, LootRules loot)
+    public LootDrop? ScavengeTarget<T>(T ship, double anchorX, double anchorY, double range, double leash, double capacity, LootRules loot)
+        where T : ShipEntity, IScavenger
     {
         LootDrop? best = null;
         var bestDistance = range;
         foreach (var drop in _drops)
         {
-            // Снаряжение пиратам ни к чему: трюм считает объём, а у пушки его нет.
-            if (drop.FromContainer || loot.IsGear(drop.Item) || !pirate.Hold.Fits(drop.Item, drop.Count, capacity, loot)) continue;
-            if (Math.Sqrt(Sq(drop.X - pirate.HomeX) + Sq(drop.Y - pirate.HomeY)) > leash) continue;
-            var distance = Math.Sqrt(Sq(drop.X - pirate.Ship.X) + Sq(drop.Y - pirate.Ship.Y));
+            // Снаряжение NPC ни к чему: трюм считает объём, а у пушки его нет.
+            if (drop.FromContainer || loot.IsGear(drop.Item) || !ship.Hold.Fits(drop.Item, drop.Count, capacity, loot)) continue;
+            if (Math.Sqrt(Sq(drop.X - anchorX) + Sq(drop.Y - anchorY)) > leash) continue;
+            var distance = Math.Sqrt(Sq(drop.X - ship.Ship.X) + Sq(drop.Y - ship.Ship.Y));
             if (distance > bestDistance) continue;
             best = drop;
             bestDistance = distance;
@@ -223,18 +235,19 @@ internal sealed class LootSystem(Func<int> nextId, Random rng, ILogger log)
         return best;
     }
 
-    /// <summary>Пират подлетел к грузу — луч забирает его в трюм; все видят луч, как у пилота.</summary>
+    /// <summary>Корабль подлетел к грузу — луч забирает его в трюм; все видят луч, как у пилота.</summary>
     /// <returns>true — забрал.</returns>
-    public bool TryScavenge(Pirate pirate, int lootId, LootRules loot, double capacity)
+    public bool TryScavenge<T>(T ship, int lootId, LootRules loot, double capacity)
+        where T : ShipEntity, IScavenger
     {
         var index = _drops.FindIndex(d => d.Id == lootId);
         if (index < 0) return false;
         var drop = _drops[index];
-        if (Math.Sqrt(Sq(pirate.Ship.X - drop.X) + Sq(pirate.Ship.Y - drop.Y)) > loot.PickupRange) return false;
-        if (loot.IsGear(drop.Item) || !pirate.Hold.Fits(drop.Item, drop.Count, capacity, loot)) return false;
-        pirate.Hold.Add(drop.Item, drop.Count);
+        if (Math.Sqrt(Sq(ship.Ship.X - drop.X) + Sq(ship.Ship.Y - drop.Y)) > loot.PickupRange) return false;
+        if (loot.IsGear(drop.Item) || !ship.Hold.Fits(drop.Item, drop.Count, capacity, loot)) return false;
+        ship.Hold.Add(drop.Item, drop.Count);
         _drops.RemoveAt(index);
-        _picks.Add(new PickDto(pirate.Id, drop.Id, drop.Item, drop.Count));
+        _picks.Add(new PickDto(ship.Id, drop.Id, drop.Item, drop.Count));
         return true;
     }
 

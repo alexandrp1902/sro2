@@ -18,7 +18,7 @@ public enum PirateState
 /// Пират (GDD §31–32): NPC со своим логовом, уровнем и ИИ. Летает по той же модели, что игроки, и стреляет через тот же
 /// Battle — ИИ (<see cref="PirateBrain"/>) лишь выставляет вход, огонь и цель, как это делает клиент.
 /// </summary>
-public sealed class Pirate : ShipEntity
+public sealed class Pirate : ShipEntity, IScavenger
 {
     /// <summary>Члены логова появляются на круге такого радиуса вокруг точки логова.</summary>
     private const double SlotRadius = 60;
@@ -107,11 +107,11 @@ public sealed class Pirate : ShipEntity
     /// <summary>Кто стрелял по нему в пути: по нему пират огрызается на ходу; 0 — никто.</summary>
     public int Avenge;
     /// <summary>Что пират подобрал в космосе: погибнет — высыплет вместе со своей добычей.</summary>
-    public readonly Cargo Hold = new();
+    public Cargo Hold { get; } = new();
     /// <summary>Груз, к которому пират летит на патруле; 0 — ни к какому.</summary>
-    public int LootId;
-    public double LootX;
-    public double LootY;
+    public int LootId { get; set; }
+    public double LootX { get; set; }
+    public double LootY { get; set; }
 
     public double HoldRange => Type.HoldRange + SlotHoldStep * Slot;
 

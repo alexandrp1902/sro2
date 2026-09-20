@@ -326,10 +326,17 @@ async function main(): Promise<void> {
   /** Вид планеты по ключу её поселения: по нему выбирается кадр снижения. */
   const planetKindOf = (key: string): string | null =>
     system?.planets.find((p) => p.id && `pl:${p.id}` === key)?.kind ?? null;
-  const cargoHud = new CargoHud(el('cargo'), el('loot'), () => {
-    setLoot(0);
-    setMark(0);
-  });
+  const cargoHud = new CargoHud(
+    el('cargo'),
+    el('loot'),
+    () => {
+      setLoot(0);
+      setMark(0);
+    },
+    (item) => {
+      if (isOnline()) connection!.send({ t: 'drop', item });
+    },
+  );
 
   // Док станции (GDD §26): корабль уходит из космоса, поверх мира — торговля, магазин и ангар.
   // Пока пристыкованы, полёт стоит: входы не шлём, при вылете их нумерация начинается заново.
@@ -801,6 +808,7 @@ async function main(): Promise<void> {
       refreshGalaxyMap();
       dockScreen.setPlace(message.place); // где именно стоим: от этого заголовок, фон и вкладки (M15)
       dockScreen.setHangar(message);
+      cargoHud.setDocked(docked); // в доке груз продают, а не выбрасывают (M15.1)
       if (docked && !was) {
         // Посадка — это спуск, а не стыковка: показываем проход сквозь атмосферу поверх экрана поселения.
         if (message.place?.kind === 'pl') landing.show(planetKindOf(message.place.key));

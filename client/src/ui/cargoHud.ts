@@ -90,14 +90,28 @@ export class CargoHud {
   /** Карточка перестраивается, только когда меняется выбор; дистанция — просто текст. */
   private cardKey = '';
   private distanceEl: HTMLElement | null = null;
+  /** Корабль в доке: там за борт бросать некуда, и кнопок выброса нет (M15.1). */
+  private docked = false;
 
-  /** @param onClearSelection ✕ на карточке: снять выбранный предмет или станцию */
+  /**
+   * @param onClearSelection ✕ на карточке: снять выбранный предмет или станцию
+   * @param onJettison выбросить стопку за борт; null — выброс недоступен (нет связи)
+   */
   constructor(
     private readonly root: HTMLElement,
     private readonly lootRoot: HTMLElement,
     private readonly onClearSelection: () => void,
+    private readonly onJettison: ((item: string) => void) | null = null,
   ) {
     this.root.addEventListener('click', () => this.setOpen(!this.open));
+  }
+
+  /** В доке выброс не показываем: там груз продают. */
+  setDocked(docked: boolean): void {
+    if (docked === this.docked) return;
+    this.docked = docked;
+    this.lastKey = ''; // список перестроится: кнопки появляются и исчезают
+    this.render();
   }
 
   setRules(rules: LootRules | undefined): void {
@@ -206,6 +220,20 @@ export class CargoHud {
       icon.src = spriteUrl(itemSprite(id));
       icon.alt = '';
       line.append(dot, icon, document.createTextNode(`${lootItem(rules, id)?.name ?? id} ×${count}`));
+      // Выбросить стопку целиком (M15.1): в полёте — освободить место, когда трюм забит не тем.
+      if (this.onJettison && !this.docked) {
+        const out = document.createElement('button');
+        out.className = 'cargo-drop';
+        out.type = 'button';
+        out.textContent = '✕';
+        out.title = `Выбросить: ${lootItem(rules, id)?.name ?? id} ×${count}`;
+        out.setAttribute('aria-label', out.title);
+        out.addEventListener('click', (e) => {
+          e.stopPropagation(); // клик по трюму сворачивает список — выброс не должен его закрывать
+          this.onJettison?.(id);
+        });
+        line.append(out);
+      }
       list.append(line);
     }
     if (state.reserved > 0) {

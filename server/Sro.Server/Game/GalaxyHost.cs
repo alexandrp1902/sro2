@@ -70,6 +70,9 @@ public sealed class GalaxyHost : BackgroundService
     public void Sell(IClientConnection connection, string? item, int count = 0) =>
         With(connection, r => r.Sell(connection, item, count));
 
+    public void Jettison(IClientConnection connection, string? item) =>
+        With(connection, r => r.Jettison(connection, item));
+
     public void BuyGoods(IClientConnection connection, string? item, int count) =>
         With(connection, r => r.BuyGoods(connection, item, count));
 

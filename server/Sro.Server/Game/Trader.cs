@@ -8,8 +8,15 @@ namespace Sro.Server.Game;
 /// огнём — слабее пирата (множитель урона типа). Долетел — ушёл в док или в прыжок, из системы он исчезает,
 /// а через срок появляется новый (<see cref="TraderRules"/>).
 /// </summary>
-public sealed class Trader(int id, string typeId, NpcType type, NpcRules rules) : ShipEntity(id, type.Name, type.Hull, type.WeaponList)
+public sealed class Trader(int id, string typeId, NpcType type, NpcRules rules) : ShipEntity(id, type.Name, type.Hull, type.WeaponList), IScavenger
 {
+    /// <summary>Что подобрал по дороге: погибнет — высыплет вместе с грузом рейса.</summary>
+    public Cargo Hold { get; } = new();
+    /// <summary>Груз, за которым он свернул; 0 — ни за каким.</summary>
+    public int LootId { get; set; }
+    public double LootX { get; set; }
+    public double LootY { get; set; }
+
     private readonly WeaponParams?[] _weapons = new WeaponParams?[Fitting.MaxWeaponSlots];
     private Balance? _weaponsFor;
 
@@ -132,11 +139,16 @@ internal static class TraderBrain
             return;
         }
 
-        var (x, y) = trader.ToStation ? station : (trader.DestX, trader.DestY);
+        // Намечен груз по дороге — сперва к нему: подбирает его комната, когда торговец подлетит.
+        // Цель рейса при этом не забыта, просто ждёт: поводок ей задан так, что крюк всегда вперёд, не назад.
+        var toLoot = trader.LootId != 0 && !trader.Fleeing;
+        var (x, y) = toLoot ? (trader.LootX, trader.LootY)
+            : trader.ToStation ? station
+            : (trader.DestX, trader.DestY);
         var dx = x - trader.Ship.X;
         var dy = y - trader.Ship.Y;
         var distance = Math.Sqrt(dx * dx + dy * dy);
-        if (distance <= (trader.ToStation ? stationRange : GateRadius))
+        if (!toLoot && distance <= (trader.ToStation ? stationRange : GateRadius))
         {
             if (trader.ToStation) trader.Gone = true;
             else
