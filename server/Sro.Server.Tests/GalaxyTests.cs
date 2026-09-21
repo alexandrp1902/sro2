@@ -118,6 +118,8 @@ public sealed class GalaxyTests : IDisposable
         Assert.Equal([new GateDto("wild", "Wild", 3000, 0)], welcome.System.Gates);
         Assert.Equal(3, welcome.Galaxy!.Systems.Count);
         Assert.Contains(new LinkDto("wild", "port"), welcome.Galaxy.Links);
+        // Карта везёт порядок врат каждой системы (M16b): по нему клиент нумерует оба конца маршрута.
+        Assert.Equal(["home", "port"], welcome.Galaxy.Systems.Single(s => s.Id == "wild").Gates);
 
         Assert.Equal("home", a.Last<HangarMsg>().Home);
     }

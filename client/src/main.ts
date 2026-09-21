@@ -38,7 +38,8 @@ import { GATE_SIZE, SystemView, type PlanetInfo } from './render/world';
 import { Landing } from './ui/landing';
 import { DEFAULT_SECTOR_UNIT, assessBest, cooldownTicks, damageType, evasion, longestRange } from './sim/combat';
 import { Modules, effectiveHull, fitWeapons, tierOf, type ShipFit } from './sim/fitting';
-import { describeSystem, gateIndex, gateMarkId, pvpName } from './sim/galaxy';
+import { courseLine, courseView } from './sim/course';
+import { describeSystem, gateIndex, gateMarkId, gateNumber, pvpName } from './sim/galaxy';
 import { DEFAULT_HULL, Hulls } from './sim/hulls';
 import { NO_LOOT, gearVolume, lootItem, lootLabel, rarityColor, type GearItem, type LootRules } from './sim/loot';
 import type { MarketRules } from './sim/market';
@@ -71,6 +72,9 @@ import { StatusHud } from './ui/statusHud';
 import { demoScreen, runDemo } from './ui/demo';
 import { account } from './util/account';
 import { storage } from './util/storage';
+
+/** Конечная система курса на этом устройстве (M16b). */
+const COURSE_KEY = 'sro.course';
 
 /** Id станции в прицеле: отрицательный, чтобы не совпасть с id кораблей и добычи от сервера. Врата — −2, −3… */
 const STATION_ID = -1;
@@ -387,7 +391,7 @@ async function main(): Promise<void> {
   }, names);
 
   // Карта галактики (GDD §55): M на ПК, тап по миникарте — везде.
-  const galaxyMap = new GalaxyMap(el('galaxy'));
+  const galaxyMap = new GalaxyMap(el('galaxy'), (to) => setCourse(to));
   // Окно «Управление» (M10.5): шестерёнка у миникарты и в доке, только на ПК — на телефоне кнопки на экране.
   const controlsWindow = new ControlsWindow(el('controls'));
   // Вопрос «точно?» — пока только для выхода в полёте: корабль остаётся в космосе.
@@ -421,12 +425,31 @@ async function main(): Promise<void> {
   const demand = new DemandBoard();
   const goodName = (good: string) => lootItem(lootRules, good)?.name ?? good;
   const minimap = new Minimap(el('minimap') as HTMLCanvasElement, () => galaxyMap.toggle());
+  /**
+   * Курс по галактике (M16b): конечная система, выбранная на карте. Хранится на устройстве, чтобы
+   * пережить перезаход, и живёт только на клиенте — автопилота нет, курс лишь показывает, куда лететь.
+   */
+  let course = storage.get(COURSE_KEY);
+  const setCourse = (to: string | null, quiet = false) => {
+    if (course === to) return;
+    course = to;
+    if (to) storage.set(COURSE_KEY, to);
+    else storage.remove(COURSE_KEY);
+    if (!quiet) {
+      const view = galaxy && system ? courseView(galaxy, system.id, to, system.gates) : null;
+      feed.add(view ? courseLine(view, names.system(view.to)) : 'Курс снят');
+    }
+    refreshGalaxyMap();
+  };
+
   const refreshGalaxyMap = () =>
     galaxyMap.set(
       galaxy && system
         ? {
             galaxy,
             current: system.id,
+            course,
+            gates: system.gates.map((g) => g.to),
             home,
             objective: objectiveSystem(missions, system.id, galaxy),
             invasion: invasion.system(performance.now()),
@@ -744,6 +767,17 @@ async function main(): Promise<void> {
         controls.setThrottle(0);
       }
       if (system && announce) feed.add(describeSystem(system));
+      // Курс (M16b): пришли куда шли — он пройден; система отрезана или исчезла — курс снимается.
+      if (system && course) {
+        const view = galaxy ? courseView(galaxy, system.id, course, system.gates) : null;
+        if (view?.done) {
+          setCourse(null, true);
+          feed.add('Маршрут пройден');
+        } else if (view?.lost) {
+          setCourse(null, true);
+          feed.warn(`Маршрута до ${names.system(view.to)} отсюда нет — курс снят`);
+        }
+      }
     }
     refreshGalaxyMap();
   };
@@ -1107,13 +1141,27 @@ async function main(): Promise<void> {
     let attackers = 0;
     for (const ship of remote.visible()) if (ship.kind !== 'player' && ship.kind !== 'drone' && ship.targetId === me) attackers++;
 
+    // Курс (M16b): какие врата этой системы ведут к следующей — подсвечиваем их в мире и на карте.
+    const courseNow = galaxy && system ? courseView(galaxy, system.id, course, system.gates) : null;
+    const routeGate = courseNow?.gate ?? null;
+    systemView.setRouteGate(routeGate === null ? null : routeGate - 1);
+
     // Цель задания или обучения: на неё указывает золотой маркер, на миникарте — кольцо.
     const goal = online ? locateObjective(objective(missions, system?.id ?? null, galaxy, docked || dead), state) : null;
     objectiveHud.update(online && !docked ? trackerLines(missions, system?.id ?? null, docked, names) : null);
     dockScreen.tick(Date.now()); // срок письма идёт и в доке (M14)
     // Вторжение в приоритете: там идёт бой и тикает таймер, а спрос подождёт в ленте, в доке и на карте.
     invasionHud.update(online ? (invasion.lines(now, roster.get(me)?.name ?? '') ?? demand.lines(now, goodName)) : null);
-    partyPanel.update(online && party.size > 0 ? party.rows({ id: me, system: system?.id ?? '', x: state.x, y: state.y }, sectorUnit) : null);
+    // Одно «где я» на панель группы и на метки миникарты: считать его дважды незачем.
+    const here = { id: me, system: system?.id ?? '', x: state.x, y: state.y };
+    partyPanel.update(online && party.size > 0 ? party.rows(here, sectorUnit) : null, party.maxSize);
+    const partyOnMap =
+      online && party.size > 0
+        ? party.marks(here, (id) => {
+            const ship = remote.get(id);
+            return ship && !ship.dead ? ship : null;
+          })
+        : [];
     inviteCard.tick(now);
 
     camera.follow(state.x, state.y, zoom.value).apply(world, app.screen.width, app.screen.height);
@@ -1201,6 +1249,8 @@ async function main(): Promise<void> {
           : gate && system
             ? {
                 kind: 'gate',
+                number: gateNumber(gateIndex(markId)),
+                route: routeGate === gateNumber(gateIndex(markId)),
                 name: gate.name,
                 distance: Math.hypot(gate.x - state.x, gate.y - state.y),
                 inRange: Math.hypot(gate.x - state.x, gate.y - state.y) <= system.gateRange,
@@ -1230,6 +1280,8 @@ async function main(): Promise<void> {
           return ship && !ship.dead ? ship : null;
         }),
         invasion: invasion.point(system?.id ?? ''),
+        party: partyOnMap,
+        routeGate,
       },
       now,
     );

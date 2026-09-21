@@ -1,5 +1,7 @@
 import type { GateDto, PirateBaseDto } from '../net/protocol';
+import { gateNumber } from '../sim/galaxy';
 import { WORLD_HALF_SIZE } from '../sim/movement';
+import type { PartyMark } from './party';
 
 const RENDER_INTERVAL_MS = 100;
 
@@ -12,6 +14,7 @@ const COLORS = {
   planet: '#9fc7a8',
   pirateBase: '#ff7a6b',
   gate: '#b58cff',
+  route: '#e6dcff',
   own: '#7fd4ff',
   player: '#ffb45a',
   pirate: '#ff6b5a',
@@ -61,6 +64,13 @@ export interface MinimapFrame {
   sos?: readonly { x: number; y: number }[];
   /** Точка сбора вторжения пиратов — мигающий красный крест в кольце; null — нет. */
   invasion?: { x: number; y: number } | null;
+  /**
+   * Участники группы в этой системе (M16b) — ромб с номером. Приходят не из снапшота, а из состояния
+   * группы, поэтому радар им не предел: товарищ виден через всю систему.
+   */
+  party?: readonly PartyMark[];
+  /** Номер врат, через которые лежит курс (M16b); null — курса нет. */
+  routeGate?: number | null;
 }
 
 /**
@@ -136,16 +146,21 @@ export class Minimap {
       ctx.fillRect(px(frame.station.x) - s, px(frame.station.y) - s, s * 2, s * 2);
     }
 
-    for (const gate of frame.gates) {
+    frame.gates.forEach((gate, i) => {
+      const onRoute = frame.routeGate === gateNumber(i);
       ctx.beginPath();
-      ctx.arc(px(gate.x), px(gate.y), 3.5 * dpr, 0, 2 * Math.PI);
-      ctx.strokeStyle = COLORS.gate;
-      ctx.lineWidth = 2 * dpr;
+      ctx.arc(px(gate.x), px(gate.y), (onRoute ? 4.5 : 3.5) * dpr, 0, 2 * Math.PI);
+      ctx.strokeStyle = onRoute ? COLORS.route : COLORS.gate;
+      ctx.lineWidth = (onRoute ? 2.5 : 2) * dpr;
       ctx.stroke();
-    }
+      // Номер врат (M16b): с ним «лети к третьим» на карте и в голосе означает одно и то же.
+      text(ctx, String(gateNumber(i)), px(gate.x), px(gate.y) - 8 * dpr, onRoute ? COLORS.route : COLORS.gate, dpr);
+    });
 
+    // Свои из группы рисуются ниже ромбом с номером: точка корабля им не нужна, иначе метка сядет на неё.
+    const inParty = new Set((frame.party ?? []).map((m) => m.id));
     for (const ship of frame.ships) {
-      if (ship.dead) continue;
+      if (ship.dead || inParty.has(ship.id)) continue;
       ctx.beginPath();
       ctx.arc(px(ship.x), px(ship.y), 2 * dpr, 0, 2 * Math.PI);
       ctx.fillStyle = COLORS[ship.kind];
@@ -157,6 +172,27 @@ export class Minimap {
         ctx.arc(px(ship.x), px(ship.y), 4.5 * dpr, 0, 2 * Math.PI);
         ctx.stroke();
       }
+    }
+
+    // Группа (M16b): ромб заметно отличается от точек кораблей, номер совпадает с номером в панели.
+    for (const mark of frame.party ?? []) {
+      const x = px(mark.x);
+      const y = px(mark.y);
+      const s = 3.2 * dpr;
+      ctx.save();
+      ctx.translate(x, y);
+      ctx.rotate(Math.PI / 4);
+      ctx.fillStyle = COLORS.party;
+      ctx.fillRect(-s, -s, s * 2, s * 2);
+      ctx.restore();
+      if (mark.id === frame.targetId) {
+        ctx.strokeStyle = COLORS.target;
+        ctx.lineWidth = dpr;
+        ctx.beginPath();
+        ctx.arc(x, y, 5.5 * dpr, 0, 2 * Math.PI);
+        ctx.stroke();
+      }
+      text(ctx, String(mark.n), x, y - 7 * dpr, COLORS.party, dpr);
     }
 
     // Ракеты — крошечные красные точки: видно, что к тебе что-то летит.
@@ -224,6 +260,23 @@ export class Minimap {
     if (size === this.size || size === 0) return;
     this.size = this.canvas.width = this.canvas.height = size;
   }
+}
+
+/**
+ * Цифра на карте: тёмная обводка под цветом, иначе номер теряется на светлой планете или на радаре.
+ * Шрифт задаётся каждый раз — состояние холста переживает clearRect, но полагаться на это не стоит.
+ */
+function text(ctx: CanvasRenderingContext2D, value: string, x: number, y: number, color: string, dpr: number): void {
+  ctx.save();
+  ctx.font = `${Math.round(8 * dpr)}px "Manrope Variable", system-ui, sans-serif`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.lineWidth = 2 * dpr;
+  ctx.strokeStyle = 'rgba(0, 0, 0, 0.7)';
+  ctx.strokeText(value, x, y);
+  ctx.fillStyle = color;
+  ctx.fillText(value, x, y);
+  ctx.restore();
 }
 
 function roundRect(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number): void {

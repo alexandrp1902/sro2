@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { PartyMemberDto } from '../net/protocol';
-import { PartyBoard, describeBounty, describePartyEvent } from './party';
+import { PartyBoard, combinedBar, describeBounty, describePartyEvent, partyCompact, partyMarks, partyTitle } from './party';
 
 const member = (id: number, name: string, extra: Partial<PartyMemberDto> = {}): PartyMemberDto => ({
   id,
@@ -51,6 +51,64 @@ describe('PartyBoard', () => {
     expect(rows[1]).toMatchObject({ leader: true, where: '1.0с', status: '' });
     expect(rows[2]).toMatchObject({ where: 'Vega', status: 'нет связи' });
     expect(rows[3]).toMatchObject({ where: 'Sol', status: 'в доке' });
+  });
+
+  it('numbers members by join order, not by the order of rows', () => {
+    const board = new PartyBoard();
+    board.apply({
+      t: 'partyState',
+      leader: 2,
+      members: [member(2, 'Bob'), member(1, 'Me'), member(3, 'Carol')],
+      maxSize: 10,
+    });
+    // Я в панели первый, но номер у меня второй: у товарищей номера не должны зависеть от того, кто смотрит.
+    expect(board.rows({ id: 1, system: 'sol', x: 0, y: 0 }, 700).map((r) => [r.name, r.n])).toEqual([
+      ['Me', 2],
+      ['Bob', 1],
+      ['Carol', 3],
+    ]);
+    expect(board.maxSize).toBe(10);
+  });
+});
+
+describe('party panel', () => {
+  it('counts the group against its limit', () => {
+    expect(partyTitle(7, 10)).toBe('Группа · 7/10');
+    expect(partyTitle(2, 0)).toBe('Группа');
+  });
+
+  it('goes compact past five rows', () => {
+    expect(partyCompact(5)).toBe(false);
+    expect(partyCompact(6)).toBe(true);
+  });
+
+  it('shows hull and shield as one bar when compact', () => {
+    expect(combinedBar({ hp: 100, maxHp: 400, sh: 50, maxSh: 150 } as never)).toEqual({ value: 150, max: 550 });
+  });
+});
+
+describe('partyMarks', () => {
+  const me = { id: 1, system: 'sol', x: 0, y: 0 };
+  const members = [
+    member(1, 'Me'),
+    member(2, 'Bob', { x: 700, y: 100 }),
+    member(3, 'Carol', { system: 'vega', systemName: 'Vega' }),
+    member(4, 'Dan', { docked: true }),
+    member(5, 'Eve', { dead: true }),
+    member(6, 'Fred', { x: -300, y: 400 }),
+  ];
+
+  it('keeps only the living, undocked members of my own system', () => {
+    expect(partyMarks(members, me, () => null)).toEqual([
+      { id: 2, n: 2, x: 700, y: 100 },
+      { id: 6, n: 6, x: -300, y: 400 },
+    ]);
+  });
+
+  it('prefers the live position of a ship on the radar', () => {
+    const marks = partyMarks(members, me, (id) => (id === 2 ? { x: 10, y: 20 } : null));
+    expect(marks[0]).toEqual({ id: 2, n: 2, x: 10, y: 20 });
+    expect(marks[1]).toMatchObject({ id: 6, x: -300, y: 400 });
   });
 });
 

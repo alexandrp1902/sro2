@@ -27,9 +27,13 @@ export interface StationCardState {
   inRange: boolean;
 }
 
-/** Выбранные врата: куда ведут, далеко ли, идёт ли подготовка прыжка. */
+/** Выбранные врата: какие это врата, куда ведут, далеко ли, идёт ли подготовка прыжка. */
 export interface GateCardState {
   kind: 'gate';
+  /** Номер врат в системе (M16b): «Врата 2». */
+  number: number;
+  /** Через эти врата лежит проложенный курс (M16b). */
+  route: boolean;
   /** Система за вратами. */
   name: string;
   distance: number;
@@ -134,7 +138,7 @@ export class CargoHud {
       card.kind === 'loot'
         ? `loot|${card.item}|${card.count}`
         : card.kind === 'gate'
-          ? `gate|${card.name}|${gateHint(card)}`
+          ? `gate|${card.number}|${card.route}|${card.name}|${gateHint(card)}`
           : card.kind === 'planet'
             ? `planet|${card.name}`
             : `station|${card.inRange}`;
@@ -153,7 +157,8 @@ export class CargoHud {
         this.lootRoot.append(row('loot-name sro-strong', name), this.distanceEl);
         this.lootRoot.append(row(hintClass(!!card.settlement && card.inRange), planetHint(card)));
       } else if (card.kind === 'gate') {
-        this.lootRoot.append(row('loot-name sro-strong', `Врата → ${card.name}`), this.distanceEl);
+        const gateName = `Врата ${card.number} → ${card.name}${card.route ? ' · маршрут' : ''}`;
+        this.lootRoot.append(row('loot-name sro-strong', gateName), this.distanceEl);
         this.lootRoot.append(row(hintClass(card.inRange && card.charging === null), gateHint(card)));
       } else {
         this.lootRoot.append(row('loot-name sro-strong', 'Станция'), this.distanceEl);

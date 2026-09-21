@@ -1,5 +1,6 @@
 import type { GalaxyDto, GalaxySystemDto } from '../net/protocol';
-import { dangerColor, dangerName, hops, jumpOutlook, pvpName, regionName, type JumpOutlook } from '../sim/galaxy';
+import { courseLine, courseView, linkKey, routeLinks, type CourseView } from '../sim/course';
+import { dangerColor, dangerName, hops, jumpOutlook, linkGateNumbers, pvpName, regionName, type JumpOutlook } from '../sim/galaxy';
 import { lootItem, type LootRules } from '../sim/loot';
 import type { MarketRules } from '../sim/market';
 import { levelColor, levelIndex, levelOf, repLabel, type ReputationRules } from '../sim/reputation';
@@ -29,6 +30,13 @@ export interface GalaxyMapState {
    */
   rep?: Record<string, number> | null;
   repRules?: ReputationRules | null;
+  /**
+   * Конечная система курса (M16b); null — курса нет. Строкой, а не массивом: путь выводится из галактики
+   * каждый раз, а сравнение состояний идёт через JSON.stringify — лишнему состоянию тут не место.
+   */
+  course?: string | null;
+  /** Врата текущей системы: по ним считается номер тех, через которые лежит курс. */
+  gates?: readonly string[] | null;
 }
 
 /**
@@ -58,7 +66,11 @@ export class GalaxyMap {
   private state: GalaxyMapState | null = null;
   private selected: string | null = null;
 
-  constructor(private readonly root: HTMLElement) {
+  /** onCourse — тап по системе прокладывает курс; null — курс снят (тап по системе, где стоим). */
+  constructor(
+    private readonly root: HTMLElement,
+    private readonly onCourse: (to: string | null) => void = () => {},
+  ) {
     root.addEventListener('pointerdown', (e) => {
       if (e.target === root) this.hide(); // тап мимо карточки закрывает карту
     });
@@ -141,6 +153,12 @@ export class GalaxyMap {
       svg.append(label);
     }
 
+    // Курс (M16b): его связи выделены на всём пути, а не только у соседней системы.
+    const course = courseView(galaxy, current, state.course, state.gates);
+    const onRoute = routeLinks(course?.path ?? []);
+    // Номера врат кладутся поверх всех линий: иначе следующая линия ложится на уже нарисованную цифру.
+    const gateNums: SVGElement[] = [];
+
     for (const link of galaxy.links) {
       const a = byId.get(link.a);
       const b = byId.get(link.b);
@@ -151,11 +169,17 @@ export class GalaxyMap {
         y1: a.y,
         x2: b.x,
         y2: b.y,
-        class: `galaxy-link${fromHere ? ' galaxy-link-open' : ''}`,
+        class:
+          `galaxy-link${fromHere ? ' galaxy-link-open' : ''}` +
+          `${onRoute.has(linkKey(link.a, link.b)) ? ' galaxy-link-route' : ''}`,
       });
-      // Подписи у маршрута больше нет: с M15.6 он ничего не стоит, и цифра была только про топливо.
+      // Цены прыжка на линии нет: с M15.6 он бесплатен. Зато есть номера врат на обоих концах (M16b) —
+      // из A в B и из B в A это разные врата, и подпись у каждого конца своя.
       svg.append(line);
+      const numbers = linkGateNumbers(galaxy, link.a, link.b);
+      if (numbers) gateNums.push(gateNum(a, b, numbers.a), gateNum(b, a, numbers.b));
     }
+    svg.append(...gateNums);
 
     for (const system of galaxy.systems) {
       const group = svgEl('g', { class: 'galaxy-node', 'data-id': system.id });
@@ -189,12 +213,14 @@ export class GalaxyMap {
       group.append(svgEl('circle', { cx: system.x, cy: system.y, r: 9, class: 'galaxy-hit' }));
       group.addEventListener('click', () => {
         this.selected = system.id;
+        // Выбор системы и есть прокладка курса; тап по той, где стоим, курс снимает.
+        this.onCourse(system.id === current ? null : system.id);
         this.render();
       });
       svg.append(group);
     }
     card.append(svg);
-    card.append(this.info(byId.get(this.selected ?? current), state));
+    card.append(this.info(byId.get(this.selected ?? current), state, course));
     const regions = (galaxy.regions ?? []).map((r) => r.name).join(' · ');
     card.append(
       el(
@@ -209,7 +235,7 @@ export class GalaxyMap {
   }
 
   /** Карточка выбранной системы (по умолчанию — текущей). */
-  private info(system: GalaxySystemDto | undefined, state: GalaxyMapState): HTMLElement {
+  private info(system: GalaxySystemDto | undefined, state: GalaxyMapState, course: CourseView | null): HTMLElement {
     const box = el('div', 'galaxy-info');
     if (!system) return box;
     const title = el('div', 'galaxy-info-name', system.name);
@@ -245,14 +271,44 @@ export class GalaxyMap {
       if (count) text = `${count} ${count < 5 ? 'прыжка' : 'прыжков'} отсюда`;
     }
     box.append(el('div', 'galaxy-info-jump', text));
+    // Курс — в карточке конечной системы и в карточке текущей: открыл карту и сразу видишь, куда шёл.
+    // В карточке посторонней системы его нет: там он сбивал бы с толку.
+    if (course && (course.to === system.id || system.id === state.current)) {
+      const name = course.to === system.id ? null : nameOf(state.galaxy, course.to);
+      box.append(el('div', 'galaxy-info-course', courseLine(course, name)));
+    }
     return box;
   }
+}
+
+/** Имя системы по id; неизвестная — сам id. */
+function nameOf(galaxy: GalaxyDto, id: string): string {
+  return galaxy.systems.find((s) => s.id === id)?.name ?? id;
 }
 
 function el(tag: string, className: string, text?: string): HTMLElement {
   const node = document.createElement(tag);
   node.className = className;
   if (text !== undefined) node.textContent = text;
+  return node;
+}
+
+/**
+ * Номер врат у своего конца линии: цифра отходит от узла вдоль маршрута (чтобы не лезть на кружок системы)
+ * и вбок от самой линии — на ней её съедал бы пунктир проложенного курса.
+ */
+function gateNum(from: { x: number; y: number }, to: { x: number; y: number }, n: number): SVGElement {
+  const dx = to.x - from.x;
+  const dy = to.y - from.y;
+  const length = Math.hypot(dx, dy) || 1;
+  const along = Math.min(11, length * 0.35);
+  const side = 2.4;
+  const node = svgEl('text', {
+    x: from.x + (dx / length) * along - (dy / length) * side,
+    y: from.y + (dy / length) * along + (dx / length) * side,
+    class: 'galaxy-gate-num',
+  });
+  node.textContent = String(n);
   return node;
 }
 

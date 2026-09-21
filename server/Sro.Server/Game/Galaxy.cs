@@ -340,7 +340,7 @@ public sealed class Galaxy : IRoomHost
                 (int)Math.Ceiling(player.Shield), (int)Math.Ceiling(player.MaxShield(hull)),
                 player.Connection is not null, player.IsDead, player.Docked));
         }
-        var bytes = Protocol.Encode(new PartyStateMsg(party.LeaderId, members));
+        var bytes = Protocol.Encode(new PartyStateMsg(party.LeaderId, members, Balance.Party.MaxSize));
         foreach (var id in party.Members) FindPilot(id)?.Player.Connection?.SendRaw(bytes);
     }
 

@@ -433,8 +433,25 @@ body {
   align-items: center;
 }
 
+/* Десять человек (M16b) в низ экрана не влезают: список прокручивается сам, шапка стоит. */
+.party-list {
+  max-height: min(46vh, 340px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+}
+
 .party-row {
   margin-top: 6px;
+}
+
+.party-row[data-compact='true'] {
+  margin-top: 3px;
+}
+
+/* Компактная строка: одна полоска (корпус со щитом вместе) — вторая просто не рисуется. */
+.party-row[data-compact='true'] .sro-bar--shield {
+  display: none;
 }
 
 .party-row[data-status='off'] {
@@ -711,6 +728,11 @@ body {
   .party {
     bottom: calc(env(safe-area-inset-bottom) + var(--stick-bottom) + 2 * var(--stick-r, 64px) + var(--stick-grab) + var(--space-2));
     width: min(150px, 40vw);
+  }
+
+  /* Над стиком места меньше, чем на ПК: список короче и прокручивается раньше. */
+  .party-list {
+    max-height: min(34vh, 220px);
   }
 
   /* Dev-панели в узкой правой колонке не место — влево, под строку полёта. */
@@ -1466,6 +1488,16 @@ body {
   stroke-width: 0.8;
 }
 
+/* Номер врат у своего конца линии (M16b): из A в B и из B в A врата разные, и номера тоже. */
+.galaxy-gate-num {
+  fill: var(--text-faint);
+  font-size: 2.4px;
+  font-weight: 600;
+  text-anchor: middle;
+  dominant-baseline: middle;
+  pointer-events: none;
+}
+
 .galaxy-node {
   cursor: pointer;
 }
@@ -1551,6 +1583,21 @@ body {
   margin-top: var(--space-1);
   font-size: 14px;
   line-height: 20px;
+}
+
+/* Курс (M16b): сколько прыжков и в какие врата — под строкой о прыжке. */
+.galaxy-info-course {
+  margin-top: 2px;
+  color: var(--steel-soft);
+  font-size: 13px;
+  line-height: 18px;
+}
+
+/* Связи проложенного курса: пунктир поверх обычной линии маршрута. */
+.galaxy-link-route {
+  stroke: var(--steel);
+  stroke-width: 1.2;
+  stroke-dasharray: 2 1.6;
 }
 
 /* Чем торгует станция (M12): где дёшево купить и куда это везти. */

@@ -11,7 +11,7 @@ import type { ReputationRules } from '../sim/reputation';
 import type { ShopRules } from '../sim/shop';
 
 /** Версия протокола; зеркало Protocol.Version на сервере. Сервер другой версии (или старый, без поля) — не играем. */
-export const PROTOCOL_VERSION = 26;
+export const PROTOCOL_VERSION = 27;
 
 /** Состояние ИИ пирата: патруль, бой, возврат в логово (налётчик — полёт от врат к точке), уход из системы. */
 export type AiState = 'patrol' | 'attack' | 'return' | 'leave';
@@ -373,6 +373,8 @@ export interface GalaxySystemDto {
   region?: string | null;
   /** Места системы (M15): станция и поселения. Пусто — сесть тут негде. */
   places?: PlaceNameDto[] | null;
+  /** Куда ведут врата системы, по порядку (M16b): по нему считается номер врат на обоих концах маршрута. */
+  gates?: string[] | null;
 }
 
 /** Имя места для карты и текста заданий (M15). */
@@ -807,6 +809,8 @@ export interface PartyStateMsg {
   t: 'partyState';
   leader: number;
   members: PartyMemberDto[];
+  /** Предел группы для заголовка «Группа · 7/10»; 0 или нет поля — предел неизвестен. */
+  maxSize?: number;
 }
 
 export type PartyEventCode =

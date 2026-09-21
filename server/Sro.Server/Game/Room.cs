@@ -1840,7 +1840,8 @@ public sealed partial class Room
         [.. galaxy.SystemMap.Select(kv => new GalaxySystemDto(
             kv.Key, kv.Value.Name, kv.Value.Danger, kv.Value.Pvp, kv.Value.Station,
             kv.Value.Map?.X ?? 0, kv.Value.Map?.Y ?? 0, kv.Value.Region,
-            [.. kv.Value.Places(kv.Key, 0).Select(p => new PlaceNameDto(p.Key, p.Name))]))],
+            [.. kv.Value.Places(kv.Key, 0).Select(p => new PlaceNameDto(p.Key, p.Name))],
+            [.. kv.Value.GateList.Select(g => g.To)]))],
         [.. galaxy.LinkList.Select(l => new LinkDto(l.A, l.B))],
         galaxy.Regions is null ? null : [.. galaxy.RegionMap.Select(kv => new RegionDto(kv.Key, kv.Value.Name, kv.Value.Color))]);
 

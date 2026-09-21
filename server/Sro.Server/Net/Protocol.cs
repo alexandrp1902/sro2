@@ -295,6 +295,10 @@ public sealed record SystemDto(
 /// Места системы (M15): станция и поселения. Нужны, чтобы назвать адрес доставки словами и чтобы карта
 /// не врала «дока нет» там, где есть поселение. Пусто — сесть в системе негде.
 /// </param>
+/// <param name="Gates">
+/// Куда ведут врата системы, по порядку (M16b): по нему клиент нумерует врата — «Врата 2». Номер у каждого
+/// конца маршрута свой, поэтому карте нужен порядок обеих систем, а не только той, где пилот сейчас.
+/// </param>
 public sealed record GalaxySystemDto(
     string Id,
     string Name,
@@ -304,7 +308,8 @@ public sealed record GalaxySystemDto(
     double X,
     double Y,
     string? Region = null,
-    IReadOnlyList<PlaceNameDto>? Places = null);
+    IReadOnlyList<PlaceNameDto>? Places = null,
+    IReadOnlyList<string>? Gates = null);
 
 /// <summary>Имя места для карты и текста заданий (M15).</summary>
 public sealed record PlaceNameDto(string Key, string Name);
@@ -626,7 +631,11 @@ public sealed record PartyMemberDto(
     int Hp, int MaxHp, int Sh, int MaxSh, bool Online, bool Dead, bool Docked);
 
 /// <summary>Своя группа: при каждом изменении состава и раз в statusSeconds. Пустой список — не в группе.</summary>
-public sealed record PartyStateMsg(int Leader, IReadOnlyList<PartyMemberDto> Members) : ServerMessage;
+/// <param name="MaxSize">
+/// Предел группы для заголовка панели «Группа · 7/10». Едет здесь, а не в welcome: канал уже есть, и правка
+/// party.json на лету доезжает до панели через секунду, а не к следующему прыжку. 0 — группы нет, предел не нужен.
+/// </param>
+public sealed record PartyStateMsg(int Leader, IReadOnlyList<PartyMemberDto> Members, int MaxSize = 0) : ServerMessage;
 
 /// <summary>Событие группы для ленты (<see cref="PartyCodes"/>): текст подставляет клиент, Name — о ком.</summary>
 public sealed record PartyEventMsg(string Code, string? Name = null) : ServerMessage;
@@ -772,10 +781,11 @@ public static class Protocol
     /// 23 — топливо отменено, защитные модули, ангар с перевозкой, вход в доке, M15.6;
     /// 24 — смена пароля, ремонт после гибели, M15.7;
     /// 25 — вкладки «Вход» и «Регистрация» на стартовом экране, M15.8;
-    /// 26 — станция продаёт всё, что на складе, продажа всех модулей одной кнопкой, M16a).
+    /// 26 — станция продаёт всё, что на складе, продажа всех модулей одной кнопкой, M16a;
+    /// 27 — группа до десяти, метки группы на миникарте, номера врат, маршрут по галактике и обмен между игроками, M16b).
     /// Зеркало PROTOCOL_VERSION в client/src/net/protocol.ts.
     /// </summary>
-    public const int Version = 26;
+    public const int Version = 27;
 
     public const string DroneKind = "drone";
     public const string PirateKind = "pirate";

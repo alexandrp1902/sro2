@@ -9,6 +9,9 @@ import { hasSprite, spriteSize, texture, type SpriteName } from './sprites';
 
 /** Гиперврата — фиолетовые: ни с чем в системе не путаются. */
 export const GATE_COLOR = 0xb58cff;
+/** Врата по курсу (M16b): те же врата, но заметно светлее — их ищут глазами среди прочих. */
+const ROUTE_GATE_COLOR = 0xe6dcff;
+const ROUTE_GATE_TINT = 0xd8c8ff;
 export const STATION_LABEL_COLOR = 0x8fb4e8;
 export const PLANET_COLOR = 0x9fc7a8;
 export const PIRATE_BASE_COLOR = 0xff7a6b;
@@ -66,6 +69,9 @@ export class SystemView {
   /** Огненные слои вокруг звезды; null — звезды в системе нет. */
   private readonly corona: Corona | null = null;
   private readonly planetsInfo: PlanetInfo[] = [];
+  /** Кольцо и подпись каждых врат: по курсу они подсвечиваются (M16b). */
+  private readonly gateViews: { ring: Graphics; label: Text; text: string }[] = [];
+  private routeGate: number | null = null;
   /** Где станция сейчас: с этим считаются стыковка, прицел и миникарта. */
   readonly stationAt: Point = { x: STATION.x, y: STATION.y };
 
@@ -116,7 +122,7 @@ export class SystemView {
       view.addChild(this.station, this.stationLabel);
     }
 
-    for (const gate of system?.gates ?? []) {
+    (system?.gates ?? []).forEach((gate, i) => {
       const g = new Graphics()
         // Зона прыжка: в этом круге врата принимают корабль.
         .circle(gate.x, gate.y, system!.gateRange)
@@ -128,9 +134,29 @@ export class SystemView {
         .stroke({ width: 2, color: GATE_COLOR, alpha: 0.6 })
         .circle(gate.x, gate.y, GATE_RADIUS * 0.3)
         .fill({ color: GATE_COLOR, alpha: 0.35 });
-      view.addChild(g, label(gateLabel(gate), gate.x, gate.y - system!.gateRange - 18, GATE_COLOR, 18));
-    }
+      const text = gateLabel(gate, i);
+      const caption = label(text, gate.x, gate.y - system!.gateRange - 18, GATE_COLOR, 18);
+      view.addChild(g, caption);
+      this.gateViews.push({ ring: g, label: caption, text });
+    });
     this.update(0);
+  }
+
+  /**
+   * Врата, через которые лежит курс (M16b): кольцо ярче, к подписи добавляется «· маршрут».
+   * null — курса нет. Пересобирать систему ради курса нельзя: это полный перестрой сцены.
+   */
+  setRouteGate(index: number | null): void {
+    if (index === this.routeGate) return;
+    this.routeGate = index;
+    this.gateViews.forEach((gate, i) => {
+      const on = i === index;
+      gate.ring.tint = on ? ROUTE_GATE_TINT : 0xffffff;
+      gate.ring.alpha = on ? 1 : 0.85;
+      const text = on ? `${gate.text} · маршрут` : gate.text;
+      if (gate.label.text !== text) gate.label.text = text;
+      gate.label.style.fill = on ? ROUTE_GATE_COLOR : GATE_COLOR;
+    });
   }
 
   /** Планеты в этот кадр. */

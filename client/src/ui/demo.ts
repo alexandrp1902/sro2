@@ -2,7 +2,7 @@
  * Витрина интерфейса без сервера: `?demo=<экран>` собирает настоящие построители HUD, дока и окон
  * на фиксированных данных. Нужна проходам по дизайну (скриншоты headless-браузером на ПК и телефоне)
  * и ничего не шлёт. Экраны: flight, dock-missions, dock-cargo, dock-hulls, dock-ships, dock-fitting,
- * galaxy, controls, confirm, menu, password, death, login, login-new, login-over.
+ * galaxy, controls, confirm, menu, password, death, login, login-new, login-over, party10.
  */
 import type { Connection } from '../net/connection';
 import type { CareerDto, GalaxyDto, HangarMsg, MarketMsg, MissionsMsg, RepMsg } from '../net/protocol';
@@ -27,9 +27,9 @@ import { InvasionHud } from './invasion';
 import { BurgerMenu } from './menu';
 import { PasswordForm } from './passwordForm';
 import { PilotForm } from './pilotForm';
-import { Minimap } from './minimap';
+import { Minimap, type MinimapFrame } from './minimap';
 import { ObjectiveHud } from './objectiveHud';
-import { InviteCard, PartyPanel } from './party';
+import { InviteCard, PartyPanel, type PartyMark, type PartyRow } from './party';
 import { StatusHud } from './statusHud';
 
 /* loot.json — JSONC с комментариями, сборщик его не ест: каталог груза для витрины задан здесь. */
@@ -54,6 +54,45 @@ const CAREERS: CareerDto[] = [
   { id: 'pirate', name: 'Пират', hint: 'Скоро', enabled: false },
 ];
 
+/** Кадр миникарты для витрины: система со звездой, станцией, планетой и парой чужих кораблей. */
+const DEMO_MINIMAP: MinimapFrame = {
+  sun: true,
+  station: { x: 900, y: -300 },
+  planets: [{ x: -1500, y: 1200 }],
+  pirateBase: null,
+  gates: [],
+  own: { x: 200, y: 400, rot: 0 },
+  radar: 2000,
+  ships: [
+    { id: 2, x: 700, y: 600, kind: 'pirate', dead: false },
+    { id: 3, x: -400, y: 900, kind: 'trader', dead: false },
+  ],
+  targetId: 2,
+};
+
+/** Полная группа (M16b): десять строк — я, лидер, раненые, в доке, сбитый и без связи. */
+const BIG_PARTY: PartyRow[] = [
+  { id: 1, n: 3, name: 'Аякс', leader: false, self: true, hp: 120, maxHp: 150, sh: 40, maxSh: 60, where: '', status: '' },
+  { id: 2, n: 1, name: 'Борей', leader: true, self: false, hp: 150, maxHp: 150, sh: 60, maxSh: 60, where: '0.8с', status: '' },
+  { id: 3, n: 2, name: 'Вега', leader: false, self: false, hp: 40, maxHp: 150, sh: 0, maxSh: 60, where: '1.4с', status: '' },
+  { id: 4, n: 4, name: 'Гелиос', leader: false, self: false, hp: 150, maxHp: 400, sh: 90, maxSh: 200, where: '3.1с', status: '' },
+  { id: 5, n: 5, name: 'Дедал', leader: false, self: false, hp: 400, maxHp: 400, sh: 200, maxSh: 200, where: 'Vega', status: 'в доке' },
+  { id: 6, n: 6, name: 'Елена', leader: false, self: false, hp: 0, maxHp: 150, sh: 0, maxSh: 60, where: '2.2с', status: 'сбит' },
+  { id: 7, n: 7, name: 'Зевс', leader: false, self: false, hp: 260, maxHp: 400, sh: 120, maxSh: 200, where: 'Tau', status: 'нет связи' },
+  { id: 8, n: 8, name: 'Икар', leader: false, self: false, hp: 90, maxHp: 150, sh: 25, maxSh: 60, where: '0.4с', status: '' },
+  { id: 9, n: 9, name: 'Кассиопея', leader: false, self: false, hp: 330, maxHp: 400, sh: 180, maxSh: 200, where: '5.0с', status: '' },
+  { id: 10, n: 10, name: 'Лира', leader: false, self: false, hp: 140, maxHp: 150, sh: 55, maxSh: 60, where: 'Nova', status: '' },
+];
+
+/** Метки тех из группы, кто в этой же системе: номера совпадают с панелью. */
+const DEMO_PARTY_MARKS: PartyMark[] = [
+  { id: 2, n: 1, x: 900, y: 200 },
+  { id: 3, n: 2, x: -800, y: -600 },
+  { id: 4, n: 4, x: 2600, y: 1800 },
+  { id: 8, n: 8, x: 300, y: -1400 },
+  { id: 9, n: 9, x: -2400, y: 2400 },
+];
+
 const el = (id: string): HTMLElement => document.getElementById(id)!;
 const noop = (): void => {};
 
@@ -64,10 +103,10 @@ export function demoScreen(search: string): string | null {
 
 const GALAXY: GalaxyDto = {
   systems: [
-    { id: 'sol', name: 'Sol', danger: 1, pvp: 'off', station: true, x: 18, y: 55, region: 'core', places: [{ key: 'st:sol', name: 'Гавань Сол' }] },
-    { id: 'vega', name: 'Vega', danger: 2, pvp: 'on', station: true, x: 45, y: 35, region: 'core', places: [{ key: 'st:vega', name: 'Вега-1' }] },
-    { id: 'rigel', name: 'Rigel', danger: 4, pvp: 'on', station: false, x: 70, y: 60, region: 'rim', places: [] },
-    { id: 'deneb', name: 'Deneb', danger: 3, pvp: 'on', station: true, x: 82, y: 25, region: 'rim', places: [{ key: 'st:deneb', name: 'Денеб' }] },
+    { id: 'sol', name: 'Sol', danger: 1, pvp: 'off', station: true, x: 18, y: 55, region: 'core', gates: ['vega'], places: [{ key: 'st:sol', name: 'Гавань Сол' }] },
+    { id: 'vega', name: 'Vega', danger: 2, pvp: 'on', station: true, x: 45, y: 35, region: 'core', gates: ['sol', 'rigel', 'deneb'], places: [{ key: 'st:vega', name: 'Вега-1' }] },
+    { id: 'rigel', name: 'Rigel', danger: 4, pvp: 'on', station: false, x: 70, y: 60, region: 'rim', gates: ['vega', 'deneb'], places: [] },
+    { id: 'deneb', name: 'Deneb', danger: 3, pvp: 'on', station: true, x: 82, y: 25, region: 'rim', gates: ['vega', 'rigel'], places: [{ key: 'st:deneb', name: 'Денеб' }] },
   ] as GalaxyDto['systems'],
   links: [
     { a: 'sol', b: 'vega' },
@@ -163,10 +202,13 @@ export function runDemo(screen: string): void {
     cargoHud.update({ kind: 'station', distance: 340, inRange: false });
     objectiveHud.update({ title: 'Доставить Металл ×5 на Vega', hint: 'Откройте карту — M, прыгайте через врата' });
     invasionHud.update({ title: 'Вторжение пиратов', hint: 'волна 2 из 3 · 01:20', alert: true });
-    partyPanel.update([
-      { id: 1, name: 'Аякс', leader: true, self: true, hp: 120, maxHp: 150, sh: 40, maxSh: 60, where: '1.2с', status: '' },
-      { id: 2, name: 'Борей', leader: false, self: false, hp: 60, maxHp: 150, sh: 0, maxSh: 60, where: 'Vega', status: 'в доке' },
-    ]);
+    partyPanel.update(
+      [
+        { id: 1, n: 1, name: 'Аякс', leader: true, self: true, hp: 120, maxHp: 150, sh: 40, maxSh: 60, where: '1.2с', status: '' },
+        { id: 2, n: 2, name: 'Борей', leader: false, self: false, hp: 60, maxHp: 150, sh: 0, maxSh: 60, where: 'Vega', status: 'в доке' },
+      ],
+      10,
+    );
     feed.add('Рейнджер-123 входит в систему');
     feed.add('+5 Sol: пират уничтожен');
     feed.warn('Подлетите ближе к вратам');
@@ -174,23 +216,7 @@ export function runDemo(screen: string): void {
     minimap.hidden = false;
     el('pvp').hidden = false;
     el('menu-open').hidden = false;
-    minimap.update(
-      {
-        sun: true,
-        station: { x: 900, y: -300 },
-        planets: [{ x: -1500, y: 1200 }],
-        pirateBase: null,
-        gates: [],
-        own: { x: 200, y: 400, rot: 0 },
-        radar: 2000,
-        ships: [
-          { id: 2, x: 700, y: 600, kind: 'pirate', dead: false },
-          { id: 3, x: -400, y: 900, kind: 'trader', dead: false },
-        ],
-        targetId: 2,
-      },
-      1e9,
-    );
+    minimap.update(DEMO_MINIMAP, 1e9);
     // Телефон: стик и кнопки боя — как их показывает игра при первом касании.
     if (matchMedia('(pointer: coarse)').matches) {
       document.documentElement.style.setProperty('--stick-r', '62px');
@@ -303,9 +329,27 @@ export function runDemo(screen: string): void {
       flightHud();
       passwordForm.show();
       break;
+    case 'party10':
+      // Полная группа (M16b): компактные строки, номера, прокрутка — и метки на миникарте.
+      flightHud();
+      partyPanel.update(BIG_PARTY, 10);
+      minimap.update({ ...DEMO_MINIMAP, party: DEMO_PARTY_MARKS }, 1e9 + 1);
+      break;
     case 'galaxy':
       flightHud();
-      galaxyMap.set({ galaxy: GALAXY, current: 'sol', home: 'sol', objective: 'vega', invasion: 'rigel', demand: 'deneb', loot, market: {} });
+      galaxyMap.set({
+        galaxy: GALAXY,
+        current: 'sol',
+        home: 'sol',
+        objective: 'vega',
+        invasion: 'rigel',
+        demand: 'deneb',
+        loot,
+        market: {},
+        // Проложенный курс (M16b): Sol → Vega → Rigel, и в карточке — сколько прыжков и какие врата.
+        course: 'rigel',
+        gates: ['vega'],
+      });
       galaxyMap.show();
       break;
     case 'controls':

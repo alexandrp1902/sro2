@@ -91,15 +91,36 @@ export function hops(galaxy: GalaxyDto, from: string): Map<string, number> {
 }
 
 /**
+ * Кратчайший путь по вратам: [from, …, to], включая оба конца. [from] — уже на месте, пусто — пути нет.
+ * При равных путях побеждает сосед, который раньше в списке маршрутов: BFS назначает предшественника
+ * при первом посещении, а очередь наполняется в порядке links.
+ */
+export function route(galaxy: GalaxyDto, from: string, to: string): string[] {
+  if (from === to) return [from];
+  const from_ = new Map<string, string>([[from, from]]);
+  const queue = [from];
+  while (queue.length > 0) {
+    const id = queue.shift()!;
+    for (const next of neighbours(galaxy, id)) {
+      if (from_.has(next)) continue;
+      from_.set(next, id);
+      if (next === to) {
+        const path = [to];
+        for (let at = to; at !== from; at = from_.get(at)!) path.unshift(from_.get(at)!);
+        return path;
+      }
+      queue.push(next);
+    }
+  }
+  return [];
+}
+
+/**
  * Куда прыгать первым, чтобы кратчайшим путём попасть из from в to: соседняя система на этом пути.
- * null — уже там или пути нет. При равных путях — сосед, который раньше в списке маршрутов.
+ * null — уже там или пути нет.
  */
 export function nextHop(galaxy: GalaxyDto, from: string, to: string): string | null {
-  if (from === to) return null;
-  const distance = hops(galaxy, to);
-  if (!distance.has(from)) return null;
-  const want = distance.get(from)! - 1;
-  return neighbours(galaxy, from).find((id) => distance.get(id) === want) ?? null;
+  return route(galaxy, from, to)[1] ?? null;
 }
 
 /** Ближайшая система со станцией (сама from, если в ней есть); null — станций нет. */
@@ -124,9 +145,42 @@ export function gateIndex(markId: number): number {
   return -2 - markId;
 }
 
-/** Подпись у врат: «→ Vega». */
-export function gateLabel(gate: GateDto): string {
-  return `→ ${gate.name}`;
+/**
+ * Номер врат (M16b): позиция в списке врат системы плюс один. Своего имени у врат нет и не заводится —
+ * порядок в galaxy.json устойчив, вторые врата в ту же систему запрещены проверкой данных, и на этом же
+ * порядке уже стоит gateMarkId.
+ */
+export function gateNumber(index: number): number {
+  return index + 1;
+}
+
+/** «Врата 3». */
+export function gateName(index: number): string {
+  return `Врата ${gateNumber(index)}`;
+}
+
+/** Подпись у врат в мире: «Врата 3 · → Vega». */
+export function gateLabel(gate: GateDto, index: number): string {
+  return `${gateName(index)} · → ${gate.name}`;
+}
+
+/** Номер врат, ведущих в систему to; −1 — таких тут нет. */
+export function gateIndexTo(gates: readonly GateDto[] | readonly string[] | null | undefined, to: string): number {
+  return (gates ?? []).findIndex((g) => (typeof g === 'string' ? g : g.to) === to);
+}
+
+/**
+ * Номера врат на обоих концах маршрута a ↔ b для карты галактики: из A в B это одни врата, из B в A —
+ * другие, и номера у них разные. null — сервер списка врат не прислал (старый сервер или витрина).
+ */
+export function linkGateNumbers(galaxy: GalaxyDto, a: string, b: string): { a: number; b: number } | null {
+  const gatesOf = (id: string): readonly string[] | null => galaxy.systems.find((s) => s.id === id)?.gates ?? null;
+  const from = gatesOf(a);
+  const to = gatesOf(b);
+  if (!from || !to) return null;
+  const ia = gateIndexTo(from, b);
+  const ib = gateIndexTo(to, a);
+  return ia < 0 || ib < 0 ? null : { a: gateNumber(ia), b: gateNumber(ib) };
 }
 
 export type { GalaxyDto, GalaxySystemDto, GateDto, PvpRule, SystemDto };
