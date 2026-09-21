@@ -11,6 +11,7 @@ import {
   repGateNote,
   repLogLine,
   sceneUrl,
+  sellsHere,
   slotOffer,
   weaponLabel,
 } from './dockScreen';
@@ -46,6 +47,26 @@ describe('slotOffer', () => {
     expect(slotOffer(false, 0, 100, 99, null)).toEqual({ action: 'buy', cost: 100, problem: null, poor: true });
     expect(slotOffer(false, 0, 100, 100, null)).toEqual({ action: 'buy', cost: 100, problem: null, poor: false });
     expect(slotOffer(false, 0, null, 1e9, null)).toEqual({ action: 'none' });
+  });
+});
+
+/**
+ * До M16a док сам решал, что продаётся, по списку продукции станции — и для всего остального рисовал
+ * «склад 5» без единой кнопки. Теперь это решает сервер, и в строке едет готовый ответ.
+ */
+describe('что продаётся на месте', () => {
+  const quote = (sells?: boolean) => ({ id: 'ore', buy: 12, sell: 8, stock: 40, norm: 60, sells });
+
+  it('продаётся всё, что место выставило', () => {
+    expect(sellsHere(quote(true))).toBe(true);
+  });
+
+  it('не продаётся только то, что сервер запер: груз своего же задания', () => {
+    expect(sellsHere(quote(false))).toBe(false);
+  });
+
+  it('сервер старее M16a поля не шлёт — считаем, что продаётся, а дальше решит запас', () => {
+    expect(sellsHere(quote())).toBe(true);
   });
 });
 

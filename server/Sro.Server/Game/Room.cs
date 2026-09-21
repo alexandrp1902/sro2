@@ -469,8 +469,12 @@ public sealed partial class Room
     /// Корабль прилетел из другой системы (гиперпрыжок) или вернулся домой после гибели. Всё своё — трюм, кредиты,
     /// ангар, связь — у него с собой; клиент получает новый welcome и строит систему заново.
     /// </summary>
-    /// <param name="arrival">Точка у врат; null — появление у станции целым, как после гибели.</param>
-    public void Admit(Player player, (double X, double Y)? arrival)
+    /// <param name="arrival">Точка у врат; null — появление у своего места, как после гибели.</param>
+    /// <param name="hullShare">
+    /// Сколько корпуса дать появившемуся у места: 1 — целый. Возвращение домой после гибели приходит
+    /// с <see cref="CombatRules.DeathHullShare"/> — иначе гибель вдали от дома чинила бы корабль даром (M16a).
+    /// </param>
+    public void Admit(Player player, (double X, double Y)? arrival, double hullShare = 1)
     {
         player.Docked = false;
         player.JumpTo = null;
@@ -485,7 +489,9 @@ public sealed partial class Room
         }
         else
         {
-            SpawnHere(player);
+            SpawnHere(player, hullShare);
+            // Разбитый корпус — сразу в профиль, как и при гибели дома: иначе выход из игры лечил бы.
+            if (hullShare < 1) Save(player);
         }
         player.ResetInputs();
         player.View.Reset();
@@ -756,10 +762,19 @@ public sealed partial class Room
         player.Rescale(from, player.Effective(Balance));
     }
 
-    /// <summary>Продать со склада пушку или модуль — за долю цены (shop.json sellShare).</summary>
+    /// <summary>
+    /// Продать со склада пушку или модуль — за долю цены (shop.json sellShare). id = null — продать
+    /// весь склад разом (M16a): кнопка «Продать модули» на рынке, чтобы за этим не ходить по слотам.
+    /// Стоящее на корабле не продаётся: на складе его нет по определению.
+    /// </summary>
     public void SellItem(IClientConnection connection, string? id)
     {
-        if (id is null || !_byConnection.TryGetValue(connection.Id, out var player) || player.IsGuest || !player.Docked) return;
+        if (!_byConnection.TryGetValue(connection.Id, out var player) || player.IsGuest || !player.Docked) return;
+        if (id is null)
+        {
+            SellStorage(player);
+            return;
+        }
         if (!player.Unstore(id)) return;
         var credits = ShopOf(player).SellPrice(id);
         player.Credits += credits;
@@ -767,6 +782,31 @@ public sealed partial class Room
         SendHangar(player);
         Save(player);
         _log.LogInformation("Player {Id} sold {Item} for {Credits} credits", player.Id, id, credits);
+    }
+
+    /// <summary>
+    /// Продать весь склад места одной сделкой (M16a). То, за что здесь не дают ни кредита, остаётся лежать:
+    /// выбрасывать чужими руками нечего — для этого есть отдельная кнопка у самой строки.
+    /// </summary>
+    private void SellStorage(Player player)
+    {
+        var shop = ShopOf(player);
+        var credits = 0;
+        var sold = 0;
+        foreach (var (id, count) in player.Storage.ToList())
+        {
+            var price = shop.SellPrice(id);
+            if (price <= 0 || count <= 0) continue;
+            player.Storage.Remove(id);
+            credits += price * count;
+            sold += count;
+        }
+        if (sold == 0) return;
+        player.Credits += credits;
+        SendCargo(player);
+        SendHangar(player);
+        Save(player);
+        _log.LogInformation("Player {Id} sold {Count} stored items for {Credits} credits", player.Id, sold, credits);
     }
 
     /// <summary>Цель выбирает клиент. Себя, несуществующий корабль и 0 сервер понимает как «цели нет».</summary>
@@ -907,7 +947,7 @@ public sealed partial class Room
         foreach (var drone in _drones) drone.Carry(DroneAnchor(drone.Spec, OrbitSeconds + SimConfig.Dt));
         foreach (var drone in _drones)
         {
-            var input = drone.NextInput();
+            var input = drone.NextInput(Balance.Sun?.BurnRadius ?? 0);
             if (!drone.IsDead) Movement.Step(ref drone.Ship, input, drone.MoveHull(drone.Hull(Hulls), Tick), SimConfig.Dt);
         }
         // Уничтоженный пират не думает: иначе снова взял бы огонь, который Battle снял при смерти.
@@ -1116,6 +1156,9 @@ public sealed partial class Room
     /// </summary>
     private void Spawn(ShipEntity ship)
     {
+        // Гибель гасит текущую злость NPC (M16a): возрождаться под тем же огнём, что тебя и убил, — тупик.
+        // Репутация при этом остаётся, и в док врага системы по-прежнему не пустят.
+        if (ship is Player dead) ForgetOffender(dead.Id);
         // Налётчик не возрождается: вместо него когда-нибудь прилетит новый налёт.
         if (ship is Pirate { IsRaider: true } raider)
         {
@@ -1327,9 +1370,26 @@ public sealed partial class Room
     }
 
     /// <summary>
+    /// Забыть нападение: метка обидчика снимается, и никто из NPC больше не держит этого пилота на прицеле (M16a).
+    /// Репутацию это не трогает — она живёт своей жизнью и затухает по своим правилам. Зовётся при возрождении:
+    /// с пилота, которого уже сбили, счёт снят, и снова стать целью он может только новым нападением.
+    /// </summary>
+    private void ForgetOffender(int id)
+    {
+        _offenders.Remove(id);
+        foreach (var pirate in _pirates)
+        {
+            if (pirate.TargetId == id) pirate.TargetId = 0;
+            if (pirate.Avenge == id) pirate.Avenge = 0;
+        }
+    }
+
+    /// <summary>
     /// Обидчики, которых рейнджеры уже забыли, и корабли, которых больше нет в системе.
-    /// Врага системы прощать нечего: он остаётся в реестре, пока не исправит репутацию, — так вся
-    /// цепочка агро рейнджеров работает без единой правки в их ИИ.
+    /// Врагу системы репутация закрывает док и делает его своим для пиратов, но сама по себе огня не открывает
+    /// (M16a): текущая злость рейнджеров — это метка <see cref="_offenders"/> за нападение, а не отношение.
+    /// Пока полноценной системы пиратства нет, плохая репутация не должна означать вечную травлю
+    /// после каждого возрождения.
     /// </summary>
     private void ForgiveOffenders()
     {
@@ -1338,7 +1398,6 @@ public sealed partial class Room
         {
             if (player.IsDead || player.Docked || !IsEnemy(player)) continue;
             _outlaws.Add(player.Id);
-            _offenders[player.Id] = Tick + OffenderTicks;
         }
         if (_offenders.Count == 0) return;
         _forgiven.Clear();
@@ -2319,6 +2378,8 @@ public sealed partial class Room
         }
         SendCargo(player);
         SendMissions(player);
+        // Взял или сдал «собрать» — витрина рынка меняется: груз задания с неё запирается и отпирается (M16a).
+        if (player.Docked) SendMarket(player);
         Save(player);
     }
 
@@ -2346,8 +2407,9 @@ public sealed partial class Room
             Advance(player, MissionRules.DroneStep);
             return;
         }
-        // Охота на метеориты (M14). Разбившийся о корабль сюда не попадает: у тарана нет убийцы —
-        // MeteorSystem.Ram обнуляет камню прочность, но не проставляет, кто его сбил.
+        // Охота на метеориты (M14). Разбившийся о корабль пилота попадает сюда наравне с расстрелянным
+        // (M16a): MeteorSystem.Ram проставляет камню убийцу, и дальше путь у них общий — один камень,
+        // один плюс к счёту, кто бы его ни доломал.
         if (victim is Meteor rock)
         {
             if (player.Missions.Active is not { Offer.Kind: MissionRules.HuntKind } hunt) return;

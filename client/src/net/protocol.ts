@@ -11,7 +11,7 @@ import type { ReputationRules } from '../sim/reputation';
 import type { ShopRules } from '../sim/shop';
 
 /** Версия протокола; зеркало Protocol.Version на сервере. Сервер другой версии (или старый, без поля) — не играем. */
-export const PROTOCOL_VERSION = 24;
+export const PROTOCOL_VERSION = 26;
 
 /** Состояние ИИ пирата: патруль, бой, возврат в логово (налётчик — полёт от врат к точке), уход из системы. */
 export type AiState = 'patrol' | 'attack' | 'return' | 'leave';
@@ -31,6 +31,11 @@ export type ClientMessage =
       key?: string;
       /** Путь пилота (M15.5): применяется, только если этим входом заводится аккаунт. */
       career?: string;
+      /**
+       * Вкладка «Регистрация» (M15.8): вход обязан завести аккаунт, и занятый ник для него — отказ
+       * nameTaken. Без флага наоборот: неизвестный ник получает noAccount, а не новый пустой аккаунт.
+       */
+      create?: boolean;
     }
   /** Свободен ли ник (M15.5): по ответу решаем, показывать ли карточки пути. Шлётся до hello. */
   | { t: 'check'; name: string }
@@ -43,8 +48,8 @@ export type ClientMessage =
   | { t: 'weapon'; id: string }
   /** Поставить в слот пушку или модуль со склада; id = null — снять на склад. */
   | { t: 'fit'; slot: string; id: string | null }
-  /** Продать со склада пушку или модуль — за долю цены. */
-  | { t: 'sellItem'; id: string }
+  /** Продать со склада пушку или модуль — за долю цены; id = null — весь склад разом (M16a). */
+  | { t: 'sellItem'; id: string | null }
   | { t: 'name'; name: string }
   /** Выбранная цель (GDD §9); 0 — цели нет. */
   | { t: 'target'; id: number }
@@ -470,7 +475,7 @@ export interface NameFreeMsg {
 }
 
 /** Причина отказа во входе; следом сервер закрывает соединение. */
-export type DeniedCode = 'badName' | 'badPassword' | 'wrongPassword' | 'badKey' | 'badCareer';
+export type DeniedCode = 'badName' | 'badPassword' | 'wrongPassword' | 'badKey' | 'badCareer' | 'noAccount' | 'nameTaken';
 
 export interface DeniedMsg {
   t: 'denied';
@@ -553,6 +558,12 @@ export interface MarketItemDto {
   stock: number;
   /** Равновесный запас — по нему видно, здесь «мало» или «много». */
   norm: number;
+  /**
+   * Продаётся ли это пилоту прямо сейчас (M16a). С M16a место продаёт всё, чем торгует, поэтому false
+   * бывает только у груза своего же задания «собрать»: его надо привезти, а не купить на месте.
+   * Нет поля — сервер старее M16a: считаем, что продаётся, а дальше решит запас.
+   */
+  sells?: boolean;
 }
 
 /** Слух торговца (M12): куда везти товар или где его дёшево взять. Текст собираем сами (sim/market.ts). */

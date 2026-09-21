@@ -441,8 +441,9 @@ internal static class PirateBrain
             // Равномерно по кругу патруля, но не за границей мира.
             var radius = npc.PatrolRadius * Math.Sqrt(rng.NextDouble());
             var angle = rng.NextDouble() * 2 * Math.PI;
-            pirate.WaypointX = Math.Clamp(pirate.HomeX + radius * Math.Cos(angle), -NpcRules.WorldLimit, NpcRules.WorldLimit);
-            pirate.WaypointY = Math.Clamp(pirate.HomeY + radius * Math.Sin(angle), -NpcRules.WorldLimit, NpcRules.WorldLimit);
+            var (wx, wy) = Heat.SafePoint(pirate.HomeX + radius * Math.Cos(angle), pirate.HomeY + radius * Math.Sin(angle), heat);
+            pirate.WaypointX = Math.Clamp(wx, -NpcRules.WorldLimit, NpcRules.WorldLimit);
+            pirate.WaypointY = Math.Clamp(wy, -NpcRules.WorldLimit, NpcRules.WorldLimit);
             pirate.WaypointUntilTick = tick + WaypointTicks;
             pirate.HasWaypoint = true;
         }
@@ -452,11 +453,12 @@ internal static class PirateBrain
         else FlyTo(pirate, pirate.WaypointX, pirate.WaypointY, npc.PatrolThrottle, heat);
     }
 
-    /// <summary>Лететь к точке, сбавляя тягу на подлёте; огня нет.</summary>
+    /// <summary>Лететь к точке, сбавляя тягу на подлёте; огня нет. Звезду на пути — огибать (M16a).</summary>
     private static void FlyTo(Pirate pirate, double x, double y, double maxThrottle, double heat)
     {
-        var dx = x - pirate.Ship.X;
-        var dy = y - pirate.Ship.Y;
+        var (aimX, aimY) = Heat.Detour(pirate.Ship.X, pirate.Ship.Y, x, y, heat);
+        var dx = aimX - pirate.Ship.X;
+        var dy = aimY - pirate.Ship.Y;
         var distance = Math.Sqrt(dx * dx + dy * dy);
         var throttle = Math.Min(maxThrottle, Math.Clamp(distance / SlowRadius, MinArriveThrottle, 1));
         Set(pirate, dx, dy, throttle, heat);
@@ -487,7 +489,8 @@ internal static class PirateBrain
     /// <param name="heat">Радиус зоны жара звезды; 0 — звезды нет.</param>
     private static void Set(Pirate pirate, double dx, double dy, double throttle, double heat)
     {
-        var (x, y) = Heat.Avoid(pirate.Ship.X, pirate.Ship.Y, dx, dy, heat);
+        var speed = Math.Sqrt(pirate.Ship.Vx * pirate.Ship.Vx + pirate.Ship.Vy * pirate.Ship.Vy);
+        var (x, y) = Heat.Avoid(pirate.Ship.X, pirate.Ship.Y, dx, dy, heat, speed);
         MoveInput.TryCreate(x, y, throttle, out var input);
         pirate.LastInput = input;
     }

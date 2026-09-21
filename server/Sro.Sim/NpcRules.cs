@@ -19,6 +19,16 @@ namespace Sro.Sim;
 /// <param name="DefendRange">Рейнджер: идёт на обидчика торговца ближе этого; 0 — только в радиусе агро.</param>
 /// <param name="LeashRange">Своя привязь к логову вместо общей; null — общая из npcs.json.</param>
 /// <param name="Bounty">Награда за голову на 1-м уровне (GDD §31): кредиты пилоту, который сбил; 0 — не платят.</param>
+/// <param name="Hulls">
+/// Лестница корпусов по уровню (M16a): первый — 1-му уровню, последний — всем дальше. Пустая — у всех уровней
+/// корпус <paramref name="Hull"/>, как было. Ею рейнджер и торговец первых уровней летают на лёгких корпусах,
+/// а не на том же «Страннике», что их старшие.
+/// </param>
+/// <param name="LevelScaling">
+/// Свой рост по уровням вместо общего из npcs.json; null — общий. Имя то же, что у общего блока, и смысл
+/// тот же. Нужен там, где база срезана ради первого уровня: без него вместе с ним осел бы и весь ряд
+/// старших (M16a).
+/// </param>
 public sealed record NpcType(
     string Name,
     string Hull,
@@ -33,13 +43,20 @@ public sealed record NpcType(
     string Faction = NpcType.PirateFaction,
     double DefendRange = 0,
     double? LeashRange = null,
-    int Bounty = 0)
+    int Bounty = 0,
+    IReadOnlyList<string>? Hulls = null,
+    NpcLevelScaling? LevelScaling = null)
 {
     public const string PirateFaction = "pirate";
     public const string RangerFaction = "ranger";
     public const string TraderFaction = "trader";
 
     [JsonIgnore] public IReadOnlyList<string> WeaponList => Weapons ?? (Weapon is null ? [] : [Weapon]);
+    [JsonIgnore] public IReadOnlyList<string> HullList => Hulls ?? [];
+
+    /// <summary>Корпус NPC такого уровня: по лестнице <see cref="Hulls"/>, выше последней ступени — её же корпус.</summary>
+    public string HullAt(int level) =>
+        HullList.Count == 0 ? Hull : HullList[Math.Clamp(level, 1, HullList.Count) - 1];
     [JsonIgnore] public bool IsPirate => Faction == PirateFaction;
     [JsonIgnore] public bool IsRanger => Faction == RangerFaction;
 
@@ -47,6 +64,11 @@ public sealed record NpcType(
     {
         if (string.IsNullOrWhiteSpace(Name)) return "name is empty";
         if (Hull is null || !hulls.ContainsKey(Hull)) return $"unknown hull '{Hull}'";
+        foreach (var hull in HullList)
+        {
+            if (hull is null || !hulls.ContainsKey(hull)) return $"unknown hull '{hull}' in hulls";
+        }
+        if (LevelScaling is not null && LevelScaling.Validate() is { } scaling) return scaling;
         if (WeaponList.Count > Fitting.MaxWeaponSlots) return $"at most {Fitting.MaxWeaponSlots} weapons";
         foreach (var weapon in WeaponList)
         {
@@ -130,19 +152,29 @@ public sealed record NpcRules(
     /// <summary>«Пират Ур.2».</summary>
     public static string Name(NpcType type, int level) => $"{type.Name} Ур.{level}";
 
-    public double MaxHp(NpcType type, int level, HullParams hull) => (type.Hp ?? hull.Hp) * Scaling.HpFactor(level);
+    /// <summary>Рост по уровням для этого типа: свой, если он задан, иначе общий (M16a).</summary>
+    public NpcLevelScaling ScalingOf(NpcType type) => type.LevelScaling ?? Scaling;
+
+    /// <summary>Корпус NPC такого уровня: у типа с лестницей корпусов — её ступень (M16a).</summary>
+    public static string HullOf(NpcType type, int level) => type.HullAt(level);
+
+    public double MaxHp(NpcType type, int level, HullParams hull) => (type.Hp ?? hull.Hp) * ScalingOf(type).HpFactor(level);
 
     /// <summary>Награда за голову NPC этого уровня, кредиты.</summary>
-    public int Bounty(NpcType type, int level) => (int)Math.Round(type.Bounty * Scaling.BountyFactor(level));
+    public int Bounty(NpcType type, int level) => (int)Math.Round(type.Bounty * ScalingOf(type).BountyFactor(level));
 
-    public double MaxShield(NpcType type, int level, HullParams hull) => (type.Shield ?? hull.Shield) * Scaling.ShieldFactor(level);
+    public double MaxShield(NpcType type, int level, HullParams hull) => (type.Shield ?? hull.Shield) * ScalingOf(type).ShieldFactor(level);
 
     /// <summary>Пушка NPC: урон — с множителем типа и уровня, точность — с прибавкой уровня (не выше 100).</summary>
-    public WeaponParams ScaledWeapon(NpcType type, int level, WeaponParams weapon) => weapon with
+    public WeaponParams ScaledWeapon(NpcType type, int level, WeaponParams weapon)
     {
-        Damage = weapon.Damage * type.Damage * Scaling.DamageFactor(level),
-        Accuracy = Math.Min(100, weapon.Accuracy + Scaling.AccuracyBonus(level)),
-    };
+        var scaling = ScalingOf(type);
+        return weapon with
+        {
+            Damage = weapon.Damage * type.Damage * scaling.DamageFactor(level),
+            Accuracy = Math.Min(100, weapon.Accuracy + scaling.AccuracyBonus(level)),
+        };
+    }
 
     /// <param name="stationOrbit">Радиус орбиты станции: укрытие ходит по этому кругу вокруг звезды; 0 — станция в центре.</param>
     public string? Validate(IReadOnlyDictionary<string, HullParams> hulls, IReadOnlyDictionary<string, WeaponParams> weapons, double stationOrbit = 0)

@@ -33,7 +33,7 @@ public sealed class Pirate : ShipEntity, IScavenger
 
     /// <param name="slot">Номер в логове: от него место появления, дистанция боя и сторона захода.</param>
     public Pirate(int id, NpcSpawn spawn, int slot, NpcType type, NpcRules rules)
-        : base(id, NpcRules.Name(type, spawn.Level), type.Hull, type.WeaponList)
+        : base(id, NpcRules.Name(type, spawn.Level), NpcRules.HullOf(type, spawn.Level), type.WeaponList)
     {
         Spawn = spawn;
         Slot = slot;
@@ -173,7 +173,8 @@ public sealed class Pirate : ShipEntity, IScavenger
         _rules = rules;
         _weaponsFor = null;
         Name = NpcRules.Name(type, Level);
-        HullId = newHulls.ContainsKey(type.Hull) ? type.Hull : SimConfig.DefaultHull;
+        var hullId = NpcRules.HullOf(type, Level);
+        HullId = newHulls.ContainsKey(hullId) ? hullId : SimConfig.DefaultHull;
         WeaponIds = type.WeaponList;
 
         var newHull = newHulls[HullId];

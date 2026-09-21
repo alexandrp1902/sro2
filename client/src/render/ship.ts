@@ -1,6 +1,6 @@
 import { Container, Graphics, Sprite, Texture } from 'pixi.js';
-import { localVelocity, wrapAngle, type HullParams, type ShipState } from '../sim/movement';
-import { flameShape } from './flame';
+import { wrapAngle, type HullParams } from '../sim/movement';
+import { flameShape, type FlamePalette } from './flame';
 import { flameSprite, shipSprite, spriteSize, texture, type SpriteName } from './sprites';
 
 /** Указатель желаемого направления (§26) — на таком расстоянии от центра, в размерах корпуса. */
@@ -11,25 +11,25 @@ const DRONE_TINT = 0xa8dca0;
 const ALLY_TINT = 0xd8ffb8;
 
 /**
- * Оттенок процедурного пламени по роли (M15.6): у рейнджеров холодный выхлоп, у пиратов злой красный.
- * Ничего не стоит — тон ставится один раз при сборке факела.
+ * Выхлоп по роли (M15.6): у пиратов и рейнджеров холодный неон, у остальных горячее пламя.
+ * Цвет теперь в самой геометрии, а не оттенком поверх рыжего: оттенок давал бурый, а не голубой.
  */
-const FLAME_TINT: Partial<Record<ShipLook, number>> = {
-  ranger: 0xb8e8ff,
-  wing: 0xb8e8ff,
-  pirate: 0xff9a7a,
+const FLAME_PALETTE: Partial<Record<ShipLook, FlamePalette>> = {
+  pirate: 'neon',
+  ranger: 'neon',
+  wing: 'neon',
 };
+
+/**
+ * Во сколько раз пламя вытягивается на полной тяге. Нарисованный кадр короткий — его тянем вдвое,
+ * как и раньше. Факел из кода уже нарисован в свой рост, и вытягивать его вдвое было слишком:
+ * у тяжёлого пирата получался язык длиннее корпуса.
+ */
+const DRAWN_FULL = 2;
+const TORCH_FULL = 1;
 
 /** Чей корабль: от этого картинка (у пиратов своя) и оттенок. */
 export type ShipLook = 'own' | 'player' | 'drone' | 'pirate' | 'trader' | 'ranger' | 'convoy' | 'wing';
-
-/** Яркость пламени: разгон — полное, круиз — вполсилы, торможение и стоп — нет. */
-export function engineGlow(state: ShipState, throttle: number, hull: HullParams): number {
-  if (throttle <= 0) return 0;
-  const { forward } = localVelocity(state);
-  const accelerating = forward < hull.maxSpeed * throttle - 1;
-  return accelerating ? 0.6 + 0.4 * throttle : 0.25 + 0.35 * throttle;
-}
 
 export class ShipView {
   readonly view = new Container();
@@ -42,6 +42,8 @@ export class ShipView {
   private size = 0;
   private sprite: SpriteName | null = null;
   private ally = false;
+  /** Пламя этого корабля — нарисованный кадр, а не факел из кода. Ставится на смену корабля. */
+  private drawn = false;
 
   constructor(private readonly look: ShipLook) {
     // Оба пламени — за корпусом; работает всегда ровно одно из них.
@@ -71,11 +73,13 @@ export class ShipView {
     this.view.position.set(x, y);
     this.hull.rotation = rot;
 
-    // Пламя растёт из сопел назад: длина и яркость — сила тяги, чуть дрожит.
-    // Узел один из двух: нарисованный кадр или процедурный факел (M15.6) — считаем раз, пишем в живой.
-    const fire = this.torch.visible ? this.torch : this.flame;
+    // Пламя растёт из сопел назад: длина и яркость — ступень тяги, чуть дрожит.
+    // Узел один из двух: нарисованный кадр или факел из кода (M15.6) — какой именно, решено на смене корабля.
+    // Раньше живой узел искали по visible, и погасший факел больше не возвращался: корабли без кадра
+    // («Сокол», «Стриж», «Страж», весь NPC-флот) после первой остановки летали без огня совсем.
+    const fire = this.drawn ? this.flame : this.torch;
     fire.visible = glow > 0;
-    fire.scale.set(1, (0.5 + 1.5 * glow) * (0.9 + Math.random() * 0.2));
+    fire.scale.set(1, (this.drawn ? DRAWN_FULL : TORCH_FULL) * glow * (0.9 + Math.random() * 0.2));
     fire.alpha = Math.min(1, 0.45 + glow);
 
     this.pointer.visible = desired !== null;
@@ -98,18 +102,21 @@ export class ShipView {
     // Свой кадр пламени есть только у трёх старых корпусов; всем остальным — и шести корпусам игрока,
     // и всем NPC — факел рисуется кодом (M15.6). Геометрия строится здесь, один раз на смену корабля.
     const flame = flameSprite(sprite);
+    this.drawn = flame !== null;
     this.flame.texture = flame ? texture(flame) : Texture.EMPTY;
     // Пламя масштабируется от линии сопел: там его опорная точка.
     this.flame.anchor.set(0.5, body / h);
     this.flame.position.set(0, body / 2);
-    this.torch.visible = flame === null;
+    // Лишний узел гасим здесь же: дальше в кадре трогаем только живой.
+    this.flame.visible = false;
+    this.torch.visible = false;
     this.torch.clear();
-    if (this.torch.visible) {
+    if (!this.drawn) {
       const { w } = spriteSize(sprite);
-      for (const layer of flameShape(w, body)) this.torch.poly(layer.points).fill({ color: layer.color, alpha: layer.alpha });
+      const palette = FLAME_PALETTE[this.look] ?? 'hot';
+      for (const layer of flameShape(w, body, palette)) this.torch.poly(layer.points).fill({ color: layer.color, alpha: layer.alpha });
       // Та же опорная точка, что у кадра: линия сопел, и растём назад.
       this.torch.position.set(0, body / 2);
-      this.torch.tint = FLAME_TINT[this.look] ?? 0xffffff;
     }
     this.hull.scale.set((size * 2) / body);
   }

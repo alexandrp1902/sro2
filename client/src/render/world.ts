@@ -1,5 +1,6 @@
 import { Container, Graphics, Sprite, Text } from 'pixi.js';
 import { STATION } from '../game/layout';
+import { Corona } from './corona';
 import type { PlanetDto, SystemDto } from '../net/protocol';
 import { gateLabel } from '../sim/galaxy';
 import { WORLD_HALF_SIZE } from '../sim/movement';
@@ -62,6 +63,8 @@ export class SystemView {
   private readonly station = new Container();
   private readonly stationLabel: Text | null = null;
   private readonly bodies: Body[] = [];
+  /** Огненные слои вокруг звезды; null — звезды в системе нет. */
+  private readonly corona: Corona | null = null;
   private readonly planetsInfo: PlanetInfo[] = [];
   /** Где станция сейчас: с этим считаются стыковка, прицел и миникарта. */
   readonly stationAt: Point = { x: STATION.x, y: STATION.y };
@@ -74,6 +77,9 @@ export class SystemView {
     // Ни круга жара, ни линий орбит: звезда и тела на орбитах говорят сами за себя.
     const sun = system?.sun;
     if (sun) {
+      // Корона — под картинкой звезды: свечение уходит за край диска, а сам диск остаётся резким (M16a).
+      this.corona = new Corona(sun.kind, sun.radius * SUN_SCALE, quietMotion());
+      view.addChild(this.corona.view);
       view.addChild(centred(sunSprite(sun.kind), 0, 0, sun.radius * SUN_SCALE));
       view.addChild(label(system.name, 0, sun.radius * SUN_SCALE + 26, SUN_LABEL_COLOR, 16));
     }
@@ -132,8 +138,9 @@ export class SystemView {
     return this.planetsInfo;
   }
 
-  /** Станция и планеты — туда, где они в орбитальное время seconds. */
+  /** Станция и планеты — туда, где они в орбитальное время seconds; по тем же часам дышит и звезда. */
   update(seconds: number): void {
+    this.corona?.update(seconds);
     const orbit = this.system?.stationOrbit ?? CENTER;
     const at = orbitAt(orbit, seconds);
     this.stationAt.x = at.x;
@@ -150,6 +157,11 @@ export class SystemView {
       body.label.position.set(p.x, p.y + body.planet.size * PLANET_SCALE + 18);
     }
   }
+}
+
+/** Просили меньше движения: корона встанет развёрнутой, но пульсировать не будет. */
+function quietMotion(): boolean {
+  return typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches === true;
 }
 
 function sunSprite(kind: string): SpriteName {

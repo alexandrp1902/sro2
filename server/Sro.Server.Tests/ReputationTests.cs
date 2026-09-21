@@ -98,6 +98,11 @@ public sealed class ReputationTests : IDisposable
 
     private double Rep(Player player, string key) => player.Rep.Value(key, Now, TestBalance.Reputation());
 
+    private void Steps(int ticks)
+    {
+        for (var i = 0; i < ticks; i++) _room.Step();
+    }
+
     /// <summary>Поставить пилоту такое отношение системы, как будто он его заработал.</summary>
     private static void SetRep(Player player, string key, double value) =>
         player.Rep.Add(key, value, Now, TestBalance.Reputation());
@@ -155,6 +160,30 @@ public sealed class ReputationTests : IDisposable
 
         Assert.False(player.Docked);
         Assert.Equal(Protocol.DockClosedNotice, a.Last<NoticeMsg>().Code);
+    }
+
+    /// <summary>
+    /// Репутация и текущая злость NPC — разные вещи (M16a). Плохое отношение закрывает док и делает
+    /// пилота своим для пиратов, но само по себе огня не открывает: до этой правки враг системы получал
+    /// метку обидчика заново каждый тик и после каждого возрождения снова попадал под расстрел.
+    /// Полноценная система пиратства, когда она появится, сможет читать те же очки и решать иначе.
+    /// </summary>
+    [Fact]
+    public void BadReputation_ClosesTheDock_ButDoesNotSetRangersOnYou()
+    {
+        var a = Pilot();
+        var player = PlayerOf(a);
+        SetRep(player, Sys, -80);
+        Steps(5);
+
+        Assert.True(_room.IsEnemy(player));
+        Assert.False(_room.Hunted(player.Id)); // рейнджерам он никто, пока сам не начнёт
+
+        // Гибель и возрождение отношения не чинят: счёт снимается с боя, а не со шкалы.
+        player.Hp = 0;
+        Steps(_room.Balance.Rules.RespawnTicks + 2);
+        Assert.Equal(-80, Rep(player, Sys), 6);
+        Assert.True(_room.IsEnemy(player));
     }
 
     [Fact]

@@ -47,6 +47,7 @@ const NOTICES: Record<string, string> = {
   rangers: 'Рейнджеры вступились за торговца — уходите!',
   noGoods: 'Этим здесь не торгуют',
   noStock: 'На складе станции столько нет',
+  missionGoods: 'Это груз вашего задания: его надо привезти, а не купить здесь',
   dockClosed: 'Док закрыт: здесь вас считают врагом',
   needRep: 'Это продают только своим — здесь вас ещё не знают',
   missionAway: 'Вы отстаёте от конвоя — возвращайтесь!',
@@ -103,7 +104,7 @@ export function describeRepChange(change: RepChangeDto, name?: string | null): s
 /** Коды-отказы: действие не вышло, и текст говорит, что сделать. В ленте они жёлтые (SRO Steel: sro-msg--warn). */
 const REFUSALS = new Set([
   'cargoFull', 'tooFar', 'noCredits', 'notSold', 'gateFar', 'noPower', 'badClass', 'badSlot',
-  'noGoods', 'noStock', 'dockClosed', 'needRep', 'jumpCancelled', 'jumpHit', 'missionAway',
+  'noGoods', 'noStock', 'missionGoods', 'dockClosed', 'needRep', 'jumpCancelled', 'jumpHit', 'missionAway',
   'shipElsewhere', 'noRoute', 'wrongPassword', 'badPassword',
 ]);
 

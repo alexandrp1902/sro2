@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { landingArt } from './landing';
+import { Landing, landingArt } from './landing';
 
 describe('landingArt', () => {
   it('даёт кадр снижения каждому нарисованному виду планеты', () => {
@@ -12,11 +12,28 @@ describe('landingArt', () => {
     expect(landingArt('gas')).toBe('dock/landing-orbital-platform.webp');
   });
 
+  /**
+   * Три секунды — требование плейтеста (M16a): за прежние 1.4 с кадр не успевали рассмотреть.
+   * Столько же стоит в стиле переменной --landing-ms, и ставит её сам Landing.show.
+   */
+  it('заставка идёт около трёх секунд', () => {
+    expect(Landing.totalMs).toBe(3000);
+    expect(Landing.fadeMs).toBeLessThan(Landing.totalMs);
+  });
+
   it('чего не нарисовали, того и не показываем', () => {
     expect(landingArt('ringed')).toBeNull(); // кадра для кольчатой нет
     expect(landingArt('unknown')).toBeNull();
     expect(landingArt(null)).toBeNull();
     expect(landingArt(undefined)).toBeNull();
+  });
+
+  /**
+   * Нет кадра — нет и заставки (M16a): держать три секунды пустой чёрный экран значило бы
+   * придумывать задержку там, где смотреть не на что. Landing.show на null из landingArt выходит сразу.
+   */
+  it('отсутствие кадра — это отсутствие заставки, а не пауза', () => {
+    expect(landingArt('ringed')).toBeNull();
   });
 
   /**

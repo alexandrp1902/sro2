@@ -210,9 +210,16 @@ async function main() {
   a.listeners.add(watchShelter);
 
   let aimedAt = 0;
-  const nearest = () => {
+  let wasDead = false;
+  /**
+   * Камень, за которым идём. Раз выбрав, держимся за него, пока он в небе: камней там с полтора десятка,
+   * и «всегда ближайший» переключал бы прицел каждый тик — ни один так и не был бы добит.
+   */
+  const chase = () => {
     const me = a.me;
     if (!me) return null;
+    const held = a.meteors.find((m) => m.id === aimedAt);
+    if (held) return held;
     let best = null;
     for (const m of a.meteors) {
       if (!best || distance(m, me) < distance(best, me)) best = m;
@@ -221,9 +228,13 @@ async function main() {
   };
   a.control = () => {
     const me = a.me;
-    const target = nearest();
+    const target = chase();
     if (!me || !target) return [0, -1, 0];
-    if (target.id !== aimedAt) {
+    // Гибель гасит огонь на сервере, а камней в небе хватает, чтобы разбиться о любой из них.
+    // Не переспросив прицел после возрождения, скрипт так и будет лететь с холодными пушками.
+    const revived = wasDead && !me.dead;
+    wasDead = !!me.dead;
+    if (target.id !== aimedAt || revived) {
       aimedAt = target.id;
       a.send({ t: 'target', id: target.id });
       a.send({ t: 'fire', on: true });

@@ -127,7 +127,7 @@ function check(text, pass) {
 async function main() {
   console.log(`smoke-repair against ${url}, pilot ${NAME}`);
 
-  const a = new Client({ name: NAME, password: PASSWORD });
+  const a = new Client({ name: NAME, password: PASSWORD, create: true }); // новый пилот: вкладка «Регистрация»
   await a.open();
   await a.until(() => a.welcome && a.hangar && a.cargo, 5000, 'welcome, hangar and cargo');
   const share = a.welcome.combat?.deathHullShare;

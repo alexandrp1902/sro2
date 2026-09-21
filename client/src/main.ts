@@ -29,7 +29,8 @@ import { MeteorField } from './render/meteorView';
 import { MissileField } from './render/missiles';
 import { Nebula } from './render/nebulaView';
 import { PlayerOverlay } from './render/playerOverlay';
-import { ShipView, engineGlow } from './render/ship';
+import { engineGlow } from './render/flame';
+import { ShipView } from './render/ship';
 import { loadSprites, moduleSprite, weaponSprite } from './render/sprites';
 import { Starfield } from './render/starfield';
 import { WeaponArc } from './render/weaponArc';
@@ -204,9 +205,9 @@ async function main(): Promise<void> {
     connection?.logout();
   };
   const pilotForm = new PilotForm(el('connect'), {
-    onLogin: (name, password, career) => {
+    onLogin: (name, password, career, create) => {
       account.setName(name);
-      connection?.login(career ? { name, password, career } : { name, password });
+      connection?.login(career ? { name, password, career, create } : { name, password, create });
     },
     onLogout: logout,
     onCheckName: (name) => connection?.checkName(name),
@@ -374,6 +375,8 @@ async function main(): Promise<void> {
     onTransport: (id) => send({ t: 'transport', hull: id }),
     onFit: (slot, id) => send({ t: 'fit', slot, id }),
     onSellItem: (id) => send({ t: 'sellItem', id }),
+    // Весь склад одной сделкой (M16a): что продаётся — решает сервер по своим же ценам выкупа.
+    onSellGear: () => send({ t: 'sellItem', id: null }),
     onRepair: () => send({ t: 'repair' }),
     onUndock: () => send({ t: 'dock', on: false }),
     onMenu: (anchor) => menu.toggleAt(anchor),

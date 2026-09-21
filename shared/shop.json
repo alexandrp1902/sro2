@@ -74,7 +74,7 @@
   // Ассортимент по регионам галактики (M11): чем дальше от Sol, тем лучше снаряжение и выше тир.
   "regions": {
     "core": {
-      "tiers": [1],
+      "tiers": [1, 2],
       "hulls": ["light", "scout", "medium", "industrial"],
       "items": [
         "pulse", "laser", "cannon", "missiles",

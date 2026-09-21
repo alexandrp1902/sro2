@@ -117,7 +117,7 @@ public sealed partial class Room
             if (MarketAt(place.Key) is not { } m || !m.Rules.Any) continue;
             var prices = new List<MarketPrice>();
             foreach (var q in m.Stock.Quotes(m.Rules, loot))
-                prices.Add(new MarketPrice(q.Id, q.Buy, q.Sell, q.Stock, q.Norm, m.Rules.Sells(q.Id)));
+                prices.Add(new MarketPrice(q.Id, q.Buy, q.Sell, q.Stock, q.Norm, m.Rules.Makes(q.Id)));
             if (prices.Count > 0) list.Add(new StationPrices(SystemId, place.Name, 0, prices, place.Key));
         }
         return list;
@@ -153,6 +153,17 @@ public sealed partial class Room
         player.Connection.Send(new ShopMsg(place.Key, Balance.ShopAt(place.Key)));
     }
 
+    /// <summary>
+    /// Груз, который это место сейчас не продаст пилоту: то, что оно же просило привезти по заданию
+    /// «собрать» (M16a). Иначе задание сдавалось бы покупкой на месте, ведь склад теперь открыт весь.
+    /// null — ничего не заперто.
+    /// </summary>
+    private string? MissionGood(Player player) =>
+        player.Missions.Active?.Offer is { Kind: MissionRules.CollectKind, Item: { } item } collect
+        && PlaceOf(player)?.Key == collect.From
+            ? item
+            : null;
+
     /// <summary>Цены — только тому, кто в доке: рынок у каждого места свой.</summary>
     private void SendMarket(Player player)
     {
@@ -160,8 +171,9 @@ public sealed partial class Room
         var items = new List<MarketItemDto>();
         if (MarketOf(player) is { } m)
         {
+            var locked = MissionGood(player);
             foreach (var q in m.Stock.Quotes(m.Rules, Balance.Loot))
-                items.Add(new MarketItemDto(q.Id, q.Buy, q.Sell, q.Stock, q.Norm));
+                items.Add(new MarketItemDto(q.Id, q.Buy, q.Sell, q.Stock, q.Norm, q.Id != locked));
         }
         var rumours = new List<RumourDto>(player.Rumours.Count);
         foreach (var r in player.Rumours)
@@ -222,10 +234,15 @@ public sealed partial class Room
             return;
         }
         var loot = Balance.Loot;
-        // Купить можно только то, что место делает само: чужой товар оно скупает, но не перепродаёт.
+        // Купить можно всё, чем место торгует: что на складе есть, то и продаётся (M16a).
         if (MarketOf(player) is not { } m || !loot.StationUnload || !m.Rules.Any || !m.Rules.Sells(item) || !loot.ItemMap.ContainsKey(item))
         {
             connection.Send(new NoticeMsg(Protocol.NoGoodsNotice));
+            return;
+        }
+        if (MissionGood(player) == item)
+        {
+            connection.Send(new NoticeMsg(Protocol.MissionGoodsNotice));
             return;
         }
         var market = m.Rules;

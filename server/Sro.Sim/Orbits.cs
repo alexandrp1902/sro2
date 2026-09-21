@@ -88,9 +88,10 @@ public sealed record SunDef(string Kind = "yellow", double Radius = 220, double 
 }
 
 /// <summary>
-/// Уклонение от жара звезды (M15.7). Всякий NPC, который летит к точке, проводит своё направление через
-/// <see cref="Avoid"/>: внутри запретного круга его тянет наружу и вбок — в ту сторону, куда цель, — так что
-/// корабль звезду **огибает**, а не упирается в неё лбом и не сгорает по дороге на другую сторону системы.
+/// Запретная зона вокруг звезды (M15.7, переработана в M16a). Всякий NPC, который летит к точке, проводит
+/// своё направление через <see cref="Avoid"/>, выбранные точки — через <see cref="SafePoint"/>, а дальний
+/// перелёт — через <see cref="Detour"/>. Уклонение упреждающее: курс проверяется не там, где корабль сейчас,
+/// а там, где он окажется, — поэтому звезду он огибает заранее, а не выворачивает из огня.
 /// Игрока это не касается: он рулит сам, ему только пишут в ленту, что горячо.
 /// </summary>
 public static class Heat
@@ -98,28 +99,100 @@ public static class Heat
     /// <summary>От края зоны жара NPC держится на столько дальше; внутри этого запаса уже сворачивает.</summary>
     public const double Margin = 350;
 
+    /// <summary>На сколько секунд вперёд NPC смотрит, проверяя свой курс на звезду.</summary>
+    public const double LookaheadSeconds = 1.5;
+
+    /// <summary>Обходная точка ставится настолько дальше края зоны: впритирку её пришлось бы обновлять каждый тик.</summary>
+    private const double DetourReach = 1.15;
+
+    /// <summary>Радиус запретной зоны: ближе этого NPC не заходит. 0 — звезды нет.</summary>
+    public static double SafeRadius(double burnRadius) => burnRadius > 0 ? burnRadius + Margin : 0;
+
+    /// <summary>Внутри ли точка запретной зоны.</summary>
+    public static bool Inside(double x, double y, double burnRadius) =>
+        burnRadius > 0 && x * x + y * y < SafeRadius(burnRadius) * SafeRadius(burnRadius);
+
     /// <summary>
     /// Поправить направление полёта так, чтобы обойти жар звезды в центре системы.
     /// </summary>
     /// <param name="x">Где корабль сейчас.</param>
     /// <param name="y">Где корабль сейчас.</param>
-    /// <param name="ux">Куда он хочет лететь, единичный вектор.</param>
-    /// <param name="uy">Куда он хочет лететь, единичный вектор.</param>
+    /// <param name="ux">Куда он хочет лететь; нормировать не нужно.</param>
+    /// <param name="uy">Куда он хочет лететь; нормировать не нужно.</param>
     /// <param name="burnRadius">Радиус зоны жара; 0 — звезды нет, направление не меняется.</param>
+    /// <param name="speed">
+    /// Текущая скорость: по ней считается, как далеко смотреть вперёд. 0 — смотреть только под ноги,
+    /// как до M16a: тогда корабль сворачивает, лишь когда уже вошёл в зону.
+    /// </param>
     /// <returns>Направление с поправкой; нормировать его не нужно — <see cref="MoveInput"/> сделает это сам.</returns>
-    public static (double X, double Y) Avoid(double x, double y, double ux, double uy, double burnRadius)
+    public static (double X, double Y) Avoid(double x, double y, double ux, double uy, double burnRadius, double speed = 0)
     {
         if (burnRadius <= 0) return (ux, uy);
         var r = Math.Sqrt(x * x + y * y);
-        var safe = burnRadius + Margin;
-        if (r >= safe || r <= 1e-6) return (ux, uy);
+        var len = Math.Sqrt(ux * ux + uy * uy);
+        if (r <= 1e-6 || len <= 1e-9) return (ux, uy);
+        var dx = ux / len;
+        var dy = uy / len;
+        var safe = SafeRadius(burnRadius);
+
+        // Ближайшее к звезде место курса на ближайшие LookaheadSeconds: назад не смотрим, дальше — тоже.
+        var reach = Math.Max(speed, 0) * LookaheadSeconds;
+        var step = Math.Clamp(-(x * dx + y * dy), 0, reach);
+        var aheadX = x + dx * step;
+        var aheadY = y + dy * step;
+        var ahead = Math.Sqrt(aheadX * aheadX + aheadY * aheadY);
+
+        // Нарушение — по худшему из двух: где корабль сейчас и куда он правит.
+        var breach = safe - Math.Min(r, ahead);
+        if (breach <= 0) return (ux, uy);
+
         var ox = x / r;
         var oy = y / r;
-        // Чем глубже в запретном круге, тем сильнее тянет прочь от центра.
-        var push = (safe - r) / Margin * 2;
+        // Чем ближе курс к звезде, тем сильнее тянет прочь от центра.
+        var push = breach / Margin * 2;
         // Вбок — в ту сторону, куда цель: иначе корабль вставал бы носом в звезду и полз вдоль её края.
-        var side = ox * uy - oy * ux >= 0 ? 1 : -1;
-        return (ux + (ox - side * oy) * push, uy + (oy + side * ox) * push);
+        var side = ox * dy - oy * dx >= 0 ? 1 : -1;
+        return (dx + (ox - side * oy) * push, dy + (oy + side * ox) * push);
+    }
+
+    /// <summary>
+    /// Точка вне запретной зоны: ту, что попала внутрь, выносит наружу по тому же лучу. Через это проходят
+    /// все выбираемые NPC точки — патруль, налёт, маршрут задания, — чтобы никто не летел в звезду по заданию.
+    /// </summary>
+    public static (double X, double Y) SafePoint(double x, double y, double burnRadius)
+    {
+        if (burnRadius <= 0) return (x, y);
+        var safe = SafeRadius(burnRadius);
+        var r = Math.Sqrt(x * x + y * y);
+        if (r >= safe) return (x, y);
+        // Точка ровно в центре — луча нет, годится любой.
+        if (r <= 1e-6) return (safe, 0);
+        return (x / r * safe, y / r * safe);
+    }
+
+    /// <summary>
+    /// Куда лететь, чтобы попасть в (toX, toY), не пройдя сквозь звезду. Если прямая мимо зоны — это сама цель;
+    /// если сквозь — точка сбоку у края зоны с той стороны, куда сворачивать ближе. Долетев до неё, NPC
+    /// пересчитает обход заново и в конце концов зайдёт к цели с другой стороны.
+    /// </summary>
+    public static (double X, double Y) Detour(double fromX, double fromY, double toX, double toY, double burnRadius)
+    {
+        if (burnRadius <= 0) return (toX, toY);
+        var dx = toX - fromX;
+        var dy = toY - fromY;
+        var len = Math.Sqrt(dx * dx + dy * dy);
+        if (len <= 1e-6) return (toX, toY);
+        dx /= len;
+        dy /= len;
+        var safe = SafeRadius(burnRadius);
+        var step = Math.Clamp(-(fromX * dx + fromY * dy), 0, len);
+        var nearX = fromX + dx * step;
+        var nearY = fromY + dy * step;
+        var near = Math.Sqrt(nearX * nearX + nearY * nearY);
+        if (near >= safe) return (toX, toY);
+        // Курс идёт точно сквозь центр — сторона обхода любая, берём левую от курса.
+        var (sx, sy) = near <= 1e-6 ? (-dy, dx) : (nearX / near, nearY / near);
+        return (sx * safe * DetourReach, sy * safe * DetourReach);
     }
 }
 

@@ -140,12 +140,16 @@ public sealed class MissionTests : IDisposable
         Steps(1);
     }
 
-    /// <summary>Камень разбился о корабль: убийцы у него нет — охоте он не засчитывается.</summary>
-    private void Ram(FakeConnection connection, string size)
+    /// <summary>
+    /// Камень разбился о чей-то корабль. by — чей: id пилота засчитывает камень ему (M16a),
+    /// 0 — камень разбился о чужой борт, и засчитывать его некому.
+    /// </summary>
+    private void Ram(FakeConnection connection, string size, int by = 0)
     {
         var rock = RoomOf(connection).LaunchMeteor(size, 1000, 1000, 0, 0)!;
         rock.Hp = 0;
         rock.Rammed = true;
+        rock.KilledBy = by;
         Steps(1);
     }
 
@@ -521,8 +525,12 @@ public sealed class MissionTests : IDisposable
         Assert.Equal(credits + offer.Reward, Credits(a));
     }
 
+    /// <summary>
+    /// Таран засчитывается наравне с выстрелом (M16a): камень, разбившийся о корабль пилота, уничтожен им.
+    /// Размер и система по-прежнему проверяются, а камень, разбившийся не о него, ему и не идёт.
+    /// </summary>
     [Fact]
-    public void Hunt_IgnoresRammedRocks_TheWrongSize_AndOtherSystems()
+    public void Hunt_CountsRammedRocks_ButNotTheWrongSizeOrSystem()
     {
         _galaxy = New(HuntLargeOnly);
         var a = Veteran();
@@ -530,18 +538,23 @@ public sealed class MissionTests : IDisposable
         Accept(a, MissionRules.HuntKind);
         Assert.Equal("large", Missions(a).Active?.Offer.Size);
         Do(a, r => r.Dock(a, false));
+        var me = IdOf(a);
 
         Shoot(a, "small"); // не тот размер
-        Ram(a, "large"); // разбился сам — у тарана нет убийцы
+        Ram(a, "small", me); // тоже не тот размер
+        Ram(a, "large"); // разбился о чужой борт — засчитывать некому
         Assert.Equal(0, Missions(a).Active?.Progress);
+
+        Ram(a, "large", me); // а вот этот — о его собственный
+        Assert.Equal(1, Missions(a).Active?.Progress);
 
         JumpTo(a, "wild"); // чужая система
         Shoot(a, "large");
-        Assert.Equal(0, Missions(a).Active?.Progress);
+        Assert.Equal(1, Missions(a).Active?.Progress);
 
         JumpTo(a, "home");
-        Shoot(a, "large");
-        Assert.Equal(1, Missions(a).Active?.Progress);
+        Shoot(a, "large"); // второй из двух — задание закрыто
+        Assert.Null(Missions(a).Active);
     }
 
     [Fact]

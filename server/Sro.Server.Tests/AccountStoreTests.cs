@@ -36,6 +36,47 @@ public sealed class AccountStoreTests : IDisposable
     }
 
     [Fact]
+    public void LoginTab_RefusesAnUnknownName_AndCreatesNothing()
+    {
+        using var store = Open();
+
+        // Вкладка «Вход» (M15.8): опечатка в логине — отказ, а не молча заведённый пустой аккаунт.
+        var login = store.Login("Alice", "secret", LoginMode.Existing);
+
+        Assert.Equal(LoginError.NoAccount, login.Error);
+        Assert.Equal(0, store.Count);
+    }
+
+    [Fact]
+    public void RegisterTab_RefusesATakenName_AndLeavesItsOwnerAlone()
+    {
+        using var store = Open();
+        var owner = store.Login("Alice", "secret");
+
+        var again = store.Login("  aLiCe ", "another", LoginMode.New);
+
+        Assert.Equal(LoginError.NameTaken, again.Error);
+        Assert.Equal(1, store.Count);
+        // Чужая регистрация не тронула ни пароль владельца, ни ключ его устройства.
+        Assert.True(store.Login("Alice", "secret", LoginMode.Existing).Ok);
+        Assert.True(store.Resume(owner.Key).Ok);
+    }
+
+    [Fact]
+    public void RegisterTab_CreatesTheAccount_AndTheLoginTabThenLetsItIn()
+    {
+        using var store = Open();
+
+        var created = store.Login("Alice", "secret", LoginMode.New);
+        var back = store.Login("Alice", "secret", LoginMode.Existing);
+
+        Assert.True(created.Created);
+        Assert.True(back.Ok);
+        Assert.False(back.Created);
+        Assert.Equal(created.Id, back.Id);
+    }
+
+    [Fact]
     public void ChangePassword_SwapsThePassword_AndRevokesEveryOtherDevice()
     {
         using var store = Open();

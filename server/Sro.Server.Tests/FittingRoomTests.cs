@@ -189,6 +189,37 @@ public sealed class FittingRoomTests : IDisposable
         Assert.Empty(player.Storage);
     }
 
+    /// <summary>
+    /// «Продать модули» на рынке (M16a): весь склад одной сделкой. До неё за этим ходили во вкладку
+    /// модулей и жали «Продать» по одной строке — а склад после рейса бывает длинным.
+    /// Стоящее на корабле при этом не продаётся: на складе его нет по определению.
+    /// </summary>
+    [Fact]
+    public void SellingTheWholeStorage_PaysForEverythingAtOnce_AndLeavesTheShipAlone()
+    {
+        var a = Pilot();
+        var player = Docked(a);
+        // Класс L на лёгкий корпус не встаёт — всё это ложится на склад, а не на корабль.
+        _room.Buy(a, Protocol.ItemKind, "shieldL"); // 400 → выкуп 200
+        _room.Buy(a, Protocol.ItemKind, "shieldL"); // второй такой же: стопка продаётся целиком
+        _room.Buy(a, Protocol.ItemKind, "generatorL"); // 600 → выкуп 300
+        var fit = player.Fit;
+        var credits = player.Credits;
+        Assert.Equal(2, player.Storage["shieldL"]);
+
+        _room.SellItem(a, null);
+
+        Assert.Equal(credits + 200 + 200 + 300, player.Credits);
+        Assert.Empty(player.Storage);
+        Assert.Equal(fit, player.Fit); // корабль как стоял
+        Assert.Empty(_accounts.Profile(_accounts.Login("Alice", Password).Id)!.Storage!);
+
+        // Пустой склад продавать нечего — и кредитов от этого не прибавляется.
+        var after = player.Credits;
+        _room.SellItem(a, null);
+        Assert.Equal(after, player.Credits);
+    }
+
     [Fact]
     public void AHeavierHull_TakesTheFit_AndABiggerShieldThenFits()
     {
@@ -398,7 +429,7 @@ public sealed class FittingRoomTests : IDisposable
     private static readonly NpcType PirateType = new("Пират", "light", "pulse", Hp: 300, Shield: 0, Damage: 0.45);
 
     /// <summary>Система без станции: торговец летит от врат к вратам, рейнджеры — на посту в (2000, 2000).</summary>
-    private Trader PatrolledSystem(int rangers = 1, bool pirate = false)
+    private Trader PatrolledSystem(int rangers = 1, bool pirate = false, double respawnSeconds = 60)
     {
         var spawns = new List<NpcSpawn>();
         if (rangers > 0) spawns.Add(new NpcSpawn("ranger", 1, 2000, 2000, rangers));
@@ -420,7 +451,8 @@ public sealed class FittingRoomTests : IDisposable
         var npcs = new NpcRules(
             StationSafeRadius: 0,
             Types: new Dictionary<string, NpcType> { ["trader"] = ArmedTrader, ["ranger"] = Ranger, ["pirate"] = PirateType });
-        _room = NewRoom((NewBalance() with { Npcs = npcs, GalaxySet = galaxy }).ForSystem("test"));
+        var rules = new CombatRules(ProtectionSeconds: 0, SpawnJitter: 0, RespawnSeconds: respawnSeconds);
+        _room = NewRoom((NewBalance(rules) with { Npcs = npcs, GalaxySet = galaxy }).ForSystem("test"));
         return Assert.Single(_room.Traders);
     }
 
@@ -490,6 +522,62 @@ public sealed class FittingRoomTests : IDisposable
         Steps(20);
 
         Assert.NotEqual(IdOf(robber), ranger.TargetId);
+    }
+
+    /// <summary>
+    /// Гибель снимает счёт (M16a). До этой правки метка обидчика переживала смерть: пилота сбивали,
+    /// он возрождался под тем же огнём и не мог из этого выйти. Теперь после возрождения рейнджеры
+    /// его не трогают — пока он снова в кого-нибудь не выстрелит.
+    /// </summary>
+    [Fact]
+    public void Rangers_ForgetTheRobber_AfterTheyKillHim()
+    {
+        var merchant = PatrolledSystem(rangers: 1, respawnSeconds: 1);
+        var robber = Guest("Robber");
+        var ranger = NpcOf(robber, Protocol.RangerKind);
+        merchant.Ship = new ShipState { X = 1000, Y = 1000 };
+        PlayerOf(robber).Ship = new ShipState { X = 1000, Y = 700 };
+        _room.SetTarget(robber, merchant.Id);
+        _room.SetFire(robber, true);
+        Steps(5);
+        Assert.Equal((PirateState.Attack, IdOf(robber)), (ranger.State, ranger.TargetId));
+
+        // Рейнджеры своё дело сделали — пилот сбит и через respawnSeconds возвращается.
+        _room.SetFire(robber, false);
+        _room.SetTarget(robber, 0);
+        PlayerOf(robber).Hp = 0;
+        Steps(_room.Balance.Rules.RespawnTicks + 2);
+        Assert.False(PlayerOf(robber).IsDead);
+
+        // И стоит прямо у поста: будь обида жива, его бы тут же взяли на прицел снова.
+        PlayerOf(robber).Ship = new ShipState { X = 2000, Y = 1700 };
+        Steps(30);
+        Assert.NotEqual(IdOf(robber), ranger.TargetId);
+        Assert.NotEqual(PirateState.Attack, ranger.State);
+    }
+
+    /// <summary>А новое нападение поднимает их снова: прощена обида, а не пилот.</summary>
+    [Fact]
+    public void Rangers_RiseAgain_IfTheRobberShootsAgainAfterRespawn()
+    {
+        var merchant = PatrolledSystem(rangers: 1, respawnSeconds: 1);
+        var robber = Guest("Robber");
+        var ranger = NpcOf(robber, Protocol.RangerKind);
+        merchant.Ship = new ShipState { X = 1000, Y = 1000 };
+        PlayerOf(robber).Ship = new ShipState { X = 1000, Y = 700 };
+        _room.SetTarget(robber, merchant.Id);
+        _room.SetFire(robber, true);
+        Steps(5);
+        _room.SetFire(robber, false);
+        PlayerOf(robber).Hp = 0;
+        Steps(_room.Balance.Rules.RespawnTicks + 2);
+
+        PlayerOf(robber).Ship = new ShipState { X = 1000, Y = 700 };
+        _room.SetTarget(robber, merchant.Id);
+        _room.SetFire(robber, true);
+        Steps(5);
+
+        Assert.Equal((PirateState.Attack, IdOf(robber)), (ranger.State, ranger.TargetId));
     }
 
     [Fact]

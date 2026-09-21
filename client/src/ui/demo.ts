@@ -2,10 +2,10 @@
  * Витрина интерфейса без сервера: `?demo=<экран>` собирает настоящие построители HUD, дока и окон
  * на фиксированных данных. Нужна проходам по дизайну (скриншоты headless-браузером на ПК и телефоне)
  * и ничего не шлёт. Экраны: flight, dock-missions, dock-cargo, dock-hulls, dock-ships, dock-fitting,
- * galaxy, controls, confirm, menu, password, death, login, login-over.
+ * galaxy, controls, confirm, menu, password, death, login, login-new, login-over.
  */
 import type { Connection } from '../net/connection';
-import type { GalaxyDto, HangarMsg, MarketMsg, MissionsMsg, RepMsg } from '../net/protocol';
+import type { CareerDto, GalaxyDto, HangarMsg, MarketMsg, MissionsMsg, RepMsg } from '../net/protocol';
 import { Modules } from '../sim/fitting';
 import { Hulls } from '../sim/hulls';
 import type { LootRules } from '../sim/loot';
@@ -46,6 +46,13 @@ const LOOT = {
     crystals: { name: 'Кристаллы', rarity: 'rare', volume: 2, price: 75 },
   },
 } as unknown as LootRules;
+
+/** Пути пилота для витрины: сервер присылает их в nameFree, здесь они фиксированные. */
+const CAREERS: CareerDto[] = [
+  { id: 'ranger', name: 'Рейнджер', hint: 'Боевой корабль', enabled: true },
+  { id: 'trader', name: 'Торговец', hint: 'Грузовой трюм', enabled: true },
+  { id: 'pirate', name: 'Пират', hint: 'Скоро', enabled: false },
+];
 
 const el = (id: string): HTMLElement => document.getElementById(id)!;
 const noop = (): void => {};
@@ -205,7 +212,7 @@ export function runDemo(screen: string): void {
       sellShare: 0.5,
     };
     const screen = new DockScreen(el('dock'), hulls, weapons, modules, {
-      onSell: noop, onBuyGoods: noop, onBuy: noop, onEquip: noop, onTransport: noop, onFit: noop, onSellItem: noop,
+      onSell: noop, onBuyGoods: noop, onBuy: noop, onEquip: noop, onTransport: noop, onFit: noop, onSellItem: noop, onSellGear: noop,
       onRepair: noop, onUndock: noop, onMenu: (anchor) => menu.toggleAt(anchor), onAccept: noop, onAbandon: noop,
       onComplete: noop, onSkipTutorial: noop,
     }, NAMES);
@@ -225,7 +232,8 @@ export function runDemo(screen: string): void {
       hull: hulls.ids()[0],
       fit,
       hulls: hulls.ids().slice(0, 2),
-      storage: { [weapons.ids()[1] ?? weapons.ids()[0]]: 1 },
+      // Два разных модуля на складе: на рынке по ним считается кнопка «Продать модули» (M16a).
+      storage: { [weapons.ids()[1] ?? weapons.ids()[0]]: 1, [modules.ids()[0]]: 2 },
       docked: true,
       hp: 120,
       maxHp: 150,
@@ -251,9 +259,11 @@ export function runDemo(screen: string): void {
       t: 'market',
       system: 'sol',
       items: [
-        { id: 'metal', buy: 14, sell: 11, stock: 40, norm: 50 },
-        { id: 'ore', buy: 9, sell: 7, stock: 120, norm: 50 },
-        { id: 'crystals', buy: 0, sell: 96, stock: 4, norm: 30 },
+        { id: 'metal', buy: 14, sell: 11, stock: 40, norm: 50, sells: true },
+        // Станция его не делает, но он есть на складе — значит, продаётся (M16a).
+        { id: 'ore', buy: 9, sell: 7, stock: 120, norm: 50, sells: true },
+        // А это — груз здешнего задания «собрать»: запас виден, купить нельзя.
+        { id: 'crystals', buy: 104, sell: 96, stock: 4, norm: 30, sells: false },
       ],
       rumours: [{ kind: 'route', good: 'crystals', system: 'vega', name: 'Vega', hops: 1, price: 120, profit: 45 }],
       station: { produces: ['metal', 'ore'], consumes: ['crystals'] } as MarketMsg['station'],
@@ -303,8 +313,13 @@ export function runDemo(screen: string): void {
       controlsWindow.show();
       break;
     case 'login':
-      // Стартовый экран: живой сессии нет, за окном заставка.
-      pilotForm.show({ url: 'sro.example.com', name: '', loggedIn: false }, 'Не хватает пароля');
+      // Стартовый экран, вкладка «Вход»: ник помним с прошлого раза, за окном заставка.
+      pilotForm.show({ url: 'sro.example.com', name: 'Новичок', loggedIn: false }, 'Не хватает пароля');
+      break;
+    case 'login-new':
+      // Первый заход: ника не помним, и окно открывается на «Регистрации» само (M15.8).
+      pilotForm.show({ url: 'sro.example.com', name: '', loggedIn: false });
+      pilotForm.setNameFree({ t: 'nameFree', name: '', free: true, career: 'ranger', careers: CAREERS });
       break;
     case 'login-over':
       // То же окно поверх идущей игры: заставки нет, мир виден сквозь затемнение.

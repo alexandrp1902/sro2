@@ -90,7 +90,13 @@
       <!-- onsubmit: пока скрипт не загрузился (или упал), браузер не должен уводить логин и пароль в адрес страницы. -->
       <form class="connect-card sro-pane sro-pane--window" onsubmit="return false">
         <div class="connect-title title-dialog">Космические рейнджеры онлайн</div>
-        <div class="connect-hint sro-muted">Создайте нового пользователя введя Логин и Пароль или введите существующие</div>
+        <!-- Вкладки (M15.8): пока их не было, новый игрок не понимал, что пилот заводится здесь же. -->
+        <div class="connect-tabs sro-tabs">
+          <button type="button" class="connect-tab sro-tab" data-tab="login" aria-pressed="true">Вход</button>
+          <button type="button" class="connect-tab sro-tab" data-tab="register" aria-pressed="false">Регистрация</button>
+        </div>
+        <!-- Текст подсказки, подпись кнопки и поле повтора пароля меняет pilotForm.ts под выбранную вкладку. -->
+        <div class="connect-hint sro-muted">Введите логин и пароль своего пилота</div>
         <label class="connect-label sro-field" for="pilot-name">Логин</label>
         <input
           id="pilot-name"
@@ -102,8 +108,14 @@
           autocapitalize="off"
           spellcheck="false"
         />
+        <div class="connect-note sro-muted"></div>
         <label class="connect-label sro-field" for="pilot-password">Пароль</label>
         <input id="pilot-password" class="sro-input" name="password" type="password" maxlength="64" autocomplete="current-password" />
+        <!-- Повтор пароля: только на вкладке «Регистрация» — пароль не восстановить, опечатка теряет аккаунт. -->
+        <div class="connect-confirm" hidden>
+          <label class="connect-label sro-field" for="pilot-confirm">Повторите пароль</label>
+          <input id="pilot-confirm" class="sro-input" name="confirm" type="password" maxlength="64" autocomplete="new-password" />
+        </div>
         <!-- Карточки пути (M15.5): видны, только когда ник свободен, — то есть когда заводится аккаунт. -->
         <div class="connect-careers" hidden></div>
         <label class="connect-label sro-field" for="pilot-server">Игровой сервер</label>

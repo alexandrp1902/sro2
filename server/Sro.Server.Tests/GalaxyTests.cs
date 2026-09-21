@@ -51,7 +51,10 @@ public sealed class GalaxyTests : IDisposable
     }
 
     private Galaxy New(GalaxyRules? rules = null, IReadOnlyDictionary<string, HullParams>? hulls = null) =>
-        new(TestBalance.Create(new CombatRules(RespawnSeconds: 1, ProtectionSeconds: 0, SpawnJitter: 0), shop: Shop) with
+        new(TestBalance.Create(
+            // Корпус после гибели бьётся, как в shared/combat.json: возвращение домой через галактику
+            // обязано считать его так же, как возвращение внутри системы (M16a).
+            new CombatRules(RespawnSeconds: 1, ProtectionSeconds: 0, SpawnJitter: 0, DeathHullShare: 0.1), shop: Shop) with
         {
             GalaxySet = rules ?? Rules,
             Hulls = hulls ?? TestBalance.Hulls,
@@ -270,8 +273,34 @@ public sealed class GalaxyTests : IDisposable
         Assert.Equal("home", RoomOf(a).SystemId);
         Assert.Equal("home", a.Last<WelcomeMsg>().System!.Id);
         Assert.False(player.IsDead);
-        Assert.Equal(400, player.Hp);
+        Assert.Equal(400 * 0.1, player.Hp, 6); // разбитым — как и после гибели у себя дома (M16a)
         Assert.Equal((SimConfig.SpawnX, SimConfig.SpawnY), (player.Ship.X, player.Ship.Y));
+    }
+
+    /// <summary>
+    /// Гибель вдали от дома обходится ровно так же, как гибель дома (M16a). До этой правки возвращение
+    /// через галактику шло мимо DeathHullShare, и корабль появлялся у своей станции целым и даром:
+    /// смерть в чужой системе не стоила ничего, а плейтест читал это как «иногда чинят бесплатно».
+    /// </summary>
+    [Fact]
+    public void Death_FarFromHome_BringsTheHullBackBroken_AndWritesItToTheProfile()
+    {
+        _galaxy = New();
+        var a = Pilot();
+        var id = AccountId();
+        JumpTo(a, "wild");
+        var player = PlayerOf(a);
+        Assert.Equal(400, player.Hp);
+
+        player.Hp = 0;
+        Steps(2 * SimConfig.TickRate); // respawnSeconds: 1
+
+        var share = RoomOf(a).Balance.Rules.DeathHullShare;
+        Assert.True(share < 1, "тестовый баланс должен ломать корпус при гибели");
+        Assert.Equal("home", RoomOf(a).SystemId);
+        Assert.Equal(400 * share, PlayerOf(a).Hp, 6);
+        // И это уже в профиле: выход из игры гибель не лечит.
+        Assert.Equal(400 * share, _accounts.Profile(id)!.Hp ?? 0, 6);
     }
 
     [Fact]

@@ -194,7 +194,8 @@ const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 const step = (a) => a.missions?.tutorial?.id ?? 'done';
 
 async function main() {
-  const a = new Client({ name: `smk-${RUN}`, password: 'smoke-password' });
+  // create: новый ник заводится только вкладкой «Регистрация» (M15.8); без флага придёт noAccount.
+  const a = new Client({ name: `smk-${RUN}`, password: 'smoke-password', create: true });
   await a.connect();
   a.start();
   await a.until(() => a.hangar && a.missions && a.cargo, 3000, 'hangar, missions and cargo');

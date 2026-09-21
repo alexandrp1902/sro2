@@ -140,6 +140,27 @@ function check(text, pass) {
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
+/**
+ * Прыжок с повтором: попадание по кораблю срывает подготовку (M15.6, «hit breaks jump»), а камней
+ * в небе с M16a вдвое больше, и у самых врат подготовку иногда сбивает случайный метеорит.
+ * Игрок в этом случае просто жмёт прыжок ещё раз — так делает и скрипт.
+ */
+async function jumpTo(client, to, seconds, what) {
+  for (let tries = 0; tries < 4; tries++) {
+    client.notices.length = 0;
+    client.send({ t: 'jump', to });
+    try {
+      await client.until(() => client.welcome.system.id === to, (seconds + 3) * 1000, what);
+      return;
+    } catch (e) {
+      const broken = client.notices.some((code) => code === 'jumpHit' || code === 'jumpCancelled');
+      if (!broken) throw e;
+      console.log(`     подготовку сбили (${client.notices.join(', ')}) — прыгаем снова`);
+    }
+  }
+  throw new Error(`timeout: ${what}`);
+}
+
 async function main() {
   const a = new Client(`Smoke-J-${RUN}`);
   const b = new Client(`Smoke-W-${RUN}`);
@@ -175,7 +196,7 @@ async function main() {
   check(`charging: jump in ${chargeTicks} ticks (${start.jumpSeconds} s)`, Math.abs(chargeTicks - start.jumpSeconds * 20) <= 2);
 
   const id = a.id;
-  await a.until(() => a.welcome.system.id === gate.to, (start.jumpSeconds + 3) * 1000, `welcome from ${gate.to}`);
+  await jumpTo(a, gate.to, start.jumpSeconds, `welcome from ${gate.to}`);
   const there = a.welcome.system;
   check(`arrived in ${there.name}: resumed ${a.welcome.resumed}, same id ${a.welcome.id === id}`, a.welcome.resumed && a.welcome.id === id);
   // Топливо отменено (M15.6): прыжок бесплатен, и ни бака, ни счёта он не касается.
@@ -192,18 +213,15 @@ async function main() {
   check(`the watcher's roster lost the ship, galaxy online ${b.players.total}`, b.players.total === 2);
 
   await a.flyTo(back.x, back.y, 120, 30000);
-  a.send({ t: 'jump', to: start.id });
-  await a.until(() => a.welcome.system.id === start.id, (start.jumpSeconds + 3) * 1000, 'jump back');
+  await jumpTo(a, start.id, start.jumpSeconds, 'jump back');
   check(`back in ${start.name}, still ${a.cargo.credits} credits`, a.cargo.credits === creditsBefore);
 
   // И ещё круг туда-обратно, уже без всяких проверок: без топлива прыгать можно сколько угодно.
   await a.flyTo(gate.x, gate.y, 120, 60000);
-  a.send({ t: 'jump', to: gate.to });
-  await a.until(() => a.welcome.system.id === gate.to, (start.jumpSeconds + 3) * 1000, 'second jump out');
+  await jumpTo(a, gate.to, start.jumpSeconds, 'second jump out');
   await a.until(() => a.me, 2000, 'own ship after the second jump');
   await a.flyTo(back.x, back.y, 120, 30000);
-  a.send({ t: 'jump', to: start.id });
-  await a.until(() => a.welcome.system.id === start.id, (start.jumpSeconds + 3) * 1000, 'second jump back');
+  await jumpTo(a, start.id, start.jumpSeconds, 'second jump back');
   check(`two round trips on no fuel: ${a.cargo.credits} credits, unchanged`, a.cargo.credits === creditsBefore);
 
   // Станция на орбите: летим туда, где она сейчас, — за время полёта она уйдёт меньше, чем на круг стыковки.

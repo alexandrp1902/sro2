@@ -42,11 +42,16 @@ public abstract record ClientMessage;
 /// <param name="Hull">Гость: класс корпуса, сохранённый на устройстве.</param>
 /// <param name="Token">Гость: сессия вкладки — с ней после обрыва связи он возвращается к своему кораблю.</param>
 /// <param name="Weapon">Гость: пушка, сохранённая на устройстве.</param>
-/// <param name="Password">Пароль; свободный ник с ним заводит новый аккаунт.</param>
+/// <param name="Password">Пароль; вместе с <paramref name="Create"/> им заводится новый аккаунт.</param>
 /// <param name="Key">Ключ устройства из <see cref="AccountMsg"/>: вход без пароля.</param>
 /// <param name="Career">
 /// Путь пилота (M15.5): применяется, только когда этим входом заводится аккаунт. Вошедшему в старый
 /// аккаунт путь менять нечем, и поле у него просто игнорируется; запертый путь отклоняется как denied.
+/// </param>
+/// <param name="Create">
+/// Вкладка «Регистрация» на экране входа (M15.8): этот вход обязан завести новый аккаунт, и занятый ник для
+/// него — отказ nameTaken, а не вход в чужой. false (вкладка «Вход», гости, старые клиенты) — наоборот:
+/// неизвестный ник получает noAccount, а не молча заведённый аккаунт.
 /// </param>
 public sealed record HelloMsg(
     string? Name,
@@ -55,7 +60,8 @@ public sealed record HelloMsg(
     string? Weapon = null,
     string? Password = null,
     string? Key = null,
-    string? Career = null) : ClientMessage;
+    string? Career = null,
+    bool Create = false) : ClientMessage;
 
 /// <summary>Свободен ли ник (M15.5): по ответу клиент решает, показывать ли карточки пути.</summary>
 public sealed record CheckMsg(string? Name) : ClientMessage;
@@ -97,7 +103,7 @@ public sealed record WeaponMsg(string? Id) : ClientMessage;
 /// <param name="Slot">w0…w5 — оружейные слоты, engine, shield, radar, tank, generator — модули.</param>
 public sealed record FitMsg(string? Slot, string? Id = null) : ClientMessage;
 
-/// <summary>Продать со склада пушку или модуль (в доке) — за долю цены.</summary>
+/// <summary>Продать со склада пушку или модуль (в доке) — за долю цены. Id = null — весь склад разом (M16a).</summary>
 public sealed record SellItemMsg(string? Id) : ClientMessage;
 
 /// <summary>Смена ника на лету — только у гостя: у пилота с аккаунтом ник и есть вход.</summary>
@@ -431,7 +437,12 @@ public sealed record CargoMsg(
 /// <param name="Sell">Сколько пилот получает за штуку.</param>
 /// <param name="Stock">Запас станции, штук: на него и смотрит формула цены.</param>
 /// <param name="Norm">Равновесный запас — по нему видно, здесь «мало» или «много».</param>
-public sealed record MarketItemDto(string Id, int Buy, int Sell, int Stock, int Norm);
+/// <param name="Sells">
+/// Продаётся ли это пилоту прямо сейчас (M16a). С M16a место продаёт всё, чем торгует, поэтому false
+/// остаётся только у груза его же задания «собрать»: купить то, что тебя просили привезти, нельзя.
+/// Док берёт доступность отсюда, а не выводит её из списка продукции станции.
+/// </param>
+public sealed record MarketItemDto(string Id, int Buy, int Sell, int Stock, int Norm, bool Sells = true);
 
 /// <summary>
 /// Слух торговца (M12): куда везти товар или где его дёшево взять. Текст собирает клиент — здесь только
@@ -759,10 +770,12 @@ public static class Protocol
     /// 20 — посадка на планеты: место как общее понятие дока, поселения, их рынок и репутация, M15;
     /// 21 — выброс груза за борт; 22 — урон по площади, M15.5;
     /// 23 — топливо отменено, защитные модули, ангар с перевозкой, вход в доке, M15.6;
-    /// 24 — смена пароля, ремонт после гибели, M15.7).
+    /// 24 — смена пароля, ремонт после гибели, M15.7;
+    /// 25 — вкладки «Вход» и «Регистрация» на стартовом экране, M15.8;
+    /// 26 — станция продаёт всё, что на складе, продажа всех модулей одной кнопкой, M16a).
     /// Зеркало PROTOCOL_VERSION в client/src/net/protocol.ts.
     /// </summary>
-    public const int Version = 24;
+    public const int Version = 26;
 
     public const string DroneKind = "drone";
     public const string PirateKind = "pirate";
@@ -803,6 +816,8 @@ public static class Protocol
     public const string NoGoodsNotice = "noGoods";
     /// <summary>На складе станции столько нет (M12).</summary>
     public const string NoStockNotice = "noStock";
+    /// <summary>Это и есть груз твоего задания «собрать», взятого здесь: его надо привезти, а не купить на месте (M16a).</summary>
+    public const string MissionGoodsNotice = "missionGoods";
     /// <summary>Док закрыт: в этой системе пилота считают врагом (M13).</summary>
     public const string DockClosedNotice = "dockClosed";
     /// <summary>Груз выброшен за борт (M15.1).</summary>
@@ -876,6 +891,10 @@ public static class Protocol
     public const string BadKeyDenied = "badKey";
     /// <summary>Такого пути нет или он ещё закрыт — например, пират (M15.5).</summary>
     public const string BadCareerDenied = "badCareer";
+    /// <summary>Вкладка «Вход» (M15.8): такого пилота нет, а заводить его здесь никто не просил.</summary>
+    public const string NoAccountDenied = "noAccount";
+    /// <summary>Вкладка «Регистрация» (M15.8): ник занят, и это вход в чужой аккаунт, а не новый пилот.</summary>
+    public const string NameTakenDenied = "nameTaken";
 
     /// <summary>Состояния события спроса (<see cref="DemandMsg.State"/>, M15.5).</summary>
     public const string DemandAnnounce = "announce";

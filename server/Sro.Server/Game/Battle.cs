@@ -87,7 +87,9 @@ internal sealed class Battle(Func<double> roll, ILogger log)
     {
         if (shooter.IsDead || !shooter.FireHeld) return;
         if (!ships.TryGetValue(shooter.TargetId, out var target) || target == shooter) return;
-        if (target.IsDead || target.IsProtected(tick)) return;
+        // Hp <= 0 — цель уже разбита в этом тике (камень о корабль, M16a), но списки ещё не разобраны:
+        // стрелять по ней нечего, и засчитать себе чужое уничтожение таким выстрелом тоже нельзя.
+        if (target.IsDead || target.Hp <= 0 || target.IsProtected(tick)) return;
 
         var dx = target.Ship.X - shooter.Ship.X;
         var dy = target.Ship.Y - shooter.Ship.Y;

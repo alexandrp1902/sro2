@@ -365,7 +365,9 @@ public sealed class Galaxy : IRoomHost
                 player.Home = room.SystemId;
                 if (room.Balance.Place(player.HomePlace) is null) player.HomePlace = room.Balance.DefaultPlace?.Key;
             }
-            room.Admit(player, arrival);
+            // Гибель вдали от дома возвращает корабль таким же разбитым, как гибель дома (M16a):
+            // не прыжок — значит возрождение, и корпус у него тот же, что дала бы SpawnHere здесь.
+            room.Admit(player, arrival, jump ? 1 : from.Balance.Rules.DeathHullShare);
             from.BroadcastPlayers();
             if (player.Connection is { } connection) _byConnection[connection.Id] = room;
             _log.LogInformation(

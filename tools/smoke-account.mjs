@@ -136,8 +136,8 @@ async function expectDenied(hello, code) {
 async function main() {
   console.log(`smoke-account against ${url}, pilot ${NAME}`);
 
-  // Новый ник с паролем заводит аккаунт; устройство получает ключ.
-  const a = new Client({ name: NAME, password: PASSWORD });
+  // Вкладка «Регистрация» (create): свободный ник заводит аккаунт, устройство получает ключ.
+  const a = new Client({ name: NAME, password: PASSWORD, create: true });
   await a.open();
   await a.until(() => a.welcome && a.hangar && a.cargo, 5000, 'welcome, hangar and cargo');
   const shop = a.welcome.shop;
@@ -156,9 +156,12 @@ async function main() {
   await a.until(() => !a.hangar.docked, 3000, 'undocking after skipping the tutorial');
 
   await expectDenied({ name: NAME, password: 'not-the-password' }, 'wrongPassword');
-  await expectDenied({ name: `smoke-new-${RUN}`, password: 'abc' }, 'badPassword');
-  await expectDenied({ name: 'ab', password: PASSWORD }, 'badName');
+  await expectDenied({ name: `smoke-new-${RUN}`, password: 'abc', create: true }, 'badPassword');
+  await expectDenied({ name: 'ab', password: PASSWORD, create: true }, 'badName');
   await expectDenied({ key: 'no-such-key' }, 'badKey');
+  // Вкладки держат слово (M15.8): «Вход» не заводит аккаунт по опечатке, «Регистрация» не входит в чужой.
+  await expectDenied({ name: `smoke-none-${RUN}`, password: PASSWORD }, 'noAccount');
+  await expectDenied({ name: NAME, password: PASSWORD, create: true }, 'nameTaken');
 
   // Наблюдатель-гость: видит ли он корабль в доке.
   const observer = new Client({ name: `watch-${RUN}` });

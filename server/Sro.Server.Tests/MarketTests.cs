@@ -43,13 +43,18 @@ public sealed class MarketTests
         })
         .Local(GalaxyRules.DefaultSystem, region);
 
-    private static Room NewRoom(MarketRules? market = null) => new(
-        TestBalance.Create(new CombatRules(SpawnJitter: 0), loot: Loot, shop: Shop, market: market ?? Market()),
+    /// <summary>Доска с одним заданием: привезти сюда руду — ровно того, что станция скупает, но не делает.</summary>
+    private static readonly MissionRules CollectOre = new(
+        Offers: 1,
+        Collect: [new CollectTemplate(Ore, 3, 3, 2)]);
+
+    private static Room NewRoom(MarketRules? market = null, MissionRules? missions = null) => new(
+        TestBalance.Create(new CombatRules(SpawnJitter: 0), loot: Loot, shop: Shop, market: market ?? Market(), missions: missions),
         NullLogger.Instance);
 
-    private static (Room Room, FakeConnection Connection, Player Player) Docked(MarketRules? market = null)
+    private static (Room Room, FakeConnection Connection, Player Player) Docked(MarketRules? market = null, MissionRules? missions = null)
     {
-        var room = NewRoom(market);
+        var room = NewRoom(market, missions);
         var connection = new FakeConnection(1);
         room.Join(connection, null, "Trader", null);
         room.Undock(connection); // вход теперь в доке (M15.6), а здесь нужен корабль в космосе
@@ -197,17 +202,52 @@ public sealed class MarketTests
         Assert.Equal(2, player.Cargo.Count(Contraband));
     }
 
+    /// <summary>
+    /// Что лежит на складе, то и продаётся (M16a). До этого станция отдавала только свою продукцию,
+    /// а запас всего прочего показывала без единой кнопки — первая жалоба плейтеста.
+    /// </summary>
     [Fact]
-    public void Buying_WhatTheStationOnlyBuys_IsRefused()
+    public void Buying_WhatTheStationOnlyBuys_NowWorks()
     {
         var (room, a, player) = Docked();
+        var before = a.Last<MarketMsg>().Items.First(i => i.Id == Ore);
+        Assert.True(before.Stock > 0);
+        Assert.True(before.Sells);
 
-        // Руду здесь скупают, но не перепродают: склад станции — это её продукция, а не витрина всего.
         room.BuyGoods(a, Ore, 1);
 
-        Assert.Equal(Protocol.NoGoodsNotice, a.Last<NoticeMsg>().Code);
-        Assert.Empty(player.Cargo.Items);
-        Assert.Contains(a.Last<MarketMsg>().Items, i => i.Id == Ore); // но в списке он есть — его видно, чтобы продать
+        Assert.Equal(1, player.Cargo.Count(Ore));
+        Assert.Equal(before.Stock - 1, a.Last<MarketMsg>().Items.First(i => i.Id == Ore).Stock);
+    }
+
+    /// <summary>
+    /// Склад открыт весь, но груз собственного задания на нём заперт (M16a). Иначе «привезите три руды»
+    /// сдавалось бы покупкой в соседней строке того же экрана, а награда стала бы бесплатными кредитами.
+    /// </summary>
+    [Fact]
+    public void TheGoodsOfYourOwnCollectMission_AreNotSoldHere()
+    {
+        var (room, a, player) = Docked(missions: CollectOre);
+        Assert.True(Quote(a, Ore).Sells); // пока задания нет — обычный товар
+
+        var offer = a.Last<MissionsMsg>().Offers.Single(o => o.Kind == MissionRules.CollectKind);
+        Assert.Equal(Ore, offer.Item);
+        room.Mission(a, Protocol.AcceptMission, offer.Id);
+
+        // Витрина обновилась сама: строка на месте, запас виден, а купить нельзя.
+        var quote = Quote(a, Ore);
+        Assert.False(quote.Sells);
+        Assert.True(quote.Stock > 0);
+
+        room.BuyGoods(a, Ore, 1);
+        Assert.Equal(Protocol.MissionGoodsNotice, a.Last<NoticeMsg>().Code);
+        Assert.Equal(0, player.Cargo.Count(Ore));
+
+        // Бросил задание — и товар снова на витрине.
+        room.Mission(a, Protocol.AbandonMission, null);
+        Assert.True(Quote(a, Ore).Sells);
+        room.BuyGoods(a, Ore, 1);
+        Assert.Equal(1, player.Cargo.Count(Ore));
     }
 
     [Fact]

@@ -342,6 +342,65 @@ public class MeteorTests
         Assert.Contains(new KillDto(ship.Id, meteor.Id), a.Last<SnapshotMsg>().Kills!);
     }
 
+    /// <summary>
+    /// Камень, разбившийся о корабль пилота, считается сбитым им (M16a): в своде уничтоженных он идёт
+    /// с его id, и дальше по общему пути попадает в задание «охота».
+    /// </summary>
+    [Fact]
+    public void Ram_ByAPilot_CreditsTheRockToHim()
+    {
+        var a = Connect();
+        var ship = ShipOf(a);
+        Place(ship.Id, 0, -2000);
+        var meteor = Launch("small", 0, -2000 - 25, 0, 250);
+
+        _room.Step();
+
+        Assert.False(ship.IsDead); // мелкий камень пилота не убивает — важно, что засчитан он и живому
+        Assert.Equal(ship.Id, meteor.KilledBy);
+        Assert.Contains(new KillDto(meteor.Id, ship.Id), a.Last<SnapshotMsg>().Kills!);
+    }
+
+    /// <summary>И тот таран, в котором погиб сам пилот: камень уничтожен, и это его заслуга.</summary>
+    [Fact]
+    public void Ram_ThatKillsThePilot_StillCreditsHimTheRock()
+    {
+        var a = Connect();
+        var ship = ShipOf(a);
+        Place(ship.Id, 0, -2000);
+        var meteor = Launch("boulder", 0, -2000 - 40, 0, 200);
+
+        _room.Step();
+
+        var kills = a.Last<SnapshotMsg>().Kills!;
+        Assert.True(ship.IsDead);
+        Assert.Contains(new KillDto(ship.Id, meteor.Id), kills);
+        Assert.Contains(new KillDto(meteor.Id, ship.Id), kills);
+    }
+
+    /// <summary>
+    /// Один камень — один счёт. Выстрел в тот же тик, что и таран, не переписывает убийцу:
+    /// разбитая цель из боя уже выбыла, и стрелять по ней нечем.
+    /// </summary>
+    [Fact]
+    public void RammedRock_IsNotCreditedTwice()
+    {
+        var a = Connect(weapon: "doom");
+        var b = Connect();
+        var shooter = ShipOf(a);
+        var rammer = ShipOf(b);
+        Place(shooter.Id, 0, -2100);
+        Place(rammer.Id, 0, -2000);
+        var meteor = Launch("small", 0, -2000 - 25, 0, 250);
+        _room.SetTarget(a, meteor.Id);
+        _room.SetFire(a, true);
+
+        _room.Step();
+
+        Assert.Equal(rammer.Id, meteor.KilledBy);
+        Assert.Single(a.Last<SnapshotMsg>().Kills!, kill => kill.Id == meteor.Id);
+    }
+
     [Fact]
     public void Ram_GivesNoMinerals()
     {

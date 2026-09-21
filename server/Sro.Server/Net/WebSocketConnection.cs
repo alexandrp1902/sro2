@@ -144,7 +144,9 @@ public sealed class WebSocketConnection(WebSocket socket, ILogger log) : IClient
                         break;
                     }
                     // Хеш пароля — десятки миллисекунд: считаем здесь, в сетевом потоке, а не в тике комнаты.
-                    var login = hello.Password is null ? accounts.Resume(hello.Key) : accounts.Login(hello.Name, hello.Password);
+                    // Вкладка на экране входа (M15.8): «Регистрация» обязана завести аккаунт, «Вход» — найти старый.
+                    var mode = hello.Create ? LoginMode.New : LoginMode.Existing;
+                    var login = hello.Password is null ? accounts.Resume(hello.Key) : accounts.Login(hello.Name, hello.Password, mode);
                     if (!login.Ok)
                     {
                         Send(new DeniedMsg(DeniedCode(login.Error)));
@@ -254,6 +256,8 @@ public sealed class WebSocketConnection(WebSocket socket, ILogger log) : IClient
         LoginError.BadName => Protocol.BadNameDenied,
         LoginError.BadPassword => Protocol.BadPasswordDenied,
         LoginError.WrongPassword => Protocol.WrongPasswordDenied,
+        LoginError.NoAccount => Protocol.NoAccountDenied,
+        LoginError.NameTaken => Protocol.NameTakenDenied,
         _ => Protocol.BadKeyDenied,
     };
 

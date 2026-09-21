@@ -205,13 +205,25 @@ async function main() {
   await a.until(() => total(a.cargo.items) === 0, 5000, 'the hold emptying');
   check('selling everything empties the hold', total(a.cargo.items) === 0);
 
-  // Чего станция не производит, того не продаёт.
-  const notSold = a.market.items.find((i) => !produces.includes(i.id));
-  if (notSold) {
+  // Что лежит на складе, то и продаётся, а не только своя продукция (M16a).
+  const foreign = a.market.items.find((i) => !produces.includes(i.id) && i.stock > 0 && i.sells);
+  if (foreign) {
+    const before = a.cargo.credits;
+    a.send({ t: 'buyGoods', item: foreign.id, count: 1 });
+    await a.until(() => (a.cargo.items[foreign.id] ?? 0) === 1, 5000, `buying ${foreign.id}`);
+    check(`the station sells ${foreign.id} it does not make: it is in stock`, a.cargo.items[foreign.id] === 1);
+    check('and it costs credits', a.cargo.credits < before);
+    a.send({ t: 'sell' });
+    await a.until(() => total(a.cargo.items) === 0, 5000, 'the hold emptying');
+  }
+
+  // А чем здесь не торгуют вовсе — чужой регион или контрабанда, — того и не купить.
+  const untraded = ['arms', 'narcotics', 'artifacts'].find((id) => !a.market.items.some((i) => i.id === id));
+  if (untraded) {
     a.notices.length = 0;
-    a.send({ t: 'buyGoods', item: notSold.id, count: 1 });
-    await a.until(() => a.notices.includes('noGoods'), 3000, 'the refusal for goods the station only buys');
-    check(`buying ${notSold.id} is refused: the station only buys it`, !a.cargo.items[notSold.id]);
+    a.send({ t: 'buyGoods', item: untraded, count: 1 });
+    await a.until(() => a.notices.includes('noGoods'), 3000, 'the refusal for goods not traded here');
+    check(`buying ${untraded} is refused: it is not traded here`, !a.cargo.items[untraded]);
   }
 
   // Вне дока не торгуют.

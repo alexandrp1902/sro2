@@ -1,6 +1,6 @@
 {
-  "spawnIntervalSeconds": 10,
-  "maxAlive": 8,
+  "spawnIntervalSeconds": 5,
+  "maxAlive": 16,
   "aimRadius": 2600,
   "despawnMargin": 600,
   "lifetimeSeconds": 90,

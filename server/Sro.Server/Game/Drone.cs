@@ -39,7 +39,11 @@ public sealed class Drone(int id, DroneSpec spec) : ShipEntity(id, spec.Name, sp
     public override double MaxShield(HullParams hull) => Spec.Shield ?? hull.Shield;
 
     /// <summary>Вход на этот тик: стоять носом вверх или лететь по касательной к кругу с поправкой к радиусу.</summary>
-    public MoveInput NextInput()
+    /// <param name="heat">
+    /// Радиус зоны жара звезды; 0 — звезды нет. Круг дрона привязан к месту, которое от звезды и так далеко,
+    /// но правило одно на всех NPC (M16a): мимо звезды летают все, и дрон не исключение.
+    /// </param>
+    public MoveInput NextInput(double heat = 0)
     {
         if (Spec.OrbitRadius <= 0) return LastInput = new MoveInput(0, -1, 0);
 
@@ -52,7 +56,9 @@ public sealed class Drone(int id, DroneSpec spec) : ShipEntity(id, spec.Name, sp
         var uy = ry / distance;
         // Касательная (−uy, ux) — по часовой стрелке на экране; снесло наружу — довернуть внутрь, и наоборот.
         var pull = Math.Clamp((distance - Spec.OrbitRadius) / Spec.OrbitRadius, -1, 1) * OrbitPull;
-        MoveInput.TryCreate(-uy - ux * pull, ux - uy * pull, Spec.Throttle, out var input);
+        var speed = Math.Sqrt(Ship.Vx * Ship.Vx + Ship.Vy * Ship.Vy);
+        var (dx, dy) = Heat.Avoid(Ship.X, Ship.Y, -uy - ux * pull, ux - uy * pull, heat, speed);
+        MoveInput.TryCreate(dx, dy, Spec.Throttle, out var input);
         return LastInput = input;
     }
 }

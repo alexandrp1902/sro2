@@ -94,7 +94,7 @@ const TABS: { id: Tab; label: string }[] = [
   { id: 'hulls', label: 'Корабли' },
   // Ярлык короткий: пять вкладок с «Мой ангар» не влезают в 360 px. Полное имя стоит в теле вкладки.
   { id: 'ships', label: 'Ангар' },
-  { id: 'fitting', label: 'Оснащение' },
+  { id: 'fitting', label: 'Модули' },
 ];
 
 /** Где стоит корабль: станция или поселение на планете — от этого фон сцены (M15). */
@@ -223,6 +223,13 @@ export function maxBuyable(
   return affordable(market, quote.id, lootItem(loot, quote.id)?.price ?? 0, quote.stock, room, credits);
 }
 
+/**
+ * Продаёт ли место этот товар пилоту (M16a). Решает сервер: что у него на складе есть и не заперто
+ * заданием, то и продаётся. Старый сервер поля не шлёт — тогда считаем, что продаётся, а дальше
+ * всё равно решает запас.
+ */
+export const sellsHere = (quote: MarketItemDto): boolean => quote.sells !== false;
+
 /** Счётчик не уходит за границы: меньше одного и больше доступного выбрать нельзя. */
 export function clampQty(qty: number, max: number): number {
   if (max <= 0) return 0;
@@ -244,6 +251,8 @@ export interface DockHandlers {
   onFit(slot: string, id: string | null): void;
   /** Продать со склада пушку или модуль. */
   onSellItem(id: string): void;
+  /** Продать со склада все модули разом (M16a): кнопка на рынке. */
+  onSellGear(): void;
   onRepair(): void;
   onUndock(): void;
   /** Бургер-меню (M15.5): открыть под кнопкой, прямоугольник которой передан. */
@@ -338,6 +347,8 @@ export class DockScreen {
   private timer: HTMLElement | null = null;
   /** Слот, для которого открыт список пушек или модулей; null — ни один. */
   private slot: string | null = null;
+  /** «Продать модули» нажата один раз и ждёт подтверждения вторым касанием (M16a). */
+  private armedSellGear = false;
   /** Свой набор фонов дока у этого места; null — общие сцены по виду места. */
   private scene_: string | null = null;
   /** Что сказал сервер про место, где стоит корабль (M15); null — ещё не сказал. */
@@ -444,7 +455,10 @@ export class DockScreen {
   /** null — связи нет: экран закрыт до нового ангара от сервера. */
   setHangar(hangar: HangarMsg | null): void {
     // Каждый заход в док начинается с груза — или с заданий, если там ждут.
-    if (hangar?.docked && !this.open) this.tab = startTab(this.missions, this.cargo?.items ?? {});
+    if (hangar?.docked && !this.open) {
+      this.tab = startTab(this.missions, this.cargo?.items ?? {});
+      this.armedSellGear = false;
+    }
     this.hangar = hangar;
     this.render();
   }
@@ -564,6 +578,7 @@ export class DockScreen {
       if (id === 'hulls' && !this.shipyard) continue;
       const tab = button(label, 'dock-tab sro-tab', () => {
         this.tab = id;
+        this.armedSellGear = false; // ушли с рынка — «Точно?» не должно ждать возвращения
         this.render();
       });
       tab.setAttribute('aria-pressed', String(id === this.tab));
@@ -751,18 +766,35 @@ export class DockScreen {
     return ids.map((id) => {
       const quote = quotes.get(id) ?? null;
       const have = cargo.items[id] ?? 0;
-      const maxBuy = quote && this.canSellHere(quote.id) ? maxBuyable(this.local, rules, quote, credits, free) : 0;
+      const maxBuy = quote && sellsHere(quote) ? maxBuyable(this.local, rules, quote, credits, free) : 0;
       const maxSell = quote ? have : 0;
       return {
         id,
         have,
         quote,
-        sells: maxBuy > 0 || (!!quote && this.canSellHere(quote.id)),
+        sells: !!quote && sellsHere(quote),
         qty: clampQty(this.qty.get(id) ?? 1, Math.max(maxBuy, maxSell)),
         maxBuy,
         maxSell,
       };
     });
+  }
+
+  /**
+   * Что на складе места и сколько за это дадут (M16a). Склад — это и есть «модули в трюме»: при стыковке
+   * снаряжение из трюма переезжает туда само. Стоящее на корабле сюда не попадает и продаться не может.
+   * То, за что здесь не дают ни кредита, в счёт не идёт: кнопка его не тронет.
+   */
+  private storedGear(): { count: number; total: number } {
+    let count = 0;
+    let total = 0;
+    for (const [id, have] of Object.entries(this.hangar?.storage ?? {})) {
+      const price = sellPrice(this.shop, id);
+      if (have <= 0 || price <= 0) continue;
+      count += have;
+      total += price * have;
+    }
+    return { count, total };
   }
 
   /** Одна история здешнего торговца, готовой строкой; null — рассказывать нечего. */
@@ -771,13 +803,6 @@ export class DockScreen {
     const first = this.quotes?.rumours?.[0];
     if (!rules || !first) return null;
     return rumourLine(first, lootItem(rules, first.good)?.name ?? first.good);
-  }
-
-  /** Станция продаёт этот товар: покупают у неё только то, что она делает сама. */
-  private canSellHere(id: string): boolean {
-    // Без правил рынка (сервер без market.json) станция ничего не продаёт — как до M12.
-    const station = this.local.station;
-    return station ? (station.produces ?? []).includes(id) : false;
   }
 
   /** Рынок станции (M12): в одном списке и покупка, и продажа. */
@@ -805,18 +830,45 @@ export class DockScreen {
     const rumour = this.rumour();
     if (rumour) body.append(el('div', 'dock-rumour', rumour));
 
-    // «Продать всё» — первым делом: с полным трюмом в док заходят чаще, чем за покупками.
-    // Считает по здешним ценам и не трогает то, чего тут не берут.
-    // Одна строка — тоже повод: пилот с полным трюмом одного минерала заходит в док чаще всех,
-    // и жать «Продать» по одной строке ему было незачем.
+    // Быстрая продажа — первым делом: с полным трюмом в док заходят чаще, чем за покупками.
+    // Две кнопки в ряд (M16a): ресурсы и модули продаются отдельно, чтобы за модулями не ходить
+    // во вкладку «Модули» и не искать их там по одной строке.
+    const quick = el('div', 'dock-quick-sell');
     const sellable = rows.filter((r) => r.maxSell > 0 && r.quote);
     if (sellable.length > 0) {
       let total = 0;
       for (const r of sellable) {
         total += tradeCost(this.local, r.id, lootItem(rules, r.id)?.price ?? 0, r.quote!.stock, r.have, false);
       }
-      body.append(button(`Продать всё · ${formatCredits(total)}`, 'dock-buy dock-sell-all sro-btn sro-btn--sm', () => this.handlers.onSell()));
+      quick.append(button(
+        `Продать ресурсы · ${formatCredits(total)}`,
+        'dock-buy dock-sell-all sro-btn sro-btn--sm',
+        () => {
+          this.armedSellGear = false;
+          this.handlers.onSell();
+        },
+      ));
     }
+    const gear = this.storedGear();
+    if (gear.count > 0) {
+      // Модули продаются в два касания: снятый щит стоит дороже всего трюма, и промах пальцем
+      // по кнопке рядом с «Продать ресурсы» обошёлся бы слишком дорого.
+      const label = this.armedSellGear
+        ? `Точно? · ${gear.count} шт · ${formatCredits(gear.total)}`
+        : `Продать модули · ${gear.count} шт · ${formatCredits(gear.total)}`;
+      quick.append(button(label, `dock-buy dock-sell-gear sro-btn sro-btn--sm${this.armedSellGear ? ' sro-btn--danger' : ''}`, () => {
+        if (this.armedSellGear) {
+          this.armedSellGear = false;
+          this.handlers.onSellGear();
+          return;
+        }
+        this.armedSellGear = true;
+        this.render();
+      }));
+    } else {
+      this.armedSellGear = false;
+    }
+    if (quick.childElementCount > 0) body.append(quick);
     for (const row of rows) body.append(this.marketRow(row, rules));
   }
 
@@ -849,6 +901,9 @@ export class DockScreen {
     } else if (row.sells) {
       // Продают, но прямо сейчас нельзя: пусто на складе, нет места или не хватает кредитов.
       actions.append(el('div', 'dock-tag sro-row__meta', row.quote.stock <= 0 ? 'Склад пуст' : 'Не по карману'));
+    } else {
+      // Единственная причина отказа с M16a: это и есть груз здешнего задания «собрать».
+      actions.append(el('div', 'dock-tag sro-row__meta', 'Груз задания: его надо привезти'));
     }
     if (row.maxSell > 0) {
       const count = Math.min(row.qty, row.maxSell);
@@ -1058,7 +1113,7 @@ export class DockScreen {
     body.append(el('div', 'dock-note sro-muted', `Оружие · слотов ${hullSlots(hull).length}`));
     hullSlots(hull).forEach((slotClass, i) => this.slotRow(body, hangar, credits, weaponSlot(i), `Слот ${i + 1} · ${slotClass}`));
     if (this.modules.enabled) {
-      body.append(el('div', 'dock-note sro-muted', `Модули · класс корпуса ${hull.class ?? 'L'}`));
+      body.append(el('div', 'dock-note sro-muted', `Основные · класс корпуса ${hull.class ?? 'L'}`));
       for (const slot of MODULE_SLOTS) this.slotRow(body, hangar, credits, slot, SLOT_NAMES[slot]);
       const utility = hullUtilitySlots(hull);
       if (utility > 0) {

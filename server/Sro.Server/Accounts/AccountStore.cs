@@ -15,9 +15,18 @@ public enum LoginError
     WrongPassword,
     /// <summary>Ключ устройства не найден: его вытеснили новые или файл аккаунта пропал.</summary>
     BadKey,
-    /// <summary>Аккаунта нет: его файл удалили, пока пилот играл, — или это гость.</summary>
+    /// <summary>Аккаунта нет: файл удалили, пока пилот играл, — или вход искал старый, а такого ника нет.</summary>
     NoAccount,
+    /// <summary>Ник занят, а вход просил завести новый аккаунт: это регистрация под чужим ником.</summary>
+    NameTaken,
 }
+
+/// <summary>
+/// Чего ждёт вход — вкладка, с которой его начали (M15.8). <see cref="Existing"/> — только старый аккаунт,
+/// <see cref="New"/> — только новый. <see cref="Any"/> — любой исход: свободный ник заводит аккаунт, занятый
+/// пускает в него; так входят тесты и фикстуры, а не экран входа.
+/// </summary>
+public enum LoginMode { Any, Existing, New }
 
 /// <param name="Id">Аккаунт; пусто при ошибке.</param>
 /// <param name="Name">Ник так, как он записан в аккаунте.</param>
@@ -95,10 +104,6 @@ public sealed class AccountStore : IDisposable
     }
 
     /// <summary>
-    /// Вход по нику и паролю; свободный ник заводит новый аккаунт — отдельной регистрации нет.
-    /// Успешный вход выдаёт устройству ключ: с ним переподключение обходится без пароля.
-    /// </summary>
-    /// <summary>
     /// Этим ником заведётся новый аккаунт (M15.5). По нему экран входа решает, показывать ли карточки пути:
     /// вошедшему в старый аккаунт выбирать нечего. Пароль не спрашиваем и хеш не считаем — это просто
     /// заглядывание в словарь. Ник могут занять между проверкой и входом: тогда вход станет обычным,
@@ -112,7 +117,14 @@ public sealed class AccountStore : IDisposable
         lock (_lock) return !_idByName.ContainsKey(clean);
     }
 
-    public LoginResult Login(string? name, string? password)
+    /// <summary>
+    /// Вход по нику и паролю. Успешный вход выдаёт устройству ключ: с ним переподключение обходится без пароля.
+    /// </summary>
+    /// <param name="mode">
+    /// Что обещала игроку вкладка на экране входа (M15.8). Без этого опечатка в логине заводила бы пустой
+    /// аккаунт вместо отказа, и игрок решил бы, что потерял корабль.
+    /// </param>
+    public LoginResult Login(string? name, string? password, LoginMode mode = LoginMode.Any)
     {
         if (string.IsNullOrWhiteSpace(name)) return new(LoginError.BadName);
         var clean = Room.SanitizeName(name);
@@ -122,6 +134,10 @@ public sealed class AccountStore : IDisposable
 
         AccountData? existing;
         lock (_lock) existing = _idByName.TryGetValue(clean, out var id) ? _byId[id] : null;
+
+        // Отказы вкладок — до счёта хеша: он стоит десятки миллисекунд, а сравнивать здесь нечего.
+        if (existing is not null && mode == LoginMode.New) return new(LoginError.NameTaken);
+        if (existing is null && mode == LoginMode.Existing) return new(LoginError.NoAccount);
 
         if (existing is not null)
         {
@@ -148,7 +164,7 @@ public sealed class AccountStore : IDisposable
                 Replace(created);
             }
         }
-        if (created is null) return Login(name, password);
+        if (created is null) return Login(name, password, mode);
         _log.LogInformation("Account '{Name}' created", clean);
         return new(LoginError.None, created.Id, created.Name, newKey, Created: true);
     }

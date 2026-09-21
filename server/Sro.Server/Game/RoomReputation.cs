@@ -35,8 +35,14 @@ public sealed partial class Room
         Math.Max(PlaceRep(player), player.Rep.Region(Balance.Galaxy, Balance.SystemDef.Region, NowSeconds, Balance.Reputation));
 
     /// <summary>Пилот — враг властей этой системы: худшая ступень шкалы.</summary>
-    private bool IsEnemy(Player player) =>
+    public bool IsEnemy(Player player) =>
         Balance.Reputation.Any && Balance.Reputation.Index(SystemRep(player)) == 0;
+
+    /// <summary>
+    /// Рейнджеры прямо сейчас идут на этот корабль: он за кого-то ответит. Это текущая злость, а не
+    /// отношение (M16a) — её ставит нападение и снимает время, гибель или уход из системы.
+    /// </summary>
+    public bool Hunted(int id) => _offenders.GetValueOrDefault(id) > Tick;
 
     /// <summary>
     /// Начислить очки и рассказать об этом. Гостю тоже начисляем — в его сессии репутация работает,

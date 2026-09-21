@@ -541,9 +541,9 @@ public sealed record MissionRules(
         }
         foreach (var t in CollectList)
         {
-            // Чем станция торгует сама, того она не просит привезти: иначе задание сдавалось бы
+            // Что станция делает сама, того она не просит привезти: иначе задание сдавалось бы
             // покупкой в соседней вкладке, и награда за него превращалась бы в бесплатные кредиты (M12).
-            if (market?.Sells(t.Item) == true) continue;
+            if (market?.Makes(t.Item) == true) continue;
             var price = balance.Loot.Price(t.Item);
             candidates.Add((t.Weight, (rng, id) =>
             {

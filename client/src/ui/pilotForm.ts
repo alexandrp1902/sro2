@@ -11,9 +11,24 @@ const START_ART = 'splash/login.webp';
 const DENIED: Record<DeniedCode, string> = {
   badName: 'Логин — от 3 до 16 символов',
   badPassword: 'Пароль — от 4 до 64 символов',
-  wrongPassword: 'Логин занят, пароль не подходит',
+  wrongPassword: 'Пароль не подходит',
   badKey: 'Вход на этом устройстве устарел — введите пароль',
   badCareer: 'Этот путь пока закрыт',
+  noAccount: 'Такого пилота нет — заведите его на вкладке «Регистрация»',
+  nameTaken: 'Этот логин уже занят — войдите на вкладке «Вход»',
+};
+
+/** Вкладка окна (M15.8): вход в свой аккаунт или заведение нового. */
+export type PilotTab = 'login' | 'register';
+
+/** Что на вкладке своё: подпись кнопки, ожидание после нажатия и строка под названием игры. */
+const TABS: Record<PilotTab, { submit: string; wait: string; hint: string }> = {
+  login: { submit: 'Войти', wait: 'Вход…', hint: 'Введите логин и пароль своего пилота' },
+  register: {
+    submit: 'Создать пилота',
+    wait: 'Создаём…',
+    hint: 'Придумайте логин и пароль — так заводится новый пилот',
+  },
 };
 
 /** Карточка пути на экране: какая выбрана и какая недоступна. Чистая — её и проверяют тесты. */
@@ -37,11 +52,44 @@ export function describeDenied(code: string): string {
   return DENIED[code as DeniedCode] ?? 'Вход отклонён';
 }
 
+/**
+ * С какой вкладки открыть окно (M15.8). Ника не помним и живой сессии нет — это первый заход, и входить
+ * такому игроку некуда: открываем «Регистрацию». Прежний экран этот случай прятал за одной кнопкой «Войти».
+ */
+export function startTab(state: PilotFormState): PilotTab {
+  return state.loggedIn || state.name !== '' ? 'login' : 'register';
+}
+
+/** Чего не хватает в полях; null — можно отправлять. Длину логина и пароля по-прежнему судит сервер. */
+export function formProblem(
+  tab: PilotTab,
+  fields: { name: string; password: string; confirm: string },
+): string | null {
+  if (!fields.name) return 'Введите логин';
+  if (!fields.password) return 'Введите пароль';
+  if (tab !== 'register') return null;
+  // Пароль не восстановить: опечатка при заведении аккаунта теряет его насовсем.
+  if (!fields.confirm) return 'Повторите пароль';
+  if (fields.confirm !== fields.password) return 'Пароли не совпадают';
+  return null;
+}
+
+/**
+ * Подсказка под полем логина (M15.8): вкладка обещает одно, а ответ сервера про ник говорит другое.
+ * Это предупреждение, пока пилот печатает, — отказать всё равно должен сервер при входе.
+ */
+export function nameNote(tab: PilotTab, message: NameFreeMsg | null): string {
+  if (!message) return '';
+  if (tab === 'login' && message.free) return 'Такого пилота нет — он заводится на вкладке «Регистрация»';
+  if (tab === 'register' && !message.free) return 'Логин уже занят — под ним входят на вкладке «Вход»';
+  return '';
+}
+
 export interface PilotFormHandlers {
-  /** Войти по нику и паролю; свободный ник заводит аккаунт, и тогда применяется путь. */
-  onLogin(name: string, password: string, career: string | null): void;
+  /** Войти или завести пилота: create — вкладка «Регистрация», и тогда же применяется путь. */
+  onLogin(name: string, password: string, career: string | null, create: boolean): void;
   onLogout(): void;
-  /** Спросить сервер, свободен ли ник (M15.5): от ответа зависит, показывать ли карточки пути. */
+  /** Спросить сервер, свободен ли ник (M15.5): от ответа зависят карточки пути и подсказка под логином. */
   onCheckName(name: string): void;
 }
 
@@ -54,19 +102,26 @@ export interface PilotFormState {
 }
 
 /**
- * Окно «Пилот» (GDD §61): вход по нику и паролю и адрес сервера. Свободный ник с паролем заводит аккаунт —
- * отдельной регистрации нет. Пока пилот не вошёл, окно не закрывается: без аккаунта играть не на чем.
+ * Окно «Пилот» (GDD §61): вкладка «Вход» пускает в свой аккаунт, «Регистрация» заводит нового пилота
+ * (M15.8), и обе спрашивают адрес сервера. Пока пилот не вошёл, окно не закрывается: без аккаунта играть
+ * не на чем.
  */
 export class PilotForm {
   private readonly nameInput: HTMLInputElement;
   private readonly passwordInput: HTMLInputElement;
+  private readonly confirmInput: HTMLInputElement;
+  private readonly confirmRow: HTMLElement;
   private readonly serverInput: HTMLInputElement;
+  private readonly hint: HTMLElement;
+  private readonly note: HTMLElement;
   private readonly error: HTMLElement;
   private readonly cancel: HTMLButtonElement;
   private readonly logout: HTMLButtonElement;
   private readonly submit: HTMLButtonElement;
   private readonly careers: HTMLElement;
+  private readonly tabs: HTMLButtonElement[];
   private state: PilotFormState = { url: null, name: '', loggedIn: false };
+  private tab: PilotTab = 'login';
   /** Последний ответ сервера про ник; null — ещё не спрашивали или ответ устарел. */
   private free: NameFreeMsg | null = null;
   private chosen: string | null = null;
@@ -80,17 +135,27 @@ export class PilotForm {
   ) {
     this.nameInput = root.querySelector('input[name=name]')!;
     this.passwordInput = root.querySelector('input[name=password]')!;
+    this.confirmInput = root.querySelector('input[name=confirm]')!;
+    this.confirmRow = root.querySelector('.connect-confirm')!;
     this.serverInput = root.querySelector('input[name=server]')!;
+    this.hint = root.querySelector('.connect-hint')!;
+    this.note = root.querySelector('.connect-note')!;
     this.error = root.querySelector('.connect-error')!;
     this.cancel = root.querySelector('.connect-cancel')!;
     this.logout = root.querySelector('.connect-logout')!;
     this.submit = root.querySelector('button[type=submit]')!;
     this.careers = root.querySelector('.connect-careers')!;
+    this.tabs = [...root.querySelectorAll<HTMLButtonElement>('.connect-tab')];
+
+    for (const tab of this.tabs) {
+      tab.addEventListener('click', () => this.setTab(tab.dataset.tab === 'register' ? 'register' : 'login'));
+    }
 
     // Спрашиваем про ник не на каждую букву, а когда печатать перестали.
     this.nameInput.addEventListener('input', () => {
       this.free = null;
       this.renderCareers();
+      this.renderNote();
       window.clearTimeout(this.checkTimer);
       const name = this.nameInput.value.trim();
       if (name.length < 3) return;
@@ -124,13 +189,13 @@ export class PilotForm {
         this.hide(); // ничего не меняли
         return;
       }
-      if (!name) return this.setError('Введите логин');
-      if (!password) return this.setError('Введите пароль');
+      const problem = formProblem(this.tab, { name, password, confirm: this.confirmInput.value });
+      if (problem) return this.setError(problem);
       this.setError('');
-      this.submit.textContent = 'Вход…';
+      this.submit.textContent = TABS[this.tab].wait;
       // Путь шлём, только когда карточки видны: значит ник свободен и аккаунт заводится сейчас.
-      const cards = careerCards(this.free, this.chosen);
-      handlers.onLogin(name, password, cards.find((c) => c.chosen)?.id ?? null);
+      const cards = this.cards();
+      handlers.onLogin(name, password, cards.find((c) => c.chosen)?.id ?? null, this.tab === 'register');
     });
     this.cancel.addEventListener('click', () => this.hide());
     this.logout.addEventListener('click', () => {
@@ -143,25 +208,28 @@ export class PilotForm {
     return !this.root.hidden;
   }
 
-  /** Ответ сервера про ник: свободен — показываем карточки пути. */
+  /** Ответ сервера про ник: от него зависят карточки пути и подсказка под логином. */
   setNameFree(message: NameFreeMsg): void {
     // Ответ про прежний ник: игрок успел допечатать, и показывать его уже нельзя.
     if (message.name !== this.nameInput.value.trim()) return;
     this.free = message;
     this.renderCareers();
+    this.renderNote();
   }
 
   show(state: PilotFormState, error = ''): void {
+    // Окно уже открыто — значит это отказ сервера поверх него, и выбранную вкладку менять нельзя.
+    const fresh = this.root.hidden;
     this.state = state;
     this.free = null;
     this.chosen = null;
-    this.renderCareers();
-    this.nameInput.value = state.name;
+    // Ник ставим только в свежем окне: на отказе игрок должен видеть то, что набрал, а не прежний ник.
+    if (fresh) this.nameInput.value = state.name;
     this.passwordInput.value = '';
     this.serverInput.value = state.url ?? '';
     this.cancel.hidden = !state.loggedIn;
     this.logout.hidden = !state.loggedIn;
-    this.submit.textContent = 'Войти';
+    this.setTab(fresh ? startTab(state) : this.tab);
     this.setError(error);
     // Живой сессии нет — это стартовый экран игры, а не окно поверх мира: за ним заставка, а не затемнение.
     const start = !state.loggedIn;
@@ -171,18 +239,38 @@ export class PilotForm {
     (state.url && !state.name ? this.nameInput : state.url ? this.passwordInput : this.serverInput).focus();
   }
 
-  /** Вход не удался: окно остаётся, ник на месте, пароль — заново. */
+  /** Вход не удался: окно остаётся на своей вкладке, ник на месте, пароль — заново. */
   showError(text: string): void {
     this.passwordInput.value = '';
-    this.submit.textContent = 'Войти';
+    this.confirmInput.value = '';
+    this.submit.textContent = TABS[this.tab].submit;
     this.setError(text);
   }
 
   hide(): void {
     this.root.hidden = true;
     this.passwordInput.value = '';
+    this.confirmInput.value = '';
     // Фокус в поле ввода глушит клавиши управления (keyboard.ts).
     if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
+  }
+
+  /**
+   * Сменить вкладку: пароль остаётся набранным — с «Такого пилота нет» игрок уходит регистрироваться
+   * с тем же паролем, и заново его печатать незачем.
+   */
+  private setTab(tab: PilotTab): void {
+    this.tab = tab;
+    for (const button of this.tabs) button.setAttribute('aria-pressed', String(button.dataset.tab === tab));
+    this.hint.textContent = TABS[tab].hint;
+    this.submit.textContent = TABS[tab].submit;
+    this.confirmRow.hidden = tab !== 'register';
+    this.confirmInput.value = '';
+    // Менеджеру паролей важно, какое перед ним поле: прежний пароль или придуманный сейчас.
+    this.passwordInput.autocomplete = tab === 'register' ? 'new-password' : 'current-password';
+    this.setError('');
+    this.renderCareers();
+    this.renderNote();
   }
 
   private setError(text: string): void {
@@ -209,8 +297,17 @@ export class PilotForm {
     else image.onload = show;
   }
 
+  /** Путь выбирают только при заведении аккаунта — значит на вкладке «Регистрация» и со свободным ником. */
+  private cards(): CareerCard[] {
+    return careerCards(this.tab === 'register' ? this.free : null, this.chosen);
+  }
+
+  private renderNote(): void {
+    this.note.textContent = nameNote(this.tab, this.free);
+  }
+
   private renderCareers(): void {
-    const cards = careerCards(this.free, this.chosen);
+    const cards = this.cards();
     this.careers.hidden = cards.length === 0;
     if (cards.length === 0) {
       this.careers.replaceChildren();

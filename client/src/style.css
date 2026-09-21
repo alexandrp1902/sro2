@@ -814,10 +814,27 @@ body {
   text-wrap: balance;
 }
 
+/* Вкладки «Вход» и «Регистрация» (M15.8): два явных пути вместо одной кнопки на оба случая. */
+.connect-tabs {
+  margin: var(--space-2) 0;
+}
+
 .connect-hint {
   margin-bottom: 6px;
   font-size: 13px;
   line-height: 18px;
+}
+
+/* Подсказка под логином: вкладка обещает одно, а ответ сервера про ник говорит другое. */
+.connect-note {
+  margin-top: 4px;
+  font-size: 12px;
+  line-height: 16px;
+}
+
+/* Сказать нечего — и места не занимаем: пустая строка оставляла бы дыру под логином. */
+.connect-note:empty {
+  display: none;
 }
 
 /* Ряд путей (M15.5): виден, только когда ник свободен, — то есть когда заводится аккаунт. */
@@ -1205,11 +1222,26 @@ body {
   }
 }
 
-/* Кнопка стоит первой в списке рынка — отступ снизу, а не сверху. */
-.dock-sell-all {
+/* Быстрая продажа стоит первой в списке рынка — отступ снизу, а не сверху (M16a: ресурсы и модули). */
+.dock-quick-sell {
   display: flex;
-  width: 100%;
+  gap: var(--space-2);
   margin: 4px 0 10px;
+}
+
+/* На узком экране две кнопки в строку не встают — пусть переносятся, а не режут текст. */
+@media (max-width: 400px) {
+  .dock-quick-sell {
+    flex-wrap: wrap;
+  }
+}
+
+.dock-sell-all,
+.dock-sell-gear {
+  display: flex;
+  flex: 1 1 0;
+  min-width: 0;
+  justify-content: center;
 }
 
 /* Реплика торговца (M12) на телефоне: сцены с его картинкой здесь нет, а история нужна. */
@@ -1666,7 +1698,7 @@ body {
 }
 
 .landing-run {
-  animation: landing-pass 1400ms ease-out forwards;
+  animation: landing-pass var(--landing-ms, 3000ms) ease-out forwards;
 }
 
 @keyframes landing-pass {

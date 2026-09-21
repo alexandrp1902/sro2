@@ -166,10 +166,13 @@ public sealed class PlanetTests
         var station = _room.Balance.MarketAt(Station);
         var settlement = _room.Balance.MarketAt(Settlement);
 
-        Assert.True(station.Sells("metal"));
-        Assert.False(station.Sells("food"));
-        Assert.True(settlement.Sells("food"));
-        Assert.False(settlement.Sells("metal"));
+        Assert.True(station.Makes("metal"));
+        Assert.False(station.Makes("food"));
+        Assert.True(settlement.Makes("food"));
+        Assert.False(settlement.Makes("metal"));
+        // Продаётся при этом и то и другое: витрина — это склад, а не список продукции (M16a).
+        Assert.True(station.Sells("food"));
+        Assert.True(settlement.Sells("metal"));
     }
 
     [Fact]

@@ -1,5 +1,6 @@
 import { Container } from 'pixi.js';
-import { ShipView, engineGlow } from '../render/ship';
+import { engineGlow } from '../render/flame';
+import { ShipView } from '../render/ship';
 import type { Hulls } from '../sim/hulls';
 import { RenderClock, SnapshotBuffer } from './interpolation';
 import type { AiState, NpcKind, PlayerDto, SnapshotMsg } from './protocol';

@@ -8,8 +8,12 @@ namespace Sro.Server.Game;
 /// огнём — слабее пирата (множитель урона типа). Долетел — ушёл в док или в прыжок, из системы он исчезает,
 /// а через срок появляется новый (<see cref="TraderRules"/>).
 /// </summary>
-public sealed class Trader(int id, string typeId, NpcType type, NpcRules rules) : ShipEntity(id, type.Name, type.Hull, type.WeaponList), IScavenger
+public sealed class Trader(int id, string typeId, NpcType type, NpcRules rules)
+    : ShipEntity(id, type.Name, NpcRules.HullOf(type, TraderLevel), type.WeaponList), IScavenger
 {
+    /// <summary>Торговцы все одного уровня: их не растят, как пиратские логова.</summary>
+    public const int TraderLevel = 1;
+
     /// <summary>Что подобрал по дороге: погибнет — высыплет вместе с грузом рейса.</summary>
     public Cargo Hold { get; } = new();
     /// <summary>Груз, за которым он свернул; 0 — ни за каким.</summary>
@@ -91,7 +95,7 @@ public sealed class Trader(int id, string typeId, NpcType type, NpcRules rules) 
             for (var i = 0; i < _weapons.Length; i++)
             {
                 _weapons[i] = i < WeaponIds.Count && WeaponIds[i] is { } id && balance.Weapons.TryGetValue(id, out var weapon)
-                    ? rules.ScaledWeapon(Type, 1, weapon)
+                    ? rules.ScaledWeapon(Type, TraderLevel, weapon)
                     : null;
             }
         }
@@ -157,10 +161,8 @@ internal static class TraderBrain
             return;
         }
 
-        // Жар звезды: торговец его огибает (общее правило для всех NPC — Heat.Avoid).
-        var (ux, uy) = Heat.Avoid(trader.Ship.X, trader.Ship.Y, dx / distance, dy / distance, heat);
         var throttle = trader.Fleeing ? 1 : rules.Throttle;
-        Set(trader, ux, uy, throttle);
+        Set(trader, dx / distance, dy / distance, throttle, heat);
     }
 
     /// <summary>Огонь по обидчику, пока тот цел и рядом; ушёл или погиб — торговец его забывает. Курс это не меняет.</summary>
@@ -182,9 +184,16 @@ internal static class TraderBrain
         trader.FireHeld = false;
     }
 
-    private static void Set(Trader trader, double dx, double dy, double throttle)
+    /// <summary>
+    /// Единственный выход ИИ торговца наружу. Жар звезды огибается здесь же (M16a) — раньше это делал
+    /// вызывающий, и всякий новый вызов молча проходил бы сквозь звезду.
+    /// </summary>
+    /// <param name="heat">Радиус зоны жара звезды; 0 — звезды нет.</param>
+    private static void Set(Trader trader, double dx, double dy, double throttle, double heat = 0)
     {
-        MoveInput.TryCreate(dx, dy, throttle, out var input);
+        var speed = Math.Sqrt(trader.Ship.Vx * trader.Ship.Vx + trader.Ship.Vy * trader.Ship.Vy);
+        var (x, y) = Heat.Avoid(trader.Ship.X, trader.Ship.Y, dx, dy, heat, speed);
+        MoveInput.TryCreate(x, y, throttle, out var input);
         trader.LastInput = input;
     }
 }

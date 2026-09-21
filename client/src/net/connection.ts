@@ -30,7 +30,8 @@ export type ConnectionState = 'connecting' | 'online' | 'offline';
 
 /** Вход по нику и паролю (свободный ник заводит аккаунт) или по ключу устройства. */
 /** career — путь (M15.5): сервер применит его, только если этим входом заводится аккаунт. */
-export type Credentials = { name: string; password: string; career?: string } | { key: string };
+/** create — вкладка «Регистрация» (M15.8): занятый ник тогда отказ, а не вход в чужой аккаунт. */
+export type Credentials = { name: string; password: string; career?: string; create?: boolean } | { key: string };
 
 const PING_INTERVAL_MS = 1000;
 /** Сервер не ответил про ник за это время — молча закрываем вопрос: карточки просто не появятся. */

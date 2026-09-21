@@ -98,8 +98,10 @@ public class MissionRulesTests
                             break;
                         case MissionRules.CollectKind:
                             Assert.True(balance.Loot.ItemMap.ContainsKey(offer.Item!));
-                            // Купить это здесь же и тут же сдать нельзя: станция такого не продаёт (M12).
-                            Assert.False(balance.ForSystem(station).MarketAt(place).Sells(offer.Item!), offer.Item);
+                            // Привезти просят только то, чего станция не делает сама (M12): иначе задание
+                            // сдавалось бы покупкой в соседней вкладке. С M16a продаётся всё, что на складе,
+                            // поэтому проверяется именно производство, а сам груз задания запирает комната.
+                            Assert.False(balance.ForSystem(station).MarketAt(place).Makes(offer.Item!), offer.Item);
                             break;
                         case MissionRules.EscortKind:
                             // Конвой идёт к вратам своей системы, и вести его есть кому.

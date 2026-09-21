@@ -121,7 +121,7 @@ async function main() {
   check(`a locked career is shown but not offered: ${locked.join(', ') || 'none'}`, locked.includes('pirate'));
 
   // Закрытый путь отклоняется — и, что важнее, аккаунт за собой не оставляет.
-  const denied = new Client({ name: `${fresh}-p`, password: PASSWORD, career: 'pirate' });
+  const denied = new Client({ name: `${fresh}-p`, password: PASSWORD, career: 'pirate', create: true });
   await denied.open();
   await denied.until(() => denied.closedWith !== null, 5000, 'a locked career is refused');
   check(
@@ -132,7 +132,7 @@ async function main() {
   check('the refused name is still free: no account was left behind', after.free === true);
 
   // Торговец: грузовой корпус, своё место, товар в трюме и своя ветка обучения.
-  const trader = new Client({ name: fresh, password: PASSWORD, career: 'trader' });
+  const trader = new Client({ name: fresh, password: PASSWORD, career: 'trader', create: true });
   await trader.open();
   await trader.until(() => trader.welcome && trader.hangar && trader.cargo && trader.missions, 8000, 'the trader joins');
   const cargo = Object.entries(trader.cargo.items ?? {});
@@ -162,7 +162,7 @@ async function main() {
   again.close();
 
   // Рейнджер по умолчанию — ровно тот старт, что был до M15.5.
-  const ranger = new Client({ name: `${fresh}-r`, password: PASSWORD, career: 'ranger' });
+  const ranger = new Client({ name: `${fresh}-r`, password: PASSWORD, career: 'ranger', create: true });
   await ranger.open();
   await ranger.until(() => ranger.hangar !== null && ranger.cargo !== null, 8000, 'the ranger joins');
   check(

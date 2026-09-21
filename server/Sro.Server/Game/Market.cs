@@ -89,7 +89,9 @@ public sealed class Market
                 good,
                 rules.BuyPrice(good, price, stock),
                 rules.SellPrice(good, price, stock),
-                (int)Math.Round(stock),
+                // Запас — вниз до целого, тем же счётом, что и Available: округление вверх показывало бы
+                // штуку, которую сервер продать не может, и «Купить» отвечало бы «на складе столько нет» (M16a).
+                (int)Math.Floor(stock),
                 (int)Math.Round(rules.Norm(good))));
         }
         return quotes;
