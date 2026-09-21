@@ -159,6 +159,29 @@ export function gateName(index: number): string {
   return `Врата ${gateNumber(index)}`;
 }
 
+/**
+ * Подписи врат на миникарте (M16c): буква системы, куда они ведут, — «V» у врат на Vega. Номер там читался
+ * хуже: он говорит только про порядок в списке, а буква сразу отвечает «куда».
+ *
+ * Если в одной системе двое врат начинаются одинаково, подписи удлиняются все разом, пока не различатся:
+ * лучше «So» и «Si», чем одинаковые «S». В нынешней galaxy.json до этого не доходит, но карта растёт.
+ */
+export function gateLetters(gates: readonly { name: string }[]): string[] {
+  const names = gates.map((gate) => gate.name.trim() || '?');
+  const longest = Math.max(1, ...names.map((name) => name.length));
+  for (let length = 1; length < longest; length++) {
+    const tries = names.map((name) => prefix(name, length));
+    if (new Set(tries).size === tries.length) return tries;
+  }
+  return names.map((name) => prefix(name, longest));
+}
+
+/** Первая буква заглавная, остальные как в названии: «Sigma» → «Si», «Альфа Центавра» → «Аль». */
+function prefix(name: string, length: number): string {
+  const cut = name.slice(0, length);
+  return cut.charAt(0).toUpperCase() + cut.slice(1);
+}
+
 /** Подпись у врат в мире: «Врата 3 · → Vega». */
 export function gateLabel(gate: GateDto, index: number): string {
   return `${gateName(index)} · → ${gate.name}`;

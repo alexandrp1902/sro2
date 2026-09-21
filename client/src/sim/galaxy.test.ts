@@ -6,6 +6,7 @@ import {
   gateIndex,
   gateIndexTo,
   gateLabel,
+  gateLetters,
   gateMarkId,
   gateName,
   hops,
@@ -68,6 +69,17 @@ describe('galaxy', () => {
     expect(gateLabel({ to: 'vega', name: 'Vega', x: 0, y: 0 }, 2)).toBe('Врата 3 · → Vega');
     expect(gateIndexTo(['vega', 'tau'], 'tau')).toBe(1);
     expect(gateIndexTo(['vega', 'tau'], 'sigma')).toBe(-1);
+  });
+
+  it('подписывает врата на миникарте буквой системы за ними', () => {
+    const at = (...names: string[]) => gateLetters(names.map((name) => ({ name })));
+    expect(at('Vega', 'Альфа Центавра', 'Tau')).toEqual(['V', 'А', 'T']);
+    // Одна буква на двоих — удлиняем обе подписи, пока не различатся.
+    expect(at('Sol', 'Sigma', 'Nova')).toEqual(['So', 'Si', 'No']);
+    expect(at('Альфа Центавра', 'Альдебаран')).toEqual(['Альф', 'Альд']);
+    // Пустое имя не роняет подпись, а один выход обходится одной буквой.
+    expect(at('  ')).toEqual(['?']);
+    expect(at('Край')).toEqual(['К']);
   });
 
   it('numbers both ends of a link on their own', () => {

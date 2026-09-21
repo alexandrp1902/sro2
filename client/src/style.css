@@ -359,6 +359,11 @@ body {
   color: inherit;
 }
 
+/* Значок свёрнутого табло: нужен только на телефоне, на ПК его нет совсем. */
+.event-badge {
+  display: none;
+}
+
 .event-results {
   margin-top: var(--space-1);
   font-size: 11px;
@@ -678,6 +683,40 @@ body {
     line-height: 16px;
   }
 
+  /*
+   * Табло события в полэкрана над миникартой не нужно (M16c): свёрнутое — красный треугольник с «!»,
+   * тап разворачивает его на месте (invasion.ts ведёт data-open).
+   */
+  .event[data-open='false'] {
+    width: var(--touch);
+    height: var(--touch);
+    padding: 0;
+    display: grid;
+    place-items: center;
+    border-color: var(--danger-line);
+    background: var(--danger-pane);
+  }
+
+  .event[data-open='false'] > .event-title,
+  .event[data-open='false'] > .event-hint,
+  .event[data-open='false'] > .event-results {
+    display: none;
+  }
+
+  .event[data-open='false'] > .event-badge {
+    display: block;
+    width: 26px;
+    height: 26px;
+    fill: none;
+    stroke: var(--danger-text);
+  }
+
+  /* Точка восклицательного знака — заливкой, а не обводкой: колечка вместо точки быть не должно. */
+  .event-badge circle {
+    fill: var(--danger-text);
+    stroke: none;
+  }
+
   /* Статус длиннее экрана: режем многоточием, а не вылезаем за край. */
   .status {
     max-width: calc(100vw - 20px);
@@ -710,7 +749,15 @@ body {
     white-space: normal;
   }
 
-  /* Карточка цели — справа над кнопками боя. */
+  /*
+   * Карточки цели на телефоне нет: здоровье противника рисуется полосками прямо над ним (playerOverlay.ts).
+   * Она возвращается, только когда на ней есть кнопки «В группу» или «Обмен», — нажать их больше негде.
+   */
+  .target[data-actions='false'] {
+    display: none;
+  }
+
+  /* Когда всё-таки нужна — справа над кнопками боя. */
   .target {
     position: fixed;
     top: auto;

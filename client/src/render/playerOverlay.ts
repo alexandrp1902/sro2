@@ -62,6 +62,12 @@ const LOST_LABEL_ALPHA = 0.7;
 const BAR_WIDTH = 34;
 const BAR_HEIGHT = 3;
 const BAR_GAP = 1;
+/**
+ * У выбранной цели полоски крупнее (M16c): на телефоне карточки цели больше нет, и здоровье противника
+ * читают прямо над ним.
+ */
+const TARGET_BAR_WIDTH = 56;
+const TARGET_BAR_HEIGHT = 5;
 const HULL_BAR = 0xe0894a;
 const SHIELD_BAR = 0x4a9be0;
 
@@ -253,9 +259,9 @@ export class PlayerOverlay {
       marker.bubble.visible = onScreen && ship.protected;
 
       if (onScreen) {
-        const barsHeight = this.drawBars(marker, ship);
-        const barsTop = sy - r - LABEL_GAP - barsHeight;
-        marker.bars.position.set(sx - BAR_WIDTH / 2, barsTop);
+        const bars = this.drawBars(marker, ship, isTarget);
+        const barsTop = sy - r - LABEL_GAP - bars.height;
+        marker.bars.position.set(sx - bars.width / 2, barsTop);
         marker.label.anchor.set(0.5, 1);
         marker.label.position.set(sx, barsTop - 2);
         if (ship.protected) this.drawBubble(marker.bubble, sx, sy, r, marker);
@@ -423,9 +429,11 @@ export class PlayerOverlay {
     marker.bubble.visible = false;
 
     if (onScreen) {
-      const barsHeight = marker.bars.visible ? this.drawBars(marker, { hp: meteor.hp, maxHp: meteor.maxHp, sh: 0, maxSh: 0 }) : 0;
-      const barsTop = sy - r - LABEL_GAP - barsHeight;
-      marker.bars.position.set(sx - BAR_WIDTH / 2, barsTop);
+      const bars = marker.bars.visible
+        ? this.drawBars(marker, { hp: meteor.hp, maxHp: meteor.maxHp, sh: 0, maxSh: 0 }, isTarget)
+        : { width: BAR_WIDTH, height: 0 };
+      const barsTop = sy - r - LABEL_GAP - bars.height;
+      marker.bars.position.set(sx - bars.width / 2, barsTop);
       marker.label.anchor.set(0.5, 1);
       marker.label.position.set(sx, barsTop - 2);
       if (isTarget && target) this.drawFrame(this.frame, sx, sy, r, FRAME_COLORS[target.state]);
@@ -452,20 +460,27 @@ export class PlayerOverlay {
     );
   }
 
-  /** @returns высота полосок, px */
-  private drawBars(marker: Marker, ship: Bars): number {
+  /**
+   * Полоски корпуса и щита над корпусом. У выбранной цели они шире и толще — это единственное место,
+   * где на телефоне видно здоровье противника.
+   *
+   * @returns ширина и высота полосок, px
+   */
+  private drawBars(marker: Marker, ship: Bars, big = false): { width: number; height: number } {
     const hull = share(ship.hp, ship.maxHp);
     const shield = ship.maxSh > 0 ? share(ship.sh, ship.maxSh) : -1;
     const rows = shield < 0 ? 1 : 2;
-    const key = `${hull}|${shield}`;
+    const width = big ? TARGET_BAR_WIDTH : BAR_WIDTH;
+    const height = big ? TARGET_BAR_HEIGHT : BAR_HEIGHT;
+    const key = `${hull}|${shield}|${big}`;
     if (key !== marker.barsKey) {
       marker.barsKey = key;
       const g = marker.bars.clear();
-      g.rect(-1, -1, BAR_WIDTH + 2, rows * (BAR_HEIGHT + BAR_GAP) + 1).fill({ color: OUTLINE, alpha: 0.7 });
-      g.rect(0, 0, BAR_WIDTH * hull, BAR_HEIGHT).fill(HULL_BAR);
-      if (shield >= 0) g.rect(0, BAR_HEIGHT + BAR_GAP, BAR_WIDTH * shield, BAR_HEIGHT).fill(SHIELD_BAR);
+      g.rect(-1, -1, width + 2, rows * (height + BAR_GAP) + 1).fill({ color: OUTLINE, alpha: 0.7 });
+      g.rect(0, 0, width * hull, height).fill(HULL_BAR);
+      if (shield >= 0) g.rect(0, height + BAR_GAP, width * shield, height).fill(SHIELD_BAR);
     }
-    return rows * (BAR_HEIGHT + BAR_GAP);
+    return { width, height: rows * (height + BAR_GAP) };
   }
 
   private drawBubble(g: Graphics, sx: number, sy: number, r: number, marker: Marker): void {

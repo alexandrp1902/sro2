@@ -115,17 +115,29 @@ function table(results: InvasionScoreDto[], myName: string, m: InvasionMsg): Inv
   return rows;
 }
 
-/** Табло вторжения справа под трекером цели: заголовок, отсчёт или волна, в конце — таблица итогов. */
+/** Телефон: табло свёрнуто в значок, пока по нему не тапнут. */
+const NARROW = '(max-width: 520px)';
+const narrowScreen = (): boolean => typeof matchMedia === 'function' && matchMedia(NARROW).matches;
+
+/**
+ * Табло вторжения справа под трекером цели: заголовок, отсчёт или волна, в конце — таблица итогов.
+ * На телефоне оно занимало полэкрана над миникартой, поэтому свёрнуто в красный треугольник с «!»:
+ * тап разворачивает его на месте, следующий — снова сворачивает (M16c). На ПК тап открывает карту.
+ */
 export class InvasionHud {
   private key = '';
   private readonly title: HTMLElement;
   private readonly hint: HTMLElement;
   private readonly results: HTMLElement;
+  private open = false;
+  /** Заголовок показанного события: сменился — значит событие другое, и табло снова сворачивается. */
+  private topic = '';
 
   constructor(
     private readonly root: HTMLElement,
     onTap: () => void,
   ) {
+    root.append(alertBadge());
     this.title = document.createElement('div');
     this.title.className = 'event-title sro-label';
     this.hint = document.createElement('div');
@@ -133,7 +145,12 @@ export class InvasionHud {
     this.results = document.createElement('div');
     this.results.className = 'event-results sro-num';
     root.append(this.title, this.hint, this.results);
-    root.addEventListener('click', onTap);
+    root.addEventListener('click', () => {
+      // Свёрнутый значок сначала раскрывается; на ПК он всегда раскрыт, и тап сразу ведёт на карту.
+      if (narrowScreen()) this.setOpen(!this.open);
+      else onTap();
+    });
+    this.setOpen(false);
     root.hidden = true;
   }
 
@@ -142,6 +159,13 @@ export class InvasionHud {
     if (key === this.key) return;
     this.key = key;
     this.root.hidden = !lines;
+    // Новое событие приходит свёрнутым; отсчёт в подсказке тикает каждую секунду и складывать
+    // раскрытое табло не должен — поэтому смотрим на заголовок, а не на весь текст.
+    const topic = lines?.title ?? '';
+    if (topic !== this.topic) {
+      this.topic = topic;
+      this.setOpen(false);
+    }
     if (!lines) return;
     this.root.dataset.alert = String(lines.alert);
     this.root.classList.toggle('sro-pane--alert', lines.alert);
@@ -160,4 +184,33 @@ export class InvasionHud {
       this.results.append(row);
     }
   }
+
+  private setOpen(open: boolean): void {
+    this.open = open;
+    this.root.dataset.open = String(open);
+  }
+}
+
+/** Значок свёрнутого табло: «!» в скруглённом треугольнике. Виден только на телефоне (style.css). */
+function alertBadge(): SVGSVGElement {
+  const NS = 'http://www.w3.org/2000/svg';
+  const svg = document.createElementNS(NS, 'svg');
+  svg.setAttribute('class', 'event-badge');
+  svg.setAttribute('viewBox', '0 0 24 24');
+  svg.setAttribute('aria-hidden', 'true');
+  const triangle = document.createElementNS(NS, 'path');
+  // Скруглённые углы: из середины каждой стороны дугой в следующую.
+  triangle.setAttribute('d', 'M12 3.2 21 19a2 2 0 0 1-1.7 3H4.7A2 2 0 0 1 3 19Z');
+  triangle.setAttribute('stroke-linejoin', 'round');
+  triangle.setAttribute('stroke-width', '2');
+  const mark = document.createElementNS(NS, 'path');
+  mark.setAttribute('d', 'M12 9.5v5');
+  mark.setAttribute('stroke-linecap', 'round');
+  mark.setAttribute('stroke-width', '2.2');
+  const dot = document.createElementNS(NS, 'circle');
+  dot.setAttribute('cx', '12');
+  dot.setAttribute('cy', '18');
+  dot.setAttribute('r', '1.2');
+  svg.append(triangle, mark, dot);
+  return svg;
 }

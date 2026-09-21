@@ -1,5 +1,5 @@
 import type { GateDto, PirateBaseDto } from '../net/protocol';
-import { gateNumber } from '../sim/galaxy';
+import { gateLetters, gateNumber } from '../sim/galaxy';
 import { WORLD_HALF_SIZE } from '../sim/movement';
 import type { PartyMark } from './party';
 
@@ -146,6 +146,8 @@ export class Minimap {
       ctx.fillRect(px(frame.station.x) - s, px(frame.station.y) - s, s * 2, s * 2);
     }
 
+    // Буква системы за вратами (M16c): с одного взгляда видно, куда они ведут, а не какие они по счёту.
+    const letters = gateLetters(frame.gates);
     frame.gates.forEach((gate, i) => {
       const onRoute = frame.routeGate === gateNumber(i);
       ctx.beginPath();
@@ -153,8 +155,7 @@ export class Minimap {
       ctx.strokeStyle = onRoute ? COLORS.route : COLORS.gate;
       ctx.lineWidth = (onRoute ? 2.5 : 2) * dpr;
       ctx.stroke();
-      // Номер врат (M16b): с ним «лети к третьим» на карте и в голосе означает одно и то же.
-      text(ctx, String(gateNumber(i)), px(gate.x), px(gate.y) - 8 * dpr, onRoute ? COLORS.route : COLORS.gate, dpr);
+      text(ctx, letters[i], px(gate.x), px(gate.y) - 8 * dpr, onRoute ? COLORS.route : COLORS.gate, dpr);
     });
 
     // Свои из группы рисуются ниже ромбом с номером: точка корабля им не нужна, иначе метка сядет на неё.

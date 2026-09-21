@@ -61,7 +61,13 @@ const DEMO_MINIMAP: MinimapFrame = {
   station: { x: 900, y: -300 },
   planets: [{ x: -1500, y: 1200 }],
   pirateBase: null,
-  gates: [],
+  // Врата подписаны буквой системы за ними (M16c); вторые — по проложенному курсу.
+  gates: [
+    { to: 'vega', name: 'Vega', x: -1200, y: -900 },
+    { to: 'tau', name: 'Tau', x: 1500, y: 1100 },
+    { to: 'castor', name: 'Кастор', x: 1700, y: -1500 },
+  ],
+  routeGate: 2,
   own: { x: 200, y: 400, rot: 0 },
   radar: 2000,
   ships: [

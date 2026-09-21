@@ -198,7 +198,10 @@ export class CombatHud {
       setText(this.targetName, target.name);
       setText(this.targetClass, target.member ? `${target.hullName} · в группе` : target.hullName);
       this.invite.hidden = !target.invite;
-    this.trade.hidden = !target.trade;
+      this.trade.hidden = !target.trade;
+      // На телефоне карточку заменили полосками над кораблём (M16c), но «В группу» и «Обмен» больше
+      // нажать негде — ради них карточка остаётся, когда на ней есть кнопки. Прячет её style.css.
+      this.targetEl.dataset.actions = String(target.invite || target.trade);
       this.targetEl.dataset.member = String(target.member);
       this.targetHull.set(target.hp, target.maxHp);
       this.targetShield.set(target.sh, target.maxSh);
