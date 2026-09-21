@@ -74,6 +74,9 @@ SINGLES = [
       ["cannon", "heavy-laser", "railgun", "ion", "point-defense", "torpedoes"]],
     *[(f"equipment-extra/modules-{n}", f"modules-{n}", 128) for n in
       ["reactor", "fuel-tank", "military-radar", "afterburner", "repair", "cooling"]],
+    # Защитные модули M15.6 (пачка F): до них вспомогательные модули шли в доке вовсе без иконки.
+    *[(f"defense-modules/modules-{n}", f"modules-{n}", 128) for n in
+      ["thrusters", "dust-cloud", "reactive-armor", "anti-missile"]],
     # Товары рынка (M12). Имя спрайта — resources-<id товара в loot.json>: itemSprite() найдёт их без алиасов.
     *[(f"trade-missions/goods-{f}", f"resources-{n}", 128) for f, n in
       [("food", "food"), ("medicine", "medicine"), ("machinery", "machinery"),

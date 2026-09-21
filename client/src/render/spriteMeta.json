@@ -443,6 +443,22 @@
     "w": 128,
     "h": 95
   },
+  "modules-thrusters": {
+    "w": 128,
+    "h": 114
+  },
+  "modules-dust-cloud": {
+    "w": 102,
+    "h": 128
+  },
+  "modules-reactive-armor": {
+    "w": 128,
+    "h": 114
+  },
+  "modules-anti-missile": {
+    "w": 128,
+    "h": 125
+  },
   "resources-food": {
     "w": 128,
     "h": 113

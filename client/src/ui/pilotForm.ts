@@ -293,8 +293,11 @@ export class PilotForm {
       this.root.style.setProperty('--connect-art', `url("${url}")`);
       this.root.dataset.art = 'ready';
     };
+    // onload ставится всегда, а не только вместо decode(): decode() умеет отказать на совершенно целой
+    // картинке (вкладка в фоне, headless-браузер), и тогда заставки не было бы вовсе. Показать дважды
+    // безопасно — show() идемпотентен.
+    image.onload = show;
     if (typeof image.decode === 'function') void image.decode().then(show, () => {});
-    else image.onload = show;
   }
 
   /** Путь выбирают только при заведении аккаунта — значит на вкладке «Регистрация» и со свободным ником. */

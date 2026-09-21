@@ -110,8 +110,9 @@ export function weaponSprite(weapon: string): SpriteName | null {
 /**
  * Картинки модулей: у некоторых своя (M11), у остальных — по слоту.
  * У вспомогательных картинки по слоту нарочно нет: она была бы иконкой грузового контейнера, и её надел бы
- * каждый новый utility-модуль — а защита (M15.6) не контейнер. Свои иконки у них — в MODULE_ITEM_SPRITES,
- * остальные пока идут без иконки; заявки лежат в art/next-art-requests.md.
+ * каждый новый utility-модуль — а защита (M15.6) не контейнер. Свои иконки у них — в MODULE_ITEM_SPRITES:
+ * с пачкой F они есть у всех четырёх защитных модулей. У нового utility-модуля иконки снова не будет,
+ * пока её не нарисуют, — так и задумано; заявки лежат в art/next-art-requests.md.
  */
 const MODULE_SPRITES: Record<string, string> = {
   engine: 'modules-engine',
@@ -128,6 +129,11 @@ const MODULE_ITEM_SPRITES: Record<string, string> = {
   repair: 'modules-repair',
   cooling: 'modules-cooling',
   cargoPod: 'modules-cargo',
+  // Защита M15.6 (пачка F).
+  thrusters: 'modules-thrusters',
+  dustCloud: 'modules-dust-cloud',
+  reactiveArmor: 'modules-reactive-armor',
+  antiMissile: 'modules-anti-missile',
 };
 
 /** Иконка модуля на витрине: своя по id, иначе по слоту; неизвестный — null. */
