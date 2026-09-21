@@ -191,6 +191,9 @@ Distant deep-space parallax background, seamless tileable, very dark so ships re
 Четыре вспомогательных модуля из `shared/modules.json`. Сейчас идут в доке без иконки вовсе: иконка по
 слоту убрана нарочно — она была картинкой грузового контейнера, и её надевал бы каждый новый utility-модуль.
 
+С сеткой слотов на вкладке «Модули» пробел стало видно: в кружке вспомогательного слота вместо картинки
+модуля стоит точка. Пока иконок нет, так и задумано — подменять их чужой картинкой не будем.
+
 ### Иконки (STYLE-ICON)
 - **modules-thrusters** — cluster of four small vectoring manoeuvring nozzles on a short mounting block, thin hydraulic actuators, faint cyan vapour at the nozzle mouths; reads as agility, not as a main engine.
 - **modules-dust-cloud** — squat aerosol dispenser canister with a wide flared spray head and a ring of small charge tubes, pale particulate haze escaping the head.

@@ -2,6 +2,8 @@ import { formatSectors, type Aim, type AimState } from '../sim/combat';
 import { clock } from '../util/clock';
 
 const RENDER_INTERVAL_MS = 100;
+/** Сколько держать точные корпус и щит на телефоне после тапа по полоскам. */
+const DETAIL_MS = 4000;
 
 const STATE_TEXT: Record<AimState, string> = {
   ready: 'в секторе',
@@ -106,6 +108,8 @@ export class CombatHud {
   private readonly deathBy: HTMLElement;
   private readonly deathTimer: HTMLElement;
   private lastRender = 0;
+  /** Таймер, который снова прячет числа корпуса и щита на телефоне. */
+  private detailTimer: ReturnType<typeof setTimeout> | null = null;
 
   constructor(
     private readonly shipEl: HTMLElement,
@@ -119,6 +123,10 @@ export class CombatHud {
     this.ownShield = new Bar(shipEl, 'shield', 'Щит');
     this.ownProtect = div(shipEl, 'protect sro-muted');
     this.ownThreat = div(shipEl, 'threat sro-danger');
+    // На телефоне подписи и числа скрыты (две полоски и всё), но узнать точные значения надо уметь:
+    // тап по блоку показывает их на DETAIL_MS, повторный — гасит сразу. На ПК числа видны всегда.
+    shipEl.dataset.detail = 'false';
+    shipEl.addEventListener('click', () => this.showDetail(shipEl.dataset.detail !== 'true'));
 
     const head = div(targetEl, 'target-head sro-target__head');
     this.targetName = div(head, 'target-name sro-target__name');
@@ -210,6 +218,14 @@ export class CombatHud {
       setText(this.deathBy, death.by ? `уничтожил: ${death.by}` : '');
       setText(this.deathTimer, `возвращение на базу через ${clock(death.seconds)}`);
     }
+  }
+
+  /** Показать числа корпуса и щита поверх полосок и через DETAIL_MS убрать. Нужно только на телефоне. */
+  private showDetail(show: boolean): void {
+    if (this.detailTimer !== null) clearTimeout(this.detailTimer);
+    this.detailTimer = null;
+    this.shipEl.dataset.detail = String(show);
+    if (show) this.detailTimer = setTimeout(() => (this.shipEl.dataset.detail = 'false'), DETAIL_MS);
   }
 }
 

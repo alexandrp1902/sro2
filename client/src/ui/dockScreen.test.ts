@@ -1,9 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import type { LootRules } from '../sim/loot';
 import type { MarketRules } from '../sim/market';
+import type { HullParams } from '../sim/movement';
 import type { ReputationRules } from '../sim/reputation';
 import {
   clampQty,
+  hullSlotViews,
   maxBuyable,
   offerState,
   placeKind,
@@ -37,6 +39,32 @@ describe('weaponLabel', () => {
       rangePenalty: 35, closeRange: 0, closePenalty: 0, arc: 180, kind: 'beam', color: '#6ff0ff',
     });
     expect(label).toBe('урон 40 · раз в 0.5 с · точность 90% · дальность 500');
+  });
+});
+
+describe('hullSlotViews', () => {
+  const light = { class: 'S', weaponSlots: ['S', 'M'], utilitySlots: 2 } as HullParams;
+
+  it('перечисляет места по порядку и подписывает их классом', () => {
+    expect(hullSlotViews(light, true)).toEqual([
+      { id: 'w0', caption: 'Оружие 1 (S)' },
+      { id: 'w1', caption: 'Оружие 2 (M)' },
+      { id: 'engine', caption: 'Двигатель (S)' },
+      { id: 'shield', caption: 'Щит (S)' },
+      { id: 'radar', caption: 'Радар (S)' },
+      { id: 'generator', caption: 'Генератор (S)' },
+      { id: 'u0', caption: 'Вспом. 1 (S)' },
+      { id: 'u1', caption: 'Вспом. 2 (S)' },
+    ]);
+  });
+
+  it('пока сервер не включил модули, на сетке только оружие', () => {
+    expect(hullSlotViews(light, false).map((view) => view.id)).toEqual(['w0', 'w1']);
+  });
+
+  it('корпус без списка пушек несёт один слот своего класса', () => {
+    // hullSlots: weaponSlots не задан — один слот класса корпуса (fitting.ts).
+    expect(hullSlotViews({ class: 'L' } as HullParams, false)).toEqual([{ id: 'w0', caption: 'Оружие 1 (L)' }]);
   });
 });
 

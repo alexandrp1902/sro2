@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { Keymap, bindingLabel, defaultBindings, keyHint, keyLabel, parseBindings } from './keymap';
+import { Keymap, bindingLabel, defaultBindings, keyHint, keyLabel, mouseCode, parseBindings } from './keymap';
 
 function memoryStore(initial: Record<string, string> = {}) {
   const data = new Map(Object.entries(initial));
@@ -67,12 +67,33 @@ describe('Keymap', () => {
   });
 });
 
+describe('кнопки мыши', () => {
+  it('ПКМ живёт в раскладке как обычная клавиша: рядом с пробелом, сохраняется и подписывается', () => {
+    const store = memoryStore();
+    const keys = new Keymap(store);
+    keys.assign('fire', 1, { code: mouseCode(2) });
+    expect(keys.bindings.fire).toEqual([{ code: 'Space' }, { code: 'Mouse2' }]);
+    expect(keys.actionFor(press('Mouse2'))).toBe('fire');
+    // Пробел не потерялся: ПКМ встала во вторую ячейку.
+    expect(keys.actionFor(press('Space'))).toBe('fire');
+    expect(new Keymap(store).bindings.fire).toEqual([{ code: 'Space' }, { code: 'Mouse2' }]);
+  });
+
+  it('кнопка мыши на удержание опознаётся так же, как клавиша', () => {
+    const keys = new Keymap(memoryStore());
+    keys.assign('thrust', 1, { code: mouseCode(2) });
+    expect(keys.holds('thrust', 'Mouse2')).toBe(true);
+    expect(keys.holds('brake', 'Mouse2')).toBe(false);
+  });
+});
+
 describe('labels', () => {
   it('names keys shortly', () => {
     expect(keyLabel('KeyE')).toBe('E');
     expect(keyLabel('Digit3')).toBe('3');
     expect(keyLabel('Numpad4')).toBe('Num 4');
     expect(keyLabel('Space')).toBe('Пробел');
+    expect(keyLabel(mouseCode(2))).toBe('ПКМ');
     expect(bindingLabel({ code: 'Tab', shift: true })).toBe('Shift+Tab');
   });
 

@@ -17,10 +17,19 @@ export type KeyAction =
   | 'map'
   | 'nearestLoot';
 
-/** Клавиша с Shift или без. Привязка без Shift срабатывает и с зажатым Shift — газ не отпускается от Shift. */
+/**
+ * Клавиша с Shift или без. Привязка без Shift срабатывает и с зажатым Shift — газ не отпускается от Shift.
+ * Кнопка мыши — такой же код, только синтетический: «Mouse2» и т. д. (mouseCode); хранение, конфликты
+ * и подписи от этого не отличаются.
+ */
 export interface KeyBinding {
   code: string;
   shift?: boolean;
+}
+
+/** Код кнопки мыши для раскладки: PointerEvent.button → «Mouse2» (ПКМ). ЛКМ не назначается — ею выбирают цель. */
+export function mouseCode(button: number): string {
+  return `Mouse${button}`;
 }
 
 /** У действия две ячейки: основная и запасная клавиша; null — пусто. */
@@ -237,6 +246,11 @@ const NAMED: Record<string, string> = {
   PageDown: 'PgDn',
   Delete: 'Del',
   Insert: 'Ins',
+  // Кнопки мыши (mouseCode). ЛКМ («Mouse0») в раскладку не попадает: она выбирает цель.
+  Mouse1: 'СКМ',
+  Mouse2: 'ПКМ',
+  Mouse3: 'Мышь 4',
+  Mouse4: 'Мышь 5',
 };
 
 /** Короткое имя клавиши: KeyE → «E», Digit1 → «1», Numpad4 → «Num 4». */

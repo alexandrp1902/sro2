@@ -34,6 +34,7 @@ import { keyHint, keymap } from '../input/keymap';
 import { hops, type GalaxyDto } from '../sim/galaxy';
 import { gearIcon, moduleSprite, shipSprite, spriteUrl, weaponSprite } from '../render/sprites';
 import type { Hulls } from '../sim/hulls';
+import type { HullParams } from '../sim/movement';
 import { activeHint, activeLine, offerNote, offerTitle, timeLeft, type MissionNames } from '../sim/missions';
 import { lootItem, rarityColor, type LootRules } from '../sim/loot';
 import { NO_MARKET, affordable, rumourLine, stockLevel, tradeCost, trend, type MarketRules } from '../sim/market';
@@ -1091,8 +1092,10 @@ export class DockScreen {
   }
 
   /**
-   * Оснащение (GDD §13, §18–20): оружейные слоты корпуса и модули, энергия генератора, склад. Тап по слоту
-   * открывает под ним всё, что туда встаёт: со склада — поставить, из магазина — купить и сразу поставить.
+   * Оснащение (GDD §13, §18–20): все места под пушки и модули — кружками в один ряд вверху, с переносом.
+   * В кружке стоит иконка того, что установлено; пустой слот — пунктир. Выбранный слот подсвечен, как
+   * активная вкладка: под кружками его содержимое словами, а ниже — только то, что в этот слот встаёт.
+   * Энергия генератора над слотами, склад станции — под магазином.
    */
   private renderFitting(body: HTMLElement, hangar: HangarMsg, credits: number): void {
     const hull = this.hulls.get(hangar.hull);
@@ -1110,18 +1113,17 @@ export class DockScreen {
       body.append(box);
     }
 
-    body.append(el('div', 'dock-note sro-muted', `Оружие · слотов ${hullSlots(hull).length}`));
-    hullSlots(hull).forEach((slotClass, i) => this.slotRow(body, hangar, credits, weaponSlot(i), `Слот ${i + 1} · ${slotClass}`));
-    if (this.modules.enabled) {
-      body.append(el('div', 'dock-note sro-muted', `Основные · класс корпуса ${hull.class ?? 'L'}`));
-      for (const slot of MODULE_SLOTS) this.slotRow(body, hangar, credits, slot, SLOT_NAMES[slot]);
-      const utility = hullUtilitySlots(hull);
-      if (utility > 0) {
-        body.append(el('div', 'dock-note sro-muted', `Вспомогательные · слотов ${utility}`));
-        for (let i = 0; i < utility; i++) {
-          this.slotRow(body, hangar, credits, utilitySlot(i), `${SLOT_NAMES[UTILITY]} ${i + 1}`);
-        }
-      }
+    const slots = hullSlotViews(hull, this.modules.enabled);
+    // Выбор держится за прежний слот, пока он есть у этого корпуса; после пересадки — первый по порядку.
+    const chosen = slots.find((view) => view.id === this.slot) ?? slots[0];
+    if (chosen) {
+      this.slot = chosen.id;
+      const grid = el('div', 'dock-slots');
+      for (const view of slots) grid.append(this.slotCell(view, hangar, view.id === chosen.id));
+      body.append(grid);
+      body.append(this.fittedBox(chosen, hangar));
+      body.append(el('div', 'dock-note sro-muted', `Для слота «${chosen.caption}»`));
+      this.offerList(body, hangar, credits, chosen.id);
     }
 
     const stored = Object.entries(hangar.storage ?? {}).filter(([, count]) => count > 0);
@@ -1145,32 +1147,79 @@ export class DockScreen {
     }
   }
 
-  /** Строка слота: что стоит; открытый слот — ещё и список того, что туда встаёт. */
-  private slotRow(body: HTMLElement, hangar: HangarMsg, credits: number, slot: string, label: string): void {
+  /**
+   * Кружок слота на сетке: иконка того, что стоит, и подпись «Оружие 1 (S)». Выбранный подсвечен
+   * как активная вкладка. Подсказка при наведении — название и характеристики установленного (на ПК;
+   * на телефоне то же самое написано под сеткой).
+   */
+  private slotCell(view: SlotView, hangar: HangarMsg, chosen: boolean): HTMLElement {
+    const current = fitGet(hangar.fit, view.id);
+    const cell = document.createElement('button');
+    cell.type = 'button';
+    cell.className = 'dock-slot';
+    cell.setAttribute('aria-pressed', String(chosen));
+    cell.dataset.fitted = String(current !== null);
+    cell.title = current ? `${view.caption} · ${this.itemName(current)} — ${this.itemLabel(current)}` : `${view.caption} · свободный слот`;
+    const dot = el('span', 'dock-slot-dot');
+    const picture = current ? this.picture(current) : null;
+    if (picture) {
+      const img = document.createElement('img');
+      img.className = 'dock-slot-icon';
+      img.src = spriteUrl(picture);
+      img.alt = '';
+      img.draggable = false;
+      dot.append(img);
+    } else dot.textContent = current ? '●' : '+'; // иконки на этот модуль ещё нет (art/next-art-requests.md)
+    cell.append(dot, el('span', 'dock-slot-cap', view.caption));
+    cell.addEventListener('click', () => {
+      cell.blur(); // иначе Space «нажимал» бы кнопку в фокусе
+      if (this.slot === view.id) return;
+      this.slot = view.id;
+      this.render();
+    });
+    return cell;
+  }
+
+  /** Что стоит в выбранном слоте — словами, между сеткой и магазином. Отсюда же снимают на склад. */
+  private fittedBox(view: SlotView, hangar: HangarMsg): HTMLElement {
+    const current = fitGet(hangar.fit, view.id);
+    const box = el('div', 'dock-fitted');
+    const name = el('div', 'dock-fitted-name sro-row__name');
+    if (current) {
+      name.append(el('span', 'dock-fitted-label sro-muted', 'Установлен:'));
+      const picture = this.picture(current);
+      if (picture) {
+        const img = document.createElement('img');
+        img.className = 'dock-fitted-icon';
+        img.src = spriteUrl(picture);
+        img.alt = '';
+        img.draggable = false;
+        name.append(img);
+      }
+      name.append(this.itemName(current));
+      const badge = tierBadge(current);
+      if (badge) name.append(el('span', 'dock-tier', badge));
+    } else name.append(`${view.caption}: свободный слот`);
+    box.append(name);
+    box.append(
+      el(
+        'div',
+        'dock-fitted-stats sro-row__meta',
+        current ? this.itemLabel(current) : 'Поставьте сюда что-нибудь из списка ниже',
+      ),
+    );
+    // Двигатель, радар и генератор снять нельзя: без них корабль не летает (fitting.ts).
+    if (current && !(REQUIRED_SLOTS as string[]).includes(view.id)) {
+      box.append(button('Снять на склад', 'dock-link sro-btn sro-btn--ghost sro-btn--sm', () => this.handlers.onFit(view.id, null)));
+    }
+    return box;
+  }
+
+  /** Витрина выбранного слота: со склада — поставить, из магазина — купить и сразу поставить. */
+  private offerList(body: HTMLElement, hangar: HangarMsg, credits: number, slot: string): void {
     const hull = this.hulls.get(hangar.hull);
     const current = fitGet(hangar.fit, slot);
-    const open = this.slot === slot;
-    const row = el('div', 'dock-row dock-slot sro-row');
-    row.dataset.state = open ? 'active' : current ? 'owned' : 'none';
-    const picture = current ? this.picture(current) : null;
-    if (picture) row.append(icon(picture));
-    row.append(
-      el('div', 'dock-name sro-row__name', `${label}: ${current ? this.itemName(current) : 'пусто'}`),
-      el('div', 'dock-stats sro-row__meta', current ? this.itemLabel(current) : 'Свободный слот'),
-    );
-    row.append(
-      button(open ? 'Закрыть' : current ? 'Сменить' : 'Выбрать', 'dock-buy sro-btn sro-btn--sm', () => {
-        this.slot = open ? null : slot;
-        this.render();
-      }),
-    );
-    body.append(row);
-    if (!open) return;
-
     const list = el('div', 'dock-slot-list');
-    if (current && !(REQUIRED_SLOTS as string[]).includes(slot)) {
-      list.append(button('Снять на склад', 'dock-link sro-btn sro-btn--ghost sro-btn--sm', () => this.handlers.onFit(slot, null)));
-    }
     const weaponsCatalog = this.weapons.config;
     const modules = this.modules.catalog;
     const kind = utilityIndex(slot) !== null ? UTILITY : slot;
@@ -1225,6 +1274,9 @@ export class DockScreen {
       }
       list.append(item);
     }
+    if (list.childElementCount === 0) {
+      list.append(el('div', 'dock-empty sro-muted', 'Сюда здесь ничего не продают, и на складе для этого слота пусто.'));
+    }
     body.append(list);
   }
 
@@ -1273,6 +1325,29 @@ export class DockScreen {
     }
     return row;
   }
+}
+
+/** Место под пушку или модуль на сетке оснащения: его id и подпись под кружком. */
+export interface SlotView {
+  id: string;
+  /** «Оружие 1 (S)», «Щит (M)», «Вспом. 2 (S)» — что это за место и какого оно класса. */
+  caption: string;
+}
+
+/**
+ * Все места корпуса по порядку: сначала пушки, потом основные модули, потом вспомогательные.
+ * Класс в скобках — то, что в это место влезает: у пушек свой на каждый слот, у модулей — класс корпуса,
+ * вспомогательные всегда S (shared/modules.json).
+ *
+ * @param modules Модули включены сервером; пока нет — на сетке только оружие.
+ */
+export function hullSlotViews(hull: HullParams, modules: boolean): SlotView[] {
+  const views: SlotView[] = hullSlots(hull).map((cls, i) => ({ id: weaponSlot(i), caption: `Оружие ${i + 1} (${cls})` }));
+  if (!modules) return views;
+  const cls = hull.class ?? 'L';
+  for (const slot of MODULE_SLOTS) views.push({ id: slot, caption: `${SLOT_NAMES[slot]} (${cls})` });
+  for (let i = 0; i < hullUtilitySlots(hull); i++) views.push({ id: utilitySlot(i), caption: `Вспом. ${i + 1} (S)` });
+  return views;
 }
 
 /** Строка характеристик пушки на витрине: класс, урон, темп, точность (у ракетницы — самонаведение), дальность, энергия. */

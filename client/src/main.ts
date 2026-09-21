@@ -60,7 +60,8 @@ import { ControlsWindow } from './ui/controlsWindow';
 import { BurgerMenu } from './ui/menu';
 import { PasswordForm } from './ui/passwordForm';
 import { ConfirmCard, logoutLines } from './ui/confirm';
-import { keymap } from './input/keymap';
+import { keymap, type KeyAction } from './input/keymap';
+import { bindMouseButtons } from './input/mouseButtons';
 import { InvasionBoard, InvasionHud } from './ui/invasion';
 import { DemandBoard } from './ui/demand';
 import { Minimap } from './ui/minimap';
@@ -416,6 +417,9 @@ async function main(): Promise<void> {
   const menu = new BurgerMenu(el('menu'), (action) => {
     if (action === 'controls') controlsWindow.toggle();
     else if (action === 'password') passwordForm.show();
+    // Пункт есть только на телефоне: там строки полёта нет, а dev-панель нужна на плейтесте.
+    // dev объявлен ниже — к первому клику он уже создан.
+    else if (action === 'dev') dev.toggle();
     // В доке корабль припаркован — спрашивать не о чем; в полёте он останется в космосе.
     else if (docked) leave();
     else confirm.ask(logoutLines(false), leave);
@@ -613,22 +617,48 @@ async function main(): Promise<void> {
     return true;
   };
   fire.onGrab = grabSelected;
+  /**
+   * Действие по тому, что выбрано: сначала «взять / док / посадка / прыжок», а если выбран корабль — огонь.
+   * Одно и то же делают пробел, кнопка «ОГОНЬ», двойной клик и двойной тап.
+   *
+   * @param justSelected цель выбрана этим же жестом — тогда огонь включаем, а не переключаем
+   */
+  const actOnSelection = (justSelected: boolean): void => {
+    if (grabSelected()) return;
+    if (justSelected) fire.set(true);
+    else fire.toggle();
+  };
   // Esc снимает сначала предмет, потом цель: отменяем самое недавнее и наименее важное.
-  bindCombatKeys(fire, {
-    step: stepSelection,
-    clear: () => {
-      // Сверху вниз: самое недавнее и наименее важное закрывается первым.
-      if (confirm.open) confirm.hide();
-      else if (passwordForm.open) passwordForm.hide();
-      else if (menu.open) menu.hide();
-      else if (controlsWindow.open) controlsWindow.hide();
-      else if (galaxyMap.open) galaxyMap.hide();
-      else if (selectedLootId !== 0) setLoot(0);
-      else if (markId !== 0) setMark(0);
-      else setTarget(0);
-    },
-    grab: grabSelected,
-  });
+  const clearSelection = (): void => {
+    // Сверху вниз: самое недавнее и наименее важное закрывается первым.
+    if (confirm.open) confirm.hide();
+    else if (passwordForm.open) passwordForm.hide();
+    else if (menu.open) menu.hide();
+    else if (controlsWindow.open) controlsWindow.hide();
+    else if (galaxyMap.open) galaxyMap.hide();
+    else if (selectedLootId !== 0) setLoot(0);
+    else if (markId !== 0) setMark(0);
+    else setTarget(0);
+  };
+  // Ближайший предмет: на ПК иначе до мелкого обломка не дотянуться мышью в бою.
+  const selectNearestLoot = (): void => {
+    const id = nearestLoot(prediction.curr, loot.visible(), LOOT_KEY_RANGE);
+    if (id !== null) setLoot(id);
+  };
+  bindCombatKeys(fire, { step: stepSelection, clear: clearSelection, grab: grabSelected });
+  /** Действие-нажатие, откуда бы оно ни пришло: с клавиши или с назначенной кнопки мыши. */
+  const pressAction = (action: KeyAction): void => {
+    if (action === 'fire') actOnSelection(false);
+    else if (action === 'targetNext') stepSelection(1);
+    else if (action === 'targetPrev') stepSelection(-1);
+    else if (action === 'targetClear') clearSelection();
+    else if (action === 'nearestLoot') selectNearestLoot();
+    else if (action === 'map') galaxyMap.toggle();
+    else if (action === 'zoomIn') zoom.step(1);
+    else if (action === 'zoomOut') zoom.step(-1);
+  };
+  // Кнопки мыши работают только по игровому полю: правый клик в доке или на карте ничего не запускает.
+  bindMouseButtons(app.canvas, { press: pressAction, hold: (code, down) => (down ? keyboard.keyDown(code) : keyboard.keyUp(code)) });
   // Esc закрывает окна, даже если «Снять цель» переназначена на другую клавишу.
   window.addEventListener('keydown', (e) => {
     if (e.code !== 'Escape' || keymap.capturing || keymap.actionFor(e) === 'targetClear') return;
@@ -638,16 +668,17 @@ async function main(): Promise<void> {
     else if (controlsWindow.open) controlsWindow.hide();
     else if (galaxyMap.open) galaxyMap.hide();
   });
-  // F — ближайший предмет: на ПК иначе до мелкого обломка не дотянуться мышью в бою.
+  // F — ближайший предмет.
   window.addEventListener('keydown', (e) => {
     if (keymap.capturing || e.repeat || e.ctrlKey || e.metaKey || e.altKey) return;
     if (e.target instanceof HTMLInputElement || keymap.actionFor(e) !== 'nearestLoot') return;
-    const id = nearestLoot(prediction.curr, loot.visible(), LOOT_KEY_RANGE);
-    if (id !== null) setLoot(id);
+    selectNearestLoot();
   });
   // Тап мимо кораблей цель не сбрасывает: промах пальцем в бою не должен её терять.
   // Корабль за краем экрана выбирается тапом по его стрелке или подписи у края.
-  // Двойной тап по цели — огонь по ней: только что выбранной — включить, уже выбранной — переключить.
+  // Двойной клик и двойной тап делают с выбранным то же, что пробел: берут груз, стыкуются, прыгают,
+  // садятся, открывают огонь. По только что выбранному кораблю огонь включается, по уже выбранному —
+  // переключается: второй двойной клик по той же цели гасит стрельбу.
   let tapChangedTarget = false;
   new TapSelect(app.canvas, (x, y, touch, double) => {
     const view = { x: camera.x, y: camera.y, zoom: camera.zoom, width: app.screen.width, height: app.screen.height };
@@ -658,7 +689,8 @@ async function main(): Promise<void> {
       // Обломок мелкий: мышью по нему целятся с запасом, иначе подобрать на ПК мучительно.
       const lootId = pickAt(x, y, loot.visible(), view, touch, LOOT_MOUSE_RADIUS_PX);
       if (lootId !== null) {
-        setLoot(lootId); // двойной тап по предмету ничего не добавляет: автопилота нет
+        setLoot(lootId);
+        if (double) actOnSelection(true); // подобрать, не отпуская палец от экрана
         tapChangedTarget = false;
         return;
       }
@@ -666,6 +698,7 @@ async function main(): Promise<void> {
       const mark = pickAt(x, y, marks(), view, touch);
       if (mark !== null) {
         setMark(mark);
+        if (double) actOnSelection(true); // док, посадка или прыжок — с теми же проверками, что и по пробелу
         tapChangedTarget = false;
         return;
       }
@@ -676,6 +709,7 @@ async function main(): Promise<void> {
       const arrow = pickArrow(x, y, overlay.edgeArrows(), touch);
       if (arrow?.kind === 'loot') {
         setLoot(arrow.id);
+        if (double) actOnSelection(true);
         tapChangedTarget = false;
         return;
       }
@@ -685,9 +719,11 @@ async function main(): Promise<void> {
       tapChangedTarget = false;
       return;
     }
-    if (double && id === targetId) {
-      if (tapChangedTarget) fire.set(true);
-      else fire.toggle();
+    if (double) {
+      // Первый клик двойного обычно уже выделил цель; если нет — выделяем сейчас и сразу открываем огонь.
+      const fresh = id !== targetId;
+      if (fresh) setTarget(id);
+      actOnSelection(fresh || tapChangedTarget);
       tapChangedTarget = false;
       return;
     }

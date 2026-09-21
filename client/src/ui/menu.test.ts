@@ -10,15 +10,20 @@ describe('menuItems', () => {
     ]);
   });
 
-  it('на телефоне управления нет, а выход есть', () => {
+  it('на телефоне управления нет, зато есть отладка и выход', () => {
     // M10.5: переназначать нечего — кнопки на экране. Но выйти надо уметь отовсюду.
-    expect(menuItems(true)).toEqual([{ id: 'logout', label: 'Выход' }]);
+    // Строки полёта в мобильном HUD больше нет, и dev-панель открывается только отсюда.
+    expect(menuItems(true)).toEqual([
+      { id: 'dev', label: 'Отладка' },
+      { id: 'logout', label: 'Выход' },
+    ]);
   });
 
   it('смена пароля — только вошедшему по нику и паролю', () => {
     // M15.7: гость играет без аккаунта, менять ему нечего.
     expect(menuItems(true, true)).toEqual([
       { id: 'password', label: 'Сменить пароль' },
+      { id: 'dev', label: 'Отладка' },
       { id: 'logout', label: 'Выход' },
     ]);
     expect(menuItems(false, true).map((i) => i.id)).toEqual(['controls', 'password', 'logout']);

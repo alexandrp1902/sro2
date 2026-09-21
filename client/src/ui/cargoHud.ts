@@ -70,7 +70,8 @@ export function gateHint(card: GateCardState): string {
 /**
  * Трюм и карточка выбранного предмета. Отдельно от боевого HUD: тот про бой и обновляется каждый кадр,
  * а трюм приходит событием и живёт своей жизнью.
- * На узком экране трюм свёрнут — левая колонка и так занята статусом, полётом, полосками и лентой.
+ * На узком экране трюм свёрнут до кнопки «12 / 20», а список раскрывается поверх ленты (style.css):
+ * левая колонка и так занята статусом, полосками и лентой.
  * Продают груз в доке станции (ui/dockScreen.ts), а не здесь.
  */
 export class CargoHud {
@@ -97,6 +98,11 @@ export class CargoHud {
     private readonly onJettison: ((item: string) => void) | null = null,
   ) {
     this.root.addEventListener('click', () => this.setOpen(!this.open));
+    // Тап мимо закрывает список — как у меню и карты галактики. На телефоне он раскрывается поверх
+    // ленты и карточек, и без этого так бы и висел, пока не попадёшь по самой кнопке.
+    document.addEventListener('pointerdown', (e) => {
+      if (this.open && e.target instanceof Node && !this.root.contains(e.target)) this.setOpen(false);
+    });
   }
 
   /** В доке выброс не показываем: там груз продают. */
@@ -190,7 +196,13 @@ export class CargoHud {
 
     const head = document.createElement('div');
     head.className = 'cargo-head';
-    head.append(row('cargo-title sro-label', `Трюм ${round(state.used)} / ${round(state.max)}`));
+    // Слово «Трюм» отдельным span: на телефоне кнопка должна быть как можно короче, и CSS прячет его.
+    const title = row('cargo-title sro-label', '');
+    const word = document.createElement('span');
+    word.className = 'cargo-word';
+    word.textContent = 'Трюм ';
+    title.append(word, `${round(state.used)} / ${round(state.max)}`);
+    head.append(title);
     head.append(row('cargo-credits sro-num sro-gain', formatCredits(state.credits)));
     this.root.append(head);
 

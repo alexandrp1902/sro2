@@ -39,8 +39,10 @@ export class TapSelect {
    */
   constructor(canvas: HTMLElement, onTap: (x: number, y: number, touch: boolean, double: boolean) => void) {
     canvas.addEventListener('pointerdown', (e) => {
-      this.down.add(e.pointerId);
+      // Выбирают только левой кнопкой. Правая может быть назначена на действие (input/mouseButtons.ts),
+      // и считать её вторым указателем нельзя — иначе она отменяла бы тап пальцем как щипок.
       if (e.pointerType === 'mouse' && e.button !== 0) return;
+      this.down.add(e.pointerId);
       // Второй палец превращает касание в щипок.
       this.candidate =
         this.down.size === 1

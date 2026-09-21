@@ -49,9 +49,14 @@ export class Zoom {
     window.addEventListener('keydown', (e) => {
       if (keymap.capturing || e.target instanceof HTMLInputElement || e.ctrlKey || e.metaKey) return;
       const action = keymap.actionFor(e);
-      if (action === 'zoomIn') this.set(this.value * KEY_FACTOR);
-      else if (action === 'zoomOut') this.set(this.value / KEY_FACTOR);
+      if (action === 'zoomIn') this.step(1);
+      else if (action === 'zoomOut') this.step(-1);
     });
+  }
+
+  /** Шаг масштаба с клавиши или назначенной кнопки мыши: +1 — ближе, −1 — дальше. */
+  step(direction: 1 | -1): void {
+    this.set(direction > 0 ? this.value * KEY_FACTOR : this.value / KEY_FACTOR);
   }
 
   private set(value: number): void {

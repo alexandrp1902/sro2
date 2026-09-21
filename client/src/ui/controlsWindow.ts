@@ -1,4 +1,13 @@
-import { KEY_ACTIONS, bindingLabel, isModifier, keymap as defaultKeymap, type KeyAction, type KeyBinding, type Keymap } from '../input/keymap';
+import {
+  KEY_ACTIONS,
+  bindingLabel,
+  isModifier,
+  keymap as defaultKeymap,
+  mouseCode,
+  type KeyAction,
+  type KeyBinding,
+  type Keymap,
+} from '../input/keymap';
 
 /** Ячейка, которая ждёт клавишу, и что делать, если клавиша уже занята. */
 interface Capture {
@@ -24,6 +33,8 @@ export class ControlsWindow {
     });
     // Фаза перехвата на window — раньше игровых обработчиков: пока ждём клавишу, игра её не видит.
     window.addEventListener('keydown', (e) => this.onKey(e), { capture: true });
+    // Кнопки мыши назначаются так же, как клавиши: ПКМ рядом с пробелом — привычный «взять / огонь».
+    window.addEventListener('pointerdown', (e) => this.onMouse(e), { capture: true });
     keys.onChange(() => {
       if (this.open) this.render();
     });
@@ -70,7 +81,26 @@ export class ControlsWindow {
       return;
     }
     if (e.ctrlKey || e.altKey || e.metaKey) return; // такие сочетания забирает браузер
-    const binding: KeyBinding = e.shiftKey ? { code: e.code, shift: true } : { code: e.code };
+    this.take(capture, e.shiftKey ? { code: e.code, shift: true } : { code: e.code });
+  }
+
+  /**
+   * Кнопка мыши в ожидающей ячейке. ЛКМ не назначается — ею выбирают цель в космосе; её пропускаем как есть,
+   * иначе нечем было бы нажать «Поменять местами» и выбрать другую ячейку. Назначенная кнопка работает
+   * только по игровому полю (input/mouseButtons.ts).
+   */
+  private onMouse(e: PointerEvent): void {
+    const capture = this.capture;
+    if (!capture || e.pointerType !== 'mouse' || e.button === 0) return;
+    e.preventDefault();
+    e.stopPropagation();
+    if (e.ctrlKey || e.altKey || e.metaKey) return;
+    const code = mouseCode(e.button);
+    this.take(capture, e.shiftKey ? { code, shift: true } : { code });
+  }
+
+  /** Занять ячейку привязкой: если клавиша уже занята — сначала спросить, менять ли местами. */
+  private take(capture: Capture, binding: KeyBinding): void {
     if (this.keys.conflict(binding, capture)) {
       this.setCapture({ ...capture, pending: binding });
       return;
@@ -121,9 +151,12 @@ export class ControlsWindow {
         button('Отмена', 'controls-cancel sro-btn sro-btn--ghost sro-btn--sm', () => this.setCapture(null)),
       );
     } else if (this.capture) {
-      note.textContent = 'Нажмите клавишу (можно с Shift). Esc — отмена, Backspace — очистить ячейку.';
+      note.textContent =
+        'Нажмите клавишу или кнопку мыши, кроме левой (можно с Shift). Esc — отмена, Backspace — очистить ячейку.';
     } else {
-      note.textContent = 'Нажмите на ячейку, чтобы назначить клавишу. Кнопки 1–4, X и колесо мыши меняют тягу; Ctrl+колесо — масштаб.';
+      note.textContent =
+        'Нажмите на ячейку, чтобы назначить клавишу или кнопку мыши; назначенная кнопка мыши работает по космосу. ' +
+        'Кнопки 1–4, X и колесо мыши меняют тягу; Ctrl+колесо — масштаб.';
     }
     card.append(note);
 
