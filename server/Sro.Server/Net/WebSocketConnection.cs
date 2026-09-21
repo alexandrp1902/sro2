@@ -93,6 +93,8 @@ public sealed class WebSocketConnection(WebSocket socket, ILogger log) : IClient
     {
         var buffer = new byte[MaxMessageBytes];
         var joined = false;
+        // Аккаунт этого соединения: нужен смене пароля (M15.7). У гостя остаётся null — ему менять нечего.
+        string? accountId = null;
 
         while (socket.State == WebSocketState.Open)
         {
@@ -150,6 +152,7 @@ public sealed class WebSocketConnection(WebSocket socket, ILogger log) : IClient
                         break;
                     }
                     joined = true;
+                    accountId = login.Id;
                     Send(new AccountMsg(login.Name, login.Key));
                     // Путь — только тому, кто заводится сейчас: вернувшемуся он уже записан в профиль.
                     room.JoinAccount(this, login.Id, login.Name, login.Created ? hello.Career : null);
@@ -166,7 +169,24 @@ public sealed class WebSocketConnection(WebSocket socket, ILogger log) : IClient
                 case JumpMsg jump when joined:
                     room.Jump(this, jump.To);
                     break;
+                case PasswordMsg password when joined:
+                {
+                    // Здесь же, в сетевом потоке, и по той же причине, что вход: два хеша PBKDF2 подряд.
+                    var changed = accounts.ChangePassword(accountId, password.Old, password.New);
+                    if (changed.Ok)
+                    {
+                        // Прежние ключи отозваны — устройству надо отдать новый, иначе оно не вернётся.
+                        Send(new AccountMsg(changed.Name, changed.Key));
+                        Send(new NoticeMsg(Protocol.PasswordChangedNotice));
+                    }
+                    else
+                    {
+                        Send(new NoticeMsg(changed.Error == LoginError.WrongPassword
+                            ? Protocol.WrongPasswordNotice
+                            : Protocol.BadPasswordNotice));
+                    }
                     break;
+                }
                 case MissionMsg mission when joined:
                     room.Mission(this, mission.Action, mission.Id);
                     break;

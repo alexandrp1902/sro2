@@ -22,9 +22,12 @@ export interface ScreenView {
 /** Палец толще курсора: радиус касания не меньше этого, px. */
 const TOUCH_MIN_RADIUS_PX = 36;
 /** Мелкий предмет мышью не поймать по его размеру: даём ему такой радиус клика, px. */
-export const LOOT_MOUSE_RADIUS_PX = 26;
+export const LOOT_MOUSE_RADIUS_PX = 30;
+/** Камень крупнее предмета, но на малом зуме тоже уходит из-под курсора: свой нижний порог, px. */
+export const METEOR_MOUSE_RADIUS_PX = 26;
 const TOUCH_SLACK_PX = 8;
-const MOUSE_SLACK_PX = 6;
+/** Запас к картинке для мыши: хитбокс должен быть не меньше неё, а лучше чуть больше, px. */
+const MOUSE_SLACK_PX = 10;
 
 /**
  * @param minRadiusPx мышью: радиус клика не меньше этого — иначе в мелкий обломок не попасть.
@@ -54,29 +57,34 @@ export function pickAt(
   return best;
 }
 
-/** Стрелка у края экрана к кораблю за его пределами и подпись рядом с ней — в экранных координатах. */
+/**
+ * Стрелка у края экрана к тому, что за его пределами, и подпись рядом с ней — в экранных координатах.
+ * Вид нужен, чтобы тап по стрелке попал туда же, куда тап по самому объекту: корабль и камень идут
+ * в прицел, груз — в выбранный предмет.
+ */
 export interface EdgeArrow {
   id: number;
   x: number;
   y: number;
+  kind: 'ship' | 'loot';
   label: { x: number; y: number; width: number; height: number };
 }
 
 /** Стрелка мелкая: мыши — такой радиус вокруг неё, пальцу — как для корабля (TOUCH_MIN_RADIUS_PX). */
 const ARROW_MOUSE_RADIUS_PX = 16;
 
-/** @returns id корабля, по стрелке или подписи которого у края экрана пришёлся тап, или null */
-export function pickArrow(sx: number, sy: number, arrows: Iterable<EdgeArrow>, touch: boolean): number | null {
+/** @returns стрелка у края экрана, по которой (или по подписи которой) пришёлся тап, или null */
+export function pickArrow(sx: number, sy: number, arrows: Iterable<EdgeArrow>, touch: boolean): EdgeArrow | null {
   const radius = touch ? TOUCH_MIN_RADIUS_PX : ARROW_MOUSE_RADIUS_PX;
   const slack = touch ? TOUCH_SLACK_PX : 0;
-  let best: number | null = null;
+  let best: EdgeArrow | null = null;
   let bestDistance = Infinity;
   for (const arrow of arrows) {
     const distance = Math.hypot(sx - arrow.x, sy - arrow.y);
     const l = arrow.label;
     const onLabel = sx >= l.x - slack && sx <= l.x + l.width + slack && sy >= l.y - slack && sy <= l.y + l.height + slack;
     if ((distance <= radius || onLabel) && distance < bestDistance) {
-      best = arrow.id;
+      best = arrow;
       bestDistance = distance;
     }
   }

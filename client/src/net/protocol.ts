@@ -11,7 +11,7 @@ import type { ReputationRules } from '../sim/reputation';
 import type { ShopRules } from '../sim/shop';
 
 /** Версия протокола; зеркало Protocol.Version на сервере. Сервер другой версии (или старый, без поля) — не играем. */
-export const PROTOCOL_VERSION = 23;
+export const PROTOCOL_VERSION = 24;
 
 /** Состояние ИИ пирата: патруль, бой, возврат в логово (налётчик — полёт от врат к точке), уход из системы. */
 export type AiState = 'patrol' | 'attack' | 'return' | 'leave';
@@ -88,7 +88,12 @@ export type ClientMessage =
   /** Группа (GDD §37): invite — позвать пилота id, accept/decline — ответить на приглашение пилота id, leave — выйти. */
   | { t: 'party'; action: PartyAction; id?: number }
   /** Переключатель PvP: выключен — пушки пилота не бьют игроков, торговцев и рейнджеров. */
-  | { t: 'pvp'; on: boolean };
+  | { t: 'pvp'; on: boolean }
+  /**
+   * Сменить пароль аккаунта (M15.7). Ответ — notice: passwordChanged, wrongPassword или badPassword.
+   * При успехе сервер шлёт ещё и account с новым ключом устройства: прежние ключи смена отзывает.
+   */
+  | { t: 'password'; old: string; new: string };
 
 export type PartyAction = 'invite' | 'accept' | 'decline' | 'leave';
 

@@ -67,6 +67,7 @@ internal static class PirateBrain
         var npc = balance.Npc;
         var shelter = new Shelter(station.X, station.Y, npc.StationSafeRadius);
         var hull = pirate.Hull(balance.Hulls);
+        var heat = balance.Sun?.BurnRadius ?? 0;
         var attacker = pirate.LastAttackerId;
         pirate.LastAttackerId = 0; // нападение учитывается один раз
 
@@ -97,7 +98,7 @@ internal static class PirateBrain
         {
             if (Distance(pirate.Ship.X, pirate.Ship.Y, pirate.HomeX, pirate.HomeY) > HomeRadius)
             {
-                FlyTo(pirate, pirate.HomeX, pirate.HomeY, 1);
+                FlyTo(pirate, pirate.HomeX, pirate.HomeY, 1, heat);
                 ReturnFire(pirate, ships, npc.DropRange, tick);
                 return;
             }
@@ -176,7 +177,7 @@ internal static class PirateBrain
             Leave(pirate, balance, tick, log);
             return;
         }
-        Patrol(pirate, npc, tick, rng);
+        Patrol(pirate, npc, tick, rng, heat);
     }
 
     /// <summary>Налётчик ещё летит к точке патруля или уже уходит: его поводок — не логово, а маршрут.</summary>
@@ -212,9 +213,10 @@ internal static class PirateBrain
     private static void Leave(Pirate pirate, Balance balance, long tick, ILogger log)
     {
         pirate.FireHeld = false;
+        // Стоя на месте курс не правим: поправка от звезды только крутила бы налётчика, пока он заряжает прыжок.
         if (pirate.LeaveAtTick > 0)
         {
-            Set(pirate, pirate.LastInput.Dx, pirate.LastInput.Dy, 0);
+            Set(pirate, pirate.LastInput.Dx, pirate.LastInput.Dy, 0, 0);
             if (tick < pirate.LeaveAtTick) return;
             pirate.Gone = true;
             log.LogInformation("{Pirate} jumped away", pirate);
@@ -222,10 +224,10 @@ internal static class PirateBrain
         }
         if (Distance(pirate.Ship.X, pirate.Ship.Y, pirate.ExitX, pirate.ExitY) > ExitRadius)
         {
-            FlyTo(pirate, pirate.ExitX, pirate.ExitY, 1);
+            FlyTo(pirate, pirate.ExitX, pirate.ExitY, 1, balance.Sun?.BurnRadius ?? 0);
             return;
         }
-        Set(pirate, pirate.LastInput.Dx, pirate.LastInput.Dy, 0);
+        Set(pirate, pirate.LastInput.Dx, pirate.LastInput.Dy, 0, 0);
         if (pirate.ExitIsGate)
         {
             pirate.LeaveAtTick = tick + balance.Galaxy.JumpTicks;
@@ -426,11 +428,12 @@ internal static class PirateBrain
         }
         if (throttle > 0) (dirX, dirY) = Separate(pirate, dirX, dirY, pirates);
 
-        Set(pirate, dirX, dirY, throttle);
+        // Даже в бою звезда важнее цели: гоняться за пилотом сквозь жар — верная смерть.
+        Set(pirate, dirX, dirY, throttle, balance.Sun?.BurnRadius ?? 0);
         pirate.FireHeld = true;
     }
 
-    private static void Patrol(Pirate pirate, NpcRules npc, long tick, Random rng)
+    private static void Patrol(Pirate pirate, NpcRules npc, long tick, Random rng, double heat)
     {
         var s = pirate.Ship;
         if (!pirate.HasWaypoint || tick >= pirate.WaypointUntilTick || Distance(s.X, s.Y, pirate.WaypointX, pirate.WaypointY) <= ArriveRadius)
@@ -445,18 +448,18 @@ internal static class PirateBrain
         }
         pirate.TargetId = 0;
         // Рядом лежит груз — пират летит за ним (подбирает его комната, когда он подлетит).
-        if (pirate.LootId != 0) FlyTo(pirate, pirate.LootX, pirate.LootY, npc.PatrolThrottle);
-        else FlyTo(pirate, pirate.WaypointX, pirate.WaypointY, npc.PatrolThrottle);
+        if (pirate.LootId != 0) FlyTo(pirate, pirate.LootX, pirate.LootY, npc.PatrolThrottle, heat);
+        else FlyTo(pirate, pirate.WaypointX, pirate.WaypointY, npc.PatrolThrottle, heat);
     }
 
     /// <summary>Лететь к точке, сбавляя тягу на подлёте; огня нет.</summary>
-    private static void FlyTo(Pirate pirate, double x, double y, double maxThrottle)
+    private static void FlyTo(Pirate pirate, double x, double y, double maxThrottle, double heat)
     {
         var dx = x - pirate.Ship.X;
         var dy = y - pirate.Ship.Y;
         var distance = Math.Sqrt(dx * dx + dy * dy);
         var throttle = Math.Min(maxThrottle, Math.Clamp(distance / SlowRadius, MinArriveThrottle, 1));
-        Set(pirate, dx, dy, throttle);
+        Set(pirate, dx, dy, throttle, heat);
         pirate.FireHeld = false;
     }
 
@@ -477,9 +480,15 @@ internal static class PirateBrain
         return (dirX, dirY);
     }
 
-    private static void Set(Pirate pirate, double dx, double dy, double throttle)
+    /// <summary>
+    /// Единственный выход ИИ наружу: сюда сходятся патруль, погоня, бой и уход. Здесь же курс огибает жар
+    /// звезды (M15.7) — до этого пираты летели напрямик через центр системы и сгорали по дороге.
+    /// </summary>
+    /// <param name="heat">Радиус зоны жара звезды; 0 — звезды нет.</param>
+    private static void Set(Pirate pirate, double dx, double dy, double throttle, double heat)
     {
-        MoveInput.TryCreate(dx, dy, throttle, out var input);
+        var (x, y) = Heat.Avoid(pirate.Ship.X, pirate.Ship.Y, dx, dy, heat);
+        MoveInput.TryCreate(x, y, throttle, out var input);
         pirate.LastInput = input;
     }
 

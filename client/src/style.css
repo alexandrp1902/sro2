@@ -918,12 +918,16 @@ body {
       linear-gradient(var(--bg-window), var(--bg-space));
   }
 
-  /* Свой корабль (или тот, что на витрине верфи) носом вверх, посреди ангара. */
+  /*
+   * Свой корабль (или тот, что на витрине верфи) носом вверх, посреди ангара. Вчетверо мельче, чем до
+   * M15.7: спрайт растягивался до 420 px, и на нём было видно пиксели. Вернуть прежний размер — когда
+   * придёт арт под него (см. art/next-art-requests.md).
+   */
   .dock-scene-ship {
-    width: min(46%, 420px);
-    max-height: 70%;
+    width: min(12%, 105px);
+    max-height: 18%;
     object-fit: contain;
-    filter: drop-shadow(0 24px 30px rgba(0, 0, 0, 0.6));
+    filter: drop-shadow(0 8px 10px rgba(0, 0, 0, 0.6));
     pointer-events: none;
   }
 
@@ -1004,7 +1008,7 @@ body {
   line-height: 16px;
 }
 
-/* Свой корабль: корпус, пушки, прочность и ремонт. */
+/* Свой корабль: корпус, пушки, прочность, кредиты и ремонт. */
 .dock-ship {
   display: flex;
   flex-wrap: wrap;
@@ -1019,8 +1023,16 @@ body {
   font-weight: 700;
 }
 
+/* Кредиты идут сразу за прочностью, кнопка ремонта по-прежнему у правого края. */
 .dock-ship .dock-buy {
   margin-left: auto;
+}
+
+/* Подсказка про бесплатную починку — своей строкой под всем остальным (M15.7). */
+.dock-ship-mend {
+  flex: 1 0 100%;
+  font-size: 12px;
+  line-height: 16px;
 }
 
 /* Вкладки — сегментный переключатель (sro-tabs). */
@@ -1509,6 +1521,53 @@ body {
   position: fixed;
   z-index: 40;
   inset: 0;
+}
+
+/*
+ * Окно смены пароля (M15.7) — поверх всего, как экран входа: пока оно открыто, заниматься больше нечем.
+ * Поля и кнопки берёт у дизайн-системы (sro-input, sro-btn), рамку — у окна (sro-pane--window).
+ */
+.password {
+  position: fixed;
+  z-index: 45;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 16px;
+  background: rgba(8, 9, 11, 0.7);
+}
+
+.password[hidden] {
+  display: none;
+}
+
+.password-card {
+  display: flex;
+  width: 100%;
+  max-width: 360px;
+  flex-direction: column;
+  gap: 6px;
+  padding: 18px;
+}
+
+.password-title {
+  color: var(--text-strong);
+}
+
+.password-hint {
+  margin-bottom: 6px;
+  font-size: 13px;
+  line-height: 18px;
+}
+
+.password-error {
+  font-size: 13px;
+  line-height: 18px;
+}
+
+.password-actions {
+  margin-top: var(--space-2);
 }
 
 .menu-card {

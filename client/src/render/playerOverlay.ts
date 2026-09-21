@@ -41,6 +41,15 @@ const AI_TEXT: Record<AiState, string> = {
 };
 /** Стрелка к кораблю за краем экрана держится на таком отступе от края, px. */
 const EDGE_MARGIN = 26;
+/**
+ * Стрелка к ресурсу за краем экрана (M15.7): груз и камни показываются все, что попали на радар, —
+ * иначе на телефоне, где экран много уже радара, добычу приходится искать вслепую. Чтобы край не
+ * превратился в частокол, невыбранная стрелка мельче и бледнее выбранной, и подписи у неё нет.
+ */
+const RESOURCE_ARROW_SCALE = 0.8;
+const RESOURCE_ARROW_ALPHA = 0.75;
+/** Больше этого стрелок к грузу не рисуем: после боя его бывает и два десятка. Берём ближние. */
+const MAX_LOOT_ARROWS = 12;
 /** Подпись у стрелки — ближе к центру экрана на столько, px. */
 const ARROW_LABEL_OFFSET = 24;
 /** Полоски и ник — на столько выше корпуса, px. */
@@ -136,6 +145,10 @@ export interface OverlayFrame {
   ownId: number;
   showAi: boolean;
   loot: LootMark | null;
+  /** Весь груз в радаре: каждому за краем экрана — своя мелкая стрелка (M15.7). */
+  lootAll: Iterable<LootMark & { id: number }>;
+  /** id выбранного предмета: у него стрелка своя, крупная и с подписью; 0 — ничего не выбрано. */
+  lootId: number;
   /** Выбранная станция: в неё нельзя стрелять, прицел на ней — чтобы пристыковаться. */
   station: LootMark | null;
   /** Сколько единиц мира в одном секторе: у стрелки за краем экрана пишем дистанцию в них. */
@@ -163,6 +176,10 @@ export class PlayerOverlay {
   /** Рамка выбранного предмета и стрелка к нему, если он ушёл за край экрана. */
   private readonly lootFrame = new Graphics();
   private readonly lootArrow = arrowTo(LOOT_COLOR);
+  /** Мелкие стрелки к остальному грузу за краем экрана, по id предмета. */
+  private readonly lootArrows = new Map<number, Graphics>();
+  /** id выбранного предмета из последнего кадра — чтобы отдать его тапу по крупной стрелке. */
+  private lootId = 0;
   /** Рамка выбранной станции и стрелка к ней за краем экрана. */
   private readonly stationFrame = new Graphics();
   private readonly stationArrow = arrowTo(STATION_COLOR);
@@ -278,6 +295,7 @@ export class PlayerOverlay {
     }
 
     this.drawMark(this.lootFrame, this.lootArrow, frame.loot, LOOT_COLOR, camera, cx, cy, width, height);
+    this.drawLootArrows(frame, cx, cy);
     this.drawMark(this.stationFrame, this.stationArrow, frame.station, STATION_COLOR, camera, cx, cy, width, height);
     this.drawObjective(frame.objective ?? null, camera, cx, cy, width, height);
 
@@ -299,23 +317,75 @@ export class PlayerOverlay {
     marker.bubble.destroy();
   }
 
-  /** Стрелки у края экрана из последнего update — по ним и по их подписям можно выбрать цель. */
+  /** Стрелки у края экрана из последнего update — по ним и по их подписям выбирают цель или предмет. */
   *edgeArrows(): Iterable<EdgeArrow> {
     for (const [id, marker] of this.markers) {
       if (!marker.seen || !marker.arrow.visible) continue;
       const { label, arrow } = marker;
-      yield {
-        id,
-        x: arrow.x,
-        y: arrow.y,
-        label: { x: label.x - label.width / 2, y: label.y - label.height / 2, width: label.width, height: label.height },
-      };
+      const rect = marker.label.visible
+        ? { x: label.x - label.width / 2, y: label.y - label.height / 2, width: label.width, height: label.height }
+        : EMPTY_LABEL;
+      yield { id, x: arrow.x, y: arrow.y, kind: 'ship', label: rect };
+    }
+    // Стрелка к грузу ведёт в выбранный предмет, а не в прицел: тапают по ней ради подбора.
+    if (this.lootArrow.visible && this.lootId !== 0) {
+      yield { id: this.lootId, x: this.lootArrow.x, y: this.lootArrow.y, kind: 'loot', label: EMPTY_LABEL };
+    }
+    for (const [id, arrow] of this.lootArrows) {
+      if (!arrow.visible) continue;
+      yield { id, x: arrow.x, y: arrow.y, kind: 'loot', label: EMPTY_LABEL };
     }
   }
 
   /**
-   * Метеорит. На экране — рамка, если выбран, и полоска, если побит. За краем — стрелка только выбранному:
-   * камней до десяти, стрелки ко всем забили бы края. О будущем таране никто не предупреждает — смотрите сами.
+   * Мелкие стрелки ко всему остальному грузу за краем экрана. Выбранный предмет сюда не попадает —
+   * у него своя крупная стрелка с подписью. Дальние отбрасываются: край экрана не резиновый.
+   */
+  private drawLootArrows(frame: OverlayFrame, cx: number, cy: number): void {
+    const { camera, width, height } = frame;
+    this.lootId = frame.lootId;
+    const offscreen: { id: number; x: number; y: number; distance: number }[] = [];
+    for (const mark of frame.lootAll) {
+      if (mark.id === frame.lootId) continue;
+      const sx = cx + (mark.x - camera.x) * camera.zoom;
+      const sy = cy + (mark.y - camera.y) * camera.zoom;
+      const r = mark.size * camera.zoom;
+      if (sx > -r && sx < width + r && sy > -r && sy < height + r) continue;
+      offscreen.push({ id: mark.id, x: sx, y: sy, distance: Math.hypot(sx - cx, sy - cy) });
+    }
+    if (offscreen.length > MAX_LOOT_ARROWS) {
+      offscreen.sort((a, b) => a.distance - b.distance);
+      offscreen.length = MAX_LOOT_ARROWS;
+    }
+
+    for (const arrow of this.lootArrows.values()) arrow.visible = false;
+    for (const item of offscreen) {
+      let arrow = this.lootArrows.get(item.id);
+      if (!arrow) {
+        arrow = arrowTo(LOOT_COLOR);
+        arrow.scale.set(RESOURCE_ARROW_SCALE);
+        arrow.alpha = RESOURCE_ARROW_ALPHA;
+        this.view.addChild(arrow);
+        this.lootArrows.set(item.id, arrow);
+      }
+      const { x, y } = edgePoint(cx, cy, item.x - cx, item.y - cy);
+      arrow.position.set(x, y);
+      arrow.rotation = Math.atan2(item.x - cx, -(item.y - cy));
+      arrow.visible = true;
+    }
+
+    // Предмет подобрали или он истёк — стрелка к нему больше не нужна.
+    for (const [id, arrow] of this.lootArrows) {
+      if (arrow.visible) continue;
+      arrow.destroy();
+      this.lootArrows.delete(id);
+    }
+  }
+
+  /**
+   * Метеорит. На экране — рамка, если выбран, и полоска, если побит. За краем — мелкая стрелка каждому
+   * камню в радаре (M15.7), у выбранного она крупнее и с подписью. О будущем таране никто не
+   * предупреждает — смотрите сами, но теперь видно, с какой стороны камень идёт.
    */
   private updateMeteor(meteor: MeteorMark, frame: OverlayFrame, cx: number, cy: number): void {
     const { camera, width, height, target, own } = frame;
@@ -325,7 +395,8 @@ export class PlayerOverlay {
     const onScreen = sx > -r && sx < width + r && sy > -r && sy < height + r;
     const isTarget = target?.id === meteor.id;
     const damaged = meteor.hp < meteor.maxHp;
-    if (!isTarget && !(onScreen && damaged)) return;
+    // На экране целый и невыбранный камень ничем не помечается: он и так виден.
+    if (onScreen && !isTarget && !damaged) return;
 
     const marker = this.marker(meteor.id, METEOR_COLOR);
     marker.seen = true;
@@ -334,16 +405,21 @@ export class PlayerOverlay {
       marker.label.style.fill = isTarget ? TARGET_COLOR : marker.color;
     }
 
-    let text = meteor.name;
-    if (!onScreen && own) text += ` · ${formatSectors(Math.hypot(meteor.x - own.x, meteor.y - own.y), frame.sectorUnit)}с`;
-    if (text !== marker.text) {
-      marker.label.text = text;
-      marker.text = text;
+    // Подпись только у выбранного: у края экрана камней бывает несколько, и текст забил бы его.
+    // Скрытую не пересчитываем — иначе каждый кадр перерисовывался бы текст десятка камней.
+    marker.label.visible = isTarget;
+    if (isTarget) {
+      let text = meteor.name;
+      if (!onScreen && own) text += ` · ${formatSectors(Math.hypot(meteor.x - own.x, meteor.y - own.y), frame.sectorUnit)}с`;
+      if (text !== marker.text) {
+        marker.label.text = text;
+        marker.text = text;
+      }
     }
-    marker.label.alpha = marker.arrow.alpha = marker.bars.alpha = 1;
+    marker.label.alpha = marker.bars.alpha = 1;
+    marker.arrow.alpha = isTarget ? 1 : RESOURCE_ARROW_ALPHA;
     marker.arrow.visible = !onScreen;
     marker.bars.visible = onScreen && (isTarget || damaged);
-    marker.label.visible = !onScreen || isTarget;
     marker.bubble.visible = false;
 
     if (onScreen) {
@@ -361,13 +437,12 @@ export class PlayerOverlay {
     const { x: ax, y: ay } = edgePoint(cx, cy, dx, dy);
     marker.arrow.position.set(ax, ay);
     marker.arrow.rotation = Math.atan2(dx, -dy);
-    marker.arrow.scale.set(1.4);
-    if (isTarget) {
-      this.targetArrow.visible = true;
-      this.targetArrow.position.set(ax, ay);
-      this.targetArrow.rotation = marker.arrow.rotation;
-      this.targetArrow.scale.set(1.4);
-    }
+    marker.arrow.scale.set(isTarget ? 1.4 : RESOURCE_ARROW_SCALE);
+    if (!isTarget) return;
+    this.targetArrow.visible = true;
+    this.targetArrow.position.set(ax, ay);
+    this.targetArrow.rotation = marker.arrow.rotation;
+    this.targetArrow.scale.set(1.4);
     const length = Math.hypot(dx, dy);
     const label = marker.label;
     label.anchor.set(0.5);
@@ -403,8 +478,8 @@ export class PlayerOverlay {
   }
 
   /**
-   * Выбранный предмет или станция: рамка вокруг, а за краем экрана — одна стрелка.
-   * Стрелок ко всем предметам нарочно нет: после боя их 5–10, они забили бы края и мешали выбору цели.
+   * Выбранный предмет или станция: рамка вокруг, а за краем экрана — крупная стрелка с подписью.
+   * Остальному грузу мелкие стрелки рисует drawLootArrows.
    */
   private drawMark(
     frameGraphics: Graphics,
@@ -531,6 +606,9 @@ export class PlayerOverlay {
     return marker;
   }
 }
+
+/** Подпись у стрелки, по которой нельзя попасть: её нет, тапают по самой стрелке. */
+const EMPTY_LABEL = { x: 0, y: 0, width: 0, height: 0 } as const;
 
 /** Точка на рамке экрана по лучу из центра — там рисуется стрелка к тому, что за краем. */
 function edgePoint(cx: number, cy: number, dx: number, dy: number): { x: number; y: number } {

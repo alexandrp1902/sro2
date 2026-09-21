@@ -15,6 +15,8 @@ public enum LoginError
     WrongPassword,
     /// <summary>Ключ устройства не найден: его вытеснили новые или файл аккаунта пропал.</summary>
     BadKey,
+    /// <summary>Аккаунта нет: его файл удалили, пока пилот играл, — или это гость.</summary>
+    NoAccount,
 }
 
 /// <param name="Id">Аккаунт; пусто при ошибке.</param>
@@ -162,6 +164,41 @@ public sealed class AccountStore : IDisposable
             var account = _byId[id];
             return new(LoginError.None, account.Id, account.Name);
         }
+    }
+
+    /// <summary>
+    /// Сменить пароль (M15.7). Все прежние ключи устройств при этом сбрасываются: пароль меняют в том
+    /// числе потому, что он утёк, и оставить чужому устройству вход значило бы ничего не менять.
+    /// Взамен выдаётся один новый ключ — для того устройства, с которого пароль меняли.
+    /// </summary>
+    /// <param name="id">Аккаунт, который сейчас в игре на этом соединении.</param>
+    /// <param name="old">Прежний пароль: без него сменить нельзя даже со своего устройства.</param>
+    /// <param name="fresh">Новый пароль.</param>
+    /// <returns>
+    /// <see cref="LoginError.None"/> и новый ключ устройства, которым дальше входить, — или причина отказа.
+    /// </returns>
+    public LoginResult ChangePassword(string? id, string? old, string? fresh)
+    {
+        if (string.IsNullOrEmpty(id)) return new(LoginError.NoAccount);
+        if (fresh is null || fresh.Length < MinPasswordLength || fresh.Length > MaxPasswordLength)
+            return new(LoginError.BadPassword);
+
+        AccountData? account;
+        lock (_lock) account = _byId.GetValueOrDefault(id);
+        if (account is null) return new(LoginError.NoAccount);
+        // Хеши считаются вне замка: каждый — десятки миллисекунд, тику и другим входам их ждать нельзя.
+        if (old is null || !Passwords.Verify(old, account.Password)) return new(LoginError.WrongPassword);
+
+        var hash = Passwords.Hash(fresh, _iterations);
+        var key = Passwords.NewKey();
+        lock (_lock)
+        {
+            if (!_byId.TryGetValue(id, out var current)) return new(LoginError.NoAccount);
+            Replace(current with { Password = hash, Keys = [Passwords.KeyHash(key)] });
+            account = current;
+        }
+        _log.LogInformation("Account '{Name}' changed its password", account.Name);
+        return new(LoginError.None, account.Id, account.Name, key);
     }
 
     /// <returns>null — аккаунта нет или пилот ещё не заходил в систему.</returns>

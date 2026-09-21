@@ -125,6 +125,16 @@ Distant deep-space parallax background, seamless tileable, very dark so ships re
 ### Репутация (плоские UI-значки, белые на прозрачном, 256×256)
 - **rep-enemy** (скрещённые клинки), **rep-distrust** (перечёркнутый глаз), **rep-neutral** (круг), **rep-friend** (рукопожатие), **rep-hero** (звезда с лавровыми ветвями).
 
+### Корабль на площадке — сейчас времянка (M15.7)
+
+Сцены `shipyard` и `hangar` рисуют корабль поверх фона, а спрайт корпуса — 256 px. Он растягивался до
+420 px, и на площадке были видны пиксели. Пока нет фонов, рассчитанных на крупный корабль, спрайт
+уменьшен вчетверо (`.dock-scene-ship` в `client/src/style.css`: `width: min(12%, 105px)`).
+
+Что нужно, чтобы вернуть прежний размер: либо спрайты корпусов в 1024 px, либо фоны площадок, у
+которых посадочный круг занимает малую часть кадра и мелкий корабль на нём смотрится верно. Правится
+одной строкой CSS.
+
 ### Дополнительная сцена дока (STYLE-SCENE)
 - **station-ranger-office** — Ranger headquarters briefing room on an orbital station. One stern female ranger commander in navy-and-white uniform with light-blue chevrons stands at a tactical holo-table showing an abstract star map; face x50% y34%. Background: large window to space with ranger corvettes docked outside.
 

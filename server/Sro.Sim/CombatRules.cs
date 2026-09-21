@@ -39,6 +39,15 @@ public sealed record DroneSpec(
 /// <param name="ShieldRegenDelay">Щит восстанавливается, если столько секунд не было урона (§17).</param>
 /// <param name="SpawnJitter">Разброс точки появления — корабли не появляются друг в друге.</param>
 /// <param name="RepairDelay">Ремонтный блок (M11) чинит корпус, если столько секунд не было урона.</param>
+/// <param name="DeathHullShare">
+/// Гибель (M15.7): пилот возвращается в строй с такой долей корпуса, а не целым. Ремонт в доке стоит
+/// тем дороже, чем дороже корпус, — значит смерть на «Титане» бьёт по кошельку сильнее, чем на «Пчеле».
+/// 1 — как было до M15.7: воскрешение даром.
+/// </param>
+/// <param name="DockRepairPerMinute">
+/// Бесплатная починка: столько единиц корпуса в минуту, пока пилот стоит в доке и на связи. Для того,
+/// у кого не хватило кредитов, — не быстрый, но верный выход; 0 — чинить можно только за деньги.
+/// </param>
 /// <param name="SectorUnit">
 /// Сколько единиц мира в одном «секторе» — мере дистанции для игрока. Примерно дальность пушки по умолчанию
 /// и половина экрана телефона: «цель в 1.4 сектора» читается лучше, чем «в 980».
@@ -50,8 +59,13 @@ public sealed record CombatRules(
     double SpawnJitter = 120,
     double SectorUnit = 700,
     IReadOnlyList<DroneSpec>? Drones = null,
-    double RepairDelay = 6)
+    double RepairDelay = 6,
+    double DeathHullShare = 1,
+    double DockRepairPerMinute = 0)
 {
+    /// <summary>Сколько корпуса прибавляется за тик стоянки в доке.</summary>
+    [JsonIgnore] public double DockRepairPerTick => DockRepairPerMinute / 60 * SimConfig.Dt;
+
     [JsonIgnore] public int RepairDelayTicks => Combat.SecondsToTicks(RepairDelay);
     [JsonIgnore] public int RespawnTicks => Math.Max(1, Combat.SecondsToTicks(RespawnSeconds));
     [JsonIgnore] public int ProtectionTicks => Combat.SecondsToTicks(ProtectionSeconds);
@@ -66,6 +80,8 @@ public sealed record CombatRules(
         if (!(SpawnJitter >= 0)) return "spawnJitter must not be negative";
         if (!(SectorUnit > 0)) return "sectorUnit must be positive";
         if (!(RepairDelay >= 0)) return "repairDelay must not be negative";
+        if (!(DeathHullShare > 0) || DeathHullShare > 1) return "deathHullShare must be within 0..1 and not zero";
+        if (!(DockRepairPerMinute >= 0)) return "dockRepairPerMinute must not be negative";
         for (var i = 0; i < DroneList.Count; i++)
         {
             var problem = DroneList[i] is null ? "is null" : DroneList[i].Validate(hulls);

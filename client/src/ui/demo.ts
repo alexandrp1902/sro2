@@ -2,7 +2,7 @@
  * Витрина интерфейса без сервера: `?demo=<экран>` собирает настоящие построители HUD, дока и окон
  * на фиксированных данных. Нужна проходам по дизайну (скриншоты headless-браузером на ПК и телефоне)
  * и ничего не шлёт. Экраны: flight, dock-missions, dock-cargo, dock-hulls, dock-ships, dock-fitting,
- * galaxy, controls, confirm, menu, death, login.
+ * galaxy, controls, confirm, menu, password, death, login.
  */
 import type { Connection } from '../net/connection';
 import type { GalaxyDto, HangarMsg, MarketMsg, MissionsMsg, RepMsg } from '../net/protocol';
@@ -25,6 +25,7 @@ import { FlightHud } from './flightHud';
 import { GalaxyMap } from './galaxyMap';
 import { InvasionHud } from './invasion';
 import { BurgerMenu } from './menu';
+import { PasswordForm } from './passwordForm';
 import { Minimap } from './minimap';
 import { ObjectiveHud } from './objectiveHud';
 import { InviteCard, PartyPanel } from './party';
@@ -118,6 +119,8 @@ export function runDemo(screen: string): void {
   const inviteCard = new InviteCard(el('invite'), noop);
   const confirm = new ConfirmCard(el('confirm'));
   const menu = new BurgerMenu(el('menu'), noop);
+  menu.account = true; // в витрине пилот всегда с аккаунтом: иначе «Сменить пароль» в меню не увидеть
+  const passwordForm = new PasswordForm(el('password'), noop);
   const galaxyMap = new GalaxyMap(el('galaxy'));
   const controlsWindow = new ControlsWindow(el('controls'));
   const minimap = new Minimap(el('minimap') as HTMLCanvasElement, noop);
@@ -283,6 +286,10 @@ export function runDemo(screen: string): void {
     case 'menu':
       flightHud();
       menu.showAt(el('menu-open').getBoundingClientRect());
+      break;
+    case 'password':
+      flightHud();
+      passwordForm.show();
       break;
     case 'galaxy':
       flightHud();

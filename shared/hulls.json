@@ -23,7 +23,7 @@
   "scout": {
     "name": "«Стриж»",
     "role": "разведчик",
-    "maxSpeed": 205,
+    "maxSpeed": 185,
     "acceleration": 215,
     "brakeAcceleration": 250,
     "turnRate": 175,
@@ -44,7 +44,7 @@
   "medium": {
     "name": "«Странник»",
     "role": "универсал",
-    "maxSpeed": 125,
+    "maxSpeed": 145,
     "acceleration": 120,
     "brakeAcceleration": 145,
     "turnRate": 100,
@@ -65,7 +65,7 @@
   "industrial": {
     "name": "«Мул»",
     "role": "грузовой",
-    "maxSpeed": 105,
+    "maxSpeed": 135,
     "acceleration": 95,
     "brakeAcceleration": 120,
     "turnRate": 80,
@@ -86,7 +86,7 @@
   "interceptor": {
     "name": "«Сокол»",
     "role": "перехватчик",
-    "maxSpeed": 190,
+    "maxSpeed": 178,
     "acceleration": 200,
     "brakeAcceleration": 230,
     "turnRate": 160,
@@ -107,7 +107,7 @@
   "heavy": {
     "name": "«Молот»",
     "role": "танк",
-    "maxSpeed": 85,
+    "maxSpeed": 125,
     "acceleration": 70,
     "brakeAcceleration": 80,
     "turnRate": 55,
@@ -128,7 +128,7 @@
   "frigate": {
     "name": "«Страж»",
     "role": "фрегат",
-    "maxSpeed": 100,
+    "maxSpeed": 133,
     "acceleration": 88,
     "brakeAcceleration": 105,
     "turnRate": 68,
@@ -149,7 +149,7 @@
   "freighter": {
     "name": "«Караван»",
     "role": "грузовой лайнер",
-    "maxSpeed": 82,
+    "maxSpeed": 124,
     "acceleration": 60,
     "brakeAcceleration": 75,
     "turnRate": 45,
@@ -170,7 +170,7 @@
   "cruiser": {
     "name": "«Титан»",
     "role": "крейсер",
-    "maxSpeed": 80,
+    "maxSpeed": 123,
     "acceleration": 64,
     "brakeAcceleration": 74,
     "turnRate": 50,

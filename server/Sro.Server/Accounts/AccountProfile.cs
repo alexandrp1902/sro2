@@ -35,6 +35,11 @@ namespace Sro.Server.Accounts;
 /// читается как рейнджер. Дальше старта путь ни на что не влияет: он остаётся ради карточки пилота,
 /// ветки обучения и статистики.
 /// </param>
+/// <param name="Hp">
+/// Прочность корпуса (M15.7). До неё положение и состояние корабля не хранились вовсе, и гибель ничего
+/// не стоила: достаточно было перезайти. Теперь разбитый корпус переживает и выход, и перезапуск сервера.
+/// null — профиль старше M15.7 или корабль целый: читается как полный корпус.
+/// </param>
 public sealed record AccountProfile(
     int Credits,
     string Hull,
@@ -52,4 +57,5 @@ public sealed record AccountProfile(
     long? RepAt = null,
     string? Place = null,
     string? Career = null,
-    IReadOnlyDictionary<string, string>? Ships = null);
+    IReadOnlyDictionary<string, string>? Ships = null,
+    double? Hp = null);

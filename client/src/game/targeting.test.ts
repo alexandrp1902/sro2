@@ -29,11 +29,12 @@ describe('pickAt', () => {
   });
 
   it('gives a small item a wider mouse radius, so it can be clicked at all', () => {
-    // Обломок радиусом 11: без запаса мышь промахивается уже в 20 px от него.
-    const drop = [ship(9, 0, 0, 11)];
-    expect(pickAt(220, 400, drop, view, false)).toBeNull();
-    expect(pickAt(220, 400, drop, view, false, LOOT_MOUSE_RADIUS_PX)).toBe(9);
-    expect(pickAt(240, 400, drop, view, false, LOOT_MOUSE_RADIUS_PX)).toBeNull();
+    // Обломок радиусом 16.5 — как его картинка (lootView, HIT_SIZE): с запасом мышь ловит его в 26.5 px,
+    // с нижним порогом для мелочи — в 30, дальше уже мимо.
+    const drop = [ship(9, 0, 0, 16.5)];
+    expect(pickAt(228, 400, drop, view, false)).toBeNull();
+    expect(pickAt(228, 400, drop, view, false, LOOT_MOUSE_RADIUS_PX)).toBe(9);
+    expect(pickAt(232, 400, drop, view, false, LOOT_MOUSE_RADIUS_PX)).toBeNull();
   });
 
   it('takes the nearest ship and scales with zoom', () => {
@@ -46,21 +47,35 @@ describe('pickAt', () => {
 
 describe('pickArrow', () => {
   // Стрелка у правого края, подпись левее неё.
-  const arrow = (id: number, x: number, y: number): EdgeArrow => ({ id, x, y, label: { x: x - 100, y: y - 8, width: 70, height: 16 } });
+  const arrow = (id: number, x: number, y: number): EdgeArrow => ({
+    id,
+    x,
+    y,
+    kind: 'ship',
+    label: { x: x - 100, y: y - 8, width: 70, height: 16 },
+  });
+  const id = (a: EdgeArrow | null) => a?.id ?? null;
 
   it('picks a ship by its arrow or its label', () => {
     const arrows = [arrow(1, 374, 300)];
-    expect(pickArrow(374, 300, arrows, false)).toBe(1);
-    expect(pickArrow(300, 300, arrows, false)).toBe(1); // по подписи: она занимает x 274…344
-    expect(pickArrow(374, 330, arrows, false)).toBeNull(); // мышью мимо
-    expect(pickArrow(374, 330, arrows, true)).toBe(1); // пальцем — радиус шире
+    expect(id(pickArrow(374, 300, arrows, false))).toBe(1);
+    expect(id(pickArrow(300, 300, arrows, false))).toBe(1); // по подписи: она занимает x 274…344
+    expect(id(pickArrow(374, 330, arrows, false))).toBeNull(); // мышью мимо
+    expect(id(pickArrow(374, 330, arrows, true))).toBe(1); // пальцем — радиус шире
   });
 
   it('takes the nearest of two arrows and nothing far away', () => {
     const arrows = [arrow(1, 374, 300), arrow(2, 374, 330)];
-    expect(pickArrow(374, 322, arrows, true)).toBe(2);
-    expect(pickArrow(100, 600, arrows, true)).toBeNull();
-    expect(pickArrow(0, 0, [], true)).toBeNull();
+    expect(id(pickArrow(374, 322, arrows, true))).toBe(2);
+    expect(id(pickArrow(100, 600, arrows, true))).toBeNull();
+    expect(id(pickArrow(0, 0, [], true))).toBeNull();
+  });
+
+  // Стрелка к грузу подписи не имеет (M15.7): тапают по самому треугольнику, и попасть надо по нему.
+  it('picks a loot arrow by the triangle alone and reports its kind', () => {
+    const arrows: EdgeArrow[] = [{ id: 7, x: 374, y: 300, kind: 'loot', label: { x: 0, y: 0, width: 0, height: 0 } }];
+    expect(pickArrow(374, 300, arrows, false)).toMatchObject({ id: 7, kind: 'loot' });
+    expect(pickArrow(300, 300, arrows, false)).toBeNull(); // там, где у корабля была бы подпись
   });
 });
 

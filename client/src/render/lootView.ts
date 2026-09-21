@@ -6,8 +6,13 @@ import { hasSprite, itemSprite, spriteSize, texture, type SpriteName } from './s
 
 /** Радиус предмета в мировых единицах: заметно мельче лёгкого корпуса (16), но пальцем попадаешь. */
 const SIZE = 11;
-/** Иконка предмета — чуть больше круга попадания: у картинок прозрачные углы. */
+/** Иконка предмета и ореол редкости — во столько раз больше SIZE: у картинок прозрачные углы. */
 const ICON_SCALE = 1.5;
+/**
+ * Радиус попадания курсором и пальцем. Целятся по тому, что видно, — значит по краю картинки, а не по
+ * её середине: до M15.7 хитбокс был в полтора раза меньше иконки, и мышью в контейнер не попадали.
+ */
+const HIT_SIZE = SIZE * ICON_SCALE;
 /** Ореол цвета редкости под иконкой: редкость видна издалека, как и раньше (GDD §23). */
 const HALO_ALPHA = 0.28;
 const FADE_IN_MS = 250;
@@ -22,7 +27,7 @@ export interface LootInfo {
   id: number;
   x: number;
   y: number;
-  /** Радиус для попадания тапом — как size у кораблей. */
+  /** Радиус для попадания тапом — как size у кораблей; это радиус **картинки** (HIT_SIZE). */
   size: number;
   /** Идентификатор предмета и количество в стопке. */
   item: string;
@@ -162,7 +167,7 @@ export class LootField {
       curr: sample,
       expiresTick: dto.e,
       bornAt: now,
-      info: { id: dto.id, x: dto.x, y: dto.y, size: SIZE, item: dto.i, count: dto.n },
+      info: { id: dto.id, x: dto.x, y: dto.y, size: HIT_SIZE, item: dto.i, count: dto.n },
       container: dto.c === true,
       seen: false,
     };

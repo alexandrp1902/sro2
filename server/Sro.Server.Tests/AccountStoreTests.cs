@@ -36,6 +36,61 @@ public sealed class AccountStoreTests : IDisposable
     }
 
     [Fact]
+    public void ChangePassword_SwapsThePassword_AndRevokesEveryOtherDevice()
+    {
+        using var store = Open();
+        var first = store.Login("Alice", "secret");
+        var second = store.Login("Alice", "secret"); // тот же аккаунт со второго устройства
+
+        var changed = store.ChangePassword(first.Id, "secret", "another");
+
+        Assert.True(changed.Ok);
+        Assert.Equal("Alice", changed.Name);
+        Assert.NotNull(changed.Key);
+        // Пароль меняют и потому, что он утёк: прежние входы должны перестать работать.
+        Assert.Equal(LoginError.WrongPassword, store.Login("Alice", "secret").Error);
+        Assert.Equal(LoginError.BadKey, store.Resume(first.Key).Error);
+        Assert.Equal(LoginError.BadKey, store.Resume(second.Key).Error);
+        // А новый ключ и новый пароль работают.
+        Assert.True(store.Resume(changed.Key).Ok);
+        Assert.True(store.Login("Alice", "another").Ok);
+    }
+
+    [Fact]
+    public void ChangePassword_RefusesAWrongOldPassword_AndABadNewOne()
+    {
+        using var store = Open();
+        var login = store.Login("Alice", "secret");
+
+        Assert.Equal(LoginError.WrongPassword, store.ChangePassword(login.Id, "guess", "another").Error);
+        Assert.Equal(LoginError.BadPassword, store.ChangePassword(login.Id, "secret", "abc").Error);
+        Assert.Equal(LoginError.BadPassword, store.ChangePassword(login.Id, "secret", new string('a', 65)).Error);
+        // Гостю менять нечего: аккаунта у него нет.
+        Assert.Equal(LoginError.NoAccount, store.ChangePassword(null, "secret", "another").Error);
+        Assert.Equal(LoginError.NoAccount, store.ChangePassword("no-such-account", "secret", "another").Error);
+        // Ни один отказ не тронул аккаунт.
+        Assert.True(store.Login("Alice", "secret").Ok);
+    }
+
+    [Fact]
+    public void ChangePassword_SurvivesARestart()
+    {
+        string id;
+        string? key;
+        using (var store = Open())
+        {
+            id = store.Login("Alice", "secret").Id;
+            key = store.ChangePassword(id, "secret", "another").Key;
+            store.Flush();
+        }
+
+        using var reopened = Open();
+        Assert.True(reopened.Login("Alice", "another").Ok);
+        Assert.Equal(LoginError.WrongPassword, reopened.Login("Alice", "secret").Error);
+        Assert.True(reopened.Resume(key).Ok);
+    }
+
+    [Fact]
     public void Free_TellsWhetherThisNameWouldCreateAnAccount()
     {
         using var store = Open();

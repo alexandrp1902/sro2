@@ -5,7 +5,7 @@ import './style.css';
 import { Application, Container } from 'pixi.js';
 import { SPAWN, STATION } from './game/layout';
 import { FixedLoop } from './game/loop';
-import { LOOT_MOUSE_RADIUS_PX, cycle, nearest, nearestLoot, pickArrow, pickAt } from './game/targeting';
+import { LOOT_MOUSE_RADIUS_PX, METEOR_MOUSE_RADIUS_PX, cycle, nearest, nearestLoot, pickArrow, pickAt } from './game/targeting';
 import { Controls } from './input/controls';
 import { FireControl, bindCombatKeys } from './input/fire';
 import { preventBrowserGestures } from './input/gestures';
@@ -56,6 +56,7 @@ import { FlightHud } from './ui/flightHud';
 import { GalaxyMap } from './ui/galaxyMap';
 import { ControlsWindow } from './ui/controlsWindow';
 import { BurgerMenu } from './ui/menu';
+import { PasswordForm } from './ui/passwordForm';
 import { ConfirmCard, logoutLines } from './ui/confirm';
 import { keymap } from './input/keymap';
 import { InvasionBoard, InvasionHud } from './ui/invasion';
@@ -195,6 +196,8 @@ async function main(): Promise<void> {
   // Выход один на всех: кнопка в окне «Пилот» и пункт бургер-меню делают ровно это.
   const logout = () => {
     if (serverUrl) account.forget(serverUrl);
+    menu.account = false;
+    passwordForm.hide();
     connection?.logout();
   };
   const pilotForm = new PilotForm(el('connect'), {
@@ -389,8 +392,13 @@ async function main(): Promise<void> {
     logout();
     showPilotForm();
   };
+  // Смена пароля (M15.7): ответ приходит уведомлением в ленту, своих ответов окно не разбирает.
+  const passwordForm = new PasswordForm(el('password'), (current, fresh) => {
+    connection?.send({ t: 'password', old: current, new: fresh });
+  });
   const menu = new BurgerMenu(el('menu'), (action) => {
     if (action === 'controls') controlsWindow.toggle();
+    else if (action === 'password') passwordForm.show();
     // В доке корабль припаркован — спрашивать не о чем; в полёте он останется в космосе.
     else if (docked) leave();
     else confirm.ask(logoutLines(false), leave);
@@ -565,6 +573,7 @@ async function main(): Promise<void> {
     clear: () => {
       // Сверху вниз: самое недавнее и наименее важное закрывается первым.
       if (confirm.open) confirm.hide();
+      else if (passwordForm.open) passwordForm.hide();
       else if (menu.open) menu.hide();
       else if (controlsWindow.open) controlsWindow.hide();
       else if (galaxyMap.open) galaxyMap.hide();
@@ -578,6 +587,7 @@ async function main(): Promise<void> {
   window.addEventListener('keydown', (e) => {
     if (e.code !== 'Escape' || keymap.capturing || keymap.actionFor(e) === 'targetClear') return;
     if (confirm.open) confirm.hide();
+    else if (passwordForm.open) passwordForm.hide();
     else if (menu.open) menu.hide();
     else if (controlsWindow.open) controlsWindow.hide();
     else if (galaxyMap.open) galaxyMap.hide();
@@ -596,7 +606,8 @@ async function main(): Promise<void> {
   new TapSelect(app.canvas, (x, y, touch, double) => {
     const view = { x: camera.x, y: camera.y, zoom: camera.zoom, width: app.screen.width, height: app.screen.height };
     // Корабль выигрывает у предмета: промах пальцем в бою не должен вместо цели выбрать мусор.
-    const shipId = pickAt(x, y, remote.visible(), view, touch) ?? pickAt(x, y, meteors.visible(), view, touch);
+    const shipId =
+      pickAt(x, y, remote.visible(), view, touch) ?? pickAt(x, y, meteors.visible(), view, touch, METEOR_MOUSE_RADIUS_PX);
     if (shipId === null) {
       // Обломок мелкий: мышью по нему целятся с запасом, иначе подобрать на ПК мучительно.
       const lootId = pickAt(x, y, loot.visible(), view, touch, LOOT_MOUSE_RADIUS_PX);
@@ -613,7 +624,17 @@ async function main(): Promise<void> {
         return;
       }
     }
-    const id = shipId ?? pickArrow(x, y, overlay.edgeArrows(), touch);
+    // За краем экрана выбирают по стрелке: корабль и камень идут в прицел, груз — в выбранный предмет.
+    let id = shipId;
+    if (id === null) {
+      const arrow = pickArrow(x, y, overlay.edgeArrows(), touch);
+      if (arrow?.kind === 'loot') {
+        setLoot(arrow.id);
+        tapChangedTarget = false;
+        return;
+      }
+      id = arrow?.id ?? null;
+    }
     if (id === null) {
       tapChangedTarget = false;
       return;
@@ -785,7 +806,7 @@ async function main(): Promise<void> {
       cargoHud.setRules(lootRules);
       marketRules = message.market ?? null;
       repRules = message.reputation ?? null;
-      dockScreen.setRules(lootRules, message.shop, marketRules, message.reputation);
+      dockScreen.setRules(lootRules, message.shop, marketRules, message.reputation, message.combat?.dockRepairPerMinute);
       loot.clear();
       meteors.setRules(message.meteors);
       meteors.clear();
@@ -814,7 +835,7 @@ async function main(): Promise<void> {
       cargoHud.setRules(lootRules);
       marketRules = message.market ?? null;
       repRules = message.reputation ?? null;
-      dockScreen.setRules(lootRules, message.shop, marketRules, message.reputation);
+      dockScreen.setRules(lootRules, message.shop, marketRules, message.reputation, message.combat?.dockRepairPerMinute);
       meteors.setRules(message.meteors);
       dockScreen.refresh();
     };
@@ -883,6 +904,8 @@ async function main(): Promise<void> {
     connection.onAccount = (message) => {
       if (message.key && serverUrl) account.setKey(serverUrl, message.key);
       account.setName(message.name);
+      // Это сообщение приходит только вошедшему по нику и паролю — гостю пункт «Сменить пароль» не нужен.
+      menu.account = true;
       pilotForm.hide();
     };
     connection.onNameFree = (message) => pilotForm.setNameFree(message);
@@ -1102,6 +1125,8 @@ async function main(): Promise<void> {
       ownId: me,
       showAi: dev.visible,
       loot: selectedLoot ? { x: selectedLoot.x, y: selectedLoot.y, size: selectedLoot.size } : null,
+      lootAll: loot.visible(),
+      lootId: selectedLootId,
       station: selectedMark(),
       sectorUnit,
       objective: goal,

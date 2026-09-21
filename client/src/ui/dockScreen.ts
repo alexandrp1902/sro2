@@ -352,6 +352,8 @@ export class DockScreen {
   /** Правила рынка этой станции (M12). */
   private market: MarketRules = NO_MARKET;
   private repRules: ReputationRules = NO_REP;
+  /** Сколько корпуса в минуту чинит стоянка в доке (M15.7); 0 — бесплатной починки нет. */
+  private mendRate = 0;
   private rep: RepMsg | null = null;
   /** Последние изменения репутации; живут на экране до перезахода — серверной истории нет. */
   private readonly repLog: RepChangeDto[] = [];
@@ -383,12 +385,14 @@ export class DockScreen {
     shop: ShopRules | undefined,
     market?: MarketRules | null,
     reputation?: ReputationRules | null,
+    mendRate?: number,
   ): void {
     this.loot = loot ?? null;
     this.welcomeShop = shop ?? NO_SHOP;
     this.shop = this.welcomeShop;
     this.market = market ?? NO_MARKET;
     this.repRules = reputation ?? NO_REP;
+    this.mendRate = mendRate ?? 0;
     this.render();
   }
 
@@ -702,13 +706,18 @@ export class DockScreen {
     if (ship && hull) ship.src = spriteUrl(shipSprite(hull));
   }
 
-  /** Свой корабль: корпус, пушка, прочность и ремонт. */
+  /**
+   * Свой корабль: корпус, пушка, прочность, кредиты и ремонт. Кредиты стоят здесь вторым разом (M15.7):
+   * в шапке они слева, а на ПК списки «Рынка» и «Оснащения» — в правой колонке, и сумма оказывалась
+   * через весь экран от кнопок покупки. Эта строка — последняя перед рядом вкладок.
+   */
   private shipLine(hangar: HangarMsg, credits: number): HTMLElement {
     const line = el('div', 'dock-ship');
     const hull = this.hulls.get(hangar.hull);
     const guns = hangar.fit.weapons.filter((id): id is string => !!id).map((id) => this.weapons.get(id).name);
     line.append(el('div', 'dock-ship-name sro-strong', [hull.name, ...guns].join(' · ')));
     line.append(el('div', 'dock-ship-hp sro-num sro-muted', `Корпус ${hangar.hp} / ${hangar.maxHp}`));
+    line.append(el('div', 'dock-ship-credits sro-credits', formatCredits(credits)));
     const missing = hangar.maxHp - hangar.hp;
     if (missing > 0) {
       const cost = this.repCost(repairCost(this.shop, missing, hangar.maxHp, price(this.shop.hulls, hangar.hull) ?? 0));
@@ -717,6 +726,10 @@ export class DockScreen {
       );
       repair.disabled = cost > credits;
       line.append(repair);
+      // Платить нечем — не тупик: корпус чинится сам, пока стоишь здесь (M15.7).
+      if (repair.disabled && this.mendRate > 0) {
+        line.append(el('div', 'dock-ship-mend sro-muted', `Чинится сам: ${this.mendRate} ед. в минуту, пока вы в доке`));
+      }
     }
     return line;
   }

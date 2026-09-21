@@ -106,8 +106,6 @@ internal static class TraderBrain
 {
     /// <summary>Врата достигнуты — ближе этого.</summary>
     private const double GateRadius = 120;
-    /// <summary>От жара звезды держится на столько дальше его края; ближе — сворачивает прочь.</summary>
-    private const double HeatMargin = 350;
 
     /// <param name="station">Где сейчас станция.</param>
     /// <param name="stationRange">Ближе этого к станции — пристыковался.</param>
@@ -159,24 +157,8 @@ internal static class TraderBrain
             return;
         }
 
-        var ux = dx / distance;
-        var uy = dy / distance;
-        // Жар звезды: чем глубже в запретном круге, тем сильнее тянет наружу и вбок — торговец огибает звезду.
-        if (heat > 0)
-        {
-            var r = Math.Sqrt(trader.Ship.X * trader.Ship.X + trader.Ship.Y * trader.Ship.Y);
-            var safe = heat + HeatMargin;
-            if (r < safe && r > 1e-6)
-            {
-                var ox = trader.Ship.X / r;
-                var oy = trader.Ship.Y / r;
-                var push = (safe - r) / HeatMargin * 2;
-                // Вбок — в ту сторону, куда цель, чтобы не упираться в звезду лоб в лоб.
-                var side = ox * uy - oy * ux >= 0 ? 1 : -1;
-                ux += (ox - side * oy) * push;
-                uy += (oy + side * ox) * push;
-            }
-        }
+        // Жар звезды: торговец его огибает (общее правило для всех NPC — Heat.Avoid).
+        var (ux, uy) = Heat.Avoid(trader.Ship.X, trader.Ship.Y, dx / distance, dy / distance, heat);
         var throttle = trader.Fleeing ? 1 : rules.Throttle;
         Set(trader, ux, uy, throttle);
     }

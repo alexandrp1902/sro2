@@ -327,6 +327,10 @@ public sealed partial class Room
         if (path is not null)
             foreach (var (key, delta) in path.RepMap) player.Rep.Add(key, delta, NowSeconds, Balance.Reputation);
         Enter(player, connection);
+        // Прочность корпуса (M15.7): разбитый корабль остаётся разбитым и после выхода — иначе гибель
+        // лечилась бы перезаходом. Строго после Enter: он ставит корабль в мир и корпус при этом полный.
+        // Профиль старше M15.7 прочности не знает — такой пилот входит целым.
+        if (profile?.Hp is { } savedHp) player.Hp = Math.Clamp(savedHp, 1, player.MaxHp(player.Effective(Balance)));
         if (profile is null || profile.Fit is null) Save(player);
         if (tanksSold > 0)
         {
@@ -995,12 +999,36 @@ public sealed partial class Room
         if (_loot.Step(Tick, Balance.Loot)) ClearMissingLootTargets();
         InterruptJumps();
         StepJumps();
+        MendDocked();
 
         // Дроны есть всегда: без игроков онлайн снапшот не нужен никому.
         if (_byConnection.Count > 0) SendSnapshot();
         _shots.Clear();
         _kills.Clear();
         _loot.ClearPicks();
+    }
+
+    /// <summary>
+    /// Починка стоянкой (M15.7): у кого не хватило кредитов на ремонт, тот чинится сам — медленно и только
+    /// пока стоит в доке и на связи. Пристыкованный корабль убран из _ships, и Battle его не видит, поэтому
+    /// проход отдельный. Док шлём не каждый тик, а когда сменилось целое число корпуса: клиент видит
+    /// округлённое, а SendHangar — это ещё и запись в профиль.
+    /// </summary>
+    private void MendDocked()
+    {
+        var rate = Balance.Rules.DockRepairPerTick;
+        if (rate <= 0) return;
+        foreach (var player in _players.Values)
+        {
+            if (!player.Docked || player.Connection is null) continue;
+            var maxHp = player.MaxHp(player.Effective(Balance));
+            if (player.Hp >= maxHp) continue;
+            var before = Math.Ceiling(player.Hp);
+            player.Hp = Math.Min(maxHp, player.Hp + rate);
+            if (Math.Ceiling(player.Hp) <= before) continue;
+            SendHangar(player);
+            Save(player);
+        }
     }
 
     /// <summary>
@@ -1105,14 +1133,21 @@ public sealed partial class Room
             _host.Depart(this, player, home, jump: false);
             return;
         }
-        SpawnHere(ship);
+        // Пилот возвращается разбитым (M15.7) — чинить корпус ему в доке; NPC как были, целыми.
+        SpawnHere(ship, ship is Player ? Balance.Rules.DeathHullShare : 1);
+        // Разбитый корпус — сразу в профиль: иначе гибель лечилась бы выходом до ближайшей записи.
+        if (ship is Player broken) Save(broken);
     }
 
     /// <summary>
     /// Появление в этой системе: игрок — у своего места, с защитой (GDD §25). Дрон — у своего дома,
     /// пират — в логове; NPC без защиты.
     /// </summary>
-    private void SpawnHere(ShipEntity ship)
+    /// <param name="hullShare">
+    /// Сколько корпуса дать: 1 — целый. Меньше единицы бывает только после гибели (M15.7) и приходит
+    /// из <see cref="Spawn"/>; вход в игру и прибытие по прыжку корпус не трогают.
+    /// </param>
+    private void SpawnHere(ShipEntity ship, double hullShare = 1)
     {
         if (ship is Meteor) return; // разбитый камень не возвращается — его убирает MeteorSystem.Shatter
         var (x, y) = ship switch
@@ -1123,7 +1158,7 @@ public sealed partial class Room
             _ => SpawnPoint(),
         };
         ship.Ship = new ShipState { X = x, Y = y };
-        ship.Revive(ship.Effective(Balance), ship is Player ? Tick + Balance.Rules.ProtectionTicks : 0);
+        ship.Revive(ship.Effective(Balance), ship is Player ? Tick + Balance.Rules.ProtectionTicks : 0, hullShare);
         if (ship is Pirate p) p.ResetAi();
     }
 
@@ -2189,7 +2224,8 @@ public sealed partial class Room
             RepAt: player.Rep.At,
             Place: player.HomePlace,
             Career: player.Career,
-            Ships: player.HullPlaces.Count == 0 ? null : new SortedDictionary<string, string>(player.HullPlaces, StringComparer.Ordinal)));
+            Ships: player.HullPlaces.Count == 0 ? null : new SortedDictionary<string, string>(player.HullPlaces, StringComparer.Ordinal),
+            Hp: player.Hp));
     }
 
     /// <summary>Очки в профиль: сперва догоняем их до «сейчас», иначе на диск уехало бы вчерашнее число.</summary>

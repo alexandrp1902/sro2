@@ -88,6 +88,42 @@ public sealed record SunDef(string Kind = "yellow", double Radius = 220, double 
 }
 
 /// <summary>
+/// Уклонение от жара звезды (M15.7). Всякий NPC, который летит к точке, проводит своё направление через
+/// <see cref="Avoid"/>: внутри запретного круга его тянет наружу и вбок — в ту сторону, куда цель, — так что
+/// корабль звезду **огибает**, а не упирается в неё лбом и не сгорает по дороге на другую сторону системы.
+/// Игрока это не касается: он рулит сам, ему только пишут в ленту, что горячо.
+/// </summary>
+public static class Heat
+{
+    /// <summary>От края зоны жара NPC держится на столько дальше; внутри этого запаса уже сворачивает.</summary>
+    public const double Margin = 350;
+
+    /// <summary>
+    /// Поправить направление полёта так, чтобы обойти жар звезды в центре системы.
+    /// </summary>
+    /// <param name="x">Где корабль сейчас.</param>
+    /// <param name="y">Где корабль сейчас.</param>
+    /// <param name="ux">Куда он хочет лететь, единичный вектор.</param>
+    /// <param name="uy">Куда он хочет лететь, единичный вектор.</param>
+    /// <param name="burnRadius">Радиус зоны жара; 0 — звезды нет, направление не меняется.</param>
+    /// <returns>Направление с поправкой; нормировать его не нужно — <see cref="MoveInput"/> сделает это сам.</returns>
+    public static (double X, double Y) Avoid(double x, double y, double ux, double uy, double burnRadius)
+    {
+        if (burnRadius <= 0) return (ux, uy);
+        var r = Math.Sqrt(x * x + y * y);
+        var safe = burnRadius + Margin;
+        if (r >= safe || r <= 1e-6) return (ux, uy);
+        var ox = x / r;
+        var oy = y / r;
+        // Чем глубже в запретном круге, тем сильнее тянет прочь от центра.
+        var push = (safe - r) / Margin * 2;
+        // Вбок — в ту сторону, куда цель: иначе корабль вставал бы носом в звезду и полз вдоль её края.
+        var side = ox * uy - oy * ux >= 0 ? 1 : -1;
+        return (ux + (ox - side * oy) * push, uy + (oy + side * ox) * push);
+    }
+}
+
+/// <summary>
 /// Поселение на планете (M15): то же место, что станция, — док, магазин, рынок, доска заданий и своя репутация.
 /// Планета без него остаётся декорацией: сесть нельзя, кнопки посадки нет.
 /// </summary>

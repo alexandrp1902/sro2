@@ -17,6 +17,10 @@ public sealed class StationTests : IDisposable
         Hulls: new Dictionary<string, int> { ["light"] = 0, ["heavy"] = 900 },
         Items: new Dictionary<string, int> { ["pulse"] = 100, ["laser"] = 300, ["plasma"] = 5000 });
 
+    /// <summary>Гибель и починка стоянкой — предмет здешних тестов, поэтому значения свои, круглые.</summary>
+    private static readonly CombatRules Rules =
+        new(ProtectionSeconds: 3, SpawnJitter: 0, DeathHullShare: 0.1, DockRepairPerMinute: 5);
+
     private static readonly LootRules Loot = new(
         Items: new Dictionary<string, LootItem> { ["metal"] = new("Металл", Volume: 1, Price: 10) });
 
@@ -30,7 +34,7 @@ public sealed class StationTests : IDisposable
     {
         _accounts = new AccountStore(_dir, NullLogger.Instance, iterations: 1000, autoFlush: false);
         _room = new Room(
-            TestBalance.Create(new CombatRules(ProtectionSeconds: 3, SpawnJitter: 0), loot: Loot, shop: Shop),
+            TestBalance.Create(Rules, loot: Loot, shop: Shop),
             NullLogger.Instance,
             accounts: _accounts);
     }
@@ -271,6 +275,59 @@ public sealed class StationTests : IDisposable
 
         Assert.Equal(Protocol.NoCreditsNotice, a.Last<NoticeMsg>().Code);
         Assert.Equal(1, player.Hp);
+    }
+
+    /// <summary>
+    /// Гибель и ремонт (M15.7). До неё корабль воскресал целым и даром, и смерть не стоила ничего:
+    /// достаточно было даже не чиниться, а просто перезайти.
+    /// </summary>
+    [Fact]
+    public void Death_LeavesTheHullBroken_AndTheBreakSurvivesARelogin()
+    {
+        var a = Pilot();
+        var player = PlayerOf(a);
+
+        player.Hp = 0;
+        Steps(Rules.RespawnTicks + 1);
+
+        Assert.Equal(400 * Rules.DeathHullShare, player.Hp, 6);
+        Assert.Equal(150, player.Shield); // щит целый: он и сам отрастает в полёте
+
+        // Перезаход чинить не должен: прочность уезжает в профиль.
+        _room.Disconnect(a);
+        Steps(Room.ReconnectGraceTicks + 1);
+        var back = PilotInDock("Alice");
+        Assert.Equal(400 * Rules.DeathHullShare, PlayerOf(back).Hp, 6);
+    }
+
+    [Fact]
+    public void ADockedPilotWithoutCredits_IsMendedByStandingStill()
+    {
+        var a = Pilot();
+        var player = PlayerOf(a);
+        player.Credits = 0;
+        player.Hp = 100;
+        Docked(a);
+
+        // Минута стоянки — ровно dockRepairPerMinute единиц корпуса.
+        Steps(SimConfig.TickRate * 60);
+
+        Assert.Equal(100 + Rules.DockRepairPerMinute, player.Hp, 3);
+        Assert.Equal(105, a.Last<HangarMsg>().Hp);
+    }
+
+    [Fact]
+    public void StandingStillNeverMendsPastFull_AndDoesNothingInSpace()
+    {
+        var a = Pilot();
+        var player = PlayerOf(a);
+        player.Hp = 399;
+        Steps(SimConfig.TickRate * 60);
+        Assert.Equal(399, player.Hp); // в космосе стоянка не чинит: там за это отвечает ремонтный блок
+
+        Docked(a);
+        Steps(SimConfig.TickRate * 60);
+        Assert.Equal(400, player.Hp);
     }
 
     [Fact]

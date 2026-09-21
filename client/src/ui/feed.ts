@@ -52,6 +52,9 @@ const NOTICES: Record<string, string> = {
   missionAway: 'Вы отстаёте от конвоя — возвращайтесь!',
   ambush: 'Засада на курсе конвоя!',
   wing: 'Звено рейнджеров вышло с вами',
+  passwordChanged: 'Пароль сменён — на других устройствах придётся войти заново',
+  wrongPassword: 'Старый пароль не подошёл',
+  badPassword: 'Пароль должен быть от 4 до 64 знаков',
 };
 
 /** Чем именно защита отбила попадание — по виду урона пушки (M15.6). */
@@ -101,7 +104,7 @@ export function describeRepChange(change: RepChangeDto, name?: string | null): s
 const REFUSALS = new Set([
   'cargoFull', 'tooFar', 'noCredits', 'notSold', 'gateFar', 'noPower', 'badClass', 'badSlot',
   'noGoods', 'noStock', 'dockClosed', 'needRep', 'jumpCancelled', 'jumpHit', 'missionAway',
-  'shipElsewhere', 'noRoute',
+  'shipElsewhere', 'noRoute', 'wrongPassword', 'badPassword',
 ]);
 
 export const isRefusal = (code: string): boolean => REFUSALS.has(code);

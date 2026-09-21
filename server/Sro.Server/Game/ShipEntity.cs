@@ -138,11 +138,15 @@ public abstract class ShipEntity(int id, string name, string hullId, IReadOnlyLi
         Shield = shieldShare * MaxShield(to);
     }
 
-    /// <summary>Появление: полные корпус и щит, огня нет, статистика урона заново.</summary>
+    /// <summary>Появление: щит полный, корпус — по доле, огня нет, статистика урона заново.</summary>
     /// <param name="protectedUntil">Защита после появления (GDD §25); 0 — без защиты.</param>
-    public void Revive(HullParams hull, long protectedUntil)
+    /// <param name="hullShare">
+    /// Сколько корпуса дать: 1 — целый, как у NPC. Пилот с M15.7 возвращается разбитым и чинится в доке;
+    /// щит при этом полный — он и сам отрастает в полёте, чинить его отдельно было бы мучением.
+    /// </param>
+    public void Revive(HullParams hull, long protectedUntil, double hullShare = 1)
     {
-        Hp = MaxHp(hull);
+        Hp = MaxHp(hull) * Math.Clamp(hullShare, 0, 1);
         Shield = MaxShield(hull);
         DeadUntilTick = 0;
         KilledBy = 0;

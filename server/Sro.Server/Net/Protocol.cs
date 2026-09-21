@@ -32,6 +32,7 @@ namespace Sro.Server.Net;
 [JsonDerivedType(typeof(MissionMsg), "mission")]
 [JsonDerivedType(typeof(PartyMsg), "party")]
 [JsonDerivedType(typeof(PvpMsg), "pvp")]
+[JsonDerivedType(typeof(PasswordMsg), "password")]
 public abstract record ClientMessage;
 
 /// <summary>
@@ -148,6 +149,13 @@ public sealed record BuyGoodsMsg(string? Item, int Count = 1) : ClientMessage;
 
 /// <summary>Починить корпус в доке и зарядить щит — по цене repairPrice из shop.json.</summary>
 public sealed record RepairMsg : ClientMessage;
+
+/// <summary>
+/// Сменить пароль аккаунта (M15.7). Обрабатывается на сетевом потоке, как вход: два хеша PBKDF2 — это
+/// десятки миллисекунд, тику их ждать нельзя. Ответ — <see cref="NoticeMsg"/>, а при успехе ещё и
+/// <see cref="AccountMsg"/> с новым ключом устройства: прежние ключи смена пароля отзывает.
+/// </summary>
+public sealed record PasswordMsg(string? Old, string? New) : ClientMessage;
 
 /// <summary>Начать гиперпрыжок через врата в систему To (GDD §5); To = null — отменить подготовку.</summary>
 public sealed record JumpMsg(string? To) : ClientMessage;
@@ -750,10 +758,11 @@ public static class Protocol
     /// 19 — сопровождение, патруль, важное письмо, охота на метеориты и провал задания, M14;
     /// 20 — посадка на планеты: место как общее понятие дока, поселения, их рынок и репутация, M15;
     /// 21 — выброс груза за борт; 22 — урон по площади, M15.5;
-    /// 23 — топливо отменено, защитные модули, ангар с перевозкой, вход в доке, M15.6).
+    /// 23 — топливо отменено, защитные модули, ангар с перевозкой, вход в доке, M15.6;
+    /// 24 — смена пароля, ремонт после гибели, M15.7).
     /// Зеркало PROTOCOL_VERSION в client/src/net/protocol.ts.
     /// </summary>
-    public const int Version = 23;
+    public const int Version = 24;
 
     public const string DroneKind = "drone";
     public const string PirateKind = "pirate";
@@ -808,6 +817,12 @@ public static class Protocol
     public const string AmbushNotice = "ambush";
     /// <summary>Звено рейнджеров вышло вместе с пилотом (M14).</summary>
     public const string WingNotice = "wing";
+    /// <summary>Пароль сменён (M15.7): вход на прочих устройствах отозван.</summary>
+    public const string PasswordChangedNotice = "passwordChanged";
+    /// <summary>Старый пароль не подошёл — менять нечего.</summary>
+    public const string WrongPasswordNotice = "wrongPassword";
+    /// <summary>Новый пароль не той длины, или меняет его гость, у которого аккаунта нет.</summary>
+    public const string BadPasswordNotice = "badPassword";
 
     /// <summary>За что начислена или снята репутация (<see cref="RepChangeDto.Code"/>; M13).</summary>
     public const string RepMissionDone = "missionDone";

@@ -3,7 +3,7 @@
  * экран дока перерисовывается целиком после каждой покупки, и меню внутри него умирало бы на полуслове.
  */
 
-export type MenuAction = 'controls' | 'logout';
+export type MenuAction = 'controls' | 'password' | 'logout';
 
 export interface MenuItem {
   id: MenuAction;
@@ -14,10 +14,12 @@ export interface MenuItem {
  * Что в меню. Чистая: её и проверяют тесты — DOM для этого не нужен.
  *
  * @param coarse Палец, а не мышь: переназначать клавиши не на чем, и пункта «Управление» нет (M10.5).
+ * @param account Пилот вошёл по нику и паролю (M15.7); гостю менять нечего — у него и аккаунта нет.
  */
-export function menuItems(coarse: boolean): MenuItem[] {
+export function menuItems(coarse: boolean, account = false): MenuItem[] {
   const items: MenuItem[] = [];
   if (!coarse) items.push({ id: 'controls', label: 'Управление' });
+  if (account) items.push({ id: 'password', label: 'Сменить пароль' });
   items.push({ id: 'logout', label: 'Выход' });
   return items;
 }
@@ -28,6 +30,8 @@ export const coarsePointer = (): boolean =>
 
 export class BurgerMenu {
   private readonly card: HTMLElement;
+  /** Пилот вошёл по нику и паролю — тогда в меню есть «Сменить пароль». */
+  account = false;
 
   constructor(
     private readonly root: HTMLElement,
@@ -66,7 +70,7 @@ export class BurgerMenu {
   }
 
   private render(): void {
-    const items = menuItems(coarsePointer()).map((item) => {
+    const items = menuItems(coarsePointer(), this.account).map((item) => {
       const button = document.createElement('button');
       button.type = 'button';
       button.className = 'menu-item sro-menu__item';
