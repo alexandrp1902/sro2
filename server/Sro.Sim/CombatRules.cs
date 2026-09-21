@@ -466,7 +466,10 @@ public sealed record Balance(
             return false;
         }
         // Лут разбирается после NPC: контейнер нельзя поставить внутрь укрытия станции, а его радиус — там.
-        var gear = weapons.Keys.Concat(modules?.Keys ?? []).ToHashSet();
+        // Объём трофея берётся из его класса: отдельного числа в файлах на это нет и не нужно.
+        var gear = weapons.ToDictionary(p => p.Key, p => LootRules.GearVolume(p.Value.Class));
+        foreach (var (id, module) in modules ?? new Dictionary<string, ModuleParams>())
+            gear[id] = LootRules.GearVolume(module.Class);
         if (!LootRules.TryParse(sources.Loot, out var loot, out error, npcs.StationSafeRadius, gear))
         {
             error = $"{LootFile}: {error}";

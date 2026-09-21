@@ -157,7 +157,7 @@ public sealed class ScavengeTests
     [Fact]
     public void NobodyTakesGearOutOfSpace()
     {
-        // Снаряжение NPC ни к чему: у пушки нет объёма, и трюм его не считает.
+        // Снаряжение NPC ни к чему: переставлять модули они не умеют, а место в трюме трофей занимает (M11).
         Watcher();
         Steps(1);
         var ranger = Pirate(p => p.Type.IsRanger);

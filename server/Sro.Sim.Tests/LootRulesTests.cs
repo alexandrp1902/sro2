@@ -61,6 +61,11 @@ public class LootRulesTests
     [InlineData("""{"items":{"metal":{"name":"М"}},"tables":{"p":{"rolls":[{"item":"metal","min":3,"max":2}]}}}""")]
     [InlineData("""{"items":{"metal":{"name":"М"}},"tables":{"p":{"rolls":[{"item":"metal","min":0}]}}}""")]
     [InlineData("""{"items":{"metal":{"name":"М"}},"tables":{"p":{"levelCountBonus":-1}}}""")]
+    // Фит: только известное снаряжение, только снаряжение, вменяемый шанс.
+    [InlineData("""{"tables":{"p":{"fit":["nope"]}}}""")]
+    [InlineData("""{"items":{"metal":{"name":"М"}},"tables":{"p":{"fit":["metal"]}}}""")]
+    [InlineData("""{"tables":{"p":{"gearChance":1.5}}}""")]
+    [InlineData("""{"gearChance":2}""")]
     // Контейнеры: ровно одно из item и table, живые ссылки, разумное количество, внутри мира.
     [InlineData("""{"containers":[{"name":"Ящик","x":0,"y":0}]}""")]
     [InlineData("""{"items":{"metal":{"name":"М"}},"tables":{"t":{}},"containers":[{"name":"Я","x":0,"y":0,"item":"metal","table":"t"}]}""")]
@@ -145,6 +150,72 @@ public class LootRulesTests
         Assert.InRange(hits / (double)tries, 0.43, 0.47);
     }
 
+    private static List<(string Item, int Count)> RollFit(LootTable table, double chance, Func<double> rng)
+    {
+        var into = new List<(string, int)>();
+        table.RollFit(chance, rng, into);
+        return into;
+    }
+
+    /// <summary>Снаряжение противника: id — объём в трюме, как его строит Balance.</summary>
+    private static readonly IReadOnlyDictionary<string, double> Gear = new Dictionary<string, double>
+    {
+        ["pulse"] = 2,
+        ["shieldM"] = 4,
+        ["railgun"] = 6,
+    };
+
+    [Fact]
+    public void Fit_DropsEachPieceOnItsOwn()
+    {
+        var table = new LootTable(Fit: ["pulse", "shieldM", "railgun"]);
+
+        // Монета у каждой своя: выпали первая и третья, вторая не прошла.
+        var drop = RollFit(table, 0.5, Seq(0.4, 0.6, 0.1));
+        Assert.Equal([("pulse", 1), ("railgun", 1)], drop);
+    }
+
+    [Fact]
+    public void Fit_IgnoresTheLevelBonuses()
+    {
+        var table = new LootTable(Fit: ["pulse"], LevelChanceBonus: 0.05, LevelCountBonus: 0.2);
+
+        // Прибавки за уровень разгоняли бы 3 % до 48 %, а одну пушку — до трёх штук. Фита они не касаются:
+        // RollFit уровня вообще не знает, и матёрый пират роняет ровно то же, что новобранец.
+        Assert.Empty(RollFit(table, 0.03, Seq(0.2)));
+        Assert.Equal([("pulse", 1)], RollFit(table, 0.03, Seq(0.02)));
+    }
+
+    [Fact]
+    public void Fit_PrefersTheTableChanceOverTheCommonOne()
+    {
+        var table = new LootTable(Fit: ["pulse"], GearChance: 1);
+        Assert.Equal([("pulse", 1)], RollFit(table, 0, Seq(0.99)));
+    }
+
+    [Fact]
+    public void GearInRolls_IsRejected()
+    {
+        // Снаряжению в rolls не место: там его разгоняют прибавки за уровень.
+        const string json = """{"tables":{"p":{"rolls":[{"item":"pulse"}]}}}""";
+        Assert.False(LootRules.TryParse(json, out _, out var error, gear: Gear));
+        Assert.Contains("list it in fit", error);
+    }
+
+    [Fact]
+    public void Gear_HasVolumeByItsClass()
+    {
+        Assert.Equal(2, LootRules.GearVolume(EquipClass.S));
+        Assert.Equal(4, LootRules.GearVolume(EquipClass.M));
+        Assert.Equal(6, LootRules.GearVolume(EquipClass.L));
+
+        // Трофей занимает трюм, а грузом не торгуют: цена у него нулевая, её знает магазин.
+        Assert.True(LootRules.TryParse("{}", out var rules, out var error, gear: Gear), error);
+        Assert.Equal(4, rules.Volume("shieldM"));
+        Assert.Equal(0, rules.Price("shieldM"));
+        Assert.True(rules.IsGear("shieldM"));
+    }
+
     [Fact]
     public void Table_ValidatesAgainstTheItems()
     {
@@ -192,6 +263,36 @@ public class LootRulesTests
 
         // Каждый тип пирата из npcs.json должен уметь что-то ронять, иначе бой ничего не даёт.
         Assert.Contains("pirate", rules.TableMap.Keys);
+    }
+
+    [Fact]
+    public void SharedLootJson_GivesEveryFighterAFitOfFourToSix()
+    {
+        var json = System.IO.File.ReadAllText(Path.Combine(TestHulls.RepoRoot(), "shared", Balance.LootFile));
+        Assert.True(LootRules.TryParse(json, out var rules, out var error, gear: TestHulls.SharedGear()), error);
+
+        string[] fighters = ["pirate", "heavyPirate", "frontierPirate", "frontierBrute", "rimPirate", "rimBrute", "ranger", "trader"];
+        foreach (var id in fighters)
+        {
+            var fit = rules.TableMap[id].FitList;
+            Assert.InRange(fit.Count, 4, 6);
+            Assert.Equal(fit.Count, fit.Distinct().Count()); // два одинаковых модуля — это опечатка, а не фит
+        }
+
+        // Камни и ящики снаряжения не носят: его снимают с корабля.
+        Assert.Empty(rules.TableMap["rockLarge"].FitList);
+        Assert.Empty(rules.TableMap["container"].FitList);
+    }
+
+    [Fact]
+    public void SharedLootJson_KeepsGearOutOfTheRolls()
+    {
+        var json = System.IO.File.ReadAllText(Path.Combine(TestHulls.RepoRoot(), "shared", Balance.LootFile));
+        Assert.True(LootRules.TryParse(json, out var rules, out var error, gear: TestHulls.SharedGear()), error);
+
+        // Строку дропа разгоняет уровень — снаряжения там быть не должно ни в одной таблице.
+        foreach (var (id, table) in rules.TableMap)
+            Assert.All(table.RollList, roll => Assert.True(rules.ItemMap.ContainsKey(roll.Item), $"{id}: {roll.Item}"));
     }
 
     [Fact]

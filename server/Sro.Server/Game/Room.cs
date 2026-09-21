@@ -828,7 +828,7 @@ public sealed partial class Room
             // Предметы, которых больше нет в балансе, пропадают и со склада…
             foreach (var id in player.Storage.Keys.Where(id => !IsItem(id)).ToList()) player.Storage.Remove(id);
             // …и из трюма: иначе такой груз весит 0, стоит 0 и не продаётся — невидимый неудаляемый хлам.
-            foreach (var id in player.Cargo.Items.Keys.Where(id => !balance.Loot.ItemMap.ContainsKey(id)).ToList())
+            foreach (var id in player.Cargo.Items.Keys.Where(id => !balance.Loot.Knows(id)).ToList())
                 player.Cargo.Remove(id, player.Cargo.Count(id));
             var removed = new List<string>();
             player.Fit = Fitting.Refit(player.Hull(Hulls), player.Fit, balance.Weapons, balance.Modules, removed);
@@ -1881,7 +1881,9 @@ public sealed partial class Room
             // Весь трюм — каждый груз по здешней цене; чем тут не торгуют, то остаётся в трюме.
             foreach (var (id, have) in player.Cargo.Items.ToList())
             {
-                if (!Trades(player, id)) continue;
+                // Снаряжение в трюме не товар: как груз оно стоит 0, и «продать всё» уничтожило бы
+                // трофей задаром. В доке оно и так уезжает на склад (StoreGear).
+                if (Balance.Loot.IsGear(id) || !Trades(player, id)) continue;
                 credits += SellToStation(player, id, have);
                 player.Cargo.Remove(id, have);
                 sold += have;
@@ -1983,6 +1985,7 @@ public sealed partial class Room
             // Последнее место — дом: здесь пилот появится после гибели и после входа в игру.
             player.Home = SystemId;
             player.HomePlace = target.Key;
+            StoreGear(player);
             RemoveShip(player);
             Save(player);
             _log.LogInformation("Player {Id} docked at {Place} in {System}", player.Id, target.Key, SystemId);
@@ -2020,6 +2023,22 @@ public sealed partial class Room
         if (on) return;
         Advance(player, MissionRules.UndockStep);
         StartRun(player); // конвой и звено выходят вместе с пилотом, а не ждут его в космосе (M14)
+    }
+
+    /// <summary>
+    /// Снятое с обломков снаряжение переезжает из трюма на склад. До дока трофей — обычный груз: занимает
+    /// место и высыпается в космос вместе с остальным, если пилота сбили. Довёз — значит твоё.
+    /// </summary>
+    private void StoreGear(Player player)
+    {
+        var moved = player.Cargo.Items.Where(p => Balance.Loot.IsGear(p.Key)).ToList();
+        if (moved.Count == 0) return;
+        foreach (var (id, count) in moved)
+        {
+            player.Cargo.Remove(id, count);
+            player.Store(id, count);
+        }
+        SendCargo(player);
     }
 
     /// <summary>

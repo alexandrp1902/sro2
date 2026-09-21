@@ -109,6 +109,7 @@ internal sealed class LootSystem(Func<int> nextId, Random rng, ILogger log)
             if (item is null && spec.Table is not null && loot.TableMap.TryGetValue(spec.Table, out var table))
             {
                 // Контейнер — один предмет, а не облако: несколько стопок в одной точке не разобрать тапом.
+                // Роллим только груз: снаряжение снимают с обломков корабля, в ящике ему взяться неоткуда.
                 _rolled.Clear();
                 table.Roll(1, rng.NextDouble, _rolled);
                 if (_rolled.Count == 0) continue;
@@ -203,10 +204,14 @@ internal sealed class LootSystem(Func<int> nextId, Random rng, ILogger log)
         Spawn(loot, tick, x + radius * Math.Cos(angle), y + radius * Math.Sin(angle), vx * loot.DriftFactor, vy * loot.DriftFactor, item, count);
     }
 
-    /// <summary>Дроп по таблице вокруг точки гибели: предметы наследуют долю скорости погибшего (vx, vy).</summary>
+    /// <summary>
+    /// Дроп по таблице вокруг точки гибели: предметы наследуют долю скорости погибшего (vx, vy).
+    /// Снаряжение с корабля идёт первым: редкая находка не должна потеряться в переполнении поля (MaxItems).
+    /// </summary>
     public void DropAt(LootRules loot, LootTable table, int level, double x, double y, double vx, double vy, long tick)
     {
         _rolled.Clear();
+        table.RollFit(loot.GearChance, rng.NextDouble, _rolled);
         table.Roll(level, rng.NextDouble, _rolled);
         foreach (var (item, count) in _rolled) Scatter(loot, tick, x, y, vx, vy, item, count);
     }
@@ -289,12 +294,10 @@ internal sealed class LootSystem(Func<int> nextId, Random rng, ILogger log)
         var drop = _drops[index];
         var distance = Math.Sqrt(Sq(player.Ship.X - drop.X) + Sq(player.Ship.Y - drop.Y));
         if (distance > loot.PickupRange) return GrabResult.TooFar;
-        // Снаряжение (M11) не занимает трюм: пушка или модуль сразу ложатся на склад пилота.
-        var gear = loot.IsGear(drop.Item);
-        if (!gear && !player.Cargo.Fits(drop.Item, drop.Count, capacity, loot)) return GrabResult.NoRoom;
+        // Трофей едет домой в трюме и занимает место наравне с грузом: на склад он переезжает в доке.
+        if (!player.Cargo.Fits(drop.Item, drop.Count, capacity, loot)) return GrabResult.NoRoom;
 
-        if (gear) player.Store(drop.Item, drop.Count);
-        else player.Cargo.Add(drop.Item, drop.Count);
+        player.Cargo.Add(drop.Item, drop.Count);
         player.CargoFullUntilTick = 0; // место освободилось — о следующем отказе скажем сразу
         if (drop.FromContainer) Release(drop.Id, tick);
         _drops.RemoveAt(index);

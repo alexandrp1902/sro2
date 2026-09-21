@@ -177,18 +177,18 @@ public class M11RoomTests
         Assert.InRange(shots, 4, 5); // без охлаждения было бы 2–3
     }
 
-    /// <summary>Учебный дрон роняет зенитку: снаряжение в таблице лута — это M11.</summary>
+    /// <summary>Учебный дрон роняет зенитку со своего фита: снаряжение в таблице лута — это M11.</summary>
     private static LootRules GearLoot() => new(
         LifetimeSeconds: 60,
         FadeSeconds: 0,
         Items: new Dictionary<string, LootItem> { ["metal"] = new("Металл", Volume: 1, Price: 10) },
-        Tables: new Dictionary<string, LootTable> { ["gear"] = new([new LootRoll("flak", 1, 1, 1)]) })
+        Tables: new Dictionary<string, LootTable> { ["gear"] = new(Fit: ["flak"], GearChance: 1) })
     {
-        Gear = new HashSet<string> { "flak" },
+        Gear = new Dictionary<string, double> { ["flak"] = 2 },
     };
 
     [Fact]
-    public void GrabbedGear_GoesToTheStorageNotTheHold()
+    public void GrabbedGear_RidesInTheHold_AndLandsInTheStorageOnDocking()
     {
         var rules = Rules with { Drones = [new DroneSpec("Мишень", "light", 0, -300, Table: "gear")] };
         _room = new Room(
@@ -210,8 +210,13 @@ public class M11RoomTests
         _room.Step();
 
         var player = PlayerOf(a);
+        Assert.Equal(1, player.Cargo.Count("flak")); // трофей летит домой в трюме и занимает место
+        Assert.Empty(player.Storage);
+
+        Place(a, 0, 0);
+        _room.Dock(a, true);
+        Assert.True(player.Cargo.IsEmpty); // в доке он переезжает на склад, где его ставят и продают
         Assert.Equal(1, player.Storage.GetValueOrDefault("flak"));
-        Assert.True(player.Cargo.IsEmpty); // снаряжение места в трюме не занимает
     }
 
     private static ShopRules Shop() => new(

@@ -31,10 +31,10 @@ public class LootTests
 
     public LootTests() => _room = NewRoom(Loot());
 
-    private static NpcRules Npcs() => new(
+    private static NpcRules Npcs(int level = 1) => new(
         RespawnSeconds: 5,
         Types: new Dictionary<string, NpcType> { ["pirate"] = PirateType },
-        Spawns: [new NpcSpawn("pirate", 1, LairX, LairY)]);
+        Spawns: [new NpcSpawn("pirate", level, LairX, LairY)]);
 
     /// <summary>По умолчанию пират роняет ровно «Металл ×2» — так тесты не зависят от случайности.</summary>
     private static LootRules Loot(
@@ -60,12 +60,30 @@ public class LootTests
                 ["pirate"] = new([new LootRoll("metal", 1, 2, 2)]),
             });
 
-    private Room NewRoom(LootRules loot, CombatRules? rules = null, int seed = 1) => new(
-        TestBalance.Create(rules ?? Rules, Npcs(), loot),
+    private Room NewRoom(LootRules loot, CombatRules? rules = null, int seed = 1, int level = 1) => new(
+        TestBalance.Create(rules ?? Rules, Npcs(level), loot),
         NullLogger.Instance,
         () => _roll,
         ai: new Random(1),
         loot: new Random(seed));
+
+    /// <summary>
+    /// Пират со снаряжением на борту (M11): «flak» класса S и «ion» класса M. Груз тот же, «Металл ×2»,
+    /// поэтому дроп снаряжения видно отдельно от него.
+    /// </summary>
+    private static LootRules FitLoot(double gearChance = 1, IReadOnlyList<string>? fit = null) =>
+        Loot(tables: new Dictionary<string, LootTable>
+        {
+            ["pirate"] = new(
+                [new LootRoll("metal", 1, 2, 2)],
+                LevelChanceBonus: 0.05,
+                LevelCountBonus: 0.2,
+                Fit: fit ?? ["flak"],
+                GearChance: gearChance),
+        }) with
+        {
+            Gear = new Dictionary<string, double> { ["flak"] = 2, ["ion"] = 4 },
+        };
 
     /// <summary>Объёмный предмет: две штуки не влезают в лёгкий трюм (20) — для проверок «мест нет».</summary>
     private static readonly IReadOnlyDictionary<string, LootItem> BulkyItems = new Dictionary<string, LootItem>
@@ -130,6 +148,93 @@ public class LootTests
         var drop = Assert.Single(LootOf(a));
         Assert.Equal(("metal", 2), (drop.I, drop.N));
         Assert.False(drop.C); // обломки, не контейнер
+    }
+
+    [Fact]
+    public void KilledPirate_DropsTheGearItCarried()
+    {
+        _room = NewRoom(FitLoot());
+        var (a, _) = KillPirate();
+
+        // Снаряжение падает вместе с грузом, но по своей монете и всегда по одной штуке.
+        var drops = LootOf(a).Select(d => (d.I, d.N)).Order().ToList();
+        Assert.Equal([("flak", 1), ("metal", 2)], drops);
+    }
+
+    [Fact]
+    public void PirateFit_DropsOnePieceEvenAtAHighLevel()
+    {
+        // На 10-м уровне груза становится вдвое больше (levelCountBonus), а снаряжения — нет:
+        // иначе матёрый пират раздевался бы каждый бой.
+        _room = NewRoom(FitLoot(fit: ["flak", "ion"]), level: 10);
+        var (a, _) = KillPirate();
+
+        var drops = LootOf(a).Select(d => (d.I, d.N)).Order().ToList();
+        Assert.Equal([("flak", 1), ("ion", 1), ("metal", 6)], drops);
+    }
+
+    [Fact]
+    public void PirateFit_DropsNothingWhenTheChanceIsZero()
+    {
+        _room = NewRoom(FitLoot(gearChance: 0));
+        var (a, _) = KillPirate();
+
+        var drop = Assert.Single(LootOf(a));
+        Assert.Equal(("metal", 2), (drop.I, drop.N));
+    }
+
+    [Fact]
+    public void KilledPlayer_DropsNoGear()
+    {
+        // Из пилота снаряжение не выпадает: с корабля не снимают ни установленное, ни склад — только трюм.
+        _room = NewRoom(FitLoot());
+        var a = Connect();
+        PlayerOf(a).Store("flak");
+        Place(IdOf(a), 1500, 1500);
+        PlayerOf(a).Hp = 0;
+        Steps(2);
+
+        Assert.Empty(LootOf(a));
+        Assert.Equal(1, PlayerOf(a).Storage["flak"]);
+    }
+
+    [Fact]
+    public void GrabbedGear_TakesRoomInTheHold()
+    {
+        _room = NewRoom(FitLoot());
+        var (a, _) = KillPirate();
+        var gear = LootOf(a).Single(d => d.I == "flak");
+
+        // Трюм лёгкого корпуса — 20, и занят он весь: трофею места нет, как любому грузу.
+        PlayerOf(a).Cargo.Add("metal", 20);
+        PlaceNear(a, gear, 100);
+        Grab(a, gear.Id);
+
+        Assert.Equal(0, PlayerOf(a).Cargo.Count("flak"));
+        Assert.Equal(Protocol.CargoFullNotice, a.Last<NoticeMsg>().Code);
+
+        // Освободили место — трофей лёг в трюм и занял свои два.
+        PlayerOf(a).Cargo.Remove("metal", 20);
+        Grab(a, gear.Id);
+        Assert.Equal(1, PlayerOf(a).Cargo.Count("flak"));
+        Assert.Equal(2, a.Last<CargoMsg>().Used);
+        Assert.Empty(PlayerOf(a).Storage); // на склад он попадёт только в доке
+    }
+
+    [Fact]
+    public void GearInTheHold_SpillsWhenTheShipIsDestroyed()
+    {
+        // Довезти добычу — часть риска: трофей в трюме теряется вместе с грузом (GDD §24).
+        _room = NewRoom(FitLoot());
+        var a = Connect();
+        PlayerOf(a).Cargo.Add("flak", 1);
+        Place(IdOf(a), 1500, 1500);
+        PlayerOf(a).Hp = 0;
+        Steps(2);
+
+        Assert.True(PlayerOf(a).Cargo.IsEmpty);
+        var spilled = Assert.Single(LootOf(a));
+        Assert.Equal(("flak", 1), (spilled.I, spilled.N));
     }
 
     [Fact]

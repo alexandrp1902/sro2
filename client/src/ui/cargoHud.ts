@@ -1,4 +1,4 @@
-import { itemSprite, spriteUrl } from '../render/sprites';
+import { gearIcon, spriteUrl } from '../render/sprites';
 import { lootItem, rarityColor, type LootRules } from '../sim/loot';
 import { formatCredits } from '../sim/shop';
 
@@ -207,7 +207,7 @@ export class CargoHud {
       dot.style.background = color(rarityColor(rules, id));
       const icon = document.createElement('img');
       icon.className = 'cargo-icon';
-      icon.src = spriteUrl(itemSprite(id));
+      icon.src = spriteUrl(gearIcon(rules, id));
       icon.alt = '';
       line.append(dot, icon, document.createTextNode(`${lootItem(rules, id)?.name ?? id} ×${count}`));
       // Выбросить стопку целиком (M15.1): в полёте — освободить место, когда трюм забит не тем.

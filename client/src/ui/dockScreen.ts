@@ -32,7 +32,7 @@ import {
 } from '../sim/fitting';
 import { keyHint, keymap } from '../input/keymap';
 import { hops, type GalaxyDto } from '../sim/galaxy';
-import { itemSprite, moduleSprite, shipSprite, spriteUrl, weaponSprite } from '../render/sprites';
+import { gearIcon, moduleSprite, shipSprite, spriteUrl, weaponSprite } from '../render/sprites';
 import type { Hulls } from '../sim/hulls';
 import { activeHint, activeLine, offerNote, offerTitle, timeLeft, type MissionNames } from '../sim/missions';
 import { lootItem, rarityColor, type LootRules } from '../sim/loot';
@@ -824,7 +824,7 @@ export class DockScreen {
     const item = lootItem(rules, row.id);
     const basePrice = item?.price ?? 0;
     const view = el('div', 'dock-row dock-market-row sro-row');
-    view.append(icon(itemSprite(row.id)));
+    view.append(icon(gearIcon(rules, row.id)));
 
     const name = el('div', 'dock-name sro-row__name', item?.name ?? row.id);
     name.style.color = color(rarityColor(rules, row.id));

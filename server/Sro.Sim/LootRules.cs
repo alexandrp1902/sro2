@@ -26,16 +26,23 @@ public sealed record LootItem(string Name, string Rarity = LootItem.Common, doub
 }
 
 /// <summary>
-/// Одна строка таблицы дропа: с шансом Chance выпадает от Min до Max штук предмета. Предмет — груз из items
-/// или (M11) пушка или модуль любого тира: подобранное снаряжение уходит на склад, а не в трюм.
+/// Одна строка таблицы дропа: с шансом Chance выпадает от Min до Max штук предмета. Предмет — только груз
+/// из items: снаряжение роняет <see cref="LootTable.Fit"/>, а не строка дропа.
 /// </summary>
 public sealed record LootRoll(string Item, double Chance = 1, int Min = 1, int Max = 1)
 {
     public const int MaxCount = 100;
 
-    public string? Validate(IReadOnlyDictionary<string, LootItem> items, IReadOnlySet<string>? gear = null)
+    public string? Validate(IReadOnlyDictionary<string, LootItem> items, IReadOnlyDictionary<string, double>? gear = null)
     {
-        if (Item is null || !(items.ContainsKey(Item) || gear?.Contains(Item) == true)) return $"unknown item '{Item}'";
+        if (Item is null) return "item is empty";
+
+        // Снаряжению здесь не место: строку дропа разгоняют прибавки за уровень (LevelChanceBonus,
+        // LevelCountBonus), и 2 % однажды снова стали бы 47 %, а одна пушка — тремя копиями.
+        if (!items.ContainsKey(Item))
+            return gear?.ContainsKey(Item) == true
+                ? $"'{Item}' is gear: list it in fit, not in rolls"
+                : $"unknown item '{Item}'";
         if (!(Chance > 0 && Chance <= 1)) return "chance must be within 0..1";
         if (Min < 1) return "min must be at least 1";
         if (Max < Min) return "max must not be less than min";
@@ -45,14 +52,26 @@ public sealed record LootRoll(string Item, double Chance = 1, int Min = 1, int M
 }
 
 /// <summary>Что роняет NPC такого типа. Имя таблицы — ключ типа из npcs.json; таблицы нет — дропа нет.</summary>
-/// <param name="LevelChanceBonus">Прибавка к шансу за каждый уровень выше первого, долей.</param>
-/// <param name="LevelCountBonus">Прибавка к количеству за каждый уровень выше первого, долей.</param>
+/// <param name="LevelChanceBonus">Прибавка к шансу за каждый уровень выше первого, долей. Снаряжения не касается.</param>
+/// <param name="LevelCountBonus">Прибавка к количеству за каждый уровень выше первого, долей. Снаряжения не касается.</param>
+/// <param name="Fit">
+/// Снаряжение, которое стоит на этом корабле (M11): 4–6 пушек и модулей. На бой оно не влияет — сила NPC
+/// задана в npcs.json, — но с обломков может выпасть только то, что есть здесь, а не любой предмет каталога.
+/// Тир снаряжения — региональный: таблицу подменяет система (<see cref="SystemDef.LootTables"/>).
+/// </param>
+/// <param name="GearChance">Свой шанс для каждой единицы снаряжения; null — общий из loot.json.</param>
 public sealed record LootTable(
     IReadOnlyList<LootRoll>? Rolls = null,
     double LevelChanceBonus = 0,
-    double LevelCountBonus = 0)
+    double LevelCountBonus = 0,
+    IReadOnlyList<string>? Fit = null,
+    double? GearChance = null)
 {
+    /// <summary>Больше этого на корабль не вешают: иначе «один из его модулей» перестаёт быть находкой.</summary>
+    public const int MaxFit = 8;
+
     [JsonIgnore] public IReadOnlyList<LootRoll> RollList => Rolls ?? [];
+    [JsonIgnore] public IReadOnlyList<string> FitList => Fit ?? [];
 
     /// <summary>Что выпало с NPC такого уровня. rng — из потока тика, чтобы дроп был воспроизводим по сиду.</summary>
     public void Roll(int level, Func<double> rng, List<(string Item, int Count)> into)
@@ -71,13 +90,39 @@ public sealed record LootTable(
         }
     }
 
-    public string? Validate(IReadOnlyDictionary<string, LootItem> items, IReadOnlySet<string>? gear = null)
+    /// <summary>
+    /// Снаряжение с обломков: каждая единица из <see cref="Fit"/> бросает свою монету отдельно и всегда
+    /// по одной штуке. Может не выпасть ничего, может выпасть сразу несколько. Уровень NPC здесь намеренно
+    /// ни при чём: прибавки за уровень множатся, и матёрый пират раздевался бы каждый бой.
+    /// </summary>
+    /// <param name="chance">Общий шанс из loot.json; своя <see cref="GearChance"/> его перебивает.</param>
+    public void RollFit(double chance, Func<double> rng, List<(string Item, int Count)> into)
+    {
+        if (FitList.Count == 0) return;
+        var each = Math.Min(1, GearChance ?? chance);
+        foreach (var item in FitList)
+        {
+            if (item is null) continue;
+            if (rng() < each) into.Add((item, 1));
+        }
+    }
+
+    /// <param name="gear">Снаряжение, которое бывает в космосе: id — объём в трюме.</param>
+    public string? Validate(IReadOnlyDictionary<string, LootItem> items, IReadOnlyDictionary<string, double>? gear = null)
     {
         if (!(LevelChanceBonus >= 0) || !(LevelCountBonus >= 0)) return "level bonuses must not be negative";
+        if (GearChance is { } chance && !(chance >= 0 && chance <= 1)) return "gearChance must be within 0..1";
         for (var i = 0; i < RollList.Count; i++)
         {
             var problem = RollList[i] is null ? "is null" : RollList[i].Validate(items, gear);
             if (problem is not null) return $"rolls[{i}]: {problem}";
+        }
+        if (FitList.Count > MaxFit) return $"fit must not exceed {MaxFit} items";
+        for (var i = 0; i < FitList.Count; i++)
+        {
+            var item = FitList[i];
+            if (item is not null && items.ContainsKey(item)) return $"fit[{i}]: '{item}' is cargo, not gear";
+            if (item is null || gear?.ContainsKey(item) != true) return $"fit[{i}]: unknown gear '{item}'";
         }
         return null;
     }
@@ -147,6 +192,10 @@ public sealed record LootContainer(
 /// <param name="StationUnload">Выключатель сдачи груза на станции.</param>
 /// <param name="StationRange">Радиус станции: ближе этого корабль может пристыковаться (M6), в доке продают груз.</param>
 /// <param name="MaxContainers">Сколько контейнеров лежит в системе одновременно; 0 — сколько угодно.</param>
+/// <param name="GearChance">
+/// Шанс, что отдельная единица снаряжения из fit таблицы уцелеет в обломках (M11). Монета у каждой своя,
+/// уровень NPC на неё не влияет: это находка, а не награда за уровень. 0 — снаряжение не падает вовсе.
+/// </param>
 public sealed record LootRules(
     double PickupRange = 130,
     double LifetimeSeconds = 120,
@@ -159,6 +208,7 @@ public sealed record LootRules(
     bool StationUnload = true,
     double StationRange = 200,
     int MaxContainers = 0,
+    double GearChance = 0.03,
     IReadOnlyDictionary<string, LootItem>? Items = null,
     IReadOnlyDictionary<string, LootTable>? Tables = null,
     IReadOnlyList<LootContainer>? Containers = null)
@@ -175,17 +225,24 @@ public sealed record LootRules(
     [JsonIgnore] public IReadOnlyDictionary<string, LootTable> TableMap => Tables ?? new Dictionary<string, LootTable>();
     [JsonIgnore] public IReadOnlyList<LootContainer> ContainerList => Containers ?? [];
 
-    /// <summary>Пушки и модули всех тиров: они тоже выпадают (M11) и уходят на склад пилота.</summary>
-    [JsonIgnore] public IReadOnlySet<string> Gear { get; init; } = new HashSet<string>();
+    /// <summary>
+    /// Пушки и модули всех тиров: они тоже выпадают (M11). Значение — объём в трюме: трофей летит домой
+    /// в грузовом отсеке и на склад попадает только в доке, поэтому за место он спорит с грузом.
+    /// </summary>
+    [JsonIgnore] public IReadOnlyDictionary<string, double> Gear { get; init; } = new Dictionary<string, double>();
+
+    /// <summary>Место под пушку или модуль класса S, M, L: 2, 4, 6 — крупное возить дороже.</summary>
+    public static double GearVolume(string? equipClass) => EquipClass.Rank(equipClass) * 2;
 
     /// <summary>Предмет — снаряжение, а не груз.</summary>
-    public bool IsGear(string item) => !ItemMap.ContainsKey(item) && Gear.Contains(item);
+    public bool IsGear(string item) => !ItemMap.ContainsKey(item) && Gear.ContainsKey(item);
 
     /// <summary>Такой предмет может лежать в космосе: груз или снаряжение.</summary>
-    public bool Knows(string item) => ItemMap.ContainsKey(item) || Gear.Contains(item);
+    public bool Knows(string item) => ItemMap.ContainsKey(item) || Gear.ContainsKey(item);
 
     /// <returns>Объём одной штуки; 0 — предмета такого нет.</returns>
-    public double Volume(string item) => ItemMap.TryGetValue(item, out var found) ? found.Volume : 0;
+    public double Volume(string item) =>
+        ItemMap.TryGetValue(item, out var found) ? found.Volume : Gear.GetValueOrDefault(item);
 
     /// <returns>Цена одной штуки в кредитах; 0 — предмета такого нет.</returns>
     public int Price(string item) => ItemMap.TryGetValue(item, out var found) ? found.Price : 0;
@@ -204,6 +261,7 @@ public sealed record LootRules(
         if (!(FullHoldSeconds >= 0)) return "fullHoldSeconds must not be negative";
         if (!(StationRange > 0)) return "stationRange must be positive";
         if (MaxContainers < 0) return "maxContainers must not be negative";
+        if (!(GearChance >= 0 && GearChance <= 1)) return "gearChance must be within 0..1";
 
         foreach (var (id, item) in ItemMap)
         {
@@ -224,9 +282,13 @@ public sealed record LootRules(
         return null;
     }
 
-    /// <param name="gear">Пушки и модули, которые могут выпадать; null — только груз.</param>
+    /// <param name="gear">Пушки и модули, которые могут выпадать (id — объём); null — только груз.</param>
     public static bool TryParse(
-        string json, out LootRules rules, out string? error, double stationSafeRadius = 0, IReadOnlySet<string>? gear = null)
+        string json,
+        out LootRules rules,
+        out string? error,
+        double stationSafeRadius = 0,
+        IReadOnlyDictionary<string, double>? gear = null)
     {
         rules = None;
         LootRules? parsed;

@@ -9,6 +9,10 @@
   "fullHoldSeconds": 5,
   "stationUnload": true,
   "stationRange": 200,
+
+  // Шанс, что отдельная единица снаряжения из fit уцелеет в обломках (M11). Монета у каждой из 4–6 своя,
+  // уровень NPC на неё не влияет: это находка, а не награда за уровень.
+  "gearChance": 0.03,
   "items": {
     "metal": { "name": "Металл", "rarity": "common", "volume": 1, "price": 10 },
     "ore": { "name": "Руда", "rarity": "common", "volume": 1, "price": 8 },
@@ -31,6 +35,7 @@
     "pirate": {
       "levelChanceBonus": 0.05,
       "levelCountBonus": 0.2,
+      "fit": ["pulse", "engineS", "shieldS", "radarS", "thrusters"],
       "rolls": [
         { "item": "metal", "chance": 1, "min": 2, "max": 5 },
         { "item": "energy", "chance": 0.45, "min": 1, "max": 1 },
@@ -41,6 +46,7 @@
     "heavyPirate": {
       "levelChanceBonus": 0.05,
       "levelCountBonus": 0.2,
+      "fit": ["plasma", "missiles", "engineM", "shieldM", "generatorM", "repair"],
       "rolls": [
         { "item": "metal", "chance": 1, "min": 4, "max": 8 },
         { "item": "energy", "chance": 0.6, "min": 1, "max": 2 },
@@ -53,56 +59,45 @@
     "frontierPirate": {
       "levelChanceBonus": 0.05,
       "levelCountBonus": 0.2,
+      "fit": ["pulse_mk2", "pointDefense_mk2", "engineS_mk2", "shieldS_mk2", "cooling_mk2"],
       "rolls": [
         { "item": "metal", "chance": 1, "min": 3, "max": 6 },
         { "item": "energy", "chance": 0.5, "min": 1, "max": 2 },
         { "item": "titanium", "chance": 0.35, "min": 1, "max": 2 },
-        { "item": "tech", "chance": 0.07, "min": 1, "max": 1 },
-        { "item": "pointDefense_mk2", "chance": 0.03 },
-        { "item": "ion_mk2", "chance": 0.02 },
-        { "item": "cooling_mk2", "chance": 0.02 },
-        { "item": "shieldM_mk2", "chance": 0.02 }
+        { "item": "tech", "chance": 0.07, "min": 1, "max": 1 }
       ]
     },
     "frontierBrute": {
       "levelChanceBonus": 0.05,
       "levelCountBonus": 0.2,
+      "fit": ["plasma_mk2", "missiles_mk2", "engineM_mk2", "shieldM_mk2", "repair_mk2", "cooling_mk2"],
       "rolls": [
         { "item": "metal", "chance": 1, "min": 5, "max": 9 },
         { "item": "titanium", "chance": 0.5, "min": 1, "max": 3 },
         { "item": "crystals", "chance": 0.25, "min": 1, "max": 2 },
-        { "item": "tech", "chance": 0.14, "min": 1, "max": 1 },
-        { "item": "plasma_mk2", "chance": 0.04 },
-        { "item": "engineM_mk2", "chance": 0.03 },
-        { "item": "repair_mk2", "chance": 0.03 }
+        { "item": "tech", "chance": 0.14, "min": 1, "max": 1 }
       ]
     },
     "rimPirate": {
       "levelChanceBonus": 0.05,
       "levelCountBonus": 0.2,
+      "fit": ["pulse_mk3", "pointDefense_mk3", "engineS_mk3", "shieldS_mk3", "cooling_mk3"],
       "rolls": [
         { "item": "metal", "chance": 1, "min": 4, "max": 8 },
         { "item": "titanium", "chance": 0.5, "min": 2, "max": 4 },
         { "item": "crystals", "chance": 0.3, "min": 1, "max": 2 },
-        { "item": "tech", "chance": 0.12, "min": 1, "max": 1 },
-        { "item": "ion_mk2", "chance": 0.05 },
-        { "item": "railgun_mk2", "chance": 0.02 },
-        { "item": "cooling_mk3", "chance": 0.015 },
-        { "item": "shieldL_mk2", "chance": 0.02 }
+        { "item": "tech", "chance": 0.12, "min": 1, "max": 1 }
       ]
     },
     "rimBrute": {
       "levelChanceBonus": 0.05,
       "levelCountBonus": 0.2,
+      "fit": ["plasma_mk3", "missiles_mk2", "engineL_mk2", "shieldL_mk2", "generatorL_mk2", "repair_mk3"],
       "rolls": [
         { "item": "metal", "chance": 1, "min": 6, "max": 12 },
         { "item": "rareMetal", "chance": 0.35, "min": 1, "max": 2 },
         { "item": "crystals", "chance": 0.45, "min": 1, "max": 3 },
-        { "item": "tech", "chance": 0.2, "min": 1, "max": 2 },
-        { "item": "railgun_mk3", "chance": 0.02 },
-        { "item": "torpedoes_mk2", "chance": 0.03 },
-        { "item": "afterburnerL_mk2", "chance": 0.03 },
-        { "item": "generatorL_mk3", "chance": 0.015 }
+        { "item": "tech", "chance": 0.2, "min": 1, "max": 2 }
       ]
     },
     "rockSmall": { "rolls": [{ "item": "ore", "chance": 1, "min": 1, "max": 2 }] },
@@ -135,7 +130,11 @@
     },
     "cache": { "rolls": [{ "item": "crystals", "chance": 1, "min": 1, "max": 2 }] },
     "drone": { "rolls": [{ "item": "metal", "chance": 1, "min": 2, "max": 3 }] },
+
+    // Рейнджера обирают редко и обычно по ошибке, поэтому груза у него нет — только своё снаряжение.
+    "ranger": { "fit": ["pulse_mk2", "laser_mk2", "engineM_mk2", "shieldM_mk2", "radarM_mk2"] },
     "trader": {
+      "fit": ["pulse", "engineM", "shieldM", "radarM", "cargoPod"],
       "rolls": [
         { "item": "metal", "chance": 1, "min": 3, "max": 6 },
         { "item": "titanium", "chance": 0.7, "min": 1, "max": 3 },

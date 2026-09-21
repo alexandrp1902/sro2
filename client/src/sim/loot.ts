@@ -1,6 +1,8 @@
 // Зеркало server/Sro.Sim/LootRules.cs — та часть, которая нужна клиенту: вид предмета,
 // радиус захвата и правила сдачи груза. Таблицы дропа остаются на сервере, клиент их не считает.
 
+import { classRank } from './fitting';
+
 /** Редкость (GDD §23) — от неё цвет предмета на экране. */
 export type Rarity = 'common' | 'uncommon' | 'rare' | 'epic' | 'legendary';
 
@@ -29,13 +31,20 @@ export interface LootRules {
   gear?: Record<string, GearItem> | null;
 }
 
-/** Пушка или модуль, выпавший с пирата (M11): в трюм не кладётся, уходит на склад. */
+/** Пушка или модуль, выпавший с пирата (M11): едет домой в трюме, на склад уходит в доке. */
 export interface GearItem {
   name: string;
   /** Тир Mk1–Mk3: от него цвет. */
   tier: number;
   /** Картинка из каталога спрайтов; null — нарисуем общий контейнер. */
   sprite: string | null;
+  /** Сколько места занимает в трюме: класс S, M, L — 2, 4, 6. */
+  volume: number;
+}
+
+/** Место под пушку или модуль класса S, M, L: 2, 4, 6. Зеркало LootRules.GearVolume. */
+export function gearVolume(equipClass: string | null | undefined): number {
+  return classRank(equipClass) * 2;
 }
 
 /** Лута нет: до welcome и на серверах без loot.json. */
@@ -61,8 +70,15 @@ export function lootItem(rules: LootRules, id: string): LootItem | null {
   const item = rules.items?.[id];
   if (item) return item;
   const gear = rules.gear?.[id];
-  // Снаряжение не груз: места в трюме не занимает и на станции не продаётся — его цену знает склад.
-  return gear ? { name: gear.name, rarity: gear.tier >= 3 ? 'epic' : gear.tier === 2 ? 'rare' : 'uncommon', volume: 0, price: 0 } : null;
+  // Снаряжение место в трюме занимает, но грузом не торгуют: его цену знает магазин, а не станция.
+  return gear
+    ? {
+        name: gear.name,
+        rarity: gear.tier >= 3 ? 'epic' : gear.tier === 2 ? 'rare' : 'uncommon',
+        volume: gear.volume,
+        price: 0,
+      }
+    : null;
 }
 
 /** Картинка предмета в космосе: у снаряжения (M11) — иконка пушки или модуля. */
@@ -70,7 +86,7 @@ export function lootSprite(rules: LootRules, id: string): string | null {
   return rules.gear?.[id]?.sprite ?? null;
 }
 
-/** Предмет — снаряжение, а не груз: подобранное уходит на склад. */
+/** Предмет — снаряжение, а не груз: подобранное уходит на склад, но в доке, а не сразу. */
 export function isGear(rules: LootRules, id: string): boolean {
   return !rules.items?.[id] && !!rules.gear?.[id];
 }

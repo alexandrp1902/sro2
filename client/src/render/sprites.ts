@@ -1,4 +1,5 @@
 import { Assets, Texture } from 'pixi.js';
+import { lootSprite, type LootRules } from '../sim/loot';
 import meta from './spriteMeta.json';
 
 /**
@@ -84,6 +85,12 @@ const ITEM_SPRITES: Record<string, string> = { tech: 'plasma' };
 export function itemSprite(item: string): SpriteName {
   const name = `resources-${ITEM_SPRITES[item] ?? item}`;
   return name in meta ? (name as SpriteName) : 'resources-metal';
+}
+
+/** Иконка того, что лежит в трюме: у снаряжения (M11) — своя пушка или модуль, у груза — ресурс. */
+export function gearIcon(rules: LootRules, item: string): SpriteName {
+  const gear = lootSprite(rules, item);
+  return gear && hasSprite(gear) ? (gear as SpriteName) : itemSprite(item);
 }
 
 /** Пушки, чья картинка названа иначе. */

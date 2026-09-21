@@ -39,7 +39,7 @@ import { DEFAULT_SECTOR_UNIT, assessBest, cooldownTicks, damageType, evasion, lo
 import { Modules, effectiveHull, fitWeapons, tierOf, type ShipFit } from './sim/fitting';
 import { describeSystem, gateIndex, gateMarkId, pvpName } from './sim/galaxy';
 import { DEFAULT_HULL, Hulls } from './sim/hulls';
-import { NO_LOOT, lootItem, lootLabel, rarityColor, type GearItem, type LootRules } from './sim/loot';
+import { NO_LOOT, gearVolume, lootItem, lootLabel, rarityColor, type GearItem, type LootRules } from './sim/loot';
 import type { MarketRules } from './sim/market';
 import { DT, ION_SLOW, directionAngle, localVelocity, slowedHull, type MoveInput } from './sim/movement';
 import { orbitSeconds } from './sim/orbits';
@@ -147,10 +147,13 @@ async function main(): Promise<void> {
    */
   const withGear = (rules: LootRules | null | undefined): LootRules => {
     const gear: Record<string, GearItem> = {};
-    for (const id of weapons.ids()) gear[id] = { name: weapons.get(id).name, tier: tierOf(id), sprite: weaponSprite(id) };
+    for (const id of weapons.ids()) {
+      const w = weapons.get(id);
+      gear[id] = { name: w.name, tier: tierOf(id), sprite: weaponSprite(id), volume: gearVolume(w.class) };
+    }
     for (const id of modules.ids()) {
       const m = modules.get(id);
-      if (m) gear[id] = { name: m.name, tier: tierOf(id), sprite: moduleSprite(m.slot, id) };
+      if (m) gear[id] = { name: m.name, tier: tierOf(id), sprite: moduleSprite(m.slot, id), volume: gearVolume(m.class) };
     }
     return { ...(rules ?? NO_LOOT), gear };
   };

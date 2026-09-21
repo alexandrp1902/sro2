@@ -48,12 +48,12 @@ internal static class TestHulls
             Read(Balance.MarketFile), Read(Balance.ReputationFile), Read(Balance.CareersFile), Read(Balance.DemandFile));
     }
 
-    /// <summary>Все пушки и модули всех тиров из shared/ — их роняют пираты дальних регионов (M11).</summary>
-    public static IReadOnlySet<string> SharedGear()
+    /// <summary>Все пушки и модули всех тиров из shared/ (id — объём в трюме): их роняют пираты (M11).</summary>
+    public static IReadOnlyDictionary<string, double> SharedGear()
     {
         var sources = SharedSources();
         Assert.True(Balance.TryParse(sources, out var balance, out var error), error);
-        return balance!.ItemIds.ToHashSet();
+        return balance!.Loot.Gear;
     }
 }
 
