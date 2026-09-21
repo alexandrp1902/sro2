@@ -124,13 +124,15 @@ public sealed record CombatRules(
 /// <param name="Market">market.json; null — рынка товаров нет, груз сдаётся по плоской цене loot.json, как до M12.</param>
 /// <param name="Careers">careers.json; null — путей нет, и все новые пилоты одинаковы, как до M15.5.</param>
 /// <param name="Demand">demand.json; null — событий спроса нет.</param>
+/// <param name="Trade">trade.json; null — обмен по умолчанию.</param>
 public sealed record BalanceSources(
     string Hulls, string Weapons, string Rules, string Npcs, string Loot, string Meteors, string Shop,
     string? Galaxy = null, string? Missions = null, string? Modules = null, string? Party = null, string? Invasion = null,
     string? Market = null,
     string? Reputation = null,
     string? Careers = null,
-    string? Demand = null);
+    string? Demand = null,
+    string? Trade = null);
 
 /// <summary>
 /// Весь баланс: корпуса, пушки, правила боя, NPC, лут, метеориты, магазин станции, галактика, задания.
@@ -182,7 +184,8 @@ public sealed record Balance(
     IReadOnlyDictionary<string, ShopRules>? ShopByPlace = null,
     IReadOnlyDictionary<string, MarketRules>? MarketByPlace = null,
     CareerRules? CareerSet = null,
-    DemandRules? DemandSet = null)
+    DemandRules? DemandSet = null,
+    TradeRules? TradeSet = null)
 {
     public const string HullsFile = "hulls.json";
     public const string WeaponsFile = "weapons.json";
@@ -200,12 +203,13 @@ public sealed record Balance(
     public const string ReputationFile = ReputationRules.File;
     public const string CareersFile = CareerRules.File;
     public const string DemandFile = DemandRules.File;
+    public const string TradeFile = TradeRules.File;
 
     /// <summary>Все файлы баланса в порядке разбора.</summary>
     public static readonly string[] Files =
     [
         HullsFile, WeaponsFile, RulesFile, NpcsFile, LootFile, MeteorsFile, ShopFile, GalaxyFile, MissionsFile,
-        ModulesFile, PartyFile, InvasionFile, MarketFile, ReputationFile, CareersFile, DemandFile,
+        ModulesFile, PartyFile, InvasionFile, MarketFile, ReputationFile, CareersFile, DemandFile, TradeFile,
     ];
 
     public NpcRules Npc => Npcs ?? NpcRules.None;
@@ -225,6 +229,9 @@ public sealed record Balance(
     public MissionRules Missions => MissionSet ?? MissionRules.None;
 
     public PartyRules Party => PartySet ?? PartyRules.Default;
+
+    /// <summary>Обмен между игроками (M16b).</summary>
+    public TradeRules Trade => TradeSet ?? TradeRules.Default;
 
     public InvasionRules Invasion => InvasionSet ?? InvasionRules.None;
 
@@ -537,6 +544,15 @@ public sealed record Balance(
                 return false;
             }
             parsed = parsed with { PartySet = party };
+        }
+        if (sources.Trade is not null)
+        {
+            if (!TradeRules.TryParse(sources.Trade, out var trade, out error))
+            {
+                error = $"{TradeFile}: {error}";
+                return false;
+            }
+            parsed = parsed with { TradeSet = trade };
         }
         if (sources.Invasion is not null)
         {

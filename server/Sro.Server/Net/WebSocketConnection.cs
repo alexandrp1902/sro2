@@ -195,6 +195,9 @@ public sealed class WebSocketConnection(WebSocket socket, ILogger log) : IClient
                 case PartyMsg party when joined:
                     room.Party(this, party.Action, party.Id);
                     break;
+                case TradeMsg trade when joined:
+                    room.Trade(this, trade);
+                    break;
                 case InputMsg input when joined:
                     room.Input(this, input);
                     break;

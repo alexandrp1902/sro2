@@ -452,6 +452,9 @@ public sealed partial class Room
     {
         // Соединение, которое уже вытеснили новым, здесь не найдётся и корабль не отцепит.
         if (!_byConnection.Remove(connection.Id, out var player)) return;
+        // Корабль остаётся в мире, но за него больше никто не отвечает: сделку рвём, иначе второй
+        // дожал бы её кнопкой в одиночку (M16b).
+        _host?.Busy(player, TradeCodes.Left);
         if (player.Token is null)
         {
             Remove(player);
@@ -616,6 +619,7 @@ public sealed partial class Room
             player.JumpTo = null;
             player.JumpAtTick = 0;
             Save(player);
+            _host!.Busy(player, TradeCodes.Jumped); // обмен через полгалактики не идёт (M16b)
             _log.LogInformation("Player {Id} jumps {From} → {To}", player.Id, SystemId, to);
             _host!.Depart(this, player, to, jump: true);
         }
@@ -913,7 +917,8 @@ public sealed partial class Room
 
         var message = Protocol.Encode(new ConfigMsg(
             balance.Hulls, balance.Weapons, balance.Rules, balance.Npc, balance.Loot, balance.Meteors, balance.Economy,
-            SystemInfo(), GalaxyInfo(balance.Galaxy), balance.Modules, balance.MarketSet, balance.ReputationSet));
+            SystemInfo(), GalaxyInfo(balance.Galaxy), balance.Modules, balance.MarketSet, balance.ReputationSet,
+            balance.Trade));
         foreach (var player in _players.Values)
         {
             player.Connection?.SendRaw(message);
@@ -1032,7 +1037,12 @@ public sealed partial class Room
         // Дроп после боя: предмет должен пролежать хотя бы тик, иначе игрок вплотную к убитому
         // увидит «ничего не выпало», а трюм молча пополнится.
         _spilled.Clear();
-        foreach (var kill in _kills) if (_players.GetValueOrDefault(kill.Id) is { Cargo.IsEmpty: false } spilled) _spilled.Add(spilled);
+        foreach (var kill in _kills)
+        {
+            if (_players.GetValueOrDefault(kill.Id) is not { } dead) continue;
+            _host?.Busy(dead, TradeCodes.Dead); // сбитому не до обмена: сделка снимается со стола сразу (M16b)
+            if (!dead.Cargo.IsEmpty) _spilled.Add(dead);
+        }
         _loot.DropFrom(_kills, _ships, Balance.Loot, Tick);
         foreach (var player in _spilled) LostCargo(player);
         // Подбор и продажа — по команде игрока, а не сами собой: см. Grab и Sell.
@@ -1807,7 +1817,7 @@ public sealed partial class Room
     private WelcomeMsg Welcome(Player player, bool resumed) =>
         new(player.Id, SimConfig.TickRate, Protocol.Version, Hulls, Balance.Weapons, Balance.Rules, resumed,
             Balance.Npc, Balance.Loot, Balance.Meteors, Balance.Economy, SystemInfo(), GalaxyInfo(Balance.Galaxy), Balance.Modules,
-            Balance.MarketSet, Balance.ReputationSet);
+            Balance.MarketSet, Balance.ReputationSet, Balance.Trade);
 
     /// <summary>Эта система для клиента: небо, станция, укрытие, врата с именами соседей и ценой прыжка.</summary>
     private SystemDto SystemInfo()
@@ -2007,6 +2017,61 @@ public sealed partial class Room
     }
 
     /// <summary>
+    /// Обмен между игроками (M16b): всё проверяется до единой записи, и половина сделки не проходит никогда.
+    /// Сессию держит <see cref="Galaxy"/>, а исполняется обмен здесь: оба по условию рядом, то есть в этой
+    /// комнате, и только у неё есть баланс, трюм, счёт заданий и сохранение профиля.
+    /// Резервировать заранее нечего: трюм до последнего принадлежит хозяину, а страж — эта самая проверка.
+    /// </summary>
+    /// <returns>Код отказа (<see cref="TradeCodes"/>) или null — обмен состоялся.</returns>
+    public string? Swap(Player a, Player b, TradeOffer offerA, TradeOffer offerB)
+    {
+        if (Pilot(a.Id) != a || Pilot(b.Id) != b) return TradeCodes.Gone;
+        if (a.IsDead || b.IsDead) return TradeCodes.Dead;
+        if (a.Docked || b.Docked) return TradeCodes.Docked;
+        var range = Balance.Trade.Range;
+        if (Hypot(a.Ship.X - b.Ship.X, a.Ship.Y - b.Ship.Y) > range) return TradeCodes.TooFar;
+        if (a.Credits < offerA.Credits || b.Credits < offerB.Credits) return TradeCodes.NoCredits;
+        if (!Holds(a, offerA) || !Holds(b, offerB)) return TradeCodes.NoItems;
+        if (!Room(a, offerA, offerB) || !Room(b, offerB, offerA)) return TradeCodes.NoRoom;
+
+        Hand(a, b, offerA);
+        Hand(b, a, offerB);
+        foreach (var player in new[] { a, b })
+        {
+            player.CargoFullUntilTick = 0;
+            SendCargo(player);
+            SendCollect(player); // «собрать» считает по трюму: отдал груз — счёт упал, принял — вырос
+            Save(player);
+        }
+        _log.LogInformation("Players {A} and {B} traded", a.Id, b.Id);
+        return null;
+
+        bool Holds(Player player, TradeOffer offer) =>
+            offer.Items.All(kv => player.Cargo.Count(kv.Key) >= kv.Value);
+
+        // Объём считается нетто: отдал две руды и взял две руды — место не кончилось.
+        bool Room(Player player, TradeOffer gives, TradeOffer takes)
+        {
+            var loot = Balance.Loot;
+            var used = player.Cargo.Used(loot);
+            foreach (var (item, count) in gives.Items) used -= loot.Volume(item) * count;
+            foreach (var (item, count) in takes.Items) used += loot.Volume(item) * count;
+            return used <= player.Effective(Balance).Cargo;
+        }
+
+        static void Hand(Player from, Player to, TradeOffer offer)
+        {
+            from.Credits -= offer.Credits;
+            to.Credits += offer.Credits;
+            foreach (var (item, count) in offer.Items)
+            {
+                from.Cargo.Remove(item, count);
+                to.Cargo.Add(item, count);
+            }
+        }
+    }
+
+    /// <summary>
     /// Стыковка и посадка (GDD §26, M15): в круге места корабль уходит в док — из космоса, из прицелов
     /// и с пути метеоритов. Место — станция или поселение на планете; для комнаты разницы нет.
     /// Вылет — там же, где вставали, стоя на месте и с защитой, как после появления (§25).
@@ -2038,6 +2103,7 @@ public sealed partial class Room
             player.DockedPlace = target.Key;
             player.DockOffset = target.Orbit.ToLocal(OrbitSeconds, player.Ship.X, player.Ship.Y);
             player.Ship.Vx = player.Ship.Vy = 0;
+            _host?.Busy(player, TradeCodes.Docked); // из дока не меняются: обмен — дело двоих в космосе (M16b)
             player.FireHeld = false;
             player.TargetId = 0;
             player.SelectedLootId = 0;

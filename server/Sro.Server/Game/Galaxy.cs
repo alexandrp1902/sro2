@@ -29,6 +29,12 @@ public interface IRoomHost
     /// <summary>Пилот ушёл из игры насовсем: из группы — тоже.</summary>
     void Gone(Player player);
 
+    /// <summary>
+    /// Пилот больше не может торговать (M16b): ушёл в док, погиб, прыгнул или потерял связь. Сделка
+    /// снимается со стола сразу, а не ждёт ежетиковой проверки: иначе второй успел бы её подтвердить.
+    /// </summary>
+    void Busy(Player player, string code);
+
     /// <summary>Пилот нанёс урон пиратам вторжения id (GDD §38).</summary>
     void Contributed(Player player, int invasionId, double damage);
 
@@ -48,7 +54,7 @@ public interface IRoomHost
 /// ищутся по всей галактике: корабль, ждущий после обрыва связи, находится, в какой бы системе он ни был.
 /// Вызывается только из потока тика (<see cref="GalaxyHost"/>) — поэтому тестируется напрямую, как <see cref="Room"/>.
 /// </summary>
-public sealed class Galaxy : IRoomHost
+public sealed partial class Galaxy : IRoomHost
 {
     private readonly ILogger _log;
     private readonly AccountStore? _accounts;
@@ -57,6 +63,7 @@ public sealed class Galaxy : IRoomHost
     private readonly List<(Room From, Player Player, string To, bool Jump)> _departures = [];
     private readonly double[] _stepMs;
     private readonly PartyBook _parties = new();
+    private readonly TradeBook _trades = new();
     private readonly InvasionDirector _invasion;
     private readonly DemandDirector _demand;
     private int _nextId;
@@ -175,6 +182,7 @@ public sealed class Galaxy : IRoomHost
         _invasion.Step(this, Tick);
         _demand.Step(this, Tick);
         StepParties();
+        StepTrades();
 
         // «Онлайн» в статусе — по всей галактике: вошли в одной системе — узнают и в остальных.
         var total = OnlineTotal;
@@ -213,7 +221,11 @@ public sealed class Galaxy : IRoomHost
 
     public IReadOnlyList<int>? PartyMembers(int id) => _parties.PartyOf(id)?.Members;
 
-    public void Gone(Player player) => LeaveParty(player.Id, player.Name);
+    public void Gone(Player player)
+    {
+        Busy(player, TradeCodes.Left);
+        LeaveParty(player.Id, player.Name);
+    }
 
     public void Contributed(Player player, int invasionId, double damage) => _invasion.Contributed(player, invasionId, damage);
 

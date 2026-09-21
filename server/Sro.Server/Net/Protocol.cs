@@ -31,6 +31,7 @@ namespace Sro.Server.Net;
 [JsonDerivedType(typeof(JumpMsg), "jump")]
 [JsonDerivedType(typeof(MissionMsg), "mission")]
 [JsonDerivedType(typeof(PartyMsg), "party")]
+[JsonDerivedType(typeof(TradeMsg), "trade")]
 [JsonDerivedType(typeof(PvpMsg), "pvp")]
 [JsonDerivedType(typeof(PasswordMsg), "password")]
 public abstract record ClientMessage;
@@ -182,6 +183,21 @@ public sealed record MissionMsg(string? Action, string? Id = null) : ClientMessa
 public sealed record PartyMsg(string? Action, int Id = 0) : ClientMessage;
 
 /// <summary>
+/// Обмен между игроками (M16b). Предложение приходит своей половиной целиком, а не приращением: словарь
+/// не может содержать дубль ключа, повторная отправка ничего не удваивает, и «любая правка гасит оба
+/// подтверждения» остаётся одним правилом в одном месте.
+/// </summary>
+/// <param name="Action">Действие из <see cref="TradeCodes"/>.</param>
+/// <param name="Id">Кого зовём или чьё предложение принимаем.</param>
+/// <param name="Rev">Редакция стола, которую игрок видел; для ready — обязательна.</param>
+public sealed record TradeMsg(
+    string? Action,
+    int Id = 0,
+    int Credits = 0,
+    IReadOnlyDictionary<string, int>? Items = null,
+    int Rev = 0) : ClientMessage;
+
+/// <summary>
 /// Переключатель PvP пилота: выключен — его пушки и ракеты не бьют игроков, торговцев и рейнджеров, где бы он ни был.
 /// Правила системы (GDD §34) он не расширяет: в системе без PvP по пилотам не стреляют и с включённым.
 /// </summary>
@@ -205,6 +221,9 @@ public sealed record PvpMsg(bool On) : ClientMessage;
 [JsonDerivedType(typeof(SosMsg), "sos")]
 [JsonDerivedType(typeof(PartyInviteMsg), "partyInvite")]
 [JsonDerivedType(typeof(PartyStateMsg), "partyState")]
+[JsonDerivedType(typeof(TradeInviteMsg), "tradeInvite")]
+[JsonDerivedType(typeof(TradeStateMsg), "tradeState")]
+[JsonDerivedType(typeof(TradeEventMsg), "tradeEvent")]
 [JsonDerivedType(typeof(PartyEventMsg), "partyEvent")]
 [JsonDerivedType(typeof(BountyMsg), "bounty")]
 [JsonDerivedType(typeof(InvasionMsg), "invasion")]
@@ -246,7 +265,8 @@ public sealed record WelcomeMsg(
     GalaxyDto? Galaxy = null,
     IReadOnlyDictionary<string, ModuleParams>? Modules = null,
     MarketRules? Market = null,
-    ReputationRules? Reputation = null) : ServerMessage;
+    ReputationRules? Reputation = null,
+    TradeRules? Trade = null) : ServerMessage;
 
 /// <summary>Врата в системе: куда ведут и как называется та система.</summary>
 public sealed record GateDto(string To, string Name, double X, double Y);
@@ -362,7 +382,8 @@ public sealed record ConfigMsg(
     GalaxyDto? Galaxy = null,
     IReadOnlyDictionary<string, ModuleParams>? Modules = null,
     MarketRules? Market = null,
-    ReputationRules? Reputation = null) : ServerMessage;
+    ReputationRules? Reputation = null,
+    TradeRules? Trade = null) : ServerMessage;
 
 /// <summary>Вход принят. Приходит раньше <see cref="WelcomeMsg"/>.</summary>
 /// <param name="Name">Ник аккаунта так, как он записан на сервере.</param>
@@ -639,6 +660,27 @@ public sealed record PartyStateMsg(int Leader, IReadOnlyList<PartyMemberDto> Mem
 
 /// <summary>Событие группы для ленты (<see cref="PartyCodes"/>): текст подставляет клиент, Name — о ком.</summary>
 public sealed record PartyEventMsg(string Code, string? Name = null) : ServerMessage;
+
+/// <summary>Пилот From предлагает обмен (M16b); ответить — trade accept/decline в течение Seconds.</summary>
+public sealed record TradeInviteMsg(int From, string Name, double Seconds) : ServerMessage;
+
+/// <summary>Половина стола обмена: кто и что кладёт.</summary>
+/// <param name="Ready">Эта сторона подтвердила предложение; любая правка подтверждение гасит.</param>
+public sealed record TradeOfferDto(
+    int Id, string Name, int Credits, IReadOnlyDictionary<string, int> Items, bool Ready);
+
+/// <summary>
+/// Стол обмена целиком, обеим сторонам (M16b). Active = false — сделки больше нет (прошла, отменена или
+/// сорвана), и окно закрывается только по этому сообщению, а не по своей кнопке: иначе стороны разъедутся.
+/// </summary>
+/// <param name="Rev">
+/// Номер редакции стола. Подтверждение шлётся с ним же, и устаревшее не принимается: сделка не должна
+/// пройти по предложению, которого игрок уже не видел.
+/// </param>
+public sealed record TradeStateMsg(bool Active, TradeOfferDto? Own, TradeOfferDto? Their, int Rev) : ServerMessage;
+
+/// <summary>Событие обмена для ленты (<see cref="TradeCodes"/>).</summary>
+public sealed record TradeEventMsg(string Code, string? Name = null) : ServerMessage;
 
 /// <summary>Награда за голову пирата (GDD §31): Amount — своя доля, Shared — на скольких её поделили.</summary>
 public sealed record BountyMsg(int Amount, int Shared, string Name) : ServerMessage;
@@ -962,4 +1004,50 @@ public static class PartyCodes
     public const string Gone = "gone";
     /// <summary>Группа распалась: в ней остались вы один.</summary>
     public const string Disbanded = "disbanded";
+}
+
+/// <summary>Действия <see cref="TradeMsg"/> и коды <see cref="TradeEventMsg"/> (M16b).</summary>
+public static class TradeCodes
+{
+    public const string InviteAction = "invite";
+    public const string AcceptAction = "accept";
+    public const string DeclineAction = "decline";
+    /// <summary>Положить на стол свою половину целиком: кредиты и предметы.</summary>
+    public const string OfferAction = "offer";
+    /// <summary>Подтвердить то, что на столе сейчас; шлётся с номером редакции.</summary>
+    public const string ReadyAction = "ready";
+    public const string CancelAction = "cancel";
+
+    /// <summary>Предложение обмена отправлено пилоту Name.</summary>
+    public const string Invited = "invited";
+    /// <summary>Обмен с Name начался: стол открыт.</summary>
+    public const string Opened = "opened";
+    /// <summary>Name отказался меняться.</summary>
+    public const string Declined = "declined";
+    /// <summary>Name не ответил вовремя, или предложения уже нет.</summary>
+    public const string Expired = "expired";
+    /// <summary>Name уже меняется с кем-то другим.</summary>
+    public const string Busy = "busy";
+    /// <summary>Такого пилота нет в игре.</summary>
+    public const string Gone = "gone";
+    /// <summary>Подтверждение пришло на устаревшее предложение — стол с тех пор менялся.</summary>
+    public const string Stale = "stale";
+    /// <summary>Разошлись слишком далеко.</summary>
+    public const string TooFar = "tooFar";
+    /// <summary>Кто-то ушёл в док.</summary>
+    public const string Docked = "docked";
+    /// <summary>Кого-то сбили.</summary>
+    public const string Dead = "dead";
+    /// <summary>Кто-то ушёл в другую систему.</summary>
+    public const string Jumped = "jumped";
+    /// <summary>Name отменил обмен или потерял связь.</summary>
+    public const string Left = "left";
+    /// <summary>Обмен не прошёл: у кого-то не хватило места в трюме.</summary>
+    public const string NoRoom = "noRoom";
+    /// <summary>Обмен не прошёл: у кого-то не хватило кредитов.</summary>
+    public const string NoCredits = "noCredits";
+    /// <summary>Обмен не прошёл: обещанного груза на месте не оказалось.</summary>
+    public const string NoItems = "noItems";
+    /// <summary>Обмен состоялся.</summary>
+    public const string Done = "done";
 }

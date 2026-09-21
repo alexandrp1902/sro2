@@ -35,6 +35,8 @@ export interface TargetStatus extends Vitals {
   fire: boolean;
   /** Цель — пилот не из группы: на карточке кнопка «В группу» (GDD §37). */
   invite: boolean;
+  /** Цель — живой пилот рядом: на карточке кнопка «Обмен» (M16b). */
+  trade: boolean;
   /** Цель — участник своей группы: по нему не стреляют. */
   member: boolean;
 }
@@ -100,6 +102,7 @@ export class CombatHud {
   private readonly targetShield: Bar;
   private readonly targetInfo: HTMLElement;
   private readonly invite: HTMLButtonElement;
+  private readonly trade: HTMLButtonElement;
   private readonly deathBy: HTMLElement;
   private readonly deathTimer: HTMLElement;
   private lastRender = 0;
@@ -110,6 +113,7 @@ export class CombatHud {
     private readonly deathEl: HTMLElement,
     onClearTarget: () => void,
     onInvite: () => void,
+    onTrade: () => void = () => {},
   ) {
     this.ownHull = new Bar(shipEl, 'hull', 'Корпус');
     this.ownShield = new Bar(shipEl, 'shield', 'Щит');
@@ -130,6 +134,17 @@ export class CombatHud {
       onInvite();
     });
     head.append(this.invite);
+    // Обмен — оттуда же, где зовут в группу: цель уже выбрана, и второй раз её искать незачем (M16b).
+    this.trade = document.createElement('button');
+    this.trade.type = 'button';
+    this.trade.className = 'target-trade sro-btn sro-btn--xs';
+    this.trade.textContent = 'Обмен';
+    this.trade.hidden = true;
+    this.trade.addEventListener('click', () => {
+      this.trade.blur();
+      onTrade();
+    });
+    head.append(this.trade);
     const close = document.createElement('button');
     close.type = 'button';
     close.className = 'target-close sro-target__close';
@@ -158,7 +173,7 @@ export class CombatHud {
       this.targetEl.hidden !== !target ||
       this.deathEl.hidden !== !death ||
       (target !== null && this.targetEl.dataset.fire !== String(target.fire)) ||
-      (target !== null && this.invite.hidden === target.invite);
+      (target !== null && (this.invite.hidden === target.invite || this.trade.hidden === target.trade));
     if (!visibilityChanged && now - this.lastRender < RENDER_INTERVAL_MS) return;
     this.lastRender = now;
 
@@ -175,6 +190,7 @@ export class CombatHud {
       setText(this.targetName, target.name);
       setText(this.targetClass, target.member ? `${target.hullName} · в группе` : target.hullName);
       this.invite.hidden = !target.invite;
+    this.trade.hidden = !target.trade;
       this.targetEl.dataset.member = String(target.member);
       this.targetHull.set(target.hp, target.maxHp);
       this.targetShield.set(target.sh, target.maxSh);

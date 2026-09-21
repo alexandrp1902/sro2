@@ -2,7 +2,7 @@
  * Витрина интерфейса без сервера: `?demo=<экран>` собирает настоящие построители HUD, дока и окон
  * на фиксированных данных. Нужна проходам по дизайну (скриншоты headless-браузером на ПК и телефоне)
  * и ничего не шлёт. Экраны: flight, dock-missions, dock-cargo, dock-hulls, dock-ships, dock-fitting,
- * galaxy, controls, confirm, menu, password, death, login, login-new, login-over, party10.
+ * galaxy, controls, confirm, menu, password, death, login, login-new, login-over, party10, trade.
  */
 import type { Connection } from '../net/connection';
 import type { CareerDto, GalaxyDto, HangarMsg, MarketMsg, MissionsMsg, RepMsg } from '../net/protocol';
@@ -30,6 +30,7 @@ import { PilotForm } from './pilotForm';
 import { Minimap, type MinimapFrame } from './minimap';
 import { ObjectiveHud } from './objectiveHud';
 import { InviteCard, PartyPanel, type PartyMark, type PartyRow } from './party';
+import { TradeWindow } from './trade';
 import { StatusHud } from './statusHud';
 
 /* loot.json — JSONC с комментариями, сборщик его не ест: каталог груза для витрины задан здесь. */
@@ -163,6 +164,7 @@ export function runDemo(screen: string): void {
   const objectiveHud = new ObjectiveHud(el('objective'), noop);
   const invasionHud = new InvasionHud(el('event'), noop);
   const partyPanel = new PartyPanel(el('party'), noop);
+  const tradeWindow = new TradeWindow(el('trade'), { onOffer: noop, onReady: noop, onCancel: noop });
   const inviteCard = new InviteCard(el('invite'), noop);
   const confirm = new ConfirmCard(el('confirm'));
   const menu = new BurgerMenu(el('menu'), noop);
@@ -182,6 +184,7 @@ export function runDemo(screen: string): void {
     sectorUnit: 500,
     fire: true,
     invite: false,
+    trade: false,
     member: false,
     hp: 80,
     maxHp: 120,
@@ -328,6 +331,19 @@ export function runDemo(screen: string): void {
     case 'password':
       flightHud();
       passwordForm.show();
+      break;
+    case 'trade':
+      // Стол обмена (M16b): своя половина со степперами, чужая только для чтения, и он уже готов.
+      flightHud();
+      tradeWindow.setRules(loot);
+      tradeWindow.setCargo(cargo);
+      tradeWindow.set({
+        t: 'tradeState',
+        active: true,
+        own: { id: 1, name: 'Аякс', credits: 300, items: { metal: 3 }, ready: false },
+        their: { id: 2, name: 'Борей', credits: 0, items: { crystals: 1, energy: 2 }, ready: true },
+        rev: 4,
+      });
       break;
     case 'party10':
       // Полная группа (M16b): компактные строки, номера, прокрутка — и метки на миникарте.

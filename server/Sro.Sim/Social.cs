@@ -42,6 +42,29 @@ public sealed record PartyRules(
         Social.TryParse(json, Default, r => r.Validate(), out rules, out error);
 }
 
+/// <summary>Обмен между игроками (M16b) из shared/trade.json.</summary>
+/// <param name="Range">Дальше этого друг от друга не торгуют: обмен — дело двоих рядом, а не через систему.</param>
+/// <param name="InviteSeconds">Столько предложение обмена ждёт ответа.</param>
+public sealed record TradeRules(double Range = 1200, double InviteSeconds = 20)
+{
+    public const string File = "trade.json";
+    public const double MaxRange = 5000;
+
+    public static readonly TradeRules Default = new();
+
+    [JsonIgnore] public int InviteTicks => Math.Max(1, Combat.SecondsToTicks(InviteSeconds));
+
+    public string? Validate()
+    {
+        if (!(Range > 0) || Range > MaxRange) return $"range must be within 0..{MaxRange}";
+        if (!(InviteSeconds > 0)) return "inviteSeconds must be positive";
+        return null;
+    }
+
+    public static bool TryParse(string json, out TradeRules rules, out string? error) =>
+        Social.TryParse(json, Default, r => r.Validate(), out rules, out error);
+}
+
 /// <summary>Пираты волны вторжения: столько такого типа; уровень — плюс опасность системы.</summary>
 public sealed record InvasionGroup(string Type, int Level = 1, int Count = 1)
 {

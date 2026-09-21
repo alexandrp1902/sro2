@@ -107,6 +107,10 @@ public sealed class GalaxyHost : BackgroundService
     public void Party(IClientConnection connection, string? action, int id) =>
         _commands.Enqueue(() => _galaxy.Party(connection, action, id));
 
+    /// <summary>Обмен, как и группа, живёт поверх комнат: сессию держит галактика (M16b).</summary>
+    public void Trade(IClientConnection connection, TradeMsg trade) =>
+        _commands.Enqueue(() => _galaxy.Trade(connection, trade.Action, trade.Id, trade.Credits, trade.Items, trade.Rev));
+
     /// <summary>Комната выбирается в потоке тика: к моменту выполнения корабль мог уже перелететь в другую систему.</summary>
     private void With(IClientConnection connection, Action<Room> command) =>
         _commands.Enqueue(() => _galaxy.With(connection, command));

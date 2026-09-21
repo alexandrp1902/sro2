@@ -16,6 +16,9 @@ import {
   type NoticeMsg,
   type PartyEventMsg,
   type PartyInviteMsg,
+  type TradeEventMsg,
+  type TradeInviteMsg,
+  type TradeStateMsg,
   type PartyStateMsg,
   type RepMsg,
   type SosMsg,
@@ -96,6 +99,8 @@ export class Connection {
   onMissions: ((message: MissionsMsg) => void) | null = null;
   onSos: ((message: SosMsg) => void) | null = null;
   onParty: ((message: PartyInviteMsg | PartyStateMsg | PartyEventMsg) => void) | null = null;
+  /** Обмен между игроками (M16b): предложение, стол и события для ленты. */
+  onTrade: ((message: TradeInviteMsg | TradeStateMsg | TradeEventMsg) => void) | null = null;
   onBounty: ((message: BountyMsg) => void) | null = null;
   onInvasion: ((message: InvasionMsg) => void) | null = null;
 
@@ -322,6 +327,11 @@ export class Connection {
         break;
       case 'sos':
         this.onSos?.(message);
+        break;
+      case 'tradeInvite':
+      case 'tradeState':
+      case 'tradeEvent':
+        this.onTrade?.(message);
         break;
       case 'partyInvite':
       case 'partyState':

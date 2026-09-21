@@ -16,7 +16,7 @@ import { Zoom } from './input/zoom';
 import { CombatEvents, type CombatEvent } from './net/combatEvents';
 import { Connection } from './net/connection';
 import { Prediction } from './net/prediction';
-import type { GalaxyDto, MissionsMsg, RepMsg, ShipDto, SnapshotMsg, SystemDto } from './net/protocol';
+import type { GalaxyDto, MissionsMsg, RepMsg, ShipDto, SnapshotMsg, SystemDto, TradeRules } from './net/protocol';
 import { RemoteShips } from './net/remoteShips';
 import { Roster } from './net/roster';
 import { resolveServerUrl } from './net/serverUrl';
@@ -67,6 +67,7 @@ import { Minimap } from './ui/minimap';
 import { SosBoard } from './ui/sos';
 import { ObjectiveHud } from './ui/objectiveHud';
 import { InviteCard, PartyBoard, PartyPanel, describeBounty, describePartyEvent } from './ui/party';
+import { TradeWindow, describeTradeEvent, isTradeWarning } from './ui/trade';
 import { PilotForm, describeDenied } from './ui/pilotForm';
 import { StatusHud } from './ui/statusHud';
 import { demoScreen, runDemo } from './ui/demo';
@@ -273,7 +274,13 @@ async function main(): Promise<void> {
     () => {
       if (targetId > 0 && isOnline()) connection!.send({ t: 'party', action: 'invite', id: targetId });
     },
+    () => {
+      if (targetId > 0 && isOnline()) connection!.send({ t: 'trade', action: 'invite', id: targetId });
+    },
   );
+
+  /** Правила обмена (M16b): по ним гаснет кнопка «Обмен» у дальней цели. Нет — сервер старый, обмена нет. */
+  let tradeRules: TradeRules | null = null;
 
   // Система (GDD §4): карта, станция или звезда, врата. Приходит в welcome, после прыжка — новая.
   let system: SystemDto | null = null;
@@ -465,9 +472,19 @@ async function main(): Promise<void> {
   const objectiveHud = new ObjectiveHud(el('objective'), () => galaxyMap.show());
   const invasionHud = new InvasionHud(el('event'), () => galaxyMap.show());
   const partyPanel = new PartyPanel(el('party'), () => send({ t: 'party', action: 'leave' }));
-  const inviteCard = new InviteCard(el('invite'), (accept, from) =>
-    send({ t: 'party', action: accept ? 'accept' : 'decline', id: from }),
+  const inviteCard = new InviteCard(el('invite'), (accept, from, kind) =>
+    send(
+      kind === 'trade'
+        ? { t: 'trade', action: accept ? 'accept' : 'decline', id: from }
+        : { t: 'party', action: accept ? 'accept' : 'decline', id: from },
+    ),
   );
+  // Окно обмена закрывается только по tradeState от сервера: своя кнопка лишь просит сервер закрыть стол.
+  const tradeWindow = new TradeWindow(el('trade'), {
+    onOffer: (credits, items) => send({ t: 'trade', action: 'offer', credits, items }),
+    onReady: (rev) => send({ t: 'trade', action: 'ready', rev }),
+    onCancel: () => send({ t: 'trade', action: 'cancel' }),
+  });
   window.addEventListener('keydown', (e) => {
     if (keymap.capturing || e.repeat || e.ctrlKey || e.metaKey || e.altKey) return;
     if (e.target instanceof HTMLInputElement) return;
@@ -844,6 +861,8 @@ async function main(): Promise<void> {
       npcRules = message.npcs ?? null;
       loot.setRules(lootRules);
       cargoHud.setRules(lootRules);
+      tradeWindow.setRules(lootRules);
+      tradeRules = message.trade ?? null;
       marketRules = message.market ?? null;
       repRules = message.reputation ?? null;
       dockScreen.setRules(lootRules, message.shop, marketRules, message.reputation, message.combat?.dockRepairPerMinute);
@@ -873,6 +892,8 @@ async function main(): Promise<void> {
       npcRules = message.npcs ?? null;
       loot.setRules(lootRules);
       cargoHud.setRules(lootRules);
+      tradeWindow.setRules(lootRules);
+      tradeRules = message.trade ?? null;
       marketRules = message.market ?? null;
       repRules = message.reputation ?? null;
       dockScreen.setRules(lootRules, message.shop, marketRules, message.reputation, message.combat?.dockRepairPerMinute);
@@ -889,6 +910,7 @@ async function main(): Promise<void> {
       };
       cargoHud.setCargo(cargo);
       dockScreen.setCargo(cargo);
+      tradeWindow.setCargo(cargo); // строка «трюм после обмена» живёт от трюма
     };
     // Живые цены станции (M12): приходят, пока пилот в доке, и после каждой сделки.
     connection.onMarket = (message) => dockScreen.setMarket(message);
@@ -957,8 +979,23 @@ async function main(): Promise<void> {
       const text = sos.apply(message, performance.now());
       if (text) feed.add(text, message.state === 'on');
     };
+    connection.onTrade = (message) => {
+      if (message.t === 'tradeInvite') {
+        inviteCard.show({ from: message.from, kind: 'trade', title: `${message.name} предлагает обмен`, seconds: message.seconds }, performance.now());
+      } else if (message.t === 'tradeState') {
+        tradeWindow.set(message.active ? message : null);
+      } else {
+        const text = describeTradeEvent(message);
+        if (isTradeWarning(message.code)) feed.warn(text);
+        else feed.add(text);
+      }
+    };
     connection.onParty = (message) => {
-      if (message.t === 'partyInvite') inviteCard.show(message, performance.now());
+      if (message.t === 'partyInvite')
+        inviteCard.show(
+          { from: message.from, kind: 'party', title: `${message.name} зовёт в группу`, seconds: message.seconds },
+          performance.now(),
+        );
       else if (message.t === 'partyState') party.apply(message);
       else feed.add(describePartyEvent(message));
     };
@@ -1063,6 +1100,7 @@ async function main(): Promise<void> {
       cargoHud.setLetter(false);
       sos.clear();
       party.clear();
+      tradeWindow.set(null);
       inviteCard.hide();
       invasion.clear();
       demand.clear();
@@ -1219,6 +1257,13 @@ async function main(): Promise<void> {
             sectorUnit,
             fire: fire.active,
             invite: targetShip?.kind === 'player' && !isAlly(targetShip.id),
+            trade:
+              targetShip?.kind === 'player' &&
+              !targetShip.dead &&
+              !dead &&
+              !docked &&
+              !!tradeRules &&
+              Math.hypot(targetShip.x - state.x, targetShip.y - state.y) <= tradeRules.range,
             member: !!targetShip && isAlly(targetShip.id),
           }
         : null,

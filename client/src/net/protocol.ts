@@ -92,6 +92,11 @@ export type ClientMessage =
   | { t: 'mission'; action: MissionAction; id?: string }
   /** Группа (GDD §37): invite — позвать пилота id, accept/decline — ответить на приглашение пилота id, leave — выйти. */
   | { t: 'party'; action: PartyAction; id?: number }
+  /**
+   * Обмен между игроками (M16b): invite/accept/decline — как в группе; offer — своя половина стола целиком
+   * (кредиты и предметы), ready — подтвердить редакцию rev, cancel — уйти со стола.
+   */
+  | { t: 'trade'; action: TradeAction; id?: number; credits?: number; items?: Record<string, number>; rev?: number }
   /** Переключатель PvP: выключен — пушки пилота не бьют игроков, торговцев и рейнджеров. */
   | { t: 'pvp'; on: boolean }
   /**
@@ -101,6 +106,8 @@ export type ClientMessage =
   | { t: 'password'; old: string; new: string };
 
 export type PartyAction = 'invite' | 'accept' | 'decline' | 'leave';
+
+export type TradeAction = 'invite' | 'accept' | 'decline' | 'offer' | 'ready' | 'cancel';
 
 export type MissionAction = 'accept' | 'abandon' | 'complete' | 'skip';
 
@@ -264,6 +271,16 @@ export interface WelcomeMsg {
   market?: MarketRules | null;
   /** Правила репутации (M13); нет — сервер без reputation.json, всё как до M13. */
   reputation?: ReputationRules | null;
+  /** Правила обмена (M16b): по ним клиент гасит кнопку «Обмен» у дальней цели, не ходя на сервер. */
+  trade?: TradeRules | null;
+}
+
+/** Обмен между игроками (M16b) из shared/trade.json. */
+export interface TradeRules {
+  /** Дальше этого друг от друга не торгуют. */
+  range: number;
+  /** Столько предложение обмена ждёт ответа. */
+  inviteSeconds: number;
 }
 
 /** PvP в системе (GDD §34): off — нет; border — нет у станции; free — везде. */
@@ -443,6 +460,8 @@ export interface ConfigMsg {
   market?: MarketRules | null;
   /** Правила репутации (M13); нет — сервер без reputation.json, всё как до M13. */
   reputation?: ReputationRules | null;
+  /** Правила обмена (M16b): по ним клиент гасит кнопку «Обмен» у дальней цели, не ходя на сервер. */
+  trade?: TradeRules | null;
 }
 
 /** Вход принят; приходит раньше welcome. */
@@ -831,6 +850,61 @@ export interface PartyEventMsg {
   name?: string | null;
 }
 
+/** Пилот from предлагает обмен (M16b); ответить — trade accept/decline в течение seconds. */
+export interface TradeInviteMsg {
+  t: 'tradeInvite';
+  from: number;
+  name: string;
+  seconds: number;
+}
+
+/** Половина стола обмена: кто и что кладёт. ready — эта сторона подтвердила; правка подтверждение гасит. */
+export interface TradeOfferDto {
+  id: number;
+  name: string;
+  credits: number;
+  items: Record<string, number>;
+  ready: boolean;
+}
+
+/**
+ * Стол обмена целиком, обеим сторонам. active: false — сделки больше нет (прошла, отменена или сорвана),
+ * и окно закрывается только по этому сообщению, а не по своей кнопке.
+ */
+export interface TradeStateMsg {
+  t: 'tradeState';
+  active: boolean;
+  own: TradeOfferDto | null;
+  their: TradeOfferDto | null;
+  /** Редакция стола: подтверждение шлётся с ней же, устаревшее сервер не примет. */
+  rev: number;
+}
+
+export type TradeEventCode =
+  | 'invited'
+  | 'opened'
+  | 'declined'
+  | 'expired'
+  | 'busy'
+  | 'gone'
+  | 'stale'
+  | 'tooFar'
+  | 'docked'
+  | 'dead'
+  | 'jumped'
+  | 'left'
+  | 'noRoom'
+  | 'noCredits'
+  | 'noItems'
+  | 'done';
+
+/** Событие обмена для ленты; name — с кем. */
+export interface TradeEventMsg {
+  t: 'tradeEvent';
+  code: TradeEventCode;
+  name?: string | null;
+}
+
 /** Награда за голову пирата: amount — своя доля, shared — на скольких поделили. */
 export interface BountyMsg {
   t: 'bounty';
@@ -884,6 +958,9 @@ export type ServerMessage =
   | PartyInviteMsg
   | PartyStateMsg
   | PartyEventMsg
+  | TradeInviteMsg
+  | TradeStateMsg
+  | TradeEventMsg
   | BountyMsg
   | InvasionMsg
   | MarketMsg

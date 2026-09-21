@@ -276,7 +276,8 @@ body {
 }
 
 .target-close,
-.target-invite {
+.target-invite,
+.target-trade {
   pointer-events: auto;
 }
 
@@ -741,6 +742,99 @@ body {
     top: calc(var(--hud-row2) + var(--pill-h) + var(--space-2));
     left: calc(env(safe-area-inset-left) + var(--hud-inset));
     right: auto;
+  }
+}
+
+/* ---------- Обмен между игроками (M16b) ---------- */
+
+/* Окно как карта галактики: полноэкранная подложка, карточка посередине. */
+.trade {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: calc(env(safe-area-inset-top) + 12px) calc(env(safe-area-inset-right) + 12px)
+    calc(env(safe-area-inset-bottom) + 12px) calc(env(safe-area-inset-left) + 12px);
+  background: rgba(8, 9, 11, 0.72);
+  touch-action: manipulation;
+}
+
+.trade-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  width: 100%;
+  max-width: 560px;
+  max-height: 100%;
+  overflow: auto;
+}
+
+.trade-head {
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+/* Две половины стола: своя редактируемая, чужая только для чтения. */
+.trade-columns {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-3);
+  padding: 0 var(--space-3);
+}
+
+.trade-col {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+.trade-col-head {
+  margin-bottom: var(--space-1);
+}
+
+.trade-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-1) var(--space-2);
+}
+
+.trade-name {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+/* «в трюме 5» не разрывается: в узкой колонке это иначе три строки по слову. */
+.trade-have {
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+
+/* Степпер всегда на своей строке: рядом с именем он в колонку 250 px не помещается. */
+.trade-qty {
+  flex: 0 0 100%;
+  justify-content: flex-end;
+}
+
+.trade-hold,
+.trade-problem {
+  padding: 0 var(--space-3);
+}
+
+.trade-ready-mark {
+  margin-top: auto;
+  padding-top: var(--space-2);
+}
+
+.trade-actions {
+  padding: 0 var(--space-3) var(--space-3);
+}
+
+/* Узкий экран: половины встают друг под друга — рядом они были бы по 150 px. */
+@media (max-width: 520px) {
+  .trade-columns {
+    grid-template-columns: 1fr;
   }
 }
 

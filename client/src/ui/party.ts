@@ -1,4 +1,4 @@
-import type { BountyMsg, PartyEventMsg, PartyInviteMsg, PartyMemberDto, PartyStateMsg } from '../net/protocol';
+import type { BountyMsg, PartyEventMsg, PartyMemberDto, PartyStateMsg } from '../net/protocol';
 import { formatSectors } from '../sim/combat';
 import { formatCredits } from '../sim/shop';
 import { Bar } from './combatHud';
@@ -269,16 +269,32 @@ export class PartyPanel {
   }
 }
 
-/** Карточка «Bob зовёт в группу [Принять] [Отклонить]» с обратным отсчётом; одна за раз — новая заменяет старую. */
+/** Чьё это приглашение: в группу (GDD §37) или на обмен (M16b). Отвечают на них разными командами. */
+export type InviteKind = 'party' | 'trade';
+
+/** Что показать в карточке приглашения. */
+export interface InviteState {
+  from: number;
+  kind: InviteKind;
+  /** «Bob зовёт в группу», «Bob предлагает обмен». */
+  title: string;
+  seconds: number;
+}
+
+/**
+ * Карточка «Bob зовёт в группу [Принять] [Отклонить]» с обратным отсчётом; одна за раз — новая заменяет
+ * старую. Вторую такую же заводить не стали: обе встали бы в одну точку экрана друг на друга.
+ */
 export class InviteCard {
   private from = 0;
+  private kind: InviteKind = 'party';
   private until = 0;
   private readonly text: HTMLElement;
   private readonly timer: HTMLElement;
 
   constructor(
     private readonly root: HTMLElement,
-    onAnswer: (accept: boolean, from: number) => void,
+    onAnswer: (accept: boolean, from: number, kind: InviteKind) => void,
   ) {
     this.text = document.createElement('div');
     this.text.className = 'invite-text sro-dialog__title';
@@ -296,7 +312,7 @@ export class InviteCard {
       button.textContent = label;
       button.addEventListener('click', () => {
         button.blur();
-        if (this.from) onAnswer(accept, this.from);
+        if (this.from) onAnswer(accept, this.from, this.kind);
         this.hide();
       });
       buttons.append(button);
@@ -305,10 +321,11 @@ export class InviteCard {
     root.hidden = true;
   }
 
-  show(message: PartyInviteMsg, now: number): void {
-    this.from = message.from;
-    this.until = now + message.seconds * 1000;
-    this.text.textContent = `${message.name} зовёт в группу`;
+  show(invite: InviteState, now: number): void {
+    this.from = invite.from;
+    this.kind = invite.kind;
+    this.until = now + invite.seconds * 1000;
+    this.text.textContent = invite.title;
     this.root.hidden = false;
     this.tick(now);
   }
