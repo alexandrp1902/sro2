@@ -734,6 +734,73 @@ body {
   background: rgba(8, 9, 11, 0.7);
 }
 
+/*
+ * Стартовый экран: живой сессии нет, затемнять нечего — за окном заставка во весь экран.
+ * Пока её не нарисовали, место держат градиенты: пустота, редкие звёзды, свет звезды слева
+ * сверху и зарево боя справа снизу. Картинка ложится отдельным слоем поверх них (::before).
+ */
+.connect--start {
+  background:
+    radial-gradient(circle 1.4px at 14% 22%, var(--steel-soft), transparent),
+    radial-gradient(circle 1px at 23% 58%, var(--steel), transparent),
+    radial-gradient(circle 1.4px at 31% 71%, var(--text-muted), transparent),
+    radial-gradient(circle 1px at 38% 34%, var(--steel-soft), transparent),
+    radial-gradient(circle 1.4px at 45% 13%, var(--steel), transparent),
+    radial-gradient(circle 1px at 56% 86%, var(--text-muted), transparent),
+    radial-gradient(circle 1.4px at 67% 44%, var(--steel-soft), transparent),
+    radial-gradient(circle 1px at 74% 66%, var(--steel), transparent),
+    radial-gradient(circle 1.4px at 83% 18%, var(--text-muted), transparent),
+    radial-gradient(circle 1px at 91% 79%, var(--steel-soft), transparent),
+    radial-gradient(ellipse 55% 45% at 16% 18%, var(--steel-tint), transparent 70%),
+    radial-gradient(ellipse 62% 52% at 86% 80%, var(--danger-tint), transparent 70%),
+    linear-gradient(var(--bg-window), var(--bg-space));
+}
+
+.connect--start::before,
+.connect--start::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+/* Сама заставка — слоем, а не фоном экрана: background-image проявиться не умеет, opacity умеет. */
+.connect--start::before {
+  background: var(--connect-art, none) center / cover no-repeat;
+  opacity: 0;
+  transition: opacity 400ms ease-out;
+}
+
+.connect--start[data-art='ready']::before {
+  opacity: 1;
+}
+
+/*
+ * Виньетка: края в тень, середина приглушена — на ней стоит окно, и его текст должен читаться.
+ * Только под картинкой: гасить ещё и градиентную подложку незачем, она и так тёмная.
+ */
+.connect--start[data-art='ready']::after {
+  background:
+    radial-gradient(ellipse 54% 48% at 50% 50%, rgba(8, 9, 11, 0.72), rgba(8, 9, 11, 0.28) 64%, transparent 84%),
+    linear-gradient(rgba(8, 9, 11, 0.45), transparent 26% 64%, rgba(8, 9, 11, 0.6));
+}
+
+/* Окно — над слоями: позиционированные псевдоэлементы иначе легли бы поверх него. */
+.connect--start .connect-card {
+  position: relative;
+  z-index: 1;
+  box-shadow: var(--shadow-pane), 0 18px 48px rgba(0, 0, 0, 0.55);
+}
+
+/* Телефон стоймя: от кадра 16:9 остаётся центральная колонка — верх и низ уводим в тень сильнее. */
+@media (orientation: portrait) {
+  .connect--start[data-art='ready']::after {
+    background:
+      radial-gradient(ellipse 80% 40% at 50% 50%, rgba(8, 9, 11, 0.74), transparent 78%),
+      linear-gradient(rgba(8, 9, 11, 0.62), transparent 30% 58%, rgba(8, 9, 11, 0.72));
+  }
+}
+
 .connect-card {
   width: 100%;
   max-width: 360px;
@@ -743,6 +810,8 @@ body {
 .connect-title {
   margin-bottom: var(--space-1);
   color: var(--text-strong);
+  /* Название игры длиннее прежнего «Пилот»: переносим его ровными строками, а не «сиротой». */
+  text-wrap: balance;
 }
 
 .connect-hint {
@@ -1622,6 +1691,11 @@ body {
 
 /* Кому важнее покой, чем спуск: кадр просто мигает и уходит. */
 @media (prefers-reduced-motion: reduce) {
+  /* Заставка входа появляется уже готовой, без проявления. */
+  .connect--start::before {
+    transition: none;
+  }
+
   .landing-run {
     animation: landing-quiet 500ms ease-out forwards;
   }
@@ -1646,5 +1720,10 @@ body {
   .dock-scene-caption {
     backdrop-filter: none;
     -webkit-backdrop-filter: none;
+  }
+
+  /* Просили меньше слоёв: заставка входа глушится, окно стоит на ровном тёмном поле. */
+  .connect--start[data-art='ready']::before {
+    opacity: 0.55;
   }
 }

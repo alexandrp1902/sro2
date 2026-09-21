@@ -1300,5 +1300,13 @@
     "w": 1600,
     "h": 1200,
     "alpha": false
+  },
+  {
+    "name": "splash-login",
+    "dir": "art/splash",
+    "prompt": "Use case: stylized-concept. Single production space RPG title-screen illustration, 1920x1080 landscape 16:9. Detailed semi-realistic game painting matching worn blue-gray industrial spaceship sprites: gunmetal hulls, scratched pale steel panels, dark navy space, restrained cyan practical lights and amber warning details, clear readable midtones, no neon overload. Cinematic wide shot. The CENTER of the frame is deliberately the calmest and darkest part — open space, distant dust and faint glow only, no ships, no explosions and no bright light there — because an interface panel is placed over it; all loud action, light and detail live in the left, right and upper thirds, and the lower third stays dark. The frame is also center-cropped to a tall 9:16 phone screen, so the central 35% of the width must still read as a finished picture, never as empty flat black. No text, letters, numbers, logo, watermark, frame, border, UI, HUD, cursor or signature. Epic space battle in deep space above a planet, seen from a cinematic three-quarter angle, not top-down. LEFT THIRD: a wedge-hulled ranger patrol corvette and two heavier ranger cruisers in navy-and-white livery with light-blue chevrons sweep inward, firing thin white-cyan railgun streaks and launching chunky dark torpedoes with bright orange exhaust trails. RIGHT THIRD: ragged pirate raiders welded from mismatched scavenged plates, rust-red and soot-black armour with scorched patches, return fire with amber tracers; one pirate hull is breaking apart in an orange-white explosion with a dark smoke ring and slowly tumbling debris, another trails burning venting gas. UPPER AREA: a small cold white star with a tight corona rim-lighting every hull from the upper left, faint navy and violet nebula dust. LOWER THIRD: the curved limb of a blue-green world with thin cloud bands and a thin atmospheric glow along the horizon, dark and low in contrast. MIDDLE OF THE FRAME: quiet dark space between the two formations — only the planet limb, sparse cold stars and faint dust, no ships and no flashes there. Scale reads large: hulls are small and sharp at distance, and the battle fills the frame.",
+    "w": 1920,
+    "h": 1080,
+    "alpha": false
   }
 ]

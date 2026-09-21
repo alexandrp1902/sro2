@@ -26,6 +26,10 @@
 
 > Use case: stylized-concept. Single production space RPG background, 1600x1200 landscape 4:3. Detailed semi-realistic game illustration, worn gunmetal and blue-gray steel, dark navy shadows, restrained cyan practical lighting and amber details, clear midtones, matching industrial spaceship sprites. No text, logos, watermark, borders, UI. Key content inside central 60%, background fills frame. Bottom quarter quiet and dark for dialogue overlay.
 
+### STYLE-SPLASH — заставка стартового экрана 1920×1080
+
+> Use case: stylized-concept. Single production space RPG title-screen illustration, 1920x1080 landscape 16:9. Detailed semi-realistic game painting matching worn blue-gray industrial spaceship sprites: gunmetal hulls, scratched pale steel panels, dark navy space, restrained cyan practical lights and amber warning details, clear readable midtones, no neon overload. Cinematic wide shot. The CENTER of the frame is deliberately the calmest and darkest part — open space, distant dust and faint glow only, no ships, no explosions and no bright light there — because an interface panel is placed over it; all loud action, light and detail live in the left, right and upper thirds, and the lower third stays dark. The frame is also center-cropped to a tall 9:16 phone screen, so the central 35% of the width must still read as a finished picture, never as empty flat black. No text, letters, numbers, logo, watermark, frame, border, UI, HUD, cursor or signature.
+
 ### STYLE-MECH — мех или деталь меха, вид строго сверху (для тактического поля)
 
 > Use case: stylized-concept. ONE isolated combat mech unit sprite for a top-down turn-based tactics game, 1024x1024 canvas with genuinely TRANSPARENT alpha background. STRICT ORTHOGRAPHIC 90-degree overhead view, front of the mech facing exact TOP of image, no perspective or isometric tilt, centered with 10% padding. Detailed semi-realistic industrial art matching worn blue-gray spaceships: pale steel armor plates, gunmetal joints, dark recesses, small cyan sensor lights and amber indicators, soft upper-left illumination, no cast shadow outside silhouette. Crisp readable silhouette at 64 px. No text, numbers, logo, ground, frame or watermark.
@@ -192,3 +196,15 @@ Distant deep-space parallax background, seamless tileable, very dark so ships re
 - **modules-dust-cloud** — squat aerosol dispenser canister with a wide flared spray head and a ring of small charge tubes, pale particulate haze escaping the head.
 - **modules-reactive-armor** — rectangular slab of bolted-on explosive reactive armour tiles, angled plates with visible seams and warning chevrons (symbols only, no text), one tile slightly scorched.
 - **modules-anti-missile** — compact turret with a short twin autocannon and a small radar dish folded beside it, belt feed visible; clearly a point-defence mount, not a ship weapon.
+
+---
+
+## Пачка S — стартовый экран (к M15.7)
+
+Один кадр во весь экран: он лежит за окном входа, и это первое, что видит игрок. Поверх его середины
+стоит окно логина и пароля 360 px, поэтому центр кадра должен быть тихим и тёмным — но не пустым:
+на телефоне стоймя от кадра 16:9 остаётся как раз центральная колонка. Стиль: STYLE-SPLASH.
+Исходник класть в `art/splash/splash-login.png`, нарезка — `python tools/splash.py`.
+
+### splash-login
+Epic space battle in deep space above a planet, seen from a cinematic three-quarter angle, not top-down. LEFT THIRD: a wedge-hulled ranger patrol corvette and two heavier ranger cruisers in navy-and-white livery with light-blue chevrons sweep inward, firing thin white-cyan railgun streaks and launching chunky dark torpedoes with bright orange exhaust trails. RIGHT THIRD: ragged pirate raiders welded from mismatched scavenged plates, rust-red and soot-black armour with scorched patches, return fire with amber tracers; one pirate hull is breaking apart in an orange-white explosion with a dark smoke ring and slowly tumbling debris, another trails burning venting gas. UPPER AREA: a small cold white star with a tight corona rim-lighting every hull from the upper left, faint navy and violet nebula dust. LOWER THIRD: the curved limb of a blue-green world with thin cloud bands and a thin atmospheric glow along the horizon, dark and low in contrast. MIDDLE OF THE FRAME: quiet dark space between the two formations — only the planet limb, sparse cold stars and faint dust, no ships and no flashes there. Scale reads large: hulls are small and sharp at distance, and the battle fills the frame.

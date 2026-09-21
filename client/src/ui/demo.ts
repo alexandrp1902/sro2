@@ -2,7 +2,7 @@
  * Витрина интерфейса без сервера: `?demo=<экран>` собирает настоящие построители HUD, дока и окон
  * на фиксированных данных. Нужна проходам по дизайну (скриншоты headless-браузером на ПК и телефоне)
  * и ничего не шлёт. Экраны: flight, dock-missions, dock-cargo, dock-hulls, dock-ships, dock-fitting,
- * galaxy, controls, confirm, menu, password, death, login.
+ * galaxy, controls, confirm, menu, password, death, login, login-over.
  */
 import type { Connection } from '../net/connection';
 import type { GalaxyDto, HangarMsg, MarketMsg, MissionsMsg, RepMsg } from '../net/protocol';
@@ -26,6 +26,7 @@ import { GalaxyMap } from './galaxyMap';
 import { InvasionHud } from './invasion';
 import { BurgerMenu } from './menu';
 import { PasswordForm } from './passwordForm';
+import { PilotForm } from './pilotForm';
 import { Minimap } from './minimap';
 import { ObjectiveHud } from './objectiveHud';
 import { InviteCard, PartyPanel } from './party';
@@ -121,6 +122,7 @@ export function runDemo(screen: string): void {
   const menu = new BurgerMenu(el('menu'), noop);
   menu.account = true; // в витрине пилот всегда с аккаунтом: иначе «Сменить пароль» в меню не увидеть
   const passwordForm = new PasswordForm(el('password'), noop);
+  const pilotForm = new PilotForm(el('connect'), { onLogin: noop, onLogout: noop, onCheckName: noop });
   const galaxyMap = new GalaxyMap(el('galaxy'));
   const controlsWindow = new ControlsWindow(el('controls'));
   const minimap = new Minimap(el('minimap') as HTMLCanvasElement, noop);
@@ -301,8 +303,13 @@ export function runDemo(screen: string): void {
       controlsWindow.show();
       break;
     case 'login':
-      el('connect').hidden = false;
-      el('connect').querySelector<HTMLElement>('.connect-error')!.textContent = 'Не хватает пароля';
+      // Стартовый экран: живой сессии нет, за окном заставка.
+      pilotForm.show({ url: 'sro.example.com', name: '', loggedIn: false }, 'Не хватает пароля');
+      break;
+    case 'login-over':
+      // То же окно поверх идущей игры: заставки нет, мир виден сквозь затемнение.
+      flightHud();
+      pilotForm.show({ url: 'sro.example.com', name: 'Новичок', loggedIn: true });
       break;
     default:
       if (screen.startsWith('dock-')) dock(screen.slice(5) as Tab);

@@ -4,11 +4,14 @@ import { normalizeServerUrl } from '../net/serverUrl';
 /** Сколько ждать после последней буквы, прежде чем спросить сервер про ник. */
 const CHECK_DELAY_MS = 300;
 
+/** Заставка стартового экрана: рантайм-копия art/splash/splash-login.png (tools/splash.py). */
+const START_ART = 'splash/login.webp';
+
 /** Почему сервер не пустил: он шлёт код, текст живёт здесь. */
 const DENIED: Record<DeniedCode, string> = {
-  badName: 'Ник — от 3 до 16 символов',
+  badName: 'Логин — от 3 до 16 символов',
   badPassword: 'Пароль — от 4 до 64 символов',
-  wrongPassword: 'Ник занят, пароль не подходит',
+  wrongPassword: 'Логин занят, пароль не подходит',
   badKey: 'Вход на этом устройстве устарел — введите пароль',
   badCareer: 'Этот путь пока закрыт',
 };
@@ -68,6 +71,8 @@ export class PilotForm {
   private free: NameFreeMsg | null = null;
   private chosen: string | null = null;
   private checkTimer = 0;
+  /** Заставку просим один раз за сеанс: второй показ окна берёт её из кеша браузера. */
+  private artAsked = false;
 
   constructor(
     private readonly root: HTMLElement,
@@ -119,7 +124,7 @@ export class PilotForm {
         this.hide(); // ничего не меняли
         return;
       }
-      if (!name) return this.setError('Введите ник');
+      if (!name) return this.setError('Введите логин');
       if (!password) return this.setError('Введите пароль');
       this.setError('');
       this.submit.textContent = 'Вход…';
@@ -158,6 +163,10 @@ export class PilotForm {
     this.logout.hidden = !state.loggedIn;
     this.submit.textContent = 'Войти';
     this.setError(error);
+    // Живой сессии нет — это стартовый экран игры, а не окно поверх мира: за ним заставка, а не затемнение.
+    const start = !state.loggedIn;
+    this.root.classList.toggle('connect--start', start);
+    if (start) this.loadStartArt();
     this.root.hidden = false;
     (state.url && !state.name ? this.nameInput : state.url ? this.passwordInput : this.serverInput).focus();
   }
@@ -178,6 +187,26 @@ export class PilotForm {
 
   private setError(text: string): void {
     this.error.textContent = text;
+  }
+
+  /**
+   * Заставка стартового экрана. Ставим её на фон только готовой: иначе она проступает полосами
+   * поверх градиента. Картинки нет или сеть молчит — остаётся градиент, и экран рабочий.
+   */
+  private loadStartArt(): void {
+    if (this.artAsked) return;
+    this.artAsked = true;
+    // Относительный url() в стиле браузер отсчитывал бы от файла стилей, а не от страницы, — как у сцен дока.
+    const url = new URL(START_ART, document.baseURI).href;
+    const image = new Image();
+    image.decoding = 'async';
+    image.src = url;
+    const show = (): void => {
+      this.root.style.setProperty('--connect-art', `url("${url}")`);
+      this.root.dataset.art = 'ready';
+    };
+    if (typeof image.decode === 'function') void image.decode().then(show, () => {});
+    else image.onload = show;
   }
 
   private renderCareers(): void {

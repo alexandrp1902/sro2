@@ -1870,5 +1870,9 @@
   {
     "file": "art/mechs/scenes/dock-mech-hangar.png",
     "status": "missing"
+  },
+  {
+    "file": "art/splash/splash-login.png",
+    "status": "missing"
   }
 ]
