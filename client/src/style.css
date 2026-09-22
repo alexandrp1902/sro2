@@ -11,7 +11,7 @@
 
 :root {
   /* Размеры раскладки игры — не часть дизайн-системы: ширины её колонок берутся из tokens.css. */
-  --minimap-size: 110px;
+  --minimap-size: 136px;
   /* Таблетка статуса и строки полёта: 4 + 18 + 4 и рамка. */
   --pill-h: 28px;
   --hud-top: calc(env(safe-area-inset-top) + var(--hud-inset));
@@ -144,6 +144,11 @@ body {
   -webkit-backdrop-filter: blur(var(--blur-pane));
   pointer-events: auto;
   cursor: pointer;
+  transition: border-color 150ms;
+}
+
+.minimap:hover {
+  border-color: var(--steel-line);
 }
 
 .menu-open,
@@ -1818,47 +1823,141 @@ body {
   overflow: auto;
 }
 
-/* Шапка окна: заголовок слева, крестик справа — двух колонок хватает. */
+/* Карта шире окна управления: справа от неё встаёт карточка системы. Шапка стоит, тело прокручивается само. */
+.galaxy-card--map {
+  max-width: 720px;
+  overflow: hidden;
+}
+
+/* Шапка окна: заголовок с подзаголовком слева, крестик справа — двух колонок хватает. */
 .galaxy-head {
   grid-template-columns: minmax(0, 1fr) auto;
 }
 
+.galaxy-titles {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.galaxy-sub {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+/* Тело: на телефоне карта, легенда и карточка колонкой; на широком экране карточка справа от карты. */
+.galaxy-body {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  min-height: 0;
+  overflow: auto;
+}
+
+/* Область карты чуть темнее окна: карта «утоплена» в сталь, а не наклеена на неё. */
+.galaxy-map {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  background: rgba(8, 9, 11, 0.45);
+}
+
+.galaxy-side {
+  border-top: 1px solid var(--line-soft);
+}
+
+@media (min-width: 720px) {
+  .galaxy-body {
+    grid-template-columns: minmax(0, 1fr) 248px;
+  }
+
+  .galaxy-side {
+    border-top: 0;
+    border-left: 1px solid var(--line-soft);
+    overflow: auto;
+  }
+}
+
+/* viewBox считается по данным, aspect-ratio — инлайном из него: пустых полей по бокам нет. */
 .galaxy-svg {
   display: block;
   width: 100%;
-  aspect-ratio: 1.35;
-  padding: 4px 8px 0;
+  padding: 6px 8px 0;
   box-sizing: border-box;
+  font-family: var(--font-sans);
 }
 
 .galaxy-link {
-  stroke: var(--line);
-  stroke-width: 0.5;
+  stroke: var(--line-soft);
+  stroke-width: 0.6;
 }
 
 .galaxy-link-open {
-  stroke: var(--steel-soft);
+  stroke: var(--steel-line);
   stroke-width: 0.8;
 }
 
-/* Номер врат у своего конца линии (M16b): из A в B и из B в A врата разные, и номера тоже. */
-.galaxy-gate-num {
-  fill: var(--text-faint);
-  font-size: 2.4px;
-  font-weight: 600;
-  text-anchor: middle;
-  dominant-baseline: middle;
+/* Курс (M16b): пунктир поверх связей, стрелка — на конечной системе. */
+.galaxy-route {
+  fill: none;
+  stroke: var(--steel);
+  stroke-width: 1.2;
+  stroke-dasharray: 2 1.6;
+  stroke-linejoin: round;
   pointer-events: none;
+}
+
+.galaxy-arrow {
+  fill: var(--steel);
+}
+
+/* Бейдж номера врат у своего конца связи: с заливкой, чтобы линия не проходила сквозь цифру. */
+.galaxy-gate {
+  pointer-events: none;
+}
+
+.galaxy-gate circle {
+  fill: var(--bg-window);
+  stroke: var(--line);
+  stroke-width: 0.4;
+}
+
+.galaxy-gate text {
+  fill: var(--text-muted);
+  font-size: 2.4px;
+  font-weight: 700;
+  text-anchor: middle;
+  dominant-baseline: central;
+}
+
+.galaxy-gate--route circle {
+  stroke: var(--steel);
+  stroke-width: 0.5;
+}
+
+.galaxy-gate--route text {
+  fill: var(--text-strong);
 }
 
 .galaxy-node {
   cursor: pointer;
 }
 
+/* Ядро узла: квадрат — станция, круг — станции нет; цвет опасности инлайном. Кромка отделяет от линий. */
+.galaxy-core {
+  stroke: var(--bg-window);
+  stroke-width: 0.6;
+}
+
+.galaxy-node:hover .galaxy-core {
+  stroke: var(--steel);
+}
+
 .galaxy-here {
   fill: none;
   stroke: var(--steel);
-  stroke-width: 0.7;
+  stroke-width: 0.8;
 }
 
 .galaxy-selected {
@@ -1868,60 +1967,83 @@ body {
   stroke-dasharray: 1 0.8;
 }
 
-/* Система задания — жёлтое кольцо, как маркер цели в мире. */
+/* Система задания — жёлтое кольцо, как маркер цели в мире; вторжение — красное. */
 .galaxy-objective {
   fill: none;
   stroke: var(--warn);
   stroke-width: 0.7;
 }
 
-/* Кольца событий вокруг системы: ⚔ — вторжение, ₪ — спрос. Без fill: none круг закрыл бы узел. */
 .galaxy-invasion {
   fill: none;
   stroke: var(--danger);
   stroke-width: 0.7;
 }
 
-.galaxy-demand {
-  fill: none;
-  stroke: var(--warn);
-  stroke-width: 0.7;
-  stroke-dasharray: 2 1.6;
-}
-
 /* Кольцо отношения вокруг узла — цвет ступени из reputation.json. */
 .galaxy-rep {
   fill: none;
-  stroke-width: 1.2;
+  stroke-width: 0.9;
 }
 
-.galaxy-station {
-  fill: var(--bg-window);
+/* Значки событий у узла: круг с заливкой окна и глиф в цвете роли. */
+.galaxy-badge {
+  pointer-events: none;
 }
+
+.galaxy-badge circle {
+  fill: var(--bg-window);
+  stroke-width: 0.5;
+}
+
+.galaxy-badge text {
+  font-size: 2.8px;
+  font-weight: 600;
+  text-anchor: middle;
+  dominant-baseline: central;
+}
+
+.galaxy-badge--home circle { stroke: var(--text-muted); }
+.galaxy-badge--home text { fill: var(--text-muted); }
+.galaxy-badge--objective circle { stroke: var(--warn); }
+.galaxy-badge--objective text { fill: var(--warn); }
+.galaxy-badge--invasion circle { stroke: var(--danger); }
+.galaxy-badge--invasion text { fill: var(--danger-text); }
+.galaxy-badge--demand circle { stroke: var(--warn); }
+.galaxy-badge--demand text { fill: var(--warn); }
 
 .galaxy-name {
   fill: var(--text);
-  font-size: 3.6px;
+  font-size: 3.4px;
+  font-weight: 500;
   text-anchor: middle;
+}
+
+.galaxy-name--here {
+  fill: var(--text-strong);
+  font-weight: 700;
 }
 
 .galaxy-hit {
   fill: transparent;
 }
 
-/* Регионы галактики (M11): бледная подложка под системами и подпись в её углу — цвета из galaxy.json. */
+/* Регионы галактики (M11): размытое облако из кругов у систем и подпись над ними — цвета из galaxy.json. */
 .galaxy-region {
   opacity: var(--opacity-region);
 }
 
 .galaxy-region-name {
-  font-size: 2.6px;
-  opacity: 0.75;
+  font-size: 2.8px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  text-anchor: middle;
+  opacity: 0.85;
 }
 
 .galaxy-info {
-  padding: 10px 16px 4px;
-  border-top: 1px solid var(--line-soft);
+  padding: 12px 16px 12px;
 }
 
 /* Имя системы окрашено опасностью — инлайном, из данных. */
@@ -1931,39 +2053,99 @@ body {
   font-weight: 700;
 }
 
-.galaxy-info-facts,
+.galaxy-info-facts {
+  margin-top: 2px;
+  font-size: 13px;
+  line-height: 18px;
+}
+
+/* Врата по номерам (M16b): у текущей системы врата курса — сталью. */
+.galaxy-info-gates,
+.galaxy-info-trade {
+  margin-top: var(--space-2);
+  font-size: 13px;
+  line-height: 18px;
+}
+
+.galaxy-info-label {
+  display: block;
+  color: var(--text-faint);
+}
+
+.galaxy-info-gate--route {
+  color: var(--steel);
+  font-weight: 600;
+}
+
 .galaxy-info-jump {
-  margin-top: var(--space-1);
+  margin-top: var(--space-3);
+  padding-top: var(--space-2);
+  border-top: 1px solid var(--line-soft);
   font-size: 14px;
   line-height: 20px;
 }
 
-/* Курс (M16b): сколько прыжков и в какие врата — под строкой о прыжке. */
+/* Курс (M16b): сколько прыжков и в какие врата — стальной строкой с точкой под строкой о прыжке. */
 .galaxy-info-course {
-  margin-top: 2px;
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  margin-top: var(--space-1);
   color: var(--steel-soft);
   font-size: 13px;
   line-height: 18px;
 }
 
-/* Связи проложенного курса: пунктир поверх обычной линии маршрута. */
-.galaxy-link-route {
-  stroke: var(--steel);
-  stroke-width: 1.2;
-  stroke-dasharray: 2 1.6;
+.galaxy-info-course .sro-dot {
+  position: relative;
+  top: -1px;
 }
 
-/* Чем торгует станция (M12): где дёшево купить и куда это везти. */
-.galaxy-info-trade {
-  margin-top: 3px;
-  font-size: 13px;
-  line-height: 18px;
-}
-
+/* Легенда — чипы с образцами знаков под картой. */
 .galaxy-legend {
-  padding: 6px 16px 12px;
-  font-size: 12px;
-  line-height: 16px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-3);
+  padding: 8px 16px 10px;
+  border-top: 1px solid var(--line-soft);
+}
+
+.galaxy-key {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  white-space: nowrap;
+}
+
+.galaxy-key-swatch {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+  overflow: visible;
+}
+
+.galaxy-key-station {
+  fill: var(--text-muted);
+}
+
+.galaxy-key-rep {
+  fill: none;
+  stroke: var(--text-muted);
+  stroke-width: 1.2;
+}
+
+.galaxy-key-route {
+  stroke: var(--steel);
+  stroke-width: 1.4;
+  stroke-dasharray: 2.4 1.8;
+}
+
+.galaxy-key .galaxy-badge circle {
+  stroke-width: 1;
+}
+
+.galaxy-key-glyph {
+  font-size: 6.5px;
 }
 
 /* Окно «Управление» (M10.5). */

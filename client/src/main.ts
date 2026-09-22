@@ -1345,9 +1345,13 @@ async function main(): Promise<void> {
     menuButton.hidden = minimap.hidden;
     minimap.update(
       {
+        name: system?.name ?? '',
+        danger: system?.danger ?? 1,
         sun: Boolean(system?.sun),
+        burnRadius: system?.sun?.burnRadius ?? null,
+        orbits: system ? [system.stationOrbit.radius, ...system.planets.map((p) => p.orbit.radius)] : [],
         station: !system || system.station ? systemView.stationAt : null,
-        planets: systemView.planets,
+        planets: systemView.planets.map((p) => ({ x: p.x, y: p.y, settled: p.place !== null })),
         pirateBase: system?.pirateBase ?? null,
         gates: system?.gates ?? [],
         own: dead || docked ? null : { x: state.x, y: state.y, rot: state.rot },

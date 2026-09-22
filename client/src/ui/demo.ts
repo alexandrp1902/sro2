@@ -22,7 +22,7 @@ import { ControlsWindow } from './controlsWindow';
 import { DockScreen, type Tab } from './dockScreen';
 import { Feed } from './feed';
 import { FlightHud } from './flightHud';
-import { GalaxyMap } from './galaxyMap';
+import { GalaxyMap, type GalaxyMapState } from './galaxyMap';
 import { InvasionHud } from './invasion';
 import { BurgerMenu } from './menu';
 import { PasswordForm } from './passwordForm';
@@ -57,15 +57,23 @@ const CAREERS: CareerDto[] = [
 
 /** Кадр миникарты для витрины: система со звездой, станцией, планетой и парой чужих кораблей. */
 const DEMO_MINIMAP: MinimapFrame = {
+  name: 'Sol',
+  danger: 1,
   sun: true,
+  burnRadius: 600,
+  // Орбиты станции и планет; обитаемая планета — кольцо, необитаемая — точка.
+  orbits: [950, 1920, 3300],
   station: { x: 900, y: -300 },
-  planets: [{ x: -1500, y: 1200 }],
+  planets: [
+    { x: -1500, y: 1200, settled: true },
+    { x: 2900, y: -1600, settled: false },
+  ],
   pirateBase: null,
   // Врата подписаны буквой системы за ними (M16c); вторые — по проложенному курсу.
   gates: [
-    { to: 'vega', name: 'Vega', x: -1200, y: -900 },
-    { to: 'tau', name: 'Tau', x: 1500, y: 1100 },
-    { to: 'castor', name: 'Кастор', x: 1700, y: -1500 },
+    { to: 'vega', name: 'Vega', x: -1900, y: -2300 },
+    { to: 'tau', name: 'Tau', x: 2600, y: 1500 },
+    { to: 'castor', name: 'Кастор', x: 2300, y: -2400 },
   ],
   routeGate: 2,
   own: { x: 200, y: 400, rot: 0 },
@@ -95,7 +103,7 @@ const BIG_PARTY: PartyRow[] = [
 const DEMO_PARTY_MARKS: PartyMark[] = [
   { id: 2, n: 1, x: 900, y: 200 },
   { id: 3, n: 2, x: -800, y: -600 },
-  { id: 4, n: 4, x: 2600, y: 1800 },
+  { id: 4, n: 4, x: 2100, y: 2700 },
   { id: 8, n: 8, x: 300, y: -1400 },
   { id: 9, n: 9, x: -2400, y: 2400 },
 ];
@@ -108,21 +116,33 @@ export function demoScreen(search: string): string | null {
   return new URLSearchParams(search).get('demo');
 }
 
+/** Восемь систем в трёх регионах — плотность как у настоящей galaxy.json; порядок gates согласован со связями. */
 const GALAXY: GalaxyDto = {
   systems: [
-    { id: 'sol', name: 'Sol', danger: 1, pvp: 'off', station: true, x: 18, y: 55, region: 'core', gates: ['vega'], places: [{ key: 'st:sol', name: 'Гавань Сол' }] },
-    { id: 'vega', name: 'Vega', danger: 2, pvp: 'on', station: true, x: 45, y: 35, region: 'core', gates: ['sol', 'rigel', 'deneb'], places: [{ key: 'st:vega', name: 'Вега-1' }] },
-    { id: 'rigel', name: 'Rigel', danger: 4, pvp: 'on', station: false, x: 70, y: 60, region: 'rim', gates: ['vega', 'deneb'], places: [] },
-    { id: 'deneb', name: 'Deneb', danger: 3, pvp: 'on', station: true, x: 82, y: 25, region: 'rim', gates: ['vega', 'rigel'], places: [{ key: 'st:deneb', name: 'Денеб' }] },
+    { id: 'sol', name: 'Sol', danger: 1, pvp: 'off', station: true, x: 18, y: 55, region: 'core', gates: ['vega', 'tau'], places: [{ key: 'st:sol', name: 'Гавань Сол' }] },
+    { id: 'vega', name: 'Vega', danger: 2, pvp: 'on', station: true, x: 45, y: 35, region: 'core', gates: ['sol', 'rigel', 'deneb', 'nova'], places: [{ key: 'st:vega', name: 'Вега-1' }] },
+    { id: 'tau', name: 'Tau', danger: 3, pvp: 'on', station: false, x: 40, y: 74, region: 'frontier', gates: ['sol', 'nova'], places: [] },
+    { id: 'nova', name: 'Nova', danger: 4, pvp: 'on', station: true, x: 62, y: 46, region: 'frontier', gates: ['tau', 'vega', 'castor'], places: [{ key: 'st:nova', name: 'Форт Нова' }] },
+    { id: 'castor', name: 'Кастор', danger: 3, pvp: 'on', station: true, x: 56, y: 14, region: 'frontier', gates: ['nova', 'deneb'], places: [{ key: 'st:castor', name: 'Рудник' }] },
+    { id: 'rigel', name: 'Rigel', danger: 4, pvp: 'on', station: false, x: 72, y: 66, region: 'rim', gates: ['vega', 'deneb', 'sigma'], places: [] },
+    { id: 'deneb', name: 'Deneb', danger: 5, pvp: 'on', station: true, x: 84, y: 28, region: 'rim', gates: ['vega', 'rigel', 'castor'], places: [{ key: 'st:deneb', name: 'Денеб' }] },
+    { id: 'sigma', name: 'Sigma', danger: 6, pvp: 'on', station: false, x: 92, y: 82, region: 'rim', gates: ['rigel'], places: [] },
   ] as GalaxyDto['systems'],
   links: [
     { a: 'sol', b: 'vega' },
+    { a: 'sol', b: 'tau' },
     { a: 'vega', b: 'rigel' },
     { a: 'vega', b: 'deneb' },
+    { a: 'vega', b: 'nova' },
+    { a: 'tau', b: 'nova' },
+    { a: 'nova', b: 'castor' },
+    { a: 'castor', b: 'deneb' },
     { a: 'rigel', b: 'deneb' },
+    { a: 'rigel', b: 'sigma' },
   ] as GalaxyDto['links'],
   regions: [
     { id: 'core', name: 'Ядро', color: '#3f7fbf' },
+    { id: 'frontier', name: 'Пограничье', color: '#c99a3a' },
     { id: 'rim', name: 'Рубеж', color: '#b1495a' },
   ] as GalaxyDto['regions'],
 };
@@ -355,7 +375,7 @@ export function runDemo(screen: string): void {
       // Полная группа (M16b): компактные строки, номера, прокрутка — и метки на миникарте.
       flightHud();
       partyPanel.update(BIG_PARTY, 10);
-      minimap.update({ ...DEMO_MINIMAP, party: DEMO_PARTY_MARKS }, 1e9 + 1);
+      minimap.update({ ...DEMO_MINIMAP, party: DEMO_PARTY_MARKS }, 1e9 + 1000); // позже порога перерисовки
       break;
     case 'galaxy':
       flightHud();
@@ -367,10 +387,13 @@ export function runDemo(screen: string): void {
         invasion: 'rigel',
         demand: 'deneb',
         loot,
-        market: {},
+        market: { places: { 'st:sol': { produces: ['metal', 'ore'], consumes: ['crystals'] } } } as GalaxyMapState['market'],
+        // Отношение (M13): в Vega ценят, в Deneb док закрыт — кольца у узлов и строка в карточке.
+        rep: { vega: 60, deneb: -50 },
+        repRules: REP_RULES,
         // Проложенный курс (M16b): Sol → Vega → Rigel, и в карточке — сколько прыжков и какие врата.
         course: 'rigel',
-        gates: ['vega'],
+        gates: ['vega', 'tau'],
       });
       galaxyMap.show();
       break;

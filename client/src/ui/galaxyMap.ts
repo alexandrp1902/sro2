@@ -1,10 +1,11 @@
 import type { GalaxyDto, GalaxySystemDto } from '../net/protocol';
-import { courseLine, courseView, linkKey, routeLinks, type CourseView } from '../sim/course';
-import { dangerColor, dangerName, hops, jumpOutlook, linkGateNumbers, pvpName, regionName, type JumpOutlook } from '../sim/galaxy';
+import { courseLine, courseView, hopsWord, type CourseView } from '../sim/course';
+import { dangerColor, dangerName, gateNumber, hops, jumpOutlook, pvpName, regionName, type JumpOutlook } from '../sim/galaxy';
 import { lootItem, type LootRules } from '../sim/loot';
 import type { MarketRules } from '../sim/market';
-import { levelColor, levelIndex, levelOf, repLabel, type ReputationRules } from '../sim/reputation';
+import { levelColor, levelOf, repLabel, type ReputationRules } from '../sim/reputation';
 import { color } from './cargoHud';
+import { gateBadges, mapViewBox, nodeBadges, regionLabelAt, routePoints, type BadgeKind } from './galaxyLayout';
 
 const SVG = 'http://www.w3.org/2000/svg';
 
@@ -39,24 +40,17 @@ export interface GalaxyMapState {
   gates?: readonly string[] | null;
 }
 
-/**
- * Значок отношения у названия системы: крестик — враг (док закрыт), ромб — друг и выше.
- * Нейтральные и просто недоверчивые системы значка не получают: иначе карта зарябит.
- */
-function repMark(state: GalaxyMapState, id: string): string {
-  const value = state.rep?.[id];
-  if (value === undefined || !state.repRules) return '';
-  const index = levelIndex(state.repRules, value);
-  const last = (state.repRules.levels ?? []).length - 1;
-  if (index === 0) return ' ✖';
-  return index >= last - 1 && last >= 3 ? ' ♦' : '';
-}
-
 const OUTLOOK_TEXT: Record<JumpOutlook, string> = {
   here: 'Вы здесь',
   far: 'Прямого маршрута нет — только через соседние системы',
   ok: 'Можно прыгать: подлетите к вратам',
 };
+
+/** Значки у узла: глиф и роль цвета (класс задаёт цвет из токенов). */
+const BADGE_GLYPH: Record<BadgeKind, string> = { home: '⌂', objective: '★', invasion: '⚔', demand: '₪' };
+
+/** Радиусы узла в единицах карты: ядро, кольцо отношения, «вы здесь», кольца событий, зона тапа. */
+const R = { core: 3.2, rep: 5.2, here: 6.4, event: 7.4, eventOuter: 8.4, hit: 11 };
 
 /**
  * Карта галактики (GDD §55): системы, маршруты и цена прыжка в топливе. Тап по системе — опасность, PvP,
@@ -110,10 +104,16 @@ export class GalaxyMap {
     const state = this.state;
     if (!state) return;
     const { galaxy, current } = state;
+    const byId = new Map(galaxy.systems.map((s) => [s.id, s]));
+    const course = courseView(galaxy, current, state.course, state.gates);
 
-    const card = el('div', 'galaxy-card sro-pane sro-pane--window');
+    const card = el('div', 'galaxy-card galaxy-card--map sro-pane sro-pane--window');
     const head = el('div', 'galaxy-head sro-head');
-    head.append(el('div', 'galaxy-title sro-head__title', 'Карта галактики'));
+    const titles = el('div', 'galaxy-titles');
+    titles.append(el('div', 'galaxy-title sro-head__title', 'Карта галактики'));
+    // Подзаголовок: где мы и куда идём — видно раньше, чем глаз найдёт кольцо на карте.
+    titles.append(el('div', 'galaxy-sub caption sro-muted', subtitle(nameOf(galaxy, current), course, galaxy)));
+    head.append(titles);
     const close = document.createElement('button');
     close.type = 'button';
     close.className = 'galaxy-close sro-btn sro-btn--icon';
@@ -123,115 +123,132 @@ export class GalaxyMap {
     head.append(close);
     card.append(head);
 
-    const svg = document.createElementNS(SVG, 'svg');
-    svg.setAttribute('class', 'galaxy-svg');
-    svg.setAttribute('viewBox', '0 0 100 100');
-    const byId = new Map(galaxy.systems.map((s) => [s.id, s]));
+    const body = el('div', 'galaxy-body');
+    const mapBox = el('div', 'galaxy-map');
+    mapBox.append(this.svg(state, byId, course), legend());
+    const side = el('div', 'galaxy-side');
+    side.append(this.info(byId.get(this.selected ?? current), state, course));
+    body.append(mapBox, side);
+    card.append(body);
+    this.root.replaceChildren(card);
+  }
 
-    // Регионы (M11) — облаком под системами: видно, где кончается Ядро и начинается Рубеж.
+  /** Сама карта: облака регионов, связи, курс, бейджи врат и узлы систем. */
+  private svg(state: GalaxyMapState, byId: Map<string, GalaxySystemDto>, course: CourseView | null): SVGElement {
+    const { galaxy, current } = state;
+    const box = mapViewBox(galaxy.systems);
+    const svg = svgEl('svg', {
+      class: 'galaxy-svg',
+      viewBox: `${box.x} ${box.y} ${box.w} ${box.h}`,
+      preserveAspectRatio: 'xMidYMid meet',
+    });
+    svg.setAttribute('style', `aspect-ratio: ${box.w} / ${box.h}`);
+
+    // Размытие облака региона и стрелка курса — один раз на карту.
+    const defs = svgEl('defs', {});
+    const soft = svgEl('filter', { id: 'galaxy-soft', x: '-50%', y: '-50%', width: '200%', height: '200%' });
+    soft.append(svgEl('feGaussianBlur', { stdDeviation: 4 }));
+    const arrow = svgEl('marker', {
+      id: 'galaxy-arrow',
+      viewBox: '0 0 10 10',
+      refX: 8,
+      refY: 5,
+      markerWidth: 4,
+      markerHeight: 4,
+      orient: 'auto',
+      markerUnits: 'strokeWidth',
+    });
+    arrow.append(svgEl('path', { d: 'M0,0 L10,5 L0,10 z', class: 'galaxy-arrow' }));
+    defs.append(soft, arrow);
+    svg.append(defs);
+
+    // Регионы (M11) — мягким облаком из размытых кругов, а не прямоугольником: у них нет границ, только цвет.
     for (const region of galaxy.regions ?? []) {
       const inside = galaxy.systems.filter((s) => s.region === region.id);
       if (inside.length === 0) continue;
-      const xs = inside.map((s) => s.x);
-      const ys = inside.map((s) => s.y);
-      const pad = 7;
-      const x = Math.min(...xs) - pad;
-      const y = Math.min(...ys) - pad;
-      svg.append(
-        svgEl('rect', {
-          x,
-          y,
-          width: Math.max(...xs) - Math.min(...xs) + pad * 2,
-          height: Math.max(...ys) - Math.min(...ys) + pad * 2,
-          rx: 6,
-          class: 'galaxy-region',
-          fill: region.color,
-        }),
-      );
-      const label = svgEl('text', { x: x + 1.5, y: y + 4, class: 'galaxy-region-name', fill: region.color });
+      const cloud = svgEl('g', { class: 'galaxy-region', filter: 'url(#galaxy-soft)', fill: region.color });
+      for (const s of inside) cloud.append(svgEl('circle', { cx: s.x, cy: s.y, r: 11 }));
+      const at = regionLabelAt(inside);
+      const label = svgEl('text', { x: at.x, y: at.y, class: 'galaxy-region-name', fill: region.color });
       label.textContent = region.name;
-      svg.append(label);
+      svg.append(cloud, label);
     }
-
-    // Курс (M16b): его связи выделены на всём пути, а не только у соседней системы.
-    const course = courseView(galaxy, current, state.course, state.gates);
-    const onRoute = routeLinks(course?.path ?? []);
-    // Номера врат кладутся поверх всех линий: иначе следующая линия ложится на уже нарисованную цифру.
-    const gateNums: SVGElement[] = [];
 
     for (const link of galaxy.links) {
       const a = byId.get(link.a);
       const b = byId.get(link.b);
       if (!a || !b) continue;
       const fromHere = link.a === current || link.b === current;
-      const line = svgEl('line', {
-        x1: a.x,
-        y1: a.y,
-        x2: b.x,
-        y2: b.y,
-        class:
-          `galaxy-link${fromHere ? ' galaxy-link-open' : ''}` +
-          `${onRoute.has(linkKey(link.a, link.b)) ? ' galaxy-link-route' : ''}`,
-      });
-      // Цены прыжка на линии нет: с M15.6 он бесплатен. Зато есть номера врат на обоих концах (M16b) —
-      // из A в B и из B в A это разные врата, и подпись у каждого конца своя.
-      svg.append(line);
-      const numbers = linkGateNumbers(galaxy, link.a, link.b);
-      if (numbers) gateNums.push(gateNum(a, b, numbers.a), gateNum(b, a, numbers.b));
+      svg.append(svgEl('line', { x1: a.x, y1: a.y, x2: b.x, y2: b.y, class: `galaxy-link${fromHere ? ' galaxy-link-open' : ''}` }));
     }
-    svg.append(...gateNums);
 
-    for (const system of galaxy.systems) {
-      const group = svgEl('g', { class: 'galaxy-node', 'data-id': system.id });
-      if (system.id === current) group.append(svgEl('circle', { cx: system.x, cy: system.y, r: 6.5, class: 'galaxy-here' }));
-      if (system.id === this.selected) group.append(svgEl('circle', { cx: system.x, cy: system.y, r: 5.6, class: 'galaxy-selected' }));
-      if (system.id === state.objective) group.append(svgEl('circle', { cx: system.x, cy: system.y, r: 7.4, class: 'galaxy-objective' }));
-      if (system.id === state.invasion) group.append(svgEl('circle', { cx: system.x, cy: system.y, r: 8.6, class: 'galaxy-invasion' }));
-      if (system.id === state.demand) group.append(svgEl('circle', { cx: system.x, cy: system.y, r: 8.6, class: 'galaxy-demand' }));
-      group.append(svgEl('circle', { cx: system.x, cy: system.y, r: 4, fill: color(dangerColor(system.danger)) }));
-      // Отношение — кольцом вокруг узла: цвет кружка занят опасностью, а она для маршрута важнее.
-      const repValue = state.rep?.[system.id];
-      if (repValue !== undefined && state.repRules) {
-        group.append(svgEl('circle', {
-          cx: system.x,
-          cy: system.y,
-          r: 6.2,
-          class: 'galaxy-rep',
-          stroke: levelColor(levelOf(state.repRules, repValue)),
-        }));
-      }
-      if (system.station) {
-        group.append(svgEl('rect', { x: system.x - 1.4, y: system.y - 1.4, width: 2.8, height: 2.8, class: 'galaxy-station' }));
-      }
-      const name = svgEl('text', { x: system.x, y: system.y + 8.2, class: 'galaxy-name' });
-      name.textContent =
-        `${system.name}${repMark(state, system.id)}${system.id === state.home ? ' ⌂' : ''}` +
-        `${system.id === state.objective ? ' ★' : ''}${system.id === state.invasion ? ' ⚔' : ''}` +
-        `${system.id === state.demand ? ' ₪' : ''}`;
-      group.append(name);
-      // Зона тапа крупнее кружка: пальцем по кружку в 8 единиц на телефоне не попасть.
-      group.append(svgEl('circle', { cx: system.x, cy: system.y, r: 9, class: 'galaxy-hit' }));
-      group.addEventListener('click', () => {
-        this.selected = system.id;
-        // Выбор системы и есть прокладка курса; тап по той, где стоим, курс снимает.
-        this.onCourse(system.id === current ? null : system.id);
-        this.render();
-      });
-      svg.append(group);
+    // Курс (M16b) — своей ломаной поверх связей, со стрелкой на конечной системе: видно и путь, и направление.
+    const path = (course?.path ?? []).map((id) => byId.get(id)).filter((s): s is GalaxySystemDto => !!s);
+    const points = routePoints(path);
+    if (points.length >= 2) {
+      svg.append(svgEl('polyline', { points: points.map((p) => `${p.x},${p.y}`).join(' '), class: 'galaxy-route', 'marker-end': 'url(#galaxy-arrow)' }));
     }
-    card.append(svg);
-    card.append(this.info(byId.get(this.selected ?? current), state, course));
-    const regions = (galaxy.regions ?? []).map((r) => r.name).join(' · ');
-    card.append(
-      el(
-        'div',
-        'galaxy-legend sro-muted',
-        `${regions ? `Регионы: ${regions}. ` : ''}Цвет — опасность, квадрат — станция, кольцо — отношение властей ` +
-          `(✖ — док закрыт, ♦ — вас тут ценят), ⌂ — где вы появитесь после гибели, ★ — цель задания, ` +
-          `⚔ — вторжение пиратов, ₪ — событие спроса.`,
-      ),
+
+    // Номера врат — бейджами у текущей системы и на курсе; остальные перечисляет карточка.
+    for (const badge of gateBadges(galaxy, current, course?.path ?? [])) {
+      const g = svgEl('g', { class: `galaxy-gate${badge.route ? ' galaxy-gate--route' : ''}` });
+      g.append(svgEl('circle', { cx: badge.x, cy: badge.y, r: 2.1 }));
+      const n = svgEl('text', { x: badge.x, y: badge.y });
+      n.textContent = String(badge.n);
+      g.append(n);
+      svg.append(g);
+    }
+
+    for (const system of galaxy.systems) svg.append(this.node(system, state));
+    return svg;
+  }
+
+  /** Узел системы: ядро по форме места, кольца состояний, значки событий, имя и зона тапа. */
+  private node(system: GalaxySystemDto, state: GalaxyMapState): SVGElement {
+    const { current } = state;
+    const { x, y } = system;
+    const group = svgEl('g', { class: 'galaxy-node', 'data-id': system.id });
+    // Форма говорит о месте: квадрат — есть станция, круг — станции нет. Цвет — опасность.
+    const fill = color(dangerColor(system.danger));
+    group.append(
+      system.station
+        ? svgEl('rect', { x: x - R.core, y: y - R.core, width: R.core * 2, height: R.core * 2, rx: 1, class: 'galaxy-core', fill })
+        : svgEl('circle', { cx: x, cy: y, r: R.core, class: 'galaxy-core', fill }),
     );
-    this.root.replaceChildren(card);
+    // Отношение — кольцом вокруг узла: цвет ядра занят опасностью, а она для маршрута важнее.
+    const repValue = state.rep?.[system.id];
+    if (repValue !== undefined && state.repRules) {
+      group.append(svgEl('circle', { cx: x, cy: y, r: R.rep, class: 'galaxy-rep', stroke: levelColor(levelOf(state.repRules, repValue)) }));
+    }
+    if (system.id === current) group.append(svgEl('circle', { cx: x, cy: y, r: R.here, class: 'galaxy-here' }));
+    else if (system.id === this.selected) group.append(svgEl('circle', { cx: x, cy: y, r: R.here, class: 'galaxy-selected' }));
+    const objective = system.id === state.objective;
+    const invasion = system.id === state.invasion;
+    if (objective) group.append(svgEl('circle', { cx: x, cy: y, r: R.event, class: 'galaxy-objective' }));
+    if (invasion) group.append(svgEl('circle', { cx: x, cy: y, r: objective ? R.eventOuter : R.event, class: 'galaxy-invasion' }));
+
+    // Значки событий — бейджами у узла, а не суффиксами в имени: в 3 px «Rigel ⚔» не прочесть.
+    for (const badge of nodeBadges({ home: system.id === state.home, objective, invasion, demand: system.id === state.demand })) {
+      const g = svgEl('g', { class: `galaxy-badge galaxy-badge--${badge.kind}` });
+      g.append(svgEl('circle', { cx: x + badge.dx, cy: y + badge.dy, r: 2.4 }));
+      const glyph = svgEl('text', { x: x + badge.dx, y: y + badge.dy });
+      glyph.textContent = BADGE_GLYPH[badge.kind];
+      g.append(glyph);
+      group.append(g);
+    }
+
+    const name = svgEl('text', { x, y: y + 9.4, class: `galaxy-name${system.id === current ? ' galaxy-name--here' : ''}` });
+    name.textContent = system.name;
+    group.append(name);
+    // Зона тапа крупнее кружка: пальцем по кружку в 6 единиц на телефоне не попасть.
+    group.append(svgEl('circle', { cx: x, cy: y, r: R.hit, class: 'galaxy-hit' }));
+    group.addEventListener('click', () => {
+      this.selected = system.id;
+      // Выбор системы и есть прокладка курса; тап по той, где стоим, курс снимает.
+      this.onCourse(system.id === current ? null : system.id);
+      this.render();
+    });
+    return group;
   }
 
   /** Карточка выбранной системы (по умолчанию — текущей). */
@@ -245,6 +262,23 @@ export class GalaxyMap {
     const region = regionName(state.galaxy, system.region);
     if (region) facts.unshift(region);
     box.append(el('div', 'galaxy-info-facts sro-muted', facts.join(' · ')));
+
+    // Врата системы по номерам (M16b): на карте номера стоят только у текущей, здесь — у любой выбранной.
+    const gates = system.gates ?? [];
+    if (gates.length > 0) {
+      const line = el('div', 'galaxy-info-gates sro-muted');
+      line.append(el('span', 'galaxy-info-label label', 'Врата'));
+      gates.forEach((to, i) => {
+        const n = gateNumber(i);
+        const item = el('span', 'galaxy-info-gate', `${n} → ${nameOf(state.galaxy, to)}`);
+        // Врата курса в текущей системе — сталью: их и искать в мире.
+        if (system.id === state.current && course?.gate === n) item.classList.add('galaxy-info-gate--route');
+        if (i > 0) line.append(el('span', 'galaxy-info-sep', ' · '));
+        line.append(item);
+      });
+      box.append(line);
+    }
+
     // Чем здесь торгуют (M12): «производит» — где это дёшево купить, «покупает» — куда везти.
     // Ключ места, а не системы (M15): на карте показываем станцию — поселения видно уже на месте.
     const profile = state.market?.places?.[`st:${system.id}`];
@@ -253,32 +287,83 @@ export class GalaxyMap {
         (ids ?? []).map((id) => lootItem(state.loot!, id)?.name ?? id).join(', ');
       const produces = names(profile.produces);
       const consumes = names(profile.consumes);
-      if (produces) box.append(el('div', 'galaxy-info-trade sro-muted', `Производит: ${produces}`));
-      if (consumes) box.append(el('div', 'galaxy-info-trade sro-muted', `Покупает: ${consumes}`));
+      if (produces) box.append(labelled('Производит', produces));
+      if (consumes) box.append(labelled('Покупает', consumes));
     }
     // Отношение властей (M13): по нему закрывается док и звереют рейнджеры.
     const repValue = state.rep?.[system.id];
     if (repValue !== undefined && state.repRules) {
       const level = levelOf(state.repRules, repValue);
-      const line = el('div', 'galaxy-info-trade sro-muted', `Отношение: ${repLabel(level, repValue)}`);
-      line.style.color = levelColor(level);
+      const line = labelled('Отношение', repLabel(level, repValue));
+      (line.lastChild as HTMLElement).style.color = levelColor(level);
       box.append(line);
     }
     const outlook = jumpOutlook(state.galaxy, state.current, system.id);
     let text = OUTLOOK_TEXT[outlook];
     if (outlook === 'far') {
       const count = hops(state.galaxy, state.current).get(system.id);
-      if (count) text = `${count} ${count < 5 ? 'прыжка' : 'прыжков'} отсюда`;
+      if (count) text = `${hopsWord(count)} отсюда`;
     }
     box.append(el('div', 'galaxy-info-jump', text));
     // Курс — в карточке конечной системы и в карточке текущей: открыл карту и сразу видишь, куда шёл.
     // В карточке посторонней системы его нет: там он сбивал бы с толку.
     if (course && (course.to === system.id || system.id === state.current)) {
       const name = course.to === system.id ? null : nameOf(state.galaxy, course.to);
-      box.append(el('div', 'galaxy-info-course', courseLine(course, name)));
+      const line = el('div', 'galaxy-info-course');
+      line.append(el('span', 'sro-dot'), el('span', '', courseLine(course, name)));
+      box.append(line);
     }
     return box;
   }
+}
+
+/** «Sol · курс на Rigel: 2 прыжка» / «Sol · курса нет». */
+function subtitle(here: string, course: CourseView | null, galaxy: GalaxyDto): string {
+  if (!course) return `${here} · курса нет`;
+  const to = nameOf(galaxy, course.to);
+  if (course.done) return `${here} · вы на месте`;
+  if (course.lost) return `${here} · маршрута до ${to} нет`;
+  return `${here} · курс на ${to}: ${hopsWord(course.hops)}`;
+}
+
+/** Строка карточки с подписью в стиле label: «ПРОИЗВОДИТ  Металл, Руда». */
+function labelled(label: string, value: string): HTMLElement {
+  const line = el('div', 'galaxy-info-trade sro-muted');
+  line.append(el('span', 'galaxy-info-label label', label), el('span', '', value));
+  return line;
+}
+
+/** Легенда — ряд чипов с образцом знака; словами описан только смысл, форму показывает сам образец. */
+function legend(): HTMLElement {
+  const box = el('div', 'galaxy-legend');
+  const key = (swatch: SVGElement, text: string): void => {
+    const chip = el('span', 'galaxy-key caption sro-muted');
+    const svg = svgEl('svg', { viewBox: '0 0 12 12', class: 'galaxy-key-swatch', 'aria-hidden': 'true' });
+    svg.append(swatch);
+    chip.append(svg, el('span', '', text));
+    box.append(chip);
+  };
+  const danger = svgEl('g', {});
+  [1, 3, 5].forEach((level, i) => danger.append(svgEl('circle', { cx: 2.5 + i * 3.5, cy: 6, r: 1.6, fill: color(dangerColor(level)) })));
+  key(danger, 'цвет — опасность');
+  key(svgEl('rect', { x: 3, y: 3, width: 6, height: 6, rx: 1, class: 'galaxy-key-station' }), 'квадрат — станция');
+  key(svgEl('circle', { cx: 6, cy: 6, r: 4, class: 'galaxy-key-rep' }), 'кольцо — отношение властей');
+  key(svgEl('line', { x1: 1, y1: 6, x2: 11, y2: 6, class: 'galaxy-key-route' }), 'пунктир — курс');
+  const badges: [BadgeKind, string][] = [
+    ['home', 'дом: сюда вернётесь после гибели'],
+    ['objective', 'цель задания'],
+    ['invasion', 'вторжение пиратов'],
+    ['demand', 'событие спроса'],
+  ];
+  for (const [kind, text] of badges) {
+    const g = svgEl('g', { class: `galaxy-badge galaxy-badge--${kind}` });
+    g.append(svgEl('circle', { cx: 6, cy: 6, r: 5 }));
+    const glyph = svgEl('text', { x: 6, y: 6, class: 'galaxy-key-glyph' });
+    glyph.textContent = BADGE_GLYPH[kind];
+    g.append(glyph);
+    key(g, text);
+  }
+  return box;
 }
 
 /** Имя системы по id; неизвестная — сам id. */
@@ -288,27 +373,8 @@ function nameOf(galaxy: GalaxyDto, id: string): string {
 
 function el(tag: string, className: string, text?: string): HTMLElement {
   const node = document.createElement(tag);
-  node.className = className;
+  if (className) node.className = className;
   if (text !== undefined) node.textContent = text;
-  return node;
-}
-
-/**
- * Номер врат у своего конца линии: цифра отходит от узла вдоль маршрута (чтобы не лезть на кружок системы)
- * и вбок от самой линии — на ней её съедал бы пунктир проложенного курса.
- */
-function gateNum(from: { x: number; y: number }, to: { x: number; y: number }, n: number): SVGElement {
-  const dx = to.x - from.x;
-  const dy = to.y - from.y;
-  const length = Math.hypot(dx, dy) || 1;
-  const along = Math.min(11, length * 0.35);
-  const side = 2.4;
-  const node = svgEl('text', {
-    x: from.x + (dx / length) * along - (dy / length) * side,
-    y: from.y + (dy / length) * along + (dx / length) * side,
-    class: 'galaxy-gate-num',
-  });
-  node.textContent = String(n);
   return node;
 }
 
