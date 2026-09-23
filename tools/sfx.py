@@ -33,6 +33,8 @@ META = ROOT / "client" / "src" / "audio" / "sfxMeta.json"
 
 # Пик записи. Не 1.0: mp3 после декодирования местами выходит выше исходного, и на 1.0 это слышно как треск.
 PEAK = 0.89
+# Звуки, которые клиент крутит по кругу: без рамп по краям, шов заделан внутри рецепта.
+LOOPS = {"engine"}
 QUALITY = 0.4
 
 
@@ -285,6 +287,34 @@ def alarm(rng):
     return out
 
 
+def engine(rng):
+    """
+    Гул двигателя (M17b): петля на две секунды, клиент крутит её по кругу, а газом правит громкость и высоту.
+    Низкий гул с лёгким биением, рокот шума в полосе 60–350 Гц и тихий свист турбины 500–1400 Гц —
+    последний ради телефона: низ его динамик не отдаёт.
+    Шов петли заделан кроссфейдом хвоста в начало; тона взяты с сетки петли, чтобы не рвались на стыке.
+    """
+    seconds = 2.0
+    n = S.n_of(seconds)
+    k = S.n_of(0.1)  # кроссфейд шва
+    warm = S.n_of(0.2)  # разгон фильтров: первые миллисекунды выбрасываются
+    total = warm + n + k
+
+    def grid(f):
+        return round(f * seconds) / seconds
+
+    hum = S.osc(grid(58), total) * 0.5 + S.osc(grid(87), total, "tri") * 0.3 + S.osc(grid(116), total) * 0.2
+    hum *= 1.0 + 0.08 * S.osc(grid(6.5), total)
+    rumble = S.band(S.noise(total, rng), 60, 350, order=2) * 0.6
+    whine = S.band(S.noise(total, rng), 500, 1400, order=4) * 0.16
+    whine *= 1.0 + 0.3 * S.osc(grid(0.5), total)
+    x = (hum * 0.6 + rumble + whine)[warm:]
+    out = x[:n].copy()
+    up = np.linspace(0.0, 1.0, k)
+    out[:k] = out[:k] * up + x[n:n + k] * (1.0 - up)
+    return out
+
+
 def squelch_open(rng):
     """Щелчок рации перед репликой: без него голос начинается «из ниоткуда»."""
     n = S.n_of(0.09)
@@ -367,6 +397,7 @@ CUES = [
     ("jump-charge", jump_charge, 1, 0.40),
     ("jump", jump, 1, 0.70),
     ("alarm", alarm, 1, 0.55),
+    ("engine", engine, 1, 0.45),
     ("squelch-open", squelch_open, 2, 0.30),
     ("squelch-close", squelch_close, 2, 0.26),
     ("fire-on", fire_on, 1, 0.25),
@@ -389,7 +420,8 @@ def build(only=None):
             rng = np.random.default_rng(abs(hash(name)) % (2**31) + i * 7919)
             x = recipe(rng)
             x = S.dc_block(x)
-            x = S.fade_edges(S.norm(x, PEAK), 4.0)
+            # Петли (двигатель) сходятся сами: рампы по краям дали бы провал на каждом круге.
+            x = S.norm(x, PEAK) if name in LOOPS else S.fade_edges(S.norm(x, PEAK), 4.0)
             size = S.write_mp3(OUT / f"{name}-{i + 1}.mp3", x, QUALITY)
             total += size
             longest = max(longest, len(x))

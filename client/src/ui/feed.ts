@@ -3,6 +3,8 @@ import type { RosterEvent } from '../net/roster';
 import { formatCredits } from '../sim/shop';
 
 const SHOW_MS = 4000;
+/** Реплика эфира живёт дольше: её читают, а не замечают. */
+const RADIO_SHOW_MS = 6500;
 const FADE_MS = 400;
 const MAX_ITEMS = 4;
 
@@ -132,16 +134,31 @@ export class Feed {
     this.show(text, 'warn');
   }
 
+  /** Субтитр реплики эфира (M17b): «Имя: текст», имя сильнее текста. */
+  radio(name: string, text: string): void {
+    const item = document.createElement('div');
+    item.className = 'feed-item sro-msg sro-msg--radio';
+    const who = document.createElement('b');
+    who.className = 'sro-msg__who';
+    who.textContent = `${name}:`;
+    item.append(who, document.createTextNode(` ${text}`));
+    this.mount(item, RADIO_SHOW_MS);
+  }
+
   private show(text: string, tone: 'plain' | 'gain' | 'warn' | 'alert'): void {
     const item = document.createElement('div');
     item.className = tone === 'plain' ? 'feed-item sro-msg' : `feed-item sro-msg sro-msg--${tone}`;
     item.textContent = text;
+    this.mount(item, SHOW_MS);
+  }
+
+  private mount(item: HTMLElement, showMs: number): void {
     this.root.append(item);
     while (this.root.children.length > MAX_ITEMS) this.root.firstElementChild!.remove();
 
     window.setTimeout(() => {
       item.classList.add('sro-msg--out');
       window.setTimeout(() => item.remove(), FADE_MS);
-    }, SHOW_MS);
+    }, showMs);
   }
 }

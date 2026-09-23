@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
+import chatter from '../../../shared/chatter.json';
 import meta from './sfxMeta.json';
 import music from './musicMeta.json';
+import radio from './radioMeta.json';
 
 /**
  * Манифесты и сами файлы — результат работы tools/sfx.py и tools/music.py, и оба лежат в git.
@@ -11,6 +13,7 @@ import music from './musicMeta.json';
 
 const sfxFiles = new Set(Object.keys(import.meta.glob('../../public/sfx/*.mp3')).map(nameOf));
 const musicFiles = new Set(Object.keys(import.meta.glob('../../public/music/*.mp3')).map(nameOf));
+const radioFiles = new Set(Object.keys(import.meta.glob('../../public/radio/*.mp3')).map(nameOf));
 
 function nameOf(path: string): string {
   return path.slice(path.lastIndexOf('/') + 1, -'.mp3'.length);
@@ -35,6 +38,27 @@ describe('банк звуков', () => {
       expect(info.gain, cue).toBeGreaterThan(0);
       expect(info.gain, cue).toBeLessThanOrEqual(1);
     }
+  });
+});
+
+describe('радиоэфир', () => {
+  it('у каждой реплики банка есть файл и запись в манифесте с длительностью', () => {
+    const lines = radio.lines as Record<string, { ms: number; category: string }>;
+    for (const [category, block] of Object.entries(chatter.categories)) {
+      for (const line of block.lines) {
+        const key = `${category}-${line.id}`;
+        expect(radioFiles.has(key), `нет файла ${key}.mp3`).toBe(true);
+        expect(lines[key]?.ms, key).toBeGreaterThan(300);
+        expect(lines[key]?.category, key).toBe(category);
+      }
+    }
+  });
+
+  it('файлов и записей без реплики в банке нет', () => {
+    const known = new Set<string>();
+    for (const [category, block] of Object.entries(chatter.categories)) for (const line of block.lines) known.add(`${category}-${line.id}`);
+    expect([...radioFiles].filter((name) => !known.has(name))).toEqual([]);
+    expect(Object.keys(radio.lines).filter((name) => !known.has(name))).toEqual([]);
   });
 });
 

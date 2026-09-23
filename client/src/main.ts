@@ -429,7 +429,8 @@ async function main(): Promise<void> {
   const passwordForm = new PasswordForm(el('password'), (current, fresh) => {
     connection?.send({ t: 'password', old: current, new: fresh });
   });
-  const audioWindow = new AudioWindow(el('audio'), audio.settings, () => audio.preview());
+  const audioWindow = new AudioWindow(el('audio'), audio.settings, (what) => audio.preview(what));
+  audio.onSubtitle = (name, text) => feed.radio(name, text); // субтитры эфира — в ленту (M17b)
   const menu = new BurgerMenu(el('menu'), (action) => {
     if (action === 'audio') audioWindow.toggle();
     else if (action === 'controls') controlsWindow.toggle();
@@ -778,7 +779,7 @@ async function main(): Promise<void> {
       const at = locate(event.kill.id);
       if (at) {
         fx.explosion(at.x, at.y, at.size, now);
-        audio.kill(at, at.size, event.kill.id === ownId(), now);
+        audio.kill(at, at.size, event.kill.id === ownId(), now, remote.get(event.kill.id) ?? null);
       }
       return;
     }
@@ -1053,6 +1054,7 @@ async function main(): Promise<void> {
     connection.onSos = (message) => {
       const text = sos.apply(message, performance.now());
       if (text) feed.add(text, message.state === 'on');
+      audio.sos(message); // торговец зовёт на помощь голосом, а спасённый благодарит (M17b)
     };
     connection.onTrade = (message) => {
       if (message.t === 'tradeInvite') {
@@ -1295,7 +1297,18 @@ async function main(): Promise<void> {
     camera.follow(state.x, state.y, zoom.value).apply(world, app.screen.width, app.screen.height);
     // Звук слышит оттуда же, откуда смотрит камера. Здесь же решается, что играть: бой начинают
     // выстрелы и наведённые на меня пушки, а кончает семь секунд тишины (audio/mood.ts).
-    audio.frame({ now, camera, threats: attackers, incoming, docked, dead });
+    audio.frame({
+      now,
+      camera,
+      threats: attackers,
+      incoming,
+      docked,
+      dead,
+      ships: [...remote.visible()],
+      me: { id: me, x: state.x, y: state.y },
+      myHp: ownDto && online ? ownDto.hp / Math.max(1, hull.hp) : 1,
+      throttle: online && !docked && !dead ? input.throttle : 0,
+    });
     starfield.update(camera.x, camera.y, camera.zoom, app.screen.width, app.screen.height);
     nebula.update(now);
     weaponArc.update(state.x, state.y, state.rot, target && !dead && !docked ? weapon : null, aim?.state === 'ready');

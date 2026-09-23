@@ -270,6 +270,22 @@
 
 .sro-msg--out { opacity: var(--opacity-feed-out); }
 
+/* Реплика эфира (M17b): имя говорящего сильнее текста, рамка стальная; длинная фраза переносится, а не режется. */
+.sro-msg--radio {
+  display: block;
+  padding: 6px 12px;
+  border-radius: 14px; /* у многострочной плашки пилюля срезала бы первую букву */
+  border-color: var(--steel-line);
+  color: var(--text);
+  white-space: normal;
+  text-align: left;
+}
+
+.sro-msg__who {
+  color: var(--text-strong);
+  font-weight: 600;
+}
+
 /* ---------- Карточка цели ---------- */
 
 .sro-target {

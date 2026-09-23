@@ -17,3 +17,6 @@ data/
 
 # Python
 __pycache__/
+
+# Кэш сырой речи tools/voice.py
+tools/.cache/

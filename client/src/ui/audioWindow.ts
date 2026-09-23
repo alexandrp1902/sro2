@@ -16,7 +16,8 @@ interface Row {
 const ROWS: Row[] = [
   { id: 'master', label: 'Общая', hint: 'Весь звук игры' },
   { id: 'music', label: 'Музыка', hint: 'Космос в покое, бой — сам по себе' },
-  { id: 'sfx', label: 'Звуки', hint: 'Выстрелы, взрывы, стыковка' },
+  { id: 'sfx', label: 'Звуки', hint: 'Выстрелы, взрывы, стыковка, двигатель' },
+  { id: 'radio', label: 'Эфир', hint: 'Голоса торговцев, рейнджеров и пиратов' },
 ];
 
 /** Три боевые темы на выбор — плейтест решит, какая останется. */
@@ -27,8 +28,8 @@ export class AudioWindow {
   constructor(
     private readonly root: HTMLElement,
     private readonly prefs: AudioPrefsPort,
-    /** Кнопка «Проверить»: играет взрыв на текущей громкости. */
-    private readonly onPreview: () => void = () => {},
+    /** Кнопки проверки: взрыв или реплика эфира на текущей громкости. */
+    private readonly onPreview: (what: 'sfx' | 'radio') => void = () => {},
   ) {
     root.addEventListener('pointerdown', (e) => {
       if (e.target === root) this.hide();
@@ -64,7 +65,20 @@ export class AudioWindow {
 
     const table = el('div', 'audio-table');
     for (const row of ROWS) table.append(this.slider(row));
-    table.append(this.themeRow());
+    table.append(
+      this.choiceRow('Бой', COMBAT_THEMES, THEME_LABELS, this.prefs.prefs.combat, (combat) => this.prefs.set({ combat }), THEME_HINT, 'Боевая тема'),
+    );
+    table.append(
+      this.choiceRow(
+        'Субтитры',
+        ['on', 'off'] as const,
+        { on: 'Вкл', off: 'Выкл' },
+        this.prefs.prefs.subtitles ? 'on' : 'off',
+        (v) => this.prefs.set({ subtitles: v === 'on' }),
+        'Реплики эфира текстом в ленте — читать можно и с выключенным голосом',
+        'Субтитры эфира',
+      ),
+    );
     card.append(table);
 
     const note = el('div', 'audio-note sro-muted');
@@ -72,7 +86,8 @@ export class AudioWindow {
     card.append(note);
 
     const foot = el('div', 'audio-foot');
-    foot.append(button('Проверить', 'sro-btn sro-btn--sm', () => this.onPreview()));
+    foot.append(button('Проверить звук', 'sro-btn sro-btn--sm', () => this.onPreview('sfx')));
+    foot.append(button('Проверить эфир', 'sro-btn sro-btn--sm', () => this.onPreview('radio')));
     card.append(foot);
 
     this.root.replaceChildren(card);
@@ -101,22 +116,30 @@ export class AudioWindow {
     return line;
   }
 
-  private themeRow(): HTMLElement {
+  /** Строка с сегментным выбором вместо ползунка: боевая тема, субтитры. */
+  private choiceRow<T extends string>(
+    label: string,
+    options: readonly T[],
+    labels: Record<T, string>,
+    current: T,
+    onPick: (value: T) => void,
+    hint: string,
+    aria: string,
+  ): HTMLElement {
     const line = el('div', 'audio-row audio-row--themes');
-    const label = el('div', 'audio-label', 'Бой');
     const tabs = el('div', 'audio-themes sro-tabs');
     tabs.setAttribute('role', 'group');
-    tabs.setAttribute('aria-label', 'Боевая тема');
-    for (const theme of COMBAT_THEMES) {
-      const tab = button(THEME_LABELS[theme], 'sro-tab', () => {
-        this.prefs.set({ combat: theme });
+    tabs.setAttribute('aria-label', aria);
+    for (const option of options) {
+      const tab = button(labels[option], 'sro-tab', () => {
+        onPick(option);
         this.render();
       });
-      tab.setAttribute('aria-pressed', String(this.prefs.prefs.combat === theme));
-      tab.dataset.theme = theme;
+      tab.setAttribute('aria-pressed', String(current === option));
+      tab.dataset.value = option;
       tabs.append(tab);
     }
-    line.append(label, tabs, el('div', 'audio-value'), el('div', 'audio-hint sro-muted', THEME_HINT));
+    line.append(el('div', 'audio-label', label), tabs, el('div', 'audio-value'), el('div', 'audio-hint sro-muted', hint));
     return line;
   }
 }

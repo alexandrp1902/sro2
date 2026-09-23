@@ -2419,6 +2419,7 @@ body {
 .audio-foot {
   display: flex;
   justify-content: flex-end;
+  gap: var(--space-2);
   padding: 10px 16px;
   border-top: 1px solid var(--line-soft);
 }

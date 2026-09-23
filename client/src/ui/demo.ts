@@ -2,7 +2,7 @@
  * Витрина интерфейса без сервера: `?demo=<экран>` собирает настоящие построители HUD, дока и окон
  * на фиксированных данных. Нужна проходам по дизайну (скриншоты headless-браузером на ПК и телефоне)
  * и ничего не шлёт. Экраны: flight, dock-missions, dock-cargo, dock-hulls, dock-ships, dock-fitting,
- * galaxy, controls, audio, confirm, menu, password, death, login, login-new, login-over, party10, trade.
+ * galaxy, controls, audio, radio, confirm, menu, password, death, login, login-new, login-over, party10, trade.
  */
 import type { Connection } from '../net/connection';
 import type { CareerDto, GalaxyDto, HangarMsg, MarketMsg, MissionsMsg, RepMsg } from '../net/protocol';
@@ -410,6 +410,13 @@ export function runDemo(screen: string): void {
     case 'audio':
       flightHud();
       audioWindow.show();
+      break;
+    case 'radio':
+      // Субтитры эфира (M17b): три реплики в ленте — торговец, рейнджер, пират.
+      flightHud();
+      feed.radio('Торговец «Альба»', 'Борт, это торговец. Идём с грузом, не стреляйте.');
+      feed.radio('Рейнджер-7', 'Патруль: в секторе бой. Мирным отойти.');
+      feed.radio('Пират «Коготь»', 'Ну здравствуй, добыча. Сдавай груз — и, может, полетишь дальше.');
       break;
     case 'login':
       // Стартовый экран, вкладка «Вход»: ник помним с прошлого раза, за окном заставка.

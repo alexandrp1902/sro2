@@ -1,13 +1,17 @@
-import type { ShotDto } from '../net/protocol';
+import bank from '../../../shared/chatter.json';
+import type { ShotDto, SosMsg } from '../net/protocol';
 import type { WeaponParams } from '../sim/combat';
 import { SfxBank } from './bank';
+import { Chatter, type Line, type Speaker } from './chatter';
 import { flightMs, impactVoice, killVoice, launchVoice, shotVoice, type SfxCue } from './cues';
 import { AudioEngine } from './engine';
 import { spatial, type Listener, type Place } from './mixer';
 import { Music } from './music';
 import { nextMood, type Mood } from './mood';
+import { Radio } from './radio';
 import { AudioSettings } from './settings';
 import { Sfx } from './sfx';
+import { Thrust } from './thrust';
 
 /**
  * Звук игры одним лицом: главный модуль зовёт только его и ничего не знает ни про Web Audio, ни про слои.
@@ -26,6 +30,14 @@ export interface AudioFrame {
   incoming: number;
   docked: boolean;
   dead: boolean;
+  /** Чужие корабли системы — эфиру: кто рядом, кто целится, кому плохо (M17b). */
+  ships: readonly Speaker[];
+  /** Я: кому угрожают и от кого считать расстояние. */
+  me: { id: number; x: number; y: number };
+  /** Мой корпус, доля от полного: по нему пират решает, насмехаться ли. */
+  myHp: number;
+  /** Газ 0..1 — гул двигателя. */
+  throttle: number;
 }
 
 /** Звуки «в рубке»: у них нет места в мире, они звучат ровно посередине. */
@@ -41,6 +53,12 @@ export class GameAudio {
   private readonly bank = new SfxBank();
   private readonly sfx: Sfx | null;
   private readonly music: Music | null;
+  private readonly radio: Radio | null;
+  private readonly thrust: Thrust | null;
+  private readonly chatter = new Chatter();
+  /** Субтитр реплики эфира — в ленту; ставит main.ts. */
+  onSubtitle: ((name: string, text: string) => void) | null = null;
+  private myId = 0;
 
   private listener: Listener = { x: 0, y: 0, zoom: 1, halfWidth: 640 };
   private mood: Mood = 'calm';
@@ -60,6 +78,8 @@ export class GameAudio {
     this.engine = engine;
     this.sfx = engine ? new Sfx(engine, this.bank) : null;
     this.music = engine ? new Music(engine, this.settings.prefs.combat) : null;
+    this.radio = engine && this.sfx ? new Radio(engine, this.sfx) : null;
+    this.thrust = engine ? new Thrust(engine, this.bank) : null;
     this.settings.onChange((prefs) => {
       engine?.applyPrefs(prefs);
       this.music?.setTheme(prefs.combat);
@@ -97,6 +117,10 @@ export class GameAudio {
       this.mood = mood;
       this.music?.setMood(mood);
     }
+    this.myId = f.me.id;
+    this.thrust?.set(f.throttle, f.docked || f.dead);
+    const line = this.chatter.tick({ now: f.now, me: f.me, ships: f.ships, combat: mood === 'combat', docked: f.docked, dead: f.dead, myHp: f.myHp });
+    if (line) this.speak(line);
 
     if (f.incoming > 0 && f.now - this.alarmAt > ALARM_EVERY_MS) {
       this.alarmAt = f.now;
@@ -144,9 +168,18 @@ export class GameAudio {
     this.pending.add(timer);
   }
 
-  /** Корабль уничтожен. */
-  kill(at: Place | null, size: number, own: boolean, now: number): void {
+  /** Корабль уничтожен. @param victim кто именно — пират, с которым шёл бой, может сказать последнее */
+  kill(at: Place | null, size: number, own: boolean, now: number, victim: Speaker | null = null): void {
     this.sfx?.play(killVoice(size, own), this.at(at), 0, now);
+    if (!victim) return;
+    const line = this.chatter.kill(victim, this.myId, now);
+    if (line) this.speak(line);
+  }
+
+  /** SOS торговца: зов о помощи в эфир, спасение — благодарность. */
+  sos(message: SosMsg): void {
+    const line = this.chatter.sos({ id: message.id, name: message.name, x: message.x, y: message.y }, message.state, message.reward, performance.now());
+    if (line) this.speak(line);
   }
 
   /** Пуск ракеты: новая ракета в снапшоте. */
@@ -191,14 +224,37 @@ export class GameAudio {
     this.pending.clear();
     this.charge = null;
     this.sfx?.stopAll();
+    this.radio?.stopAll();
+    this.thrust?.stop();
+    this.chatter.reset();
     this.lastHostileShot = 0;
     this.lastOwnShot = 0;
   }
 
-  /** Проверка громкости из окна настроек. */
-  preview(cue: SfxCue = 'explode'): void {
+  /** Проверка громкости из окна настроек: взрыв или реплика эфира. */
+  preview(what: 'sfx' | 'radio' = 'sfx'): void {
     this.unlock();
-    this.sfx?.preview(cue);
+    if (what === 'sfx') {
+      this.sfx?.preview('explode');
+      return;
+    }
+    const sample = bank.categories.traderHail.lines[0];
+    this.speak({
+      category: 'traderHail',
+      id: `traderHail-${sample.id}`,
+      text: sample.text,
+      shipId: 0,
+      name: 'Торговец',
+      x: this.listener.x,
+      y: this.listener.y,
+      priority: 100,
+    });
+  }
+
+  /** Реплика в эфир: субтитр в ленту (если включены) и голос с панорамой по положению корабля. */
+  private speak(line: Line): void {
+    const spoken = this.radio ? this.radio.say(line, this.at(line)?.pan ?? 0) : true;
+    if (spoken && this.settings.prefs.subtitles) this.onSubtitle?.(line.name, line.text);
   }
 
   private cue(cue: SfxCue, at: Place | null, source: number, now: number): void {
