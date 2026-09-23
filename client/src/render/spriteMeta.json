@@ -506,5 +506,21 @@
   "rep-hero": {
     "w": 128,
     "h": 117
+  },
+  "suns-corona-inner": {
+    "w": 512,
+    "h": 512
+  },
+  "suns-corona-mid": {
+    "w": 512,
+    "h": 512
+  },
+  "suns-corona-outer": {
+    "w": 512,
+    "h": 512
+  },
+  "suns-corona-plume": {
+    "w": 512,
+    "h": 512
   }
 }

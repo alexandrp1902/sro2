@@ -285,7 +285,11 @@ PNG туда же. Стиль: STYLE-SCENE + «This is an ORBITAL STATION interi
 
 ---
 
-## Пачка I — кольца короны звезды (к M17)
+## Пачка I — кольца короны звезды (к M17) — сделано
+
+**Нарисовано, нарезано и подключено 2026-09-23** (`client/src/render/corona.ts`). Отступления от
+заявки — кольца легли под диск, а не поверх, — и почему, записаны в
+[`art/next-art-status.md`](next-art-status.md). Дальше — исходная заявка.
 
 Готовые промпты: [`art/space/sun-corona/prompts.md`](space/sun-corona/prompts.md). Звезда сейчас
 один неподвижный спрайт (`suns-<kind>`, `client/src/render/world.ts`). Нужны отдельные **кольца**,

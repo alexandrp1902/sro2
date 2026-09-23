@@ -24,6 +24,8 @@ META = ROOT / "client" / "src" / "render" / "spriteMeta.json"
 ALPHA_CUT = 24
 # Пятна меньше этой доли клетки — мусор, в границы объекта не входят.
 MIN_BLOB = 0.002
+# Где у кольца короны (режим «ring») начинает и кончает гаснуть альфа, в долях половины картинки.
+RING_FADE_START, RING_FADE_END = 0.74, 1.0
 QUALITY = 88
 
 # Листы, нарисованные носом вверх. В игре снаряд поворачивается по курсу (rotation = atan2(dy, dx)),
@@ -57,7 +59,8 @@ SHEETS = [
     ("weapon-effects/weapon-shots-flak", 3, 1, ["flak", "flak-flash", "flak-hit"], 192, "trim", "weapon-shots"),
 ]
 
-# Отдельные картинки (одна PNG — один спрайт): файл под art/space, имя в игре, длинная сторона.
+# Отдельные картинки (одна PNG — один спрайт): файл под art/space, имя в игре, длинная сторона
+# и необязательный режим («ring» — поля не обрезать).
 SINGLES = [
     # Корабли NPC (пачка A): свои силуэты, чтобы их не путали с кораблями пилотов.
     *[(f"npc-ships/ships-{n}", f"ships-{n}", 256) for n in
@@ -87,6 +90,11 @@ SINGLES = [
     # Имя = rep-<id ступени в reputation.json>, поэтому таблица соответствий коду не нужна.
     *[(f"mission-reputation/rep-{n}", f"rep-{n}", 128) for n in
       ["enemy", "distrust", "neutral", "friend", "hero"]],
+    # Кольца короны звезды (пачка I): режим «ring» — поля не обрезаются. Код ставит кольцо по центру
+    # звезды и считает его размер от доли дырки в картинке; обрезка по альфе сбила бы и центр, и доли,
+    # а у протуберанцев рамка по альфе ещё и несимметрична — языки разной длины.
+    *[(f"sun-corona/suns-corona-{n}", f"suns-corona-{n}", 512, "ring") for n in
+      ["inner", "mid", "outer", "plume"]],
 ]
 
 
@@ -185,6 +193,23 @@ def split_ship(img: Image.Image):
     return to(hull), to(flame), bottom
 
 
+def ring(img: Image.Image) -> Image.Image:
+    """
+    Кольцо короны звезды: поля не обрезаем — код ставит кольцо по центру звезды и считает размер от
+    доли дырки, — но альфу к краю холста гасим. У дальнего ореола она держит полку около 0.17 и
+    обрывается на 0.87 ширины; на экране этот обрыв читается ровной циркульной окружностью вокруг
+    звезды. Плавное затухание её убирает и заодно подтачивает кончики протуберанцев, которые иначе
+    кончаются так же резко.
+    """
+    a = np.asarray(img).astype(np.float32)
+    h, w = a.shape[:2]
+    y, x = np.mgrid[0:h, 0:w]
+    r = np.hypot(y - (h - 1) / 2, x - (w - 1) / 2) / (max(w, h) / 2)
+    t = np.clip((RING_FADE_END - r) / (RING_FADE_END - RING_FADE_START), 0, 1)
+    a[..., 3] *= t * t * (3 - 2 * t)
+    return Image.fromarray(a.astype(np.uint8), "RGBA")
+
+
 def single(img: Image.Image) -> Image.Image:
     """Одиночная картинка: обрезаем прозрачные поля генератора по настоящей альфе."""
     alpha = np.asarray(img)[..., 3]
@@ -229,8 +254,11 @@ def main() -> None:
                 save(img, key)
             meta[key] = entry
             print(f"{key:28} {img.width}x{img.height}")
-    for path, key, longest in SINGLES:
-        img = fit(single(clean(Image.open(SRC / f"{path}.png").convert("RGBA"))), longest)
+    for entry in SINGLES:
+        path, key, longest = entry[:3]
+        mode = entry[3] if len(entry) > 3 else "trim"
+        img = clean(Image.open(SRC / f"{path}.png").convert("RGBA"))
+        img = fit(ring(img) if mode == "ring" else single(img), longest)
         save(img, key)
         meta[key] = {"w": img.width, "h": img.height}
         print(f"{key:28} {img.width}x{img.height}")

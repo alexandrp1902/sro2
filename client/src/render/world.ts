@@ -4,6 +4,7 @@ import type { PlanetDto, SystemDto } from '../net/protocol';
 import { gateLabel } from '../sim/galaxy';
 import { WORLD_HALF_SIZE } from '../sim/movement';
 import { CENTER, frameRotation, orbitAt, type Point } from '../sim/orbits';
+import { Corona, discRadius } from './corona';
 import { hasSprite, spriteSize, texture, type SpriteName } from './sprites';
 
 /** Гиперврата — фиолетовые: ни с чем в системе не путаются. */
@@ -69,6 +70,8 @@ export class SystemView {
   /** Кольцо и подпись каждых врат: по курсу они подсвечиваются (M16b). */
   private readonly gateViews: { ring: Graphics; label: Text; text: string }[] = [];
   private routeGate: number | null = null;
+  /** Корона звезды: у системы без звезды её нет. */
+  private readonly corona: Corona | null = null;
   /** Где станция сейчас: с этим считаются стыковка, прицел и миникарта. */
   readonly stationAt: Point = { x: STATION.x, y: STATION.y };
 
@@ -80,9 +83,14 @@ export class SystemView {
     // Ни круга жара, ни линий орбит: звезда и тела на орбитах говорят сами за себя.
     const sun = system?.sun;
     if (sun) {
-      // Пульсирующей короны (кольца вокруг диска) больше нет — свечение звезды сделаем иначе.
-      view.addChild(centred(sunSprite(sun.kind), 0, 0, sun.radius * SUN_SCALE));
-      view.addChild(label(system.name, 0, sun.radius * SUN_SCALE + 26, SUN_LABEL_COLOR, 16));
+      const name = sunSprite(sun.kind);
+      const spriteRadius = sun.radius * SUN_SCALE;
+      // Корона — под диском: кольца растут из-за края звезды, а жёсткая кромка их дырки прячется за ним.
+      this.corona = new Corona(sun.kind, discRadius(name, spriteRadius), quietMotion());
+      view.addChild(this.corona.view, centred(name, 0, 0, spriteRadius));
+      // Подпись — за короной: на её свечении оранжевый текст не читается.
+      const under = Math.max(spriteRadius, this.corona.outerRadius);
+      view.addChild(label(system.name, 0, under + 26, SUN_LABEL_COLOR, 16));
     }
 
     for (const planet of system?.planets ?? []) {
@@ -161,6 +169,7 @@ export class SystemView {
 
   /** Станция и планеты — туда, где они в орбитальное время seconds. */
   update(seconds: number): void {
+    this.corona?.update(seconds);
     const orbit = this.system?.stationOrbit ?? CENTER;
     const at = orbitAt(orbit, seconds);
     this.stationAt.x = at.x;
@@ -177,6 +186,11 @@ export class SystemView {
       body.label.position.set(p.x, p.y + body.planet.size * PLANET_SCALE + 18);
     }
   }
+}
+
+/** Просили меньше движения — корона стоит неподвижно. */
+function quietMotion(): boolean {
+  return typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches === true;
 }
 
 function sunSprite(kind: string): SpriteName {
