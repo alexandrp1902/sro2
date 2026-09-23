@@ -20,6 +20,7 @@ import hashlib
 import json
 import subprocess
 import sys
+import time
 from pathlib import Path
 
 import numpy as np
@@ -43,17 +44,21 @@ PEAK = 0.8
 # Ключ voice в реплике («m»/«f») выбирает пол там, где у говорящего есть оба голоса.
 PROFILES = {
     "trader": {"m": ("ru-RU-DmitryNeural", "+0%", "+0Hz"), "f": ("ru-RU-SvetlanaNeural", "+0%", "+0Hz")},
-    "pirate": {"m": ("ru-RU-DmitryNeural", "-8%", "-25Hz")},
-    "ranger": {"m": ("ru-RU-DmitryNeural", "+6%", "-5Hz")},
-    "convoy": {"m": ("ru-RU-DmitryNeural", "+2%", "-12Hz")},
+    # Понижение голоса держим малым: −25 Гц у Дмитрия превращало речь в невнятный рык.
+    "pirate": {"m": ("ru-RU-DmitryNeural", "-5%", "-8Hz")},
+    "ranger": {"m": ("ru-RU-DmitryNeural", "+4%", "-2Hz")},
+    "convoy": {"m": ("ru-RU-DmitryNeural", "+0%", "-5Hz")},
 }
 
 # Обработка рации по говорящему: (нижняя частота, верхняя, перегруз, шум эфира).
+# Первая версия (полоса до 3 кГц крутым срезом, перегруз до 2,4) была «как рация», но речь стала невнятной:
+# согласные живут в 2–5 кГц, а перегруз размазывает их. Теперь полоса шире, срез пологий, перегруз едва слышен —
+# рация читается по щелчкам и лёгкому шороху, а не по каше.
 RADIO = {
-    "trader": (300, 3000, 1.6, 0.010),
-    "pirate": (280, 2600, 2.4, 0.022),
-    "ranger": (400, 2800, 1.8, 0.012),
-    "convoy": (350, 2600, 1.9, 0.030),
+    "trader": (250, 4200, 1.15, 0.004),
+    "pirate": (250, 3800, 1.3, 0.007),
+    "ranger": (300, 4000, 1.2, 0.005),
+    "convoy": (280, 3800, 1.25, 0.009),
 }
 
 SAPI_VOICES = {"m": "Microsoft Pavel Desktop", "f": "Microsoft Irina Desktop"}
@@ -68,13 +73,17 @@ async def tts_edge(text: str, voice: str, rate: str, pitch: str, path: Path) -> 
     """Edge иногда отдаёт пустой поток без ошибки — тогда файл нулевой длины; пробуем ещё, до трёх раз."""
     import edge_tts
 
-    for attempt in range(3):
-        await edge_tts.Communicate(text, voice, rate=rate, pitch=pitch).save(str(path))
+    last: Exception | None = None
+    for attempt in range(5):
+        try:
+            await edge_tts.Communicate(text, voice, rate=rate, pitch=pitch).save(str(path))
+        except Exception as error:  # noqa: BLE001 — сеть, лимит запросов: подождать и повторить
+            last = error
         if path.exists() and path.stat().st_size > 0:
             return
         path.unlink(missing_ok=True)
-        await asyncio.sleep(1.0 + attempt)
-    raise RuntimeError(f"Edge не отдал звук для «{text[:40]}»")
+        await asyncio.sleep(2.0 * (attempt + 1))
+    raise RuntimeError(f"Edge не отдал звук для «{text[:40]}»: {last}")
 
 
 def tts_sapi(text: str, sex: str, path: Path) -> None:
@@ -84,9 +93,16 @@ def tts_sapi(text: str, sex: str, path: Path) -> None:
         "Add-Type -AssemblyName System.Speech; "
         "$s = New-Object System.Speech.Synthesis.SpeechSynthesizer; "
         f"try {{ $s.SelectVoice('{SAPI_VOICES[sex]}') }} catch {{}}; "
-        f"$s.SetOutputToWaveFile('{wav}'); $s.Speak([Console]::In.ReadToEnd()); $s.Dispose()"
+        f"$s.SetOutputToWaveFile('{wav}'); $s.Speak([Console]::In.ReadToEnd()); $s.SetOutputToNull(); $s.Dispose()"
     )
     subprocess.run(["powershell", "-NoProfile", "-Command", script], input=text.encode("utf-8"), check=True)
+    # Файл отпускается не мгновенно: переименование иногда получает «отказано в доступе» — подождать и повторить.
+    for attempt in range(5):
+        try:
+            wav.replace(path)
+            return
+        except PermissionError:
+            time.sleep(0.5 * (attempt + 1))
     wav.replace(path)
 
 
@@ -118,9 +134,9 @@ def radio(x: np.ndarray, speaker: str, rng: np.random.Generator) -> np.ndarray:
     """Рация: узкая полоса, перегруз, компрессия, шорох эфира под голосом и после него."""
     low, high, drive, hiss = RADIO[speaker]
     x = trim(S.norm(x, 0.9))
-    x = S.band(x, low, high, order=2)
-    x = S.drive(x, drive)
-    x = S.compress(x, threshold=0.25, ratio=3.0)
+    x = S.band(x, low, high, order=1)  # пологий срез: 6 дБ на октаву, согласные остаются
+    x = S.compress(x, threshold=0.3, ratio=2.0)
+    x = S.drive(S.norm(x, 0.7), drive)
     n = len(x) + S.n_of(0.12)
     x = S.fit(x, n)
     bed = S.band(S.noise(n, rng), low, high, order=2) * hiss
@@ -138,7 +154,7 @@ async def synth_all(jobs: list[dict], force: bool) -> str:
     if not todo:
         return engine
     CACHE.mkdir(parents=True, exist_ok=True)
-    limit = asyncio.Semaphore(4)
+    limit = asyncio.Semaphore(2)  # больше — Edge начинает отдавать пустые потоки
 
     async def one(job):
         async with limit:

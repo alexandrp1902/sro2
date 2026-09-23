@@ -98,251 +98,251 @@
       "category": "traderIdle"
     },
     "rangerHail-1": {
-      "ms": 3419,
+      "ms": 4099,
       "category": "rangerHail"
     },
     "rangerHail-2": {
-      "ms": 2654,
+      "ms": 3159,
       "category": "rangerHail"
     },
     "rangerHail-3": {
-      "ms": 4184,
+      "ms": 4998,
       "category": "rangerHail"
     },
     "rangerHail-4": {
-      "ms": 2006,
+      "ms": 4055,
       "category": "rangerHail"
     },
     "rangerHail-5": {
-      "ms": 4460,
+      "ms": 5063,
       "category": "rangerHail"
     },
     "rangerHail-6": {
-      "ms": 4059,
+      "ms": 4073,
       "category": "rangerHail"
     },
     "rangerHail-7": {
-      "ms": 2992,
+      "ms": 4567,
       "category": "rangerHail"
     },
     "rangerHail-8": {
-      "ms": 3986,
+      "ms": 4257,
       "category": "rangerHail"
     },
     "rangerHail-9": {
-      "ms": 3742,
+      "ms": 4188,
       "category": "rangerHail"
     },
     "rangerHail-10": {
-      "ms": 3680,
+      "ms": 3721,
       "category": "rangerHail"
     },
     "rangerWarn-1": {
-      "ms": 4764,
+      "ms": 3797,
       "category": "rangerWarn"
     },
     "rangerWarn-2": {
-      "ms": 3923,
+      "ms": 4562,
       "category": "rangerWarn"
     },
     "rangerWarn-3": {
-      "ms": 4097,
+      "ms": 4471,
       "category": "rangerWarn"
     },
     "rangerWarn-4": {
-      "ms": 4242,
+      "ms": 4149,
       "category": "rangerWarn"
     },
     "rangerWarn-5": {
-      "ms": 3192,
+      "ms": 3783,
       "category": "rangerWarn"
     },
     "rangerWarn-6": {
-      "ms": 3479,
+      "ms": 4406,
       "category": "rangerWarn"
     },
     "rangerWarn-7": {
-      "ms": 4063,
+      "ms": 4622,
       "category": "rangerWarn"
     },
     "rangerWarn-8": {
-      "ms": 3187,
+      "ms": 3556,
       "category": "rangerWarn"
     },
     "rangerWarn-9": {
-      "ms": 3769,
+      "ms": 4253,
       "category": "rangerWarn"
     },
     "rangerWarn-10": {
-      "ms": 5516,
+      "ms": 4289,
       "category": "rangerWarn"
     },
     "convoyIdle-1": {
-      "ms": 4469,
+      "ms": 3571,
       "category": "convoyIdle"
     },
     "convoyIdle-2": {
-      "ms": 5311,
+      "ms": 4213,
       "category": "convoyIdle"
     },
     "convoyIdle-3": {
-      "ms": 3321,
+      "ms": 3944,
       "category": "convoyIdle"
     },
     "convoyIdle-4": {
-      "ms": 3623,
+      "ms": 4065,
       "category": "convoyIdle"
     },
     "convoyIdle-5": {
-      "ms": 3175,
+      "ms": 3543,
       "category": "convoyIdle"
     },
     "convoyIdle-6": {
-      "ms": 2245,
+      "ms": 3390,
       "category": "convoyIdle"
     },
     "convoyIdle-7": {
-      "ms": 3873,
+      "ms": 3539,
       "category": "convoyIdle"
     },
     "convoyIdle-8": {
-      "ms": 2825,
+      "ms": 2479,
       "category": "convoyIdle"
     },
     "pirateThreat-1": {
-      "ms": 5973,
+      "ms": 6281,
       "category": "pirateThreat"
     },
     "pirateThreat-2": {
-      "ms": 2521,
+      "ms": 4088,
       "category": "pirateThreat"
     },
     "pirateThreat-3": {
-      "ms": 3718,
+      "ms": 4779,
       "category": "pirateThreat"
     },
     "pirateThreat-4": {
-      "ms": 4312,
+      "ms": 5191,
       "category": "pirateThreat"
     },
     "pirateThreat-5": {
-      "ms": 4101,
+      "ms": 2213,
       "category": "pirateThreat"
     },
     "pirateThreat-6": {
-      "ms": 3809,
+      "ms": 1230,
       "category": "pirateThreat"
     },
     "pirateThreat-7": {
-      "ms": 3698,
+      "ms": 4548,
       "category": "pirateThreat"
     },
     "pirateThreat-8": {
-      "ms": 3303,
+      "ms": 4063,
       "category": "pirateThreat"
     },
     "pirateThreat-9": {
-      "ms": 3419,
+      "ms": 3987,
       "category": "pirateThreat"
     },
     "pirateThreat-10": {
-      "ms": 3089,
+      "ms": 4855,
       "category": "pirateThreat"
     },
     "pirateTaunt-1": {
-      "ms": 3579,
+      "ms": 3912,
       "category": "pirateTaunt"
     },
     "pirateTaunt-2": {
-      "ms": 4608,
+      "ms": 4301,
       "category": "pirateTaunt"
     },
     "pirateTaunt-3": {
-      "ms": 3273,
+      "ms": 4326,
       "category": "pirateTaunt"
     },
     "pirateTaunt-4": {
-      "ms": 3045,
+      "ms": 3470,
       "category": "pirateTaunt"
     },
     "pirateTaunt-5": {
-      "ms": 2858,
+      "ms": 2564,
       "category": "pirateTaunt"
     },
     "pirateTaunt-6": {
-      "ms": 3318,
+      "ms": 4017,
       "category": "pirateTaunt"
     },
     "pirateTaunt-7": {
-      "ms": 2496,
+      "ms": 2527,
       "category": "pirateTaunt"
     },
     "pirateTaunt-8": {
-      "ms": 2809,
+      "ms": 2173,
       "category": "pirateTaunt"
     },
     "beg-1": {
-      "ms": 4492,
+      "ms": 4178,
       "category": "beg"
     },
     "beg-2": {
-      "ms": 4498,
+      "ms": 4236,
       "category": "beg"
     },
     "beg-3": {
-      "ms": 4395,
+      "ms": 4033,
       "category": "beg"
     },
     "beg-4": {
-      "ms": 4632,
+      "ms": 3844,
       "category": "beg"
     },
     "beg-5": {
-      "ms": 4410,
+      "ms": 3871,
       "category": "beg"
     },
     "beg-6": {
-      "ms": 2633,
+      "ms": 3334,
       "category": "beg"
     },
     "beg-7": {
-      "ms": 4117,
+      "ms": 4047,
       "category": "beg"
     },
     "beg-8": {
-      "ms": 3315,
+      "ms": 3840,
       "category": "beg"
     },
     "beg-9": {
-      "ms": 3124,
+      "ms": 3695,
       "category": "beg"
     },
     "beg-10": {
-      "ms": 2878,
+      "ms": 3484,
       "category": "beg"
     },
     "lastWords-1": {
-      "ms": 3211,
+      "ms": 3550,
       "category": "lastWords"
     },
     "lastWords-2": {
-      "ms": 2425,
+      "ms": 2830,
       "category": "lastWords"
     },
     "lastWords-3": {
-      "ms": 3258,
+      "ms": 3451,
       "category": "lastWords"
     },
     "lastWords-4": {
-      "ms": 1837,
+      "ms": 2565,
       "category": "lastWords"
     },
     "lastWords-5": {
-      "ms": 2267,
+      "ms": 3804,
       "category": "lastWords"
     },
     "lastWords-6": {
-      "ms": 1664,
+      "ms": 2553,
       "category": "lastWords"
     },
     "sos-1": {
