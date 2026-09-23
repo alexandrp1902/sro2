@@ -4,8 +4,8 @@ import { normalizeServerUrl } from '../net/serverUrl';
 /** Сколько ждать после последней буквы, прежде чем спросить сервер про ник. */
 const CHECK_DELAY_MS = 300;
 
-/** Заставка стартового экрана: рантайм-копия art/splash/splash-login.png (tools/splash.py). */
-const START_ART = 'splash/login.webp';
+/** Заставка стартового экрана: рантайм-копия art/splash/splash-cockpit.png (tools/splash.py). */
+const START_ART = 'splash/cockpit.webp';
 
 /** Почему сервер не пустил: он шлёт код, текст живёт здесь. */
 const DENIED: Record<DeniedCode, string> = {

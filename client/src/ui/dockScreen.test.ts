@@ -167,9 +167,14 @@ describe('репутация в доке', () => {
     gate: { level: 'friend', tiers: [3], hulls: ['cruiser'] },
   };
 
-  it('плашка берёт подпись и цвет у ступени', () => {
-    expect(repChip(RULES, 42)).toEqual({ text: 'Друг (+42)', color: '#3f9f6a' });
-    expect(repChip(RULES, -60)).toEqual({ text: 'Враг (-60)', color: '#c0392b' });
+  it('плашка берёт подпись, цвет и значок у ступени', () => {
+    expect(repChip(RULES, 42)).toEqual({ text: 'Друг (+42)', color: '#3f9f6a', icon: 'rep-friend' });
+    expect(repChip(RULES, -60)).toEqual({ text: 'Враг (-60)', color: '#c0392b', icon: 'rep-enemy' });
+  });
+
+  it('ступени без своей картинки остаются текстовой плашкой', () => {
+    const odd: ReputationRules = { limit: 100, levels: [{ id: 'saint', name: 'Святой', from: -100 }] };
+    expect(repChip(odd, 0).icon).toBeNull();
   });
 
   it('строка журнала читается без словаря', () => {
@@ -222,9 +227,12 @@ describe('sceneUrl', () => {
   it('uses a set only for the scenes that were drawn for it', () => {
     expect(sceneUrl('planet', 'missions', 'lava')).toBe('dock/lava-office.webp');
     expect(sceneUrl('planet', 'cargo', 'orbital-platform')).toBe('dock/orbital-platform-trader.webp');
-    // У поста рейнджеров нарисован только офис — остальное берётся общее.
+    // У станций нарисованы офис и торговец, а верфь с ангаром — пустые площадки, они общие.
     expect(sceneUrl('station', 'missions', 'ranger')).toBe('dock/ranger-office.webp');
-    expect(sceneUrl('station', 'cargo', 'ranger')).toBe('dock/station-trader.webp');
+    expect(sceneUrl('station', 'cargo', 'ranger')).toBe('dock/ranger-trader.webp');
+    expect(sceneUrl('station', 'hulls', 'ranger')).toBe('dock/station-shipyard.webp');
+    // Имя набора может быть с дефисом: жилой блок Рубежа отличается от такого же в ядре.
+    expect(sceneUrl('station', 'missions', 'habitat-rim')).toBe('dock/habitat-rim-office.webp');
     // Незнакомый набор не должен уводить на несуществующую картинку.
     expect(sceneUrl('planet', 'missions', 'swamp')).toBe('dock/planet-office.webp');
   });

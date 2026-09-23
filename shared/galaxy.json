@@ -185,7 +185,8 @@
         { "to": "tau", "x": 2752, "y": 1634 }
       ],
       "region": "core",
-      "stationSprite": "ring"
+      "stationSprite": "ring",
+      "dockScene": "ring"
     },
     "vega": {
       "name": "Vega",
@@ -325,7 +326,8 @@
         { "to": "castor", "x": 2263, "y": -2263 }
       ],
       "region": "core",
-      "stationSprite": "trade"
+      "stationSprite": "trade",
+      "dockScene": "trade"
     },
     "alphaCen": {
       "name": "Альфа Центавра",
@@ -429,7 +431,9 @@
         { "to": "sol", "x": -747, "y": -3112 },
         { "to": "vega", "x": 1794, "y": -2650 }
       ],
-      "stationSprite": "habitat"
+      "stationSprite": "habitat",
+      // Жилой блок ядра — ухоженный; такой же на Рубеже берёт латаный набор habitat-rim.
+      "dockScene": "habitat"
     },
     "tau": {
       "name": "Tau",
@@ -690,6 +694,7 @@
       ],
       "region": "frontier",
       "stationSprite": "fortress",
+      "dockScene": "fortress",
       "lootTables": {
         "pirate": "frontierPirate",
         "heavyPirate": "frontierBrute"
@@ -816,7 +821,8 @@
         { "to": "vega", "x": -2263, "y": 2263 },
         { "to": "nova", "x": 1261, "y": 2941 }
       ],
-      "stationSprite": "mining"
+      "stationSprite": "mining",
+      "dockScene": "mining"
     },
     "barnard": {
       "name": "Барнард",
@@ -1165,7 +1171,8 @@
         { "to": "sigma", "x": 318, "y": 3184 },
         { "to": "epsilon", "x": 2126, "y": 2392 }
       ],
-      "stationSprite": "outpost"
+      "stationSprite": "outpost",
+      "dockScene": "outpost"
     },
     "epsilon": {
       "name": "Эпсилон",
@@ -1269,7 +1276,9 @@
         { "to": "sigma", "x": -1532, "y": 2809 },
         { "to": "edge", "x": 252, "y": -3190 }
       ],
-      "stationSprite": "habitat"
+      "stationSprite": "habitat",
+      // Тот же жилой блок, но на Рубеже: заваренные пробоины, латаная форма, мигающая панель.
+      "dockScene": "habitat-rim"
     },
     "edge": {
       "name": "Край",

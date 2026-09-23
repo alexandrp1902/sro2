@@ -83,6 +83,10 @@ SINGLES = [
        ("luxury", "luxury"), ("weapons", "arms"), ("fuel-cells", "fuelCells")]],
     # Письмо для заданий-курьеров (M14): нарезано заранее, кода это пока не касается.
     ("trade-missions/item-letter", "item-letter", 128),
+    # Ступени репутации (пачка C): белый силуэт на прозрачном, цвет ступени накладывает CSS-маска.
+    # Имя = rep-<id ступени в reputation.json>, поэтому таблица соответствий коду не нужна.
+    *[(f"mission-reputation/rep-{n}", f"rep-{n}", 128) for n in
+      ["enemy", "distrust", "neutral", "friend", "hero"]],
 ]
 
 

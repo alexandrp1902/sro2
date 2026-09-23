@@ -29,3 +29,8 @@ Use case: stylized-concept. ONE isolated combat mech unit sprite for a top-down 
 ## mech-unit-enemy-heavy.png
 
 Use case: stylized-concept. ONE isolated combat mech unit sprite for a top-down turn-based tactics game, 1024x1024 canvas with genuinely TRANSPARENT alpha background. STRICT ORTHOGRAPHIC 90-degree overhead view, front of the mech facing exact TOP of image, no perspective or isometric tilt, centered with 10% padding. Detailed semi-realistic industrial art matching worn blue-gray spaceships: pale steel armor plates, gunmetal joints, dark recesses, small cyan sensor lights and amber indicators, soft upper-left illumination, no cast shadow outside silhouette. Crisp readable silhouette at 64 px. No text, numbers, logo, ground, frame or watermark. Huge reinforced salvaged torso on four heavy spider legs, rust-red and black welded plates. Torso PLUS legs only. Absolutely NO arms, weapons or shields, empty shoulder sockets for code-composited separate arm layers. Orthographic bird's eye view shows top surfaces only, not frontal portrait, no horizon. Player units blue-gray; enemies rust-red/black.
+
+## Генерация 2026-09-22
+
+Фактические запросы текущей партии: [generation-2026-09-22.md](generation-2026-09-22.md). Общая [галерея](../../generation-2026-09-22-gallery.html) находится в корне art.
+

@@ -89,3 +89,8 @@ Use case: stylized-concept. ONE isolated spaceship equipment inventory icon for 
 ## mech-pack-repair.png
 
 Use case: stylized-concept. ONE isolated spaceship equipment inventory icon for a semi-realistic space RPG. 1024x1024 square, genuinely transparent alpha background, no painted checkerboard. Detailed industrial game asset, worn pale steel armor panels, blue-gray gunmetal structure, dark recesses, exposed bolts and hoses, restrained luminous accent. Elevated three-quarter product view showing top, front and side, crisp chunky readable silhouette at small sizes, soft studio illumination from upper left, no cast shadow outside object. Center entire item with clear padding, no cropped parts. No text, labels, letters, numbers, watermark, UI border, people, ship, room, floor or extra separate objects. This is a walking combat mech part, not a spaceship part. Mech backpack with one compact folded repair drone held on an integrated docking bracket.
+
+## Генерация 2026-09-22
+
+Фактические запросы текущей партии: [generation-2026-09-22.md](generation-2026-09-22.md). Общая [галерея](../../generation-2026-09-22-gallery.html) находится в корне art.
+

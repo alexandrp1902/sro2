@@ -3,8 +3,9 @@ import { courseLine, courseView, hopsWord, type CourseView } from '../sim/course
 import { dangerColor, dangerName, gateNumber, hops, jumpOutlook, pvpName, regionName, type JumpOutlook } from '../sim/galaxy';
 import { lootItem, type LootRules } from '../sim/loot';
 import type { MarketRules } from '../sim/market';
-import { levelColor, levelOf, repLabel, type ReputationRules } from '../sim/reputation';
+import { levelColor, levelOf, type ReputationRules } from '../sim/reputation';
 import { color } from './cargoHud';
+import { repChip, repIcon } from './dockScreen';
 import { gateBadges, mapViewBox, nodeBadges, regionLabelAt, routePoints, type BadgeKind } from './galaxyLayout';
 
 const SVG = 'http://www.w3.org/2000/svg';
@@ -293,9 +294,14 @@ export class GalaxyMap {
     // Отношение властей (M13): по нему закрывается док и звереют рейнджеры.
     const repValue = state.rep?.[system.id];
     if (repValue !== undefined && state.repRules) {
-      const level = levelOf(state.repRules, repValue);
-      const line = labelled('Отношение', repLabel(level, repValue));
-      (line.lastChild as HTMLElement).style.color = levelColor(level);
+      // Плашка та же, что в доке: подпись, цвет и значок ступени считает repChip.
+      const chip = repChip(state.repRules, repValue);
+      const line = labelled('Отношение', chip.text);
+      const value = line.lastChild as HTMLElement;
+      value.className = 'galaxy-info-rep';
+      value.style.color = chip.color;
+      // Значок внутри подписи, а не рядом: маска красится в currentColor, то есть в цвет ступени.
+      if (chip.icon) value.prepend(repIcon(chip.icon));
       box.append(line);
     }
     const outlook = jumpOutlook(state.galaxy, state.current, system.id);

@@ -32,7 +32,7 @@ import {
 } from '../sim/fitting';
 import { keyHint, keymap } from '../input/keymap';
 import { hops, type GalaxyDto } from '../sim/galaxy';
-import { gearIcon, moduleSprite, shipSprite, spriteUrl, weaponSprite } from '../render/sprites';
+import { gearIcon, hasSprite, moduleSprite, shipSprite, spriteUrl, weaponSprite } from '../render/sprites';
 import type { Hulls } from '../sim/hulls';
 import type { HullParams } from '../sim/movement';
 import { activeHint, activeLine, offerNote, offerTitle, timeLeft, type MissionNames } from '../sim/missions';
@@ -131,7 +131,15 @@ const SCENES: Record<Tab, Scene> = {
  * Земное поселение своего набора не имеет: общие сцены планеты (planet-*) и есть земные.
  */
 const SCENE_SETS: Record<string, readonly string[]> = {
-  ranger: ['office'],
+  // Станции (пачка G): свои диспетчер и торговец у каждой, верфь и ангар общие.
+  ring: ['office', 'trader'],
+  trade: ['office', 'trader'],
+  habitat: ['office', 'trader'],
+  'habitat-rim': ['office', 'trader'],
+  fortress: ['office', 'trader'],
+  mining: ['office', 'trader'],
+  outpost: ['office', 'trader'],
+  ranger: ['office', 'trader'],
   desert: ['office', 'trader', 'shipyard', 'hangar'],
   ice: ['office', 'trader', 'shipyard', 'hangar'],
   jungle: ['office', 'trader', 'shipyard', 'hangar'],
@@ -295,10 +303,24 @@ const REP_REASONS: Record<string, string> = {
   playerKill: 'убийство пилота',
 };
 
-/** Плашка отношения: подпись и цвет ступени. */
-export function repChip(rules: ReputationRules, value: number): { text: string; color: string } {
+/**
+ * Плашка отношения: подпись, цвет и значок ступени. Значок зовётся по id ступени, так что
+ * незнакомой ступени он просто не найдётся — плашка останется текстовой, как была до M13-арта.
+ */
+export function repChip(rules: ReputationRules, value: number): { text: string; color: string; icon: string | null } {
   const level = levelOf(rules, value);
-  return { text: repLabel(level, value), color: levelColor(level) };
+  const mark = `rep-${level.id}`;
+  return { text: repLabel(level, value), color: levelColor(level), icon: hasSprite(mark) ? mark : null };
+}
+
+/**
+ * Значок ступени: белый силуэт, который CSS-маска красит в цвет плашки. Адрес абсолютный —
+ * относительный в переменной считается от файла стилей, а он лежит в assets/ (как и фон сцены).
+ */
+export function repIcon(name: string): HTMLElement {
+  const mark = el('span', 'rep-chip-icon');
+  mark.style.setProperty('--rep-icon', `url("${new URL(spriteUrl(name), document.baseURI).href}")`);
+  return mark;
 }
 
 /**
@@ -625,7 +647,9 @@ export class DockScreen {
       const chip = repChip(this.repRules, value);
       const box = el('span', 'rep-chip');
       box.style.color = chip.color;
-      box.append(el('span', 'rep-chip-what sro-muted', label), el('span', 'rep-chip-level', chip.text));
+      box.append(el('span', 'rep-chip-what sro-muted', label));
+      if (chip.icon) box.append(repIcon(chip.icon));
+      box.append(el('span', 'rep-chip-level', chip.text));
       row.append(box);
     }
     if (this.repLog.length > 0) row.append(el('span', 'rep-more sro-muted', this.repOpen ? '▴' : '▾'));

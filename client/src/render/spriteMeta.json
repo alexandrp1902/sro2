@@ -486,5 +486,25 @@
   "item-letter": {
     "w": 128,
     "h": 84
+  },
+  "rep-enemy": {
+    "w": 128,
+    "h": 126
+  },
+  "rep-distrust": {
+    "w": 128,
+    "h": 103
+  },
+  "rep-neutral": {
+    "w": 128,
+    "h": 126
+  },
+  "rep-friend": {
+    "w": 128,
+    "h": 78
+  },
+  "rep-hero": {
+    "w": 128,
+    "h": 117
   }
 }

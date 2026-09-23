@@ -1,0 +1,182 @@
+[
+  {
+    "file": "art/mechs/tiles/desert-ground-1.png",
+    "horizontalSeamMAE": 26.350079744816586,
+    "verticalSeamMAE": 12.600212652844231,
+    "interiorHorizontalMAE": 12.180489101541733,
+    "interiorVerticalMAE": 10.535353535353535
+  },
+  {
+    "file": "art/mechs/tiles/desert-ground-2.png",
+    "horizontalSeamMAE": 23.130249867091973,
+    "verticalSeamMAE": 17.77618288144604,
+    "interiorHorizontalMAE": 9.301169590643275,
+    "interiorVerticalMAE": 13.030037214247741
+  },
+  {
+    "file": "art/mechs/tiles/desert-rough.png",
+    "horizontalSeamMAE": 17.965975544922912,
+    "verticalSeamMAE": 21.37639553429027,
+    "interiorHorizontalMAE": 14.090643274853802,
+    "interiorVerticalMAE": 15.10074428495481
+  },
+  {
+    "file": "art/mechs/tiles/desert-high-ground.png",
+    "horizontalSeamMAE": 25.573365231259967,
+    "verticalSeamMAE": 14.207336523125997,
+    "interiorHorizontalMAE": 6.771929824561403,
+    "interiorVerticalMAE": 6.1302498670919725
+  },
+  {
+    "file": "art/mechs/tiles/ice-ground-1.png",
+    "horizontalSeamMAE": 21.939128123338648,
+    "verticalSeamMAE": 23.445507708665602,
+    "interiorHorizontalMAE": 13.291866028708133,
+    "interiorVerticalMAE": 11.503721424774056
+  },
+  {
+    "file": "art/mechs/tiles/ice-ground-2.png",
+    "horizontalSeamMAE": 55.21477937267411,
+    "verticalSeamMAE": 44.33997873471558,
+    "interiorHorizontalMAE": 7.6988304093567255,
+    "interiorVerticalMAE": 6.685805422647528
+  },
+  {
+    "file": "art/mechs/tiles/ice-rough.png",
+    "horizontalSeamMAE": 22.73338649654439,
+    "verticalSeamMAE": 19.81552365762892,
+    "interiorHorizontalMAE": 11.381446039340776,
+    "interiorVerticalMAE": 12.188463583200425
+  },
+  {
+    "file": "art/mechs/tiles/ice-high-ground.png",
+    "horizontalSeamMAE": 37.504784688995215,
+    "verticalSeamMAE": 28.758107389686337,
+    "interiorHorizontalMAE": 16.870547581073897,
+    "interiorVerticalMAE": 11.36682615629984
+  },
+  {
+    "file": "art/mechs/tiles/jungle-ground-1.png",
+    "horizontalSeamMAE": 16.77618288144604,
+    "verticalSeamMAE": 21.905901116427433,
+    "interiorHorizontalMAE": 14.675704412546517,
+    "interiorVerticalMAE": 12.117490696438065
+  },
+  {
+    "file": "art/mechs/tiles/jungle-ground-2.png",
+    "horizontalSeamMAE": 16.625996810207337,
+    "verticalSeamMAE": 16.818447634237106,
+    "interiorHorizontalMAE": 13.402977139819246,
+    "interiorVerticalMAE": 20.436469962785754
+  },
+  {
+    "file": "art/mechs/tiles/jungle-rough.png",
+    "horizontalSeamMAE": 15.553163211057948,
+    "verticalSeamMAE": 18.79691653375864,
+    "interiorHorizontalMAE": 14.307283359914939,
+    "interiorVerticalMAE": 13.993354598617756
+  },
+  {
+    "file": "art/mechs/tiles/jungle-high-ground.png",
+    "horizontalSeamMAE": 22.711323763955342,
+    "verticalSeamMAE": 17.227006911217437,
+    "interiorHorizontalMAE": 18.793195108984584,
+    "interiorVerticalMAE": 6.838649654439128
+  },
+  {
+    "file": "art/mechs/tiles/barren-ground-1.png",
+    "horizontalSeamMAE": 19.961190855927697,
+    "verticalSeamMAE": 18.577352472089313,
+    "interiorHorizontalMAE": 13.70547581073897,
+    "interiorVerticalMAE": 14.847953216374268
+  },
+  {
+    "file": "art/mechs/tiles/barren-ground-2.png",
+    "horizontalSeamMAE": 20.13370547581074,
+    "verticalSeamMAE": 18.905635300372143,
+    "interiorHorizontalMAE": 24.124667729930888,
+    "interiorVerticalMAE": 12.674375332270069
+  },
+  {
+    "file": "art/mechs/tiles/barren-rough.png",
+    "horizontalSeamMAE": 28.125199362041467,
+    "verticalSeamMAE": 29.157097288676237,
+    "interiorHorizontalMAE": 22.353535353535353,
+    "interiorVerticalMAE": 22.058745348219034
+  },
+  {
+    "file": "art/mechs/tiles/barren-high-ground.png",
+    "horizontalSeamMAE": 19.473418394471025,
+    "verticalSeamMAE": 19.932482721956408,
+    "interiorHorizontalMAE": 9.98989898989899,
+    "interiorVerticalMAE": 7.178362573099415
+  },
+  {
+    "file": "art/mechs/tiles/station-interior-ground-1.png",
+    "horizontalSeamMAE": 40.54013822434875,
+    "verticalSeamMAE": 18.006645401382244,
+    "interiorHorizontalMAE": 9.16214779372674,
+    "interiorVerticalMAE": 22.89712918660287
+  },
+  {
+    "file": "art/mechs/tiles/station-interior-ground-2.png",
+    "horizontalSeamMAE": 22.82429558745348,
+    "verticalSeamMAE": 17.564327485380115,
+    "interiorHorizontalMAE": 6.585592769803296,
+    "interiorVerticalMAE": 6.702551834130782
+  },
+  {
+    "file": "art/mechs/tiles/station-interior-rough.png",
+    "horizontalSeamMAE": 29.893673577884105,
+    "verticalSeamMAE": 22.354066985645932,
+    "interiorHorizontalMAE": 45.95481127060074,
+    "interiorVerticalMAE": 36.00956937799043
+  },
+  {
+    "file": "art/mechs/tiles/station-interior-high-ground.png",
+    "horizontalSeamMAE": 24.27671451355662,
+    "verticalSeamMAE": 11.849548112706007,
+    "interiorHorizontalMAE": 6.6259968102073366,
+    "interiorVerticalMAE": 76.42264752791068
+  },
+  {
+    "file": "art/space/sun-corona/suns-corona-inner.png",
+    "horizontalSeamMAE": 51.04066985645933,
+    "verticalSeamMAE": 35.653907496012756,
+    "interiorHorizontalMAE": 3.3208399787347154,
+    "interiorVerticalMAE": 2.833864965443913,
+    "centerAlpha": 0,
+    "centerDiskNontransparentFraction": 0.06386478074947496,
+    "nontransparentBoundaryPixels": 687
+  },
+  {
+    "file": "art/space/sun-corona/suns-corona-mid.png",
+    "horizontalSeamMAE": 50.430622009569376,
+    "verticalSeamMAE": 27.454545454545453,
+    "interiorHorizontalMAE": 6.660287081339713,
+    "interiorVerticalMAE": 3.121477937267411,
+    "centerAlpha": 0,
+    "centerDiskNontransparentFraction": 0.15445459376027934,
+    "nontransparentBoundaryPixels": 1245
+  },
+  {
+    "file": "art/space/sun-corona/suns-corona-outer.png",
+    "horizontalSeamMAE": 29.485645933014354,
+    "verticalSeamMAE": 39.78867623604466,
+    "interiorHorizontalMAE": 6.311270600744285,
+    "interiorVerticalMAE": 4.141148325358851,
+    "centerAlpha": 0,
+    "centerDiskNontransparentFraction": 0.6431061967055489,
+    "nontransparentBoundaryPixels": 1096
+  },
+  {
+    "file": "art/space/sun-corona/suns-corona-plume.png",
+    "horizontalSeamMAE": 12.607655502392344,
+    "verticalSeamMAE": 9.419989367357788,
+    "interiorHorizontalMAE": 3.6709197235513025,
+    "interiorVerticalMAE": 4.249069643806486,
+    "centerAlpha": 0,
+    "centerDiskNontransparentFraction": 0.24441689228511423,
+    "nontransparentBoundaryPixels": 917
+  }
+]

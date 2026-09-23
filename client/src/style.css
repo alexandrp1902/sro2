@@ -1533,6 +1533,25 @@ body {
   font-weight: 600;
 }
 
+/* Значок ступени нарисован белым силуэтом на прозрачном: маской красим его в цвет плашки. */
+.rep-chip-icon {
+  flex-shrink: 0;
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  align-self: center;
+  background: currentColor;
+  -webkit-mask: var(--rep-icon) center / contain no-repeat;
+  mask: var(--rep-icon) center / contain no-repeat;
+}
+
+/* Строка отношения в карточке системы: значок и подпись идут одним цветом ступени. */
+.galaxy-info-rep {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
 .rep-more {
   margin-left: auto;
 }

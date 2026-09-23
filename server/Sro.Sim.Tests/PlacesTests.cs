@@ -70,6 +70,19 @@ public class PlacesTests
     }
 
     [Fact]
+    public void TheStationCarriesItsOwnSetOfDockScenes()
+    {
+        // Набор сцен станции живёт в galaxy.json рядом со спрайтом, а до клиента едет местом:
+        // у каждой станции галактики свои диспетчер и торговец (пачка G).
+        var own = new SystemDef("Sol", StationOrbit: Far, DockScene: "ring");
+        Assert.Equal("ring", own.Places("sol", 200).Single().Scene);
+
+        // Не указан — клиент возьмёт общие сцены станции.
+        var plain = new SystemDef("Sol", StationOrbit: Far);
+        Assert.Null(plain.Places("sol", 200).Single().Scene);
+    }
+
+    [Fact]
     public void TheStationComesFirst_SoTheNearestPlaceStillPrefersIt()
     {
         var system = WithPlanet(new PlanetDef("Терра", "terran", 150, Far, "terra", new SettlementDef()));

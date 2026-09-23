@@ -141,3 +141,8 @@ Use case: stylized-concept. Tactical game terrain tile, 512x512, STRICT 90-degre
 ## station-interior-high-ground.png
 
 Use case: stylized-concept. Tactical game terrain tile, 512x512, STRICT 90-degree orthographic top-down view, NO perspective. Detailed semi-realistic industrial space RPG art, readable at small scale, no text, grid or units. Dark navy steel floor panels, gunmetal conduits and pale armored orbital station architecture. Raised plateau or elevated platform surface filling most tile, readable ledge with a subtle shadow along lower edge, top-down. Opaque seamless TILEABLE texture, full bleed. Left matches right and top matches bottom, same material and scale along edges, no vignette or border. Consistent soft upper-left illumination.
+
+## Генерация 2026-09-22
+
+Фактические запросы текущей партии: [generation-2026-09-22.md](generation-2026-09-22.md). Общая [галерея](../../generation-2026-09-22-gallery.html) находится в корне art.
+

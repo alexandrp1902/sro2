@@ -20,6 +20,25 @@ SCENES = [
     # Свой офис у станций рейнджеров (пачка C): «Пост рейнджеров Барнарда».
     ("ranger/station-ranger-office", "ranger-office"),
 
+    # Свои сцены станций (пачка G): у каждой станции галактики свой диспетчер и свой торговец.
+    # Верфь и ангар не заказывали — это пустые площадки, они остаются общими сценами станции.
+    ("station-scenes/ring-office", "ring-office"),
+    ("station-scenes/ring-trader", "ring-trader"),
+    ("station-scenes/trade-office", "trade-office"),
+    ("station-scenes/trade-trader", "trade-trader"),
+    ("station-scenes/habitat-office", "habitat-office"),
+    ("station-scenes/habitat-trader", "habitat-trader"),
+    ("station-scenes/habitat-rim-office", "habitat-rim-office"),
+    ("station-scenes/habitat-rim-trader", "habitat-rim-trader"),
+    ("station-scenes/fortress-office", "fortress-office"),
+    ("station-scenes/fortress-trader", "fortress-trader"),
+    ("station-scenes/mining-office", "mining-office"),
+    ("station-scenes/mining-trader", "mining-trader"),
+    ("station-scenes/outpost-office", "outpost-office"),
+    ("station-scenes/outpost-trader", "outpost-trader"),
+    # Офис рейнджеров нарезан выше, из пачки C: в пачке G у Барнарда только торговец.
+    ("station-scenes/ranger-trader", "ranger-trader"),
+
     # Снижение на планету (пачки D и E): вид из кабины, свой на каждый вид планеты.
     # У газового гиганта кадр зовётся orbital-platform: садятся не на планету, а на платформу над ней.
     ("landings/landing-terran", "landing-terran"),

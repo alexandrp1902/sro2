@@ -1,0 +1,5 @@
+﻿
+## landing-ringed
+
+Use case: stylized-concept. Single production space RPG background, 1600x1200 landscape 4:3. Detailed semi-realistic game illustration, worn gunmetal and blue-gray steel, dark navy shadows, restrained cyan practical lighting and amber details, clear midtones, matching industrial spaceship sprites. No text, logos, watermark, borders, UI. Key content inside central 60%, background fills frame. Bottom quarter quiet and dark for dialogue overlay. Cockpit view during descent toward a settlement, unobtrusive dark canopy struts at the far edges, no instruments or readable UI obscuring the main view. Settlement lights below and the landing approach through this environment. Descending through the upper cloud bands of a pale beige RINGED gas giant toward a lit floating platform: the ring system crosses the sky as a hard bright arc almost edge-on and lays a dark shadow band across the clouds, mooring masts and landing beacons picked out below. A floating atmospheric platform, not open space and not solid ground.
+

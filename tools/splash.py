@@ -18,7 +18,7 @@ QUALITY = 82
 
 # (файл под art/splash, имя в игре). Имя — это то, что ищет START_ART в ui/pilotForm.ts.
 SPLASHES = [
-    ("splash-login", "login"),
+    ("splash-cockpit", "cockpit"),
 ]
 
 

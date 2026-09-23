@@ -274,7 +274,8 @@ export function runDemo(screen: string): void {
     screen.setRules(loot, shop, {}, REP_RULES);
     screen.setGalaxy(GALAXY);
     screen.setStation('Гавань Сол', 'sol');
-    screen.setPlace({ key: 'st:sol', kind: 'st', name: 'Гавань Сол', shipyard: true });
+    // «Гавань Сол» кольцевая, и набор сцен у неё свой (пачка G): в игре scene приезжает в месте с сервера.
+    screen.setPlace({ key: 'st:sol', kind: 'st', name: 'Гавань Сол', scene: 'ring', shipyard: true });
     screen.setCargo(cargo);
     const fit = {
       weapons: [weapons.ids()[0] ?? null],
@@ -295,7 +296,7 @@ export function runDemo(screen: string): void {
       power: 7,
       powerMax: 10,
       ships: { [hulls.ids()[1]]: 'st:vega' },
-      place: { key: 'st:sol', kind: 'st', name: 'Гавань Сол', shipyard: true },
+      place: { key: 'st:sol', kind: 'st', name: 'Гавань Сол', scene: 'ring', shipyard: true },
     };
     const missions: MissionsMsg = {
       t: 'missions',
