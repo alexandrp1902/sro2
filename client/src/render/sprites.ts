@@ -134,6 +134,11 @@ const MODULE_ITEM_SPRITES: Record<string, string> = {
   dustCloud: 'modules-dust-cloud',
   reactiveArmor: 'modules-reactive-armor',
   antiMissile: 'modules-anti-missile',
+  // Флот M19 (пачка K).
+  grapple: 'modules-grapple',
+  deepScanner: 'modules-deep-scanner',
+  cloak: 'modules-cloak',
+  armorPlate: 'modules-armor-plate',
 };
 
 /** Иконка модуля на витрине: своя по id, иначе по слоту; неизвестный — null. */

@@ -236,7 +236,7 @@ public class FittingTests
         Assert.Contains("evasion must be within", new ModuleParams("Дюзы", Fitting.UtilityKind, Evasion: 40).Validate());
         // Пустой вспомогательный модуль — по-прежнему ошибка, и защита в этот список добавлена.
         Assert.Equal(
-            "a utility module must repair, cool, add cargo, evade, block or intercept",
+            "a utility module must repair, cool, add cargo, evade, block, intercept, grab, scan, hide or armour",
             new ModuleParams("Пустышка", Fitting.UtilityKind, Power: 5).Validate());
     }
 
@@ -291,9 +291,10 @@ public class FittingTests
             var classes = modules.Values.Where(m => m.Slot == slot && m.Tier == 1).Select(m => m.Class).Distinct().OrderBy(EquipClass.Rank);
             Assert.Equal([EquipClass.S, EquipClass.M, EquipClass.L], classes);
         }
-        // Вспомогательные модули: ремонт, охлаждение, трюм (M11) и четыре защитных (M15.6).
+        // Вспомогательные модули: ремонт, охлаждение, трюм (M11), четыре защитных (M15.6)
+        // и четыре флотских (M19): захват, сканер, маскировка, бронеплиты.
         var utility = modules.Values.Where(m => m.Slot == Fitting.UtilityKind && m.Tier == 1).ToList();
-        Assert.Equal(7, utility.Count);
+        Assert.Equal(11, utility.Count);
         // Все класса S: utility-слот есть у каждого корпуса, и защита должна вставать даже в «Пчелу».
         Assert.All(utility, m => Assert.Equal(EquipClass.S, m.Class));
         // Каждый вид урона, кроме ракеты, кто-то блокирует, а ракету кто-то сбивает: дыр в защите нет.
@@ -301,9 +302,9 @@ public class FittingTests
         Assert.Contains(utility, m => m.BlockEnergy > 0);
         Assert.Contains(utility, m => m.Intercept is not null);
         Assert.Contains(utility, m => m.Evasion > 0);
-        // Десять пушек Mk1 (M11), каждая — ещё в Mk2 и Mk3.
-        Assert.Equal(10, balance.Weapons.Values.Count(w => w.Tier == 1));
-        Assert.Equal(30, balance.Weapons.Count);
+        // Тринадцать пушек Mk1 (десять из M11 плюс дробовик, гаусс и залп из M19), каждая — ещё в Mk2 и Mk3.
+        Assert.Equal(13, balance.Weapons.Values.Count(w => w.Tier == 1));
+        Assert.Equal(39, balance.Weapons.Count);
         var light = balance.Hulls[SimConfig.DefaultHull];
         var starter = Fitting.Effective(light, Fitting.Starter, modules);
         Assert.True(starter.Shield > 0 && starter.Radar > 0);

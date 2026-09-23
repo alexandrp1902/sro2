@@ -112,6 +112,13 @@ public static class Tiers
                     BlockKinetic = Math.Min(Fitting.MaxBlock, Whole(m.BlockKinetic * t.Stat)),
                     BlockEnergy = Math.Min(Fitting.MaxBlock, Whole(m.BlockEnergy * t.Stat)),
                     Intercept = m.Intercept is null ? null : m.Intercept with { Chance = Math.Min(100, Whole(m.Intercept.Chance * t.Stat)) },
+                    // M19. Захват, скан, маскировка и бронеплиты растут по тому же правилу — «прибавка сверх 1».
+                    // SpeedMul тир не трогает нарочно: это плата за прочность, и если её масштабировать,
+                    // Mk3-плита оказалась бы медленнее Mk1, то есть хуже — а старший тир хуже не бывает.
+                    Grab = Math.Min(2, Fine(Boost(m.Grab, t.Stat))),
+                    Scan = Math.Min(6000, Whole(m.Scan * t.Radar)),
+                    Stealth = Math.Min(Fitting.MaxStealth, Fine(m.Stealth * t.Stat)),
+                    HpMul = Math.Min(1.3, Fine(Boost(m.HpMul, t.Stat))),
                     Tier = tier,
                 };
             }

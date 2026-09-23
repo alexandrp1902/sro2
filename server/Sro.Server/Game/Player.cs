@@ -107,6 +107,13 @@ public sealed class Player(int id, string? token, string name, string hullId, st
 
     public override InterceptParams? Guard(Balance balance) => Fitting.Guard(Fit, balance.Modules);
 
+    public override double GrabRange(Balance balance) =>
+        balance.Loot.PickupRange * Fitting.Grab(Hull(balance.Hulls), Fit, balance.Modules);
+
+    public override double ScanRange(Balance balance) => Fitting.Scan(Hull(balance.Hulls), Fit, balance.Modules);
+
+    public override double Stealth(Balance balance) => Fitting.Stealth(Fit, balance.Modules);
+
     /// <summary>Положить на склад.</summary>
     public void Store(string id, int count = 1) => Storage[id] = Storage.GetValueOrDefault(id) + count;
 

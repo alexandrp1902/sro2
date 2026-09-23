@@ -342,7 +342,10 @@ internal static class PirateBrain
             if (!IsCandidate(pirate, ship, tick, shelter) || !Wants(pirate, ship, tick, offenders, outlaws)) continue;
             if (IsOutmatched(pirate, ship, pirates, balance)) continue; // на сильную стаю сам не лезет
             var distance = Distance(pirate, ship);
-            if (distance > nearestDistance) continue;
+            // Маскировка (M19) сужает круг именно пирату: рейнджер видит всех, и тот, кто уже выстрелил,
+            // тоже найден — эта ветка выше, по attackerId и DropRange.
+            var reach = pirate.Type.IsPirate ? nearestDistance * ship.Stealth(balance) : nearestDistance;
+            if (distance > reach) continue;
             nearest = ship;
             nearestDistance = distance;
         }

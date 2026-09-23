@@ -41,6 +41,30 @@ public readonly record struct MoveInput(double Dx, double Dy, double Throttle)
     }
 }
 
+/// <summary>
+/// Особенность корпуса (M19): то, что корпус умеет сверх чисел. Поле, а не три <c>if</c> по имени корпуса,
+/// — иначе каждый следующий особенный корпус дописывал бы ещё одну ветку в чужой файл.
+/// </summary>
+/// <param name="Grab">Множитель радиуса захвата груза; 1 — обычный. У «Тягача» — 2.</param>
+/// <param name="Scan">
+/// С какого расстояния видно контейнеры и обломки, минуя радар; 0 — как у всех. У «Циркуля» — 4000,
+/// то есть вся система. Кораблей это не касается: их по-прежнему показывает радар.
+/// </param>
+/// <param name="Ram">Столкновение с камнем не бьёт по этому корпусу. Камню при этом достаётся как обычно.</param>
+public sealed record HullPerk(double Grab = 1, double Scan = 0, bool Ram = false)
+{
+    /// <summary>Выше этого множитель захвата не поднимают: иначе трюм наполняется, не сходя с места.</summary>
+    public const double MaxGrab = 3;
+
+    public string? Validate()
+    {
+        if (!(Grab is >= 1 and <= MaxGrab)) return $"grab must be within 1..{MaxGrab}";
+        if (!(Scan == 0 || Scan is >= 500 and <= 6000)) return "scan must be 0 or within 500..6000";
+        if (Grab == 1 && Scan == 0 && !Ram) return "a perk must do something";
+        return null;
+    }
+}
+
 /// <summary>Параметры корпуса (§46–47). Хранятся в shared/hulls.json.</summary>
 /// <param name="TurnRate">Градусы в секунду.</param>
 /// <param name="LateralDampTime">За это время боковая скорость гаснет примерно до 5%.</param>
@@ -59,6 +83,7 @@ public readonly record struct MoveInput(double Dx, double Dy, double Throttle)
 /// <param name="WeaponSlots">Оружейные слоты и их классы (GDD §12, §20); null — один слот класса корпуса.</param>
 /// <param name="UtilitySlots">Сколько вспомогательных модулей встаёт (M11): ремонт, охлаждение, трюм.</param>
 /// <param name="Role">Роль корпуса для витрины: «разведчик», «танк»…</param>
+/// <param name="Perk">Особенность корпуса (M19); null — корпус без особенностей, как девять первых.</param>
 public sealed record HullParams(
     string Name,
     double MaxSpeed,
@@ -78,7 +103,8 @@ public sealed record HullParams(
     string Class = EquipClass.L,
     IReadOnlyList<string>? WeaponSlots = null,
     int UtilitySlots = 0,
-    string? Role = null)
+    string? Role = null,
+    HullPerk? Perk = null)
 {
     /// <summary>Классы оружейных слотов по порядку.</summary>
     [System.Text.Json.Serialization.JsonIgnore]
@@ -102,6 +128,7 @@ public sealed record HullParams(
         if (!EquipClass.IsValid(Class)) return "class must be S, M or L";
         if (Slots.Count is < 1 or > Fitting.MaxWeaponSlots) return $"weaponSlots must have 1..{Fitting.MaxWeaponSlots} slots";
         if (UtilitySlots is < 0 or > Fitting.MaxUtilitySlots) return $"utilitySlots must be within 0..{Fitting.MaxUtilitySlots}";
+        if (Perk?.Validate() is { } perk) return $"perk: {perk}";
         foreach (var slot in Slots)
         {
             if (!EquipClass.IsValid(slot)) return "weaponSlots must be S, M or L";

@@ -1,0 +1,97 @@
+{
+  "batch": "K",
+  "milestone": "M19",
+  "assets": [
+    {
+      "id": "weapons-shotgun",
+      "name": "Дробовик",
+      "file": "weapons-shotgun.png",
+      "type": "weapon",
+      "targetPixels": 256,
+      "generator": "built-in image_gen",
+      "source": "C:\\Users\\467\\.codex\\generated_images\\01a0d057-0931-7840-a087-b23e0e910d08\\exec-029a1e66-0468-4f98-87e7-fd07fe7b6be3.png",
+      "prompt": "Use case: stylized-concept. ONE isolated spaceship equipment inventory icon for a semi-realistic space RPG. Square 1024x1024 canvas, genuinely transparent alpha background, no painted checkerboard. Detailed industrial game asset, worn pale steel armor panels, blue-gray gunmetal structure, dark recesses, exposed bolts and hoses, restrained luminous accent. Elevated three-quarter product view showing top, front and side, crisp chunky readable silhouette at small sizes, soft studio illumination from upper left, no cast shadow outside object. Entire item centered with 10% clear padding, no cropped parts. No text, labels, letters, numbers, watermark, UI border, people, ship, room, floor or extra separate objects. This is ship-mounted modular equipment, not handheld weaponry. Compact small-class spaceship scattergun turret: five short thick barrels arranged in a broad horizontal fan on a squat armored swivel mounting base. Clearly visible dark muzzle bores facing upper right, bulky drum ammunition housing at rear, matte gunmetal barrels, pale steel plates and tiny amber readiness lights. Short wide close-range weapon silhouette, no long sniper barrel, no firing effect."
+    },
+    {
+      "id": "weapons-gauss",
+      "name": "Гаусс-пушка",
+      "file": "weapons-gauss.png",
+      "type": "weapon",
+      "targetPixels": 256,
+      "generator": "built-in image_gen",
+      "source": "C:\\Users\\467\\.codex\\generated_images\\01a0d057-0931-7840-a087-b23e0e910d08\\exec-0945cb1f-f0dd-4649-93f1-4dcd4aa696d4.png",
+      "prompt": "Use case: stylized-concept. ONE isolated spaceship equipment inventory icon for a semi-realistic space RPG. Square 1024x1024 canvas, genuinely transparent alpha background, no painted checkerboard. Detailed industrial game asset, worn pale steel armor panels, blue-gray gunmetal structure, dark recesses, exposed bolts and hoses, restrained luminous accent. Elevated three-quarter product view showing top, front and side, crisp chunky readable silhouette at small sizes, soft studio illumination from upper left, no cast shadow outside object. Entire item centered with 10% clear padding, no cropped parts. No text, labels, letters, numbers, watermark, UI border, people, ship, room, floor or extra separate objects. This is ship-mounted modular equipment, not handheld weaponry. Medium-class spaceship Gauss cannon turret: a single enclosed long cylindrical accelerator barrel threaded through four large distinct copper electromagnetic coils, parallel chunky capacitor housings at the rear and a precision armored swivel base. Barrel points upper right. Cool steel plating, warm copper windings, small cyan indicators. A coilgun, NOT a twin exposed railgun, no beam or firing effect."
+    },
+    {
+      "id": "weapons-mine-layer",
+      "name": "Минный постановщик",
+      "file": "weapons-mine-layer.png",
+      "type": "weapon",
+      "targetPixels": 256,
+      "generator": "built-in image_gen",
+      "source": "C:\\Users\\467\\.codex\\generated_images\\01a0d057-0931-7840-a087-b23e0e910d08\\exec-3e74a0d3-bc15-4ecc-941d-0a7c96a92d18.png",
+      "prompt": "Use case: stylized-concept. ONE isolated spaceship equipment inventory icon for a semi-realistic space RPG. Square 1024x1024 canvas, genuinely transparent alpha background, no painted checkerboard. Detailed industrial game asset, worn pale steel armor panels, blue-gray gunmetal structure, dark recesses, exposed bolts and hoses, restrained luminous accent. Elevated three-quarter product view showing top, front and side, crisp chunky readable silhouette at small sizes, soft studio illumination from upper left, no cast shadow outside object. Entire item centered with 10% clear padding, no cropped parts. No text, labels, letters, numbers, watermark, UI border, people, ship, room, floor or extra separate objects. This is ship-mounted modular equipment, not handheld weaponry. Medium-class spaceship mine deployment module: squat armored dispenser with a broad open rear-facing launch chute angled toward upper right, a single compact circular naval space mine partially seated inside the chute, stacked internal magazine visible in a recessed side panel, robust mounting rails, yellow-black safety tabs and tiny amber indicators. The mine remains attached inside the mechanism, no separate floating objects. Clearly a deployment machine rather than a gun barrel."
+    },
+    {
+      "id": "weapons-missile-salvo",
+      "name": "Ракетный залп",
+      "file": "weapons-missile-salvo.png",
+      "type": "weapon",
+      "targetPixels": 256,
+      "generator": "built-in image_gen",
+      "source": "C:\\Users\\467\\.codex\\generated_images\\01a0d057-0931-7840-a087-b23e0e910d08\\exec-042dea30-2038-4b12-90af-2ce7a41feb20.png",
+      "prompt": "Use case: stylized-concept. ONE isolated spaceship equipment inventory icon for a semi-realistic space RPG. Square 1024x1024 canvas, genuinely transparent alpha background, no painted checkerboard. Detailed industrial game asset, worn pale steel armor panels, blue-gray gunmetal structure, dark recesses, exposed bolts and hoses, restrained luminous accent. Elevated three-quarter product view showing top, front and side, crisp chunky readable silhouette at small sizes, soft studio illumination from upper left, no cast shadow outside object. Entire item centered with 10% clear padding, no cropped parts. No text, labels, letters, numbers, watermark, UI border, people, ship, room, floor or extra separate objects. This is ship-mounted modular equipment, not handheld weaponry. Large-class spaceship salvo rocket launcher: exactly FOUR launch cells arranged in a clearly readable two by two square in a large box-shaped armored pod on a heavy rotating base. Four small missile noses recessed in their individual cells facing upper right, sturdy separated rims, exposed rear actuator and power cables, tiny amber status lamps. Massive broad silhouette, no extra launch tubes, no launching or exhaust."
+    },
+    {
+      "id": "modules-cargo-grapple",
+      "name": "Грузовой захват",
+      "file": "modules-cargo-grapple.png",
+      "type": "module",
+      "targetPixels": 256,
+      "generator": "built-in image_gen",
+      "source": "C:\\Users\\467\\.codex\\generated_images\\01a0d057-0931-7840-a087-b23e0e910d08\\exec-409af95b-9234-4e48-83c2-208e4c5e0b69.png",
+      "prompt": "Use case: stylized-concept. ONE isolated spaceship equipment inventory icon for a semi-realistic space RPG. Square 1024x1024 canvas, genuinely transparent alpha background, no painted checkerboard. Detailed industrial game asset, worn pale steel armor panels, blue-gray gunmetal structure, dark recesses, exposed bolts and hoses, restrained luminous accent. Elevated three-quarter product view showing top, front and side, crisp chunky readable silhouette at small sizes, soft studio illumination from upper left, no cast shadow outside object. Entire item centered with 10% clear padding, no cropped parts. No text, labels, letters, numbers, watermark, UI border, people, ship, room, floor or extra separate objects. This is ship-mounted modular equipment, not handheld weaponry. Spaceship cargo recovery grapple module: compact motorized winch base with one articulated grabber arm extending upward-right into a wide OPEN three-finger mechanical claw. Three broad gripping fingers and dark rubberized contact pads, coiled cable drum integrated into the rear housing, worn steel pistons, small cyan tractor sensor at the wrist and amber safety tabs. One connected object, no cargo, no energy beam."
+    },
+    {
+      "id": "modules-scanner",
+      "name": "Сканер",
+      "file": "modules-scanner.png",
+      "type": "module",
+      "targetPixels": 256,
+      "generator": "built-in image_gen",
+      "source": "C:\\Users\\467\\.codex\\generated_images\\01a0d057-0931-7840-a087-b23e0e910d08\\exec-bb9e2373-1d03-40d2-a355-78cfbe25955b.png",
+      "prompt": "Use case: stylized-concept. ONE isolated spaceship equipment inventory icon for a semi-realistic space RPG. Square 1024x1024 canvas, genuinely transparent alpha background, no painted checkerboard. Detailed industrial game asset, worn pale steel armor panels, blue-gray gunmetal structure, dark recesses, exposed bolts and hoses, restrained luminous accent. Elevated three-quarter product view showing top, front and side, crisp chunky readable silhouette at small sizes, soft studio illumination from upper left, no cast shadow outside object. Entire item centered with 10% clear padding, no cropped parts. No text, labels, letters, numbers, watermark, UI border, people, ship, room, floor or extra separate objects. This is ship-mounted modular equipment, not handheld weaponry. Spaceship long-range salvage scanner module: compact armored gimbal base carrying a distinctive OPEN circular scanning ring around a recessed cyan sensor lens, two short lateral receiver paddles and a small folded antenna. Worn pale steel frame, blue-gray gunmetal mechanics and tiny cyan sensor segments. Clearly readable round optical-scanner silhouette, not a solid radar dish, no hologram or external beam."
+    },
+    {
+      "id": "modules-cloak",
+      "name": "Маскировка",
+      "file": "modules-cloak.png",
+      "type": "module",
+      "targetPixels": 256,
+      "generator": "built-in image_gen",
+      "source": "C:\\Users\\467\\.codex\\generated_images\\01a0d057-0931-7840-a087-b23e0e910d08\\exec-9d3eb598-cee0-4744-b4ab-b980580d1f82.png",
+      "prompt": "Use case: stylized-concept. ONE isolated spaceship equipment inventory icon for a semi-realistic space RPG. Square 1024x1024 canvas, genuinely transparent alpha background, no painted checkerboard. Detailed industrial game asset, worn pale steel armor panels, blue-gray gunmetal structure, dark recesses, exposed bolts and hoses, restrained luminous accent. Elevated three-quarter product view showing top, front and side, crisp chunky readable silhouette at small sizes, soft studio illumination from upper left, no cast shadow outside object. Entire item centered with 10% clear padding, no cropped parts. No text, labels, letters, numbers, watermark, UI border, people, ship, room, floor or extra separate objects. This is ship-mounted modular equipment, not handheld weaponry. Spaceship stealth masking module: compact low hexagonal field-generator housing with three swept-back curved emitter fins surrounding a recessed violet-blue crystalline lens. Segmented gunmetal heat sinks, pale steel armored edges, connected power cables and restrained violet luminous internal seams. Clearly solid industrial hardware, entirely visible and opaque; no smoke, transparent device, ghost ship or surrounding energy bubble."
+    },
+    {
+      "id": "modules-armor-plates",
+      "name": "Бронеплиты",
+      "file": "modules-armor-plates.png",
+      "type": "module",
+      "targetPixels": 256,
+      "generator": "built-in image_gen",
+      "source": "C:\\Users\\467\\.codex\\generated_images\\01a0d057-0931-7840-a087-b23e0e910d08\\exec-57b0c5f0-73b2-488b-9dd0-33305c446061.png",
+      "prompt": "Use case: stylized-concept. ONE isolated spaceship equipment inventory icon for a semi-realistic space RPG. Square 1024x1024 canvas, genuinely transparent alpha background, no painted checkerboard. Detailed industrial game asset, worn pale steel armor panels, blue-gray gunmetal structure, dark recesses, exposed bolts and hoses, restrained luminous accent. Elevated three-quarter product view showing top, front and side, crisp chunky readable silhouette at small sizes, soft studio illumination from upper left, no cast shadow outside object. Entire item centered with 10% clear padding, no cropped parts. No text, labels, letters, numbers, watermark, UI border, people, ship, room, floor or extra separate objects. This is ship-mounted modular equipment, not handheld weaponry. Spaceship supplemental armor module: one compact assembled shield-like panel made of three overlapping thick beveled pale-steel armor plates secured together to a visible dark mounting frame, chunky bolts, layered ceramic composite edges and a small amber mounting latch. Heavy angular rectangular silhouette, subtle scratches and chipped paint, no lights required, no energy shield, no detached pieces."
+    },
+    {
+      "id": "space-mine",
+      "name": "Космическая мина",
+      "file": "space-mine.png",
+      "type": "space-sprite",
+      "targetPixels": 96,
+      "generator": "built-in image_gen",
+      "source": "C:\\Users\\467\\.codex\\generated_images\\01a0d057-0931-7840-a087-b23e0e910d08\\exec-a22ac09c-d443-455c-b952-decfcf8f27ed.png",
+      "prompt": "Use case: stylized-concept. ONE isolated naval SPACE MINE sprite for a top-down 2D space RPG, square 1024x1024 canvas with genuinely transparent alpha background, not a checkerboard. STRICT orthographic 90-degree overhead view. Centered compact circular armored mine with six short evenly spaced radial contact sensor prongs, a small recessed amber-red armed-status light at center, concentric segmented pale steel casing and dark blue-gray gunmetal underside. Chunky readable silhouette designed for a 96-pixel game sprite. Worn industrial materials matching semi-realistic spaceship equipment, subtle upper-left lighting, 12% empty transparent margin around every prong. No perspective, no floor, no starfield, no shadow outside object, no explosion, no fire, no text, logo, border or watermark."
+    }
+  ]
+}
+

@@ -67,7 +67,12 @@ public static class SnapshotCodec
 
         /// <param name="self">Свой корабль: всегда целиком и в float64.</param>
         /// <param name="visible">Видит ли игрок точку (x, y) — радар.</param>
-        public byte[] Encode(World world, int self, Func<double, double, bool> visible)
+        /// <param name="visibleLoot">
+        /// То же для груза (M19): «Циркуль» и сканер дальнего поля видят контейнеры там, куда радар не достаёт.
+        /// null — груз виден ровно тем же радаром, что и корабли, как было до M19. Формат кадра от этого
+        /// не меняется — меняется только длина списка груза.
+        /// </param>
+        public byte[] Encode(World world, int self, Func<double, double, bool> visible, Func<double, double, bool>? visibleLoot = null)
         {
             var key = world.Tick >= _nextKeyTick;
             if (key)
@@ -94,7 +99,7 @@ public static class SnapshotCodec
             foreach (var id in _meteors.Keys) _seen.Add(id);
 
             WriteShips(ref w, world.Ships, self, visible);
-            WriteLoot(ref w, world.Loot, visible);
+            WriteLoot(ref w, world.Loot, visibleLoot ?? visible);
             WriteMeteors(ref w, world.Meteors, visible);
             foreach (var id in _ships.Keys) _seen.Add(id);
             foreach (var id in _loot.Keys) _seen.Add(id);

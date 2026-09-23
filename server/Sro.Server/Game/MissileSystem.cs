@@ -9,9 +9,11 @@ namespace Sro.Server.Game;
 /// </summary>
 public sealed class MissileSystem(Func<int> newId)
 {
-    public sealed class Missile(int id, int ownerId, int targetId, string weaponId, WeaponParams weapon, MissileState state, long expiresAtTick)
+    public sealed class Missile(int id, int ownerId, int targetId, string weaponId, WeaponParams weapon, MissileState state, long expiresAtTick, long launchTick = 0)
     {
         public int Id { get; } = id;
+        /// <summary>Тик пуска: по нему залп (M19) узнаёт, какая это ракета по счёту, и разводит их веером.</summary>
+        public long LaunchTick { get; } = launchTick;
         public int OwnerId { get; } = ownerId;
         public int TargetId { get; } = targetId;
         public string WeaponId { get; } = weaponId;
@@ -55,12 +57,19 @@ public sealed class MissileSystem(Func<int> newId)
         return true;
     }
 
+    /// <summary>Веер залпа (M19): на столько градусов расходятся ракеты, пущенные одним нажатием.</summary>
+    private const double SalvoSpread = 8 * Math.PI / 180;
+
     /// <summary>Пуск от носа стрелка — туда же и смотрит ракета: к цели она доворачивает уже в полёте.</summary>
     public void Launch(ShipEntity shooter, ShipEntity target, int slot, WeaponParams weapon, long tick)
     {
         var p = weapon.Missile!;
-        var state = new MissileState { X = shooter.Ship.X, Y = shooter.Ship.Y, Rot = shooter.Ship.Rot };
-        _alive.Add(new Missile(newId(), shooter.Id, target.Id, shooter.WeaponIds[slot] ?? "", weapon, state, tick + p.LifetimeTicks));
+        // Залп уходит веером: четыре ракеты из одной точки и под одним углом выглядели бы одной толстой.
+        // Разводит их номер в очереди — 0, +8°, −8°, +16° и так далее; к цели все всё равно довернут.
+        var index = weapon.Salvo > 1 ? _alive.Count(m => m.OwnerId == shooter.Id && m.LaunchTick == tick) : 0;
+        var fan = index == 0 ? 0 : (index % 2 == 1 ? 1 : -1) * ((index + 1) / 2) * SalvoSpread;
+        var state = new MissileState { X = shooter.Ship.X, Y = shooter.Ship.Y, Rot = Movement.WrapAngle(shooter.Ship.Rot + fan) };
+        _alive.Add(new Missile(newId(), shooter.Id, target.Id, shooter.WeaponIds[slot] ?? "", weapon, state, tick + p.LifetimeTicks, tick));
     }
 
     /// <summary>Шаг: полёт, попадания, погасшие. Попадание — выстрел в общем списке: урон, цифра и лента те же, что у пушек.</summary>

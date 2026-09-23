@@ -1,0 +1,209 @@
+[
+  {
+    "file": "modules-armor-plates.png",
+    "width": 1254,
+    "height": 1254,
+    "mode": "RGBA",
+    "alphaRange": [
+      0,
+      255
+    ],
+    "visibleBoundsAlpha16": [
+      44,
+      100,
+      1214,
+      1156
+    ],
+    "rawAlphaBounds": [
+      0,
+      95,
+      1224,
+      1254
+    ],
+    "sha256": "a5cf9c0cde8d1fae671a72645bbe44a353c4850e7776dd8868c67ca97277bc43"
+  },
+  {
+    "file": "modules-cargo-grapple.png",
+    "width": 1254,
+    "height": 1254,
+    "mode": "RGBA",
+    "alphaRange": [
+      0,
+      255
+    ],
+    "visibleBoundsAlpha16": [
+      58,
+      49,
+      1205,
+      1203
+    ],
+    "rawAlphaBounds": [
+      51,
+      40,
+      1208,
+      1236
+    ],
+    "sha256": "f39bfca03727e965e0490169cd858da91d044e7544f4ddc77256a7cd3c6dcbe7"
+  },
+  {
+    "file": "modules-cloak.png",
+    "width": 1254,
+    "height": 1254,
+    "mode": "RGBA",
+    "alphaRange": [
+      0,
+      255
+    ],
+    "visibleBoundsAlpha16": [
+      46,
+      48,
+      1208,
+      1222
+    ],
+    "rawAlphaBounds": [
+      41,
+      21,
+      1230,
+      1224
+    ],
+    "sha256": "b0eb0ebaafe54d0bd3e4dcd4a2d2f7ce324e70472075f3efef40cc4adc0b6d3a"
+  },
+  {
+    "file": "modules-scanner.png",
+    "width": 1254,
+    "height": 1254,
+    "mode": "RGBA",
+    "alphaRange": [
+      0,
+      255
+    ],
+    "visibleBoundsAlpha16": [
+      86,
+      58,
+      1181,
+      1188
+    ],
+    "rawAlphaBounds": [
+      0,
+      7,
+      1200,
+      1254
+    ],
+    "sha256": "78b72f3b73bc116853b1625efd48a68af253422ab53f7488b8f97c7c7358fe7c"
+  },
+  {
+    "file": "space-mine.png",
+    "width": 1254,
+    "height": 1254,
+    "mode": "RGBA",
+    "alphaRange": [
+      0,
+      255
+    ],
+    "visibleBoundsAlpha16": [
+      115,
+      67,
+      1139,
+      1186
+    ],
+    "rawAlphaBounds": [
+      111,
+      21,
+      1200,
+      1230
+    ],
+    "sha256": "8994732e5925ad90b519a8f2df202ada5e1e4d65ac9ff38c1134b08241cebd4f"
+  },
+  {
+    "file": "weapons-gauss.png",
+    "width": 1254,
+    "height": 1254,
+    "mode": "RGBA",
+    "alphaRange": [
+      0,
+      255
+    ],
+    "visibleBoundsAlpha16": [
+      18,
+      119,
+      1243,
+      1123
+    ],
+    "rawAlphaBounds": [
+      16,
+      39,
+      1253,
+      1238
+    ],
+    "sha256": "fee1e8423ba5908f5f42ceba2bd080d81f08097cd40453a9efcf07b15d94065b"
+  },
+  {
+    "file": "weapons-mine-layer.png",
+    "width": 1254,
+    "height": 1254,
+    "mode": "RGBA",
+    "alphaRange": [
+      0,
+      255
+    ],
+    "visibleBoundsAlpha16": [
+      68,
+      43,
+      1230,
+      1223
+    ],
+    "rawAlphaBounds": [
+      0,
+      24,
+      1236,
+      1225
+    ],
+    "sha256": "3c1713c8aadb60f499f9e0b227a8b056647c02701d6fc4d117fe964c076c7adf"
+  },
+  {
+    "file": "weapons-missile-salvo.png",
+    "width": 1254,
+    "height": 1254,
+    "mode": "RGBA",
+    "alphaRange": [
+      0,
+      255
+    ],
+    "visibleBoundsAlpha16": [
+      48,
+      58,
+      1222,
+      1209
+    ],
+    "rawAlphaBounds": [
+      0,
+      49,
+      1225,
+      1254
+    ],
+    "sha256": "386ce41315136f519af5ba8173c86d2f505bc00f4976aca2ce414f250be9d710"
+  },
+  {
+    "file": "weapons-shotgun.png",
+    "width": 1254,
+    "height": 1254,
+    "mode": "RGBA",
+    "alphaRange": [
+      0,
+      255
+    ],
+    "visibleBoundsAlpha16": [
+      16,
+      137,
+      1231,
+      1149
+    ],
+    "rawAlphaBounds": [
+      0,
+      15,
+      1237,
+      1200
+    ],
+    "sha256": "8a1f862447274d2dc89f391cc69502e4ad7dccddfe5dc5b33d13e4aa07aa2ace"
+  }
+]

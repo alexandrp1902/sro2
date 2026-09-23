@@ -110,14 +110,17 @@ internal sealed class Battle(Func<double> roll, ILogger log)
         }
     }
 
-    /// <summary>Ракета ушла: перезарядка, защита снята, цель знает о нападении — урон будет, когда ракета долетит.</summary>
+    /// <summary>
+    /// Ракета ушла: перезарядка, защита снята, цель знает о нападении — урон будет, когда ракета долетит.
+    /// Залп (M19) поднимает несколько ракет за одно нажатие; перезарядка при этом одна на слот, а не на ракету.
+    /// </summary>
     private static void Launch(long tick, Volley volley, Action<ShipEntity, ShipEntity, int, WeaponParams> launch)
     {
         var (shooter, target, slot, weapon, _, cooldown) = volley;
         shooter.NextFireTicks[slot] = tick + Combat.CooldownTicks(weapon, cooldown);
         shooter.ProtectedUntilTick = 0;
         target.LastAttackerId = shooter.Id;
-        launch(shooter, target, slot, weapon);
+        for (var i = 0; i < weapon.Salvo; i++) launch(shooter, target, slot, weapon);
     }
 
     private void Fire(
@@ -133,6 +136,23 @@ internal sealed class Battle(Func<double> roll, ILogger log)
         shooter.ProtectedUntilTick = 0; // выстрел снимает защиту после появления (GDD §25)
         target.LastAttackerId = shooter.Id; // и промах — нападение: пират ответит
 
+        // Дробовик (M19): дробин несколько, и у каждой свой бросок — потому в упор он и надёжен,
+        // а вдали половина уходит мимо. Перезарядка, снятие защиты и «кто напал» — один раз на нажатие.
+        // Цель разбита раньше, чем кончились дробины, — остальные не летят: строки «0 урона» в ленте ни о чём.
+        for (var pellet = 0; pellet < weapon.Pellets && target.Hp > 0; pellet++)
+            Strike(tick, volley, ships, balance, shots, canSplash);
+    }
+
+    /// <summary>Один бросок: попал, отбили или мимо — и что из этого вышло. У обычной пушки он на выстрел один.</summary>
+    private void Strike(
+        long tick,
+        Volley volley,
+        Dictionary<int, ShipEntity> ships,
+        Balance balance,
+        List<ShotDto> shots,
+        Func<ShipEntity, ShipEntity, bool>? canSplash)
+    {
+        var (shooter, target, slot, weapon, chance, _) = volley;
         var hit = Combat.IsHit(chance, roll());
         // Защита цели (M15.6): бросок делается только по выстрелу, который иначе попал бы, — промах
         // отбивать нечего. Отбитый выстрел не наносит урона, не замедляет и не рвётся осколками:

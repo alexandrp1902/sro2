@@ -68,9 +68,23 @@ SINGLES = [
     # Корпуса пилотов (M11): пламени у них нет — клиент подставляет чужое (см. render/ship.ts).
     *[(f"ships-extra/ships-{n}", f"ships-{n}", 256) for n in
       ["scout", "interceptor", "industrial", "frigate", "freighter", "cruiser"]],
-    # Флот, пачка J (M18): пока только «Ослик» — стартовый торговец. Ключ — ships-<id корпуса>, чтобы
-    # shipSprite() находил его без таблицы соответствий; остальные девять придут с корпусами в M19.
+    # Флот, пачка J: «Ослик» пришёл в M18, остальные девять — с корпусами в M19. Ключ — ships-<id корпуса>,
+    # чтобы shipSprite() находил его без таблицы соответствий; потому «Игла» и зовётся ships-needle.
     ("ships-fleet/ships-trader-starter", "ships-starterTrader", 256),
+    ("ships-fleet/ships-courier-needle", "ships-needle", 256),
+    *[(f"ships-fleet/ships-{n}", f"ships-{n}", 256) for n in
+      ["tug", "surveyor", "corsair", "clipper", "runner", "lancer", "dropship", "galleon"]],
+    # Оружие и модули флота, пачка K (M19). Ключ — имя в игре, оно не всегда совпадает с именем файла:
+    # modules-scanner уже занят радаром из пачки листов, поэтому сканер дальнего поля зовётся deep-scanner.
+    # weapons-mine-layer и space-mine нарисованы, но не нарезаны: мина как сущность мира отложена,
+    # а loadSprites() тянет при старте каждый ключ манифеста.
+    ("equipment-k/weapons-shotgun", "weapons-shotgun", 128),
+    ("equipment-k/weapons-gauss", "weapons-gauss", 128),
+    ("equipment-k/weapons-missile-salvo", "weapons-salvo", 128),
+    ("equipment-k/modules-cargo-grapple", "modules-grapple", 128),
+    ("equipment-k/modules-scanner", "modules-deep-scanner", 128),
+    ("equipment-k/modules-cloak", "modules-cloak", 128),
+    ("equipment-k/modules-armor-plates", "modules-armor-plate", 128),
     # Новые звёзды, планеты и станции (пачка B).
     *[(f"galaxy/planets-{n}", f"planets-{n}", 512) for n in ["barren", "jungle", "lava", "ocean", "ringed", "toxic"]],
     *[(f"galaxy/stations-{n}", f"stations-{n}", 512) for n in ["outpost", "pirate", "ranger", "trade"]],

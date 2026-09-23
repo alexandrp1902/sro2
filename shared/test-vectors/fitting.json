@@ -22,7 +22,8 @@
         "S"
       ],
       "utilitySlots": 0,
-      "role": null
+      "role": null,
+      "perk": null
     },
     "heavy": {
       "name": "Тяжёлый",
@@ -46,7 +47,8 @@
         "M"
       ],
       "utilitySlots": 0,
-      "role": null
+      "role": null,
+      "perk": null
     }
   },
   "weapons": {
@@ -75,6 +77,9 @@
       "blastShare": 0,
       "blastFalloff": 1.5,
       "damageType": "kinetic",
+      "pellets": 1,
+      "spread": 0,
+      "salvo": 1,
       "tier": 1
     },
     "plasma": {
@@ -102,6 +107,9 @@
       "blastShare": 0,
       "blastFalloff": 1.5,
       "damageType": "kinetic",
+      "pellets": 1,
+      "spread": 0,
+      "salvo": 1,
       "tier": 1
     },
     "big": {
@@ -129,6 +137,9 @@
       "blastShare": 0,
       "blastFalloff": 1.5,
       "damageType": "kinetic",
+      "pellets": 1,
+      "spread": 0,
+      "salvo": 1,
       "tier": 1
     }
   },
@@ -151,6 +162,11 @@
       "blockKinetic": 0,
       "blockEnergy": 0,
       "intercept": null,
+      "grab": 1,
+      "scan": 0,
+      "stealth": 0,
+      "hpMul": 1,
+      "speedMul": 1,
       "tier": 1
     },
     "engineL": {
@@ -171,6 +187,11 @@
       "blockKinetic": 0,
       "blockEnergy": 0,
       "intercept": null,
+      "grab": 1,
+      "scan": 0,
+      "stealth": 0,
+      "hpMul": 1,
+      "speedMul": 1,
       "tier": 1
     },
     "shieldS": {
@@ -191,6 +212,11 @@
       "blockKinetic": 0,
       "blockEnergy": 0,
       "intercept": null,
+      "grab": 1,
+      "scan": 0,
+      "stealth": 0,
+      "hpMul": 1,
+      "speedMul": 1,
       "tier": 1
     },
     "radarS": {
@@ -211,6 +237,11 @@
       "blockKinetic": 0,
       "blockEnergy": 0,
       "intercept": null,
+      "grab": 1,
+      "scan": 0,
+      "stealth": 0,
+      "hpMul": 1,
+      "speedMul": 1,
       "tier": 1
     },
     "generatorS": {
@@ -231,6 +262,11 @@
       "blockKinetic": 0,
       "blockEnergy": 0,
       "intercept": null,
+      "grab": 1,
+      "scan": 0,
+      "stealth": 0,
+      "hpMul": 1,
+      "speedMul": 1,
       "tier": 1
     },
     "generatorL": {
@@ -251,6 +287,11 @@
       "blockKinetic": 0,
       "blockEnergy": 0,
       "intercept": null,
+      "grab": 1,
+      "scan": 0,
+      "stealth": 0,
+      "hpMul": 1,
+      "speedMul": 1,
       "tier": 1
     }
   },
@@ -289,7 +330,8 @@
           "S"
         ],
         "utilitySlots": 0,
-        "role": null
+        "role": null,
+        "perk": null
       },
       "power": 35,
       "output": 60
@@ -329,7 +371,8 @@
           "S"
         ],
         "utilitySlots": 0,
-        "role": null
+        "role": null,
+        "perk": null
       },
       "power": 40,
       "output": 60
@@ -369,7 +412,8 @@
           "M"
         ],
         "utilitySlots": 0,
-        "role": null
+        "role": null,
+        "perk": null
       },
       "power": 110,
       "output": 200
@@ -408,7 +452,8 @@
           "M"
         ],
         "utilitySlots": 0,
-        "role": null
+        "role": null,
+        "perk": null
       },
       "power": 10,
       "output": 60

@@ -81,6 +81,24 @@ public abstract class ShipEntity(int id, string name, string hullId, IReadOnlyLi
     public virtual InterceptParams? Guard(Balance balance) => null;
 
     /// <summary>
+    /// Радиус захвата груза (M19): базовый из loot.json, умноженный на особенность корпуса и грузовые захваты.
+    /// У NPC модулей нет, но особенность корпуса есть — «Тягач» повстанцев собирает поле так же широко.
+    /// </summary>
+    public virtual double GrabRange(Balance balance) =>
+        balance.Loot.PickupRange * Math.Min(Hull(balance.Hulls).Perk?.Grab ?? 1, Fitting.MaxGrab);
+
+    /// <summary>
+    /// С какого расстояния этот корабль видит контейнеры и обломки помимо радара (M19); 0 — только радаром.
+    /// </summary>
+    public virtual double ScanRange(Balance balance) => Hull(balance.Hulls).Perk?.Scan ?? 0;
+
+    /// <summary>
+    /// Во сколько раз ближе пират замечает этот корабль (M19): 1 — как всех, меньше — маскировка.
+    /// У NPC маскировки не бывает: она стоит в utility-слоте, а слоты есть только у пилота.
+    /// </summary>
+    public virtual double Stealth(Balance balance) => 1;
+
+    /// <summary>
     /// Тик, когда противоракетный комплекс снова готов. Одно поле, а не массив по слотам: комплекс
     /// оружейного слота не занимает, и работает на корабле только один.
     /// </summary>

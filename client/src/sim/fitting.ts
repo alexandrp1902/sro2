@@ -21,6 +21,12 @@ export const MAX_COOLING = 0.5;
 export const MAX_EVASION_BONUS = 12;
 /** Больше этого один вид урона не блокируется, % (M15.6). Зеркало Fitting.MaxBlock. */
 export const MAX_BLOCK = 40;
+/** Больше этого бронеплиты к корпусу не добавляют, долей (M19). Зеркало Fitting.MaxHullBonus. */
+export const MAX_HULL_BONUS = 0.3;
+/** Ниже этого плиты скорость не роняют (M19). Зеркало Fitting.MinSpeedFactor. */
+export const MIN_SPEED_FACTOR = 0.85;
+/** Больше этого радиус захвата не растёт (M19). Зеркало Fitting.MaxGrab. */
+export const MAX_GRAB = 4;
 
 /** Поля, которых нет в файле, — по умолчанию, как на сервере: множители 1, остальное 0. */
 export interface ModuleParams {
@@ -52,6 +58,15 @@ export interface ModuleParams {
   blockEnergy?: number;
   /** Вспомогательный (M15.6): противоракетный комплекс — сбивает ракеты, оружейного слота не занимая. */
   intercept?: InterceptParams | null;
+  /** Вспомогательный (M19): множитель радиуса захвата груза. */
+  grab?: number;
+  /** Вспомогательный (M19): с какого расстояния видно контейнеры и обломки помимо радара. */
+  scan?: number;
+  /** Вспомогательный (M19): насколько ближе пират замечает корабль, долей. */
+  stealth?: number;
+  /** Вспомогательный (M19): множители прочности корпуса и максимальной скорости — бронеплиты. */
+  hpMul?: number;
+  speedMul?: number;
   /** Тир Mk1–Mk3 (M11). */
   tier?: number;
 }
@@ -210,6 +225,24 @@ export function fitBlock(fit: ShipFit, modules: ModuleConfig | null, type: strin
   return Math.min(MAX_BLOCK, utilities(fit, modules).reduce((sum, m) => sum + (m[field] ?? 0), 0));
 }
 
+/** Множитель прочности от бронеплит (M19); не выше 1 + MAX_HULL_BONUS. Зеркало Fitting.HullFactor. */
+export function fitHullFactor(fit: ShipFit, modules: ModuleConfig | null): number {
+  const factor = utilities(fit, modules).reduce((f, m) => f * (m.hpMul ?? 1), 1);
+  return Math.min(factor, 1 + MAX_HULL_BONUS);
+}
+
+/** Множитель скорости от бронеплит (M19); не ниже MIN_SPEED_FACTOR. Зеркало Fitting.SpeedFactor. */
+export function fitSpeedFactor(fit: ShipFit, modules: ModuleConfig | null): number {
+  const factor = utilities(fit, modules).reduce((f, m) => f * (m.speedMul ?? 1), 1);
+  return Math.max(factor, MIN_SPEED_FACTOR);
+}
+
+/** Радиус захвата груза в единицах базового (M19): корпус и захваты перемножаются. Зеркало Fitting.Grab. */
+export function fitGrab(hull: HullParams, fit: ShipFit, modules: ModuleConfig | null): number {
+  const factor = utilities(fit, modules).reduce((f, m) => f * (m.grab ?? 1), hull.perk?.grab ?? 1);
+  return Math.min(factor, MAX_GRAB);
+}
+
 /** Лучший противоракетный комплекс на корабле; null — его нет. Работает только один. */
 export function fitGuard(fit: ShipFit, modules: ModuleConfig | null): InterceptParams | null {
   let best: InterceptParams | null = null;
@@ -243,9 +276,11 @@ export function effectiveHull(hull: HullParams, fit: ShipFit | null, modules: Mo
   const accel = engine?.accel ?? 1;
   return {
     ...hull,
-    maxSpeed: hull.maxSpeed * speed,
+    // Бронеплиты (M19) платят скоростью за прочность; разгон и торможение они не трогают.
+    maxSpeed: hull.maxSpeed * speed * fitSpeedFactor(fit, modules),
     acceleration: hull.acceleration * accel,
     brakeAcceleration: hull.brakeAcceleration * accel,
+    hp: hull.hp * fitHullFactor(fit, modules),
     shield: shield?.shield ?? 0,
     shieldRegen: shield?.shieldRegen ?? 0,
     radar: radar?.radar ?? hull.radar,
@@ -338,6 +373,11 @@ export function moduleLabel(m: ModuleParams): string {
       if (m.blockKinetic) parts.push(`блок кинетики ${m.blockKinetic} %`);
       if (m.blockEnergy) parts.push(`блок энергии ${m.blockEnergy} %`);
       if (m.intercept) parts.push(`сбивает ракеты ${m.intercept.chance} % в радиусе ${m.intercept.range}`);
+      if (m.grab && m.grab !== 1) parts.push(`захват груза ×${m.grab}`);
+      if (m.scan) parts.push(`видит контейнеры за ${m.scan}`);
+      if (m.stealth) parts.push(`пираты замечают на ${Math.round(m.stealth * 100)} % ближе`);
+      if (m.hpMul && m.hpMul !== 1) parts.push(`прочность +${Math.round((m.hpMul - 1) * 100)} %`);
+      if (m.speedMul && m.speedMul !== 1) parts.push(`скорость −${Math.round((1 - m.speedMul) * 100)} %`);
       return parts.join(' · ') + power;
     }
   }

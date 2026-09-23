@@ -53,6 +53,17 @@ public static class EquipClass
 /// Utility (M15.6): противоракетный комплекс. Сбивает ракеты и торпеды, как зенитка, но оружейного слота
 /// не занимает — поэтому перезарядка и урон у него свои, а не от пушки-хозяина.
 /// </param>
+/// <param name="Grab">Utility (M19): множитель радиуса захвата груза. С особенностью «Тягача» перемножается.</param>
+/// <param name="Scan">
+/// Utility (M19): с какого расстояния видно контейнеры и обломки, минуя радар. С особенностью «Циркуля»
+/// берётся большее из двух, а не сумма: две дальнозоркости — это не вдвое дальше.
+/// </param>
+/// <param name="Stealth">
+/// Utility (M19): насколько ближе пират замечает этот корабль, долей. 0.4 — на 40 % ближе.
+/// По рейнджерам и по другим пилотам не работает: маскировка от разбойников, а не от закона.
+/// </param>
+/// <param name="HpMul">Utility (M19): множитель прочности корпуса. Бронеплиты — 1.15.</param>
+/// <param name="SpeedMul">Utility (M19): множитель максимальной скорости. Бронеплиты — 0.95, это плата за прочность.</param>
 /// <param name="Tier">Тир Mk1–Mk3 (<see cref="Tiers"/>): в файле всегда 1, старшие тиры раскрываются при разборе.</param>
 public sealed record ModuleParams(
     string Name,
@@ -72,6 +83,11 @@ public sealed record ModuleParams(
     double BlockKinetic = 0,
     double BlockEnergy = 0,
     InterceptParams? Intercept = null,
+    double Grab = 1,
+    double Scan = 0,
+    double Stealth = 0,
+    double HpMul = 1,
+    double SpeedMul = 1,
     int Tier = 1)
 {
     public string? Validate()
@@ -85,6 +101,14 @@ public sealed record ModuleParams(
         // и смешивать их значило бы делать один слот вдвое важнее остальных.
         if (Slot != Fitting.UtilityKind && (Evasion > 0 || BlockKinetic > 0 || BlockEnergy > 0 || Intercept is not null))
             return "evasion, block and intercept belong to a utility module";
+        // То же и для новинок M19: захват, скан, маскировка и бронеплиты — вспомогательные модули.
+        if (Slot != Fitting.UtilityKind && (Grab != 1 || Scan > 0 || Stealth > 0 || HpMul != 1 || SpeedMul != 1))
+            return "grab, scan, stealth, hpMul and speedMul belong to a utility module";
+        if (!(Grab >= 1 && Grab <= 2)) return "grab must be within 1..2";
+        if (!(Scan == 0 || Scan is >= 500 and <= 6000)) return "scan must be 0 or within 500..6000";
+        if (!(Stealth >= 0 && Stealth <= Fitting.MaxStealth)) return $"stealth must be within 0..{Fitting.MaxStealth}";
+        if (!(HpMul >= 1 && HpMul <= 1.3)) return "hpMul must be within 1..1.3";
+        if (!(SpeedMul >= Fitting.MinSpeedFactor && SpeedMul <= 1)) return $"speedMul must be within {Fitting.MinSpeedFactor}..1";
         if (Intercept?.ValidateStandalone() is { } intercept) return $"intercept: {intercept}";
         return Slot switch
         {
@@ -98,8 +122,9 @@ public sealed record ModuleParams(
                 $"evasion must be within 0..{Fitting.MaxEvasionBonus}",
             Fitting.UtilityKind when !(BlockKinetic >= 0 && BlockKinetic <= Fitting.MaxBlock) || !(BlockEnergy >= 0 && BlockEnergy <= Fitting.MaxBlock) =>
                 $"blockKinetic and blockEnergy must be within 0..{Fitting.MaxBlock}",
-            Fitting.UtilityKind when !(Repair > 0 || Cooling > 0 || Cargo > 0 || Evasion > 0 || BlockKinetic > 0 || BlockEnergy > 0 || Intercept is not null) =>
-                "a utility module must repair, cool, add cargo, evade, block or intercept",
+            Fitting.UtilityKind when !(Repair > 0 || Cooling > 0 || Cargo > 0 || Evasion > 0 || BlockKinetic > 0 || BlockEnergy > 0 ||
+                Intercept is not null || Grab > 1 || Scan > 0 || Stealth > 0 || HpMul > 1) =>
+                "a utility module must repair, cool, add cargo, evade, block, intercept, grab, scan, hide or armour",
             _ => null,
         };
     }
@@ -228,6 +253,21 @@ public static class Fitting
     /// </summary>
     public const double MaxBlock = 40;
 
+    /// <summary>
+    /// Больше этого бронеплиты к корпусу не добавляют, долей (M19). Причина та же, что у уклонения:
+    /// три Mk3-плиты в трёх слотах дали бы «Галеону» +45 % прочности, и крепкий грузовик стал бы неубиваемым.
+    /// </summary>
+    public const double MaxHullBonus = 0.3;
+
+    /// <summary>Ниже этого скорость плитами не роняют (M19): корабль должен оставаться кораблём, а не мишенью.</summary>
+    public const double MinSpeedFactor = 0.85;
+
+    /// <summary>Больше этого радиус захвата не растёт (M19): «Тягач» с двумя захватами уже собирает поле, не сходя с места.</summary>
+    public const double MaxGrab = 4;
+
+    /// <summary>Больше этого маскировка не прячет, долей (M19): пират должен уметь найти цель, если подлетел вплотную.</summary>
+    public const double MaxStealth = 0.6;
+
     /// <summary>Вид вспомогательного модуля: встаёт в любой utility-слот u0…u2.</summary>
     public const string UtilityKind = "utility";
 
@@ -292,9 +332,12 @@ public static class Fitting
         var accel = engine?.Accel ?? 1;
         return hull with
         {
-            MaxSpeed = hull.MaxSpeed * speed,
+            // Бронеплиты (M19) платят скоростью за прочность: разгон и торможение они не трогают —
+            // корабль остаётся отзывчивым, просто не разгоняется так, как раньше.
+            MaxSpeed = hull.MaxSpeed * speed * SpeedFactor(fit, modules),
             Acceleration = hull.Acceleration * accel,
             BrakeAcceleration = hull.BrakeAcceleration * accel,
+            Hp = hull.Hp * HullFactor(fit, modules),
             Shield = shield?.Shield ?? 0,
             ShieldRegen = shield?.ShieldRegen ?? 0,
             Radar = radar?.Radar ?? hull.Radar,
@@ -315,6 +358,55 @@ public static class Fitting
     /// <summary>Ремонт корпуса в секунду от ремонтных блоков (M11).</summary>
     public static double Repair(ShipFit fit, IReadOnlyDictionary<string, ModuleParams>? modules) =>
         Utilities(fit, modules).Sum(m => m.Repair);
+
+    /// <summary>Множитель прочности от бронеплит (M19); не выше 1 + <see cref="MaxHullBonus"/>.</summary>
+    public static double HullFactor(ShipFit fit, IReadOnlyDictionary<string, ModuleParams>? modules)
+    {
+        var factor = 1.0;
+        foreach (var m in Utilities(fit, modules)) factor *= m.HpMul;
+        return Math.Min(factor, 1 + MaxHullBonus);
+    }
+
+    /// <summary>Множитель скорости от бронеплит (M19); не ниже <see cref="MinSpeedFactor"/>.</summary>
+    public static double SpeedFactor(ShipFit fit, IReadOnlyDictionary<string, ModuleParams>? modules)
+    {
+        var factor = 1.0;
+        foreach (var m in Utilities(fit, modules)) factor *= m.SpeedMul;
+        return Math.Max(factor, MinSpeedFactor);
+    }
+
+    /// <summary>
+    /// Множитель радиуса захвата от грузовых захватов и особенности корпуса (M19); не выше <see cref="MaxGrab"/>.
+    /// Модули и корпус перемножаются: «Тягач» с захватом собирает поле вдвое шире, чем «Тягач» без него.
+    /// </summary>
+    public static double Grab(HullParams hull, ShipFit fit, IReadOnlyDictionary<string, ModuleParams>? modules)
+    {
+        var factor = hull.Perk?.Grab ?? 1;
+        foreach (var m in Utilities(fit, modules)) factor *= m.Grab;
+        return Math.Min(factor, MaxGrab);
+    }
+
+    /// <summary>
+    /// С какого расстояния видно контейнеры и обломки (M19); 0 — только радаром. Корпус и модуль не
+    /// складываются, берётся больший: две дальнозоркости — это не вдвое дальше.
+    /// </summary>
+    public static double Scan(HullParams hull, ShipFit fit, IReadOnlyDictionary<string, ModuleParams>? modules)
+    {
+        var range = hull.Perk?.Scan ?? 0;
+        foreach (var m in Utilities(fit, modules)) range = Math.Max(range, m.Scan);
+        return range;
+    }
+
+    /// <summary>
+    /// Во сколько раз ближе пират замечает этот корабль (M19): 1 — как всех, 0.6 — на 40 % ближе.
+    /// Маскировки не складываются — берётся лучшая: второй такой же модуль пользы не даёт.
+    /// </summary>
+    public static double Stealth(ShipFit fit, IReadOnlyDictionary<string, ModuleParams>? modules)
+    {
+        var best = 0.0;
+        foreach (var m in Utilities(fit, modules)) best = Math.Max(best, m.Stealth);
+        return 1 - Math.Min(best, MaxStealth);
+    }
 
     /// <summary>Прибавка к уклонению от маневровых дюз, % (M15.6); не выше <see cref="MaxEvasionBonus"/>.</summary>
     public static double EvasionBonus(ShipFit fit, IReadOnlyDictionary<string, ModuleParams>? modules) =>

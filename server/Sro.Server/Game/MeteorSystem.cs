@@ -178,15 +178,16 @@ internal sealed class MeteorSystem(Func<int> nextId, Random rng)
                 best = distanceSq;
                 hit = ship;
             }
-            if (hit is not null) Ram(meteor, hit, balance.Meteors, tick, shots);
+            if (hit is not null) Ram(meteor, hit, balance, tick, shots);
         }
     }
 
     private static bool CanBeRammed(ShipEntity ship, long tick) =>
         ship is not Meteor && !ship.IsDead && !ship.IsProtected(tick) && ship is not Player { Connection: null };
 
-    private static void Ram(Meteor meteor, ShipEntity ship, MeteorRules rules, long tick, List<ShotDto> shots)
+    private static void Ram(Meteor meteor, ShipEntity ship, Balance balance, long tick, List<ShotDto> shots)
     {
+        var rules = balance.Meteors;
         // Скорость сближения вдоль линии центров: лоб в лоб — больше скорости камня, вдогонку — меньше.
         var dx = ship.Ship.X - meteor.Ship.X;
         var dy = ship.Ship.Y - meteor.Ship.Y;
@@ -195,6 +196,9 @@ internal sealed class MeteorSystem(Func<int> nextId, Random rng)
             ? ((meteor.Ship.Vx - ship.Ship.Vx) * dx + (meteor.Ship.Vy - ship.Ship.Vy) * dy) / distance
             : meteor.Speed * rules.RamMaxFactor;
         var damage = meteor.Size.RamDamage * rules.RamFactor(closing, meteor.Speed);
+        // Особенность «Тягача» (M19): бампер держит удар, кораблю не достаётся. Камень при этом всё равно
+        // разбивается и засчитывается — иначе расчистить поле тараном было бы нельзя, а ради этого он и нужен.
+        if (ship.Hull(balance.Hulls).Perk?.Ram == true) damage = 0;
 
         var dealt = Combat.ApplyDamage(ref ship.Hp, ref ship.Shield, damage);
         ship.LastDamageTick = tick;

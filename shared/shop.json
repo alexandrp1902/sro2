@@ -17,6 +17,16 @@
     // если продал, а не купить вместо «Мула» — тот и есть первая покупка торговца.
     "starterTrader": 1500,
     "scout": 2500,
+    // Флот пачки J (M19): роль важнее цены — курьер, сборщик, разведчик, штурмовик, грузовики, снайпер.
+    "needle": 4000,
+    "tug": 6000,
+    "surveyor": 7500,
+    "corsair": 11000,
+    "clipper": 16000,
+    "runner": 20000,
+    "lancer": 24000,
+    "dropship": 30000,
+    "galleon": 45000,
     "medium": 3000,
     "industrial": 5000,
     "interceptor": 9000,
@@ -35,6 +45,9 @@
     "ion": 2200,
     "pointDefense": 900,
     "railgun": 6000,
+    "shotgun": 900,
+    "gauss": 3200,
+    "salvo": 9000,
     "torpedoes": 7000,
     "engineS": 200,
     "engineM": 1500,
@@ -56,7 +69,11 @@
     "thrusters": 1400,
     "dustCloud": 1600,
     "reactiveArmor": 1800,
-    "antiMissile": 2600
+    "antiMissile": 2600,
+    "grapple": 1400,
+    "deepScanner": 1800,
+    "cloak": 2400,
+    "armorPlate": 2000
   },
 
   // Тариф буксира (M15.6): перегон своего корпуса из другого дока сюда.
@@ -78,31 +95,39 @@
   "regions": {
     "core": {
       "tiers": [1, 2],
-      "hulls": ["light", "scout", "medium", "industrial"],
+      "hulls": ["light", "scout", "medium", "industrial", "needle", "tug"],
       "items": [
-        "pulse", "laser", "cannon", "missiles",
+        "pulse", "laser", "cannon", "missiles", "shotgun",
         "engineS", "engineM", "shieldS", "shieldM", "radarS", "radarM",
-        "generatorS", "generatorM", "cargoPod", "repair", "thrusters"
+        "generatorS", "generatorM", "cargoPod", "repair", "thrusters", "grapple"
       ]
     },
     "frontier": {
       "tiers": [1, 2],
-      "hulls": ["scout", "medium", "industrial", "interceptor", "heavy", "frigate"],
+      "hulls": [
+        "scout", "medium", "industrial", "interceptor", "heavy", "frigate",
+        "tug", "surveyor", "corsair", "clipper", "runner"
+      ],
       "items": [
         "pulse", "laser", "cannon", "plasma", "missiles", "heavyLaser", "ion", "pointDefense",
+        "shotgun", "gauss",
         "engineM", "engineL", "afterburnerM", "shieldM", "shieldL", "radarM", "radarL",
         "generatorM", "generatorL", "cargoPod", "repair", "cooling",
-        "thrusters", "dustCloud", "antiMissile"
+        "thrusters", "dustCloud", "antiMissile", "grapple", "deepScanner", "cloak"
       ]
     },
     "rim": {
       "tiers": [2, 3],
-      "hulls": ["interceptor", "heavy", "frigate", "freighter", "cruiser"],
+      "hulls": [
+        "interceptor", "heavy", "frigate", "freighter", "cruiser",
+        "runner", "lancer", "galleon"
+      ],
       "items": [
         "plasma", "heavyLaser", "missiles", "ion", "pointDefense", "railgun", "torpedoes",
+        "gauss", "salvo",
         "engineL", "afterburnerL", "shieldL", "radarL", "generatorL",
         "cargoPod", "repair", "cooling",
-        "dustCloud", "reactiveArmor", "antiMissile"
+        "dustCloud", "reactiveArmor", "antiMissile", "cloak", "armorPlate"
       ]
     }
   },
@@ -110,26 +135,28 @@
   // Личные отличия мест: что добавили, чего нет и как плавают цены.
   // Ключ — место (M15): «st:<система>» — станция, «pl:<планета>» — поселение.
   "places": {
-    "st:sol": { "title": "Торговый порт Сол" },
+    // Дробовик держат в Соле: он дешёвый, бьёт в упор и попадается новичку первым (M19).
+    "st:sol": { "title": "Торговый порт Сол", "items": ["shotgun"] },
     "st:vega": { "title": "Верфь Веги", "items": ["heavyLaser"], "price": 1.05 },
     "st:alphaCen": { "title": "Причал Альфы", "remove": ["cannon"], "price": 0.92 },
     "st:castor": { "title": "Шахтёрский склад Кастора", "hulls": ["freighter"], "items": ["cargoPod"], "price": 0.95 },
-    "st:nova": { "title": "Военная станция Нова", "items": ["railgun", "reactiveArmor"], "price": 1.1 },
-    "st:barnard": { "title": "Пост рейнджеров Барнарда", "items": ["pointDefense", "ion", "repair", "antiMissile"], "price": 1.05 },
-    "st:aldebaran": { "title": "Крепость Альдебарана", "items": ["torpedoes"], "price": 1.12 },
-    "st:epsilon": { "title": "Вольная гавань Эпсилона", "hulls": ["cruiser"], "price": 1.15 },
+    // «Десант» в региональные списки не попадает вовсе: его продают только военные — здесь и в Эпсилоне.
+    "st:nova": { "title": "Военная станция Нова", "hulls": ["dropship"], "items": ["railgun", "reactiveArmor", "armorPlate"], "price": 1.1 },
+    "st:barnard": { "title": "Пост рейнджеров Барнарда", "items": ["pointDefense", "ion", "repair", "antiMissile", "deepScanner"], "price": 1.05 },
+    "st:aldebaran": { "title": "Крепость Альдебарана", "items": ["torpedoes", "salvo"], "price": 1.12 },
+    "st:epsilon": { "title": "Вольная гавань Эпсилона", "hulls": ["cruiser", "dropship"], "price": 1.15 },
 
     // Поселения (M15). На поверхности снаряжение дешевле, чем на орбите, но выбор беднее: чинят
     // везде, а корпуса продают лишь там, где верфь (см. settlement.shipyard в galaxy.json).
     "pl:terra": { "title": "Порт Новый Порт", "hulls": ["starterTrader"], "price": 0.95 },
     "pl:vegaOne": { "title": "Склад Ледяной Веги", "remove": ["heavyLaser"], "price": 0.93 },
     "pl:alphaTwo": { "title": "Лавка Купола Альфы", "remove": ["cannon"], "price": 0.9 },
-    "pl:tauPrima": { "title": "Верфь Пыльной Гавани", "hulls": ["industrial"], "items": ["cargoPod"], "price": 0.97 },
+    "pl:tauPrima": { "title": "Верфь Пыльной Гавани", "hulls": ["industrial", "tug"], "items": ["cargoPod", "grapple"], "price": 0.97 },
     "pl:novaGiant": { "title": "Причал Нова-Один", "items": ["cargoPod"], "price": 1.02 },
     "pl:castorOre": { "title": "Контора Рудника", "items": ["cargoPod"], "price": 0.92 },
     "pl:barnardGarden": { "title": "Лавка Оранжереи", "items": ["repair"], "price": 1.0 },
     "pl:sigmaIce": { "title": "Верфь Мороза", "hulls": ["freighter"], "items": ["cooling"], "price": 1.05 },
     "pl:aldPyre": { "title": "Плавильня", "items": ["railgun", "reactiveArmor"], "price": 1.08 },
-    "pl:edgeAsh": { "title": "Верфь Пепельного Приюта", "hulls": ["frigate"], "items": ["torpedoes"], "price": 1.1 }
+    "pl:edgeAsh": { "title": "Верфь Пепельного Приюта", "hulls": ["frigate", "galleon"], "items": ["torpedoes"], "price": 1.1 }
   }
 }

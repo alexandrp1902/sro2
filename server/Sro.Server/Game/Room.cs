@@ -1525,7 +1525,7 @@ public sealed partial class Room
     {
         var loot = Balance.Loot;
         var capacity = ship.Hull(Hulls).Cargo;
-        if (ship.LootId != 0 && _loot.TryScavenge(ship, ship.LootId, loot, capacity))
+        if (ship.LootId != 0 && _loot.TryScavenge(ship, ship.LootId, loot, capacity, ship.GrabRange(Balance)))
         {
             _log.LogInformation("{Ship} picked up loot, hold {Used}", ship, ship.Hold.Used(loot));
             ship.LootId = 0;
@@ -1787,7 +1787,14 @@ public sealed partial class Room
             var range2 = range * range;
             var cx = player.Ship.X;
             var cy = player.Ship.Y;
-            var frame = player.View.Encode(world, player.Id, (x, y) => (x - cx) * (x - cx) + (y - cy) * (y - cy) <= range2);
+            bool Visible(double x, double y) => (x - cx) * (x - cx) + (y - cy) * (y - cy) <= range2;
+            // Груз виден дальше кораблей, если есть чем смотреть (M19): особенность «Циркуля» или сканер.
+            // Это про контейнеры и обломки, а не про корабли: пиратов из-за угла скан не показывает.
+            var scan = player.ScanRange(Balance);
+            var scan2 = scan * scan;
+            var frame = scan > range
+                ? player.View.Encode(world, player.Id, Visible, (x, y) => (x - cx) * (x - cx) + (y - cy) * (y - cy) <= scan2)
+                : player.View.Encode(world, player.Id, Visible);
             if (!connection.SendFrame(frame)) player.View.Reset(); // кадр выброшен — следующий должен быть ключевым
         }
     }
@@ -1925,7 +1932,7 @@ public sealed partial class Room
         if (!_byConnection.TryGetValue(connection.Id, out var player) || player.IsDead) return;
         if (player.SelectedLootId == 0) return;
 
-        switch (_loot.TryGrab(player, player.SelectedLootId, Balance.Loot, player.Effective(Balance).Cargo, Tick))
+        switch (_loot.TryGrab(player, player.SelectedLootId, Balance.Loot, player.Effective(Balance).Cargo, player.GrabRange(Balance), Tick))
         {
             case LootSystem.GrabResult.Taken:
                 player.SelectedLootId = 0;

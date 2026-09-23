@@ -351,6 +351,70 @@
     "w": 213,
     "h": 256
   },
+  "ships-needle": {
+    "w": 79,
+    "h": 256
+  },
+  "ships-tug": {
+    "w": 192,
+    "h": 256
+  },
+  "ships-surveyor": {
+    "w": 248,
+    "h": 256
+  },
+  "ships-corsair": {
+    "w": 243,
+    "h": 256
+  },
+  "ships-clipper": {
+    "w": 239,
+    "h": 256
+  },
+  "ships-runner": {
+    "w": 110,
+    "h": 256
+  },
+  "ships-lancer": {
+    "w": 244,
+    "h": 256
+  },
+  "ships-dropship": {
+    "w": 254,
+    "h": 256
+  },
+  "ships-galleon": {
+    "w": 122,
+    "h": 256
+  },
+  "weapons-shotgun": {
+    "w": 128,
+    "h": 106
+  },
+  "weapons-gauss": {
+    "w": 128,
+    "h": 105
+  },
+  "weapons-salvo": {
+    "w": 128,
+    "h": 125
+  },
+  "modules-grapple": {
+    "w": 127,
+    "h": 128
+  },
+  "modules-deep-scanner": {
+    "w": 124,
+    "h": 128
+  },
+  "modules-cloak": {
+    "w": 127,
+    "h": 128
+  },
+  "modules-armor-plate": {
+    "w": 128,
+    "h": 116
+  },
   "planets-barren": {
     "w": 512,
     "h": 509

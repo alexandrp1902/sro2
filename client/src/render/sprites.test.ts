@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { hasSprite, moduleSprite, weaponSprite } from './sprites';
+import { hasSprite, moduleSprite, shipSprite, weaponSprite } from './sprites';
 
 /**
  * Таблицы имён картинок и нарезка живут порознь: имя пишется руками в sprites.ts, а файл появляется из
@@ -8,8 +8,11 @@ import { hasSprite, moduleSprite, weaponSprite } from './sprites';
  */
 describe('sprite names', () => {
   it('finds a picture for every module that should have one', () => {
-    // Защита M15.6 (арт пачки F) и остальные модули со своей иконкой.
-    for (const id of ['thrusters', 'dustCloud', 'reactiveArmor', 'antiMissile', 'repair', 'cooling', 'cargoPod', 'radarL']) {
+    // Защита M15.6 (арт пачки F), флот M19 (пачка K) и остальные модули со своей иконкой.
+    for (const id of [
+      'thrusters', 'dustCloud', 'reactiveArmor', 'antiMissile', 'repair', 'cooling', 'cargoPod', 'radarL',
+      'grapple', 'deepScanner', 'cloak', 'armorPlate',
+    ]) {
       expect(moduleSprite('utility', id), id).not.toBeNull();
     }
     // Тир на картинку не влияет: Mk2 рисуется значком, а не своим спрайтом.
@@ -23,8 +26,18 @@ describe('sprite names', () => {
   });
 
   it('finds a picture for every weapon', () => {
-    for (const id of ['pulse', 'laser', 'cannon', 'heavyLaser', 'railgun', 'ion', 'pointDefense', 'torpedoes', 'missiles']) {
+    for (const id of [
+      'pulse', 'laser', 'cannon', 'heavyLaser', 'railgun', 'ion', 'pointDefense', 'torpedoes', 'missiles',
+      'shotgun', 'gauss', 'salvo',
+    ]) {
       expect(weaponSprite(id), id).not.toBeNull();
+    }
+  });
+
+  it('finds a picture for every hull of the fleet', () => {
+    // Спрайт корпуса ищется по соглашению ships-<id>, без таблицы: опечатка в id тихо подставила бы «Пчелу».
+    for (const id of ['starterTrader', 'needle', 'tug', 'surveyor', 'corsair', 'clipper', 'runner', 'lancer', 'dropship', 'galleon']) {
+      expect(shipSprite(id), id).toBe(`ships-${id}`);
     }
   });
 

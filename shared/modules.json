@@ -24,6 +24,11 @@
   "thrusters": { "name": "Маневровые дюзы", "slot": "utility", "class": "S", "power": 6, "evasion": 6 },
   "dustCloud": { "name": "Аэрозольная завеса", "slot": "utility", "class": "S", "power": 8, "blockEnergy": 20 },
   "reactiveArmor": { "name": "Динамическая защита", "slot": "utility", "class": "S", "power": 10, "blockKinetic": 20 },
+  "grapple": { "name": "Грузовой захват", "slot": "utility", "class": "S", "power": 8, "grab": 1.6 },
+  "deepScanner": { "name": "Сканер дальнего поля", "slot": "utility", "class": "S", "power": 14, "scan": 4000 },
+  "cloak": { "name": "Маскировка", "slot": "utility", "class": "S", "power": 16, "stealth": 0.4 },
+  "armorPlate": { "name": "Бронеплиты", "slot": "utility", "class": "S", "power": 6, "hpMul": 1.15, "speedMul": 0.95 },
+
   "antiMissile": {
     "name": "Противоракетный комплекс", "slot": "utility", "class": "S", "power": 14,
     "intercept": { "range": 500, "chance": 45, "cooldown": 1.2, "damage": 60 }

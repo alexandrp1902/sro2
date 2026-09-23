@@ -38,6 +38,7 @@ import type { HullParams } from '../sim/movement';
 import { activeHint, activeLine, offerNote, offerTitle, timeLeft, type MissionNames } from '../sim/missions';
 import { lootItem, rarityColor, type LootRules } from '../sim/loot';
 import { NO_MARKET, affordable, rumourLine, stockLevel, tradeCost, trend, type MarketRules } from '../sim/market';
+import { staffOf, type StaffRole } from '../sim/staff';
 import {
   NO_REP,
   allowsLevel,
@@ -106,23 +107,25 @@ export function placeKind(key: string | null | undefined): Place {
   return key?.startsWith('pl:') ? 'planet' : 'station';
 }
 
-/** Сцена слева на ПК: у каждой вкладки своё место в доке и свой собеседник. */
+/**
+ * Сцена слева на ПК: у каждой вкладки своё место в доке и свой собеседник. Кто он и что говорит —
+ * у каждого места своё (sim/staff.ts): диспетчер «Веги» не тот, что в «Касторе».
+ */
 interface Scene {
   /** Имя картинки фона: public/dock/{place}-{art}.webp. */
   art: string;
-  /** Кто говорит в подписи; пусто — подписи нет. */
-  who: string;
-  line: string;
+  /** Кто говорит в подписи; нет — подписи нет. */
+  who: StaffRole | null;
   /** Показывать ли свой корабль поверх фона. */
   ship: boolean;
 }
 
 const SCENES: Record<Tab, Scene> = {
-  missions: { art: 'office', who: 'Диспетчер', line: 'Работа есть всегда. Вопрос — насколько вы готовы рискнуть.', ship: false },
-  cargo: { art: 'trader', who: 'Торговец', line: 'Товар берут там, где его нет. Остальное — арифметика.', ship: false },
-  hulls: { art: 'shipyard', who: 'Мастер верфи', line: 'Корпус выбирают под задачу, а не под мечту.', ship: true },
-  ships: { art: 'hangar', who: 'Мастер ангара', line: 'Корабли стоят там, где вы их оставили.', ship: true },
-  fitting: { art: 'hangar', who: '', line: '', ship: true },
+  missions: { art: 'office', who: 'missions', ship: false },
+  cargo: { art: 'trader', who: 'cargo', ship: false },
+  hulls: { art: 'shipyard', who: 'hulls', ship: true },
+  ships: { art: 'hangar', who: 'ships', ship: true },
+  fitting: { art: 'hangar', who: null, ship: true },
 };
 
 /**
@@ -730,10 +733,11 @@ export class DockScreen {
       view.append(ship);
     }
     if (scene.who) {
+      const person = staffOf(this.staffSeed(), scene.who);
       const caption = el('div', 'dock-scene-caption');
       // Торговец вместо приветствия рассказывает, что слышал: подсказка ценнее вежливости.
-      const line = this.tab === 'cargo' ? (this.rumour() ?? scene.line) : scene.line;
-      caption.append(el('div', 'dock-scene-who sro-label', scene.who), el('div', 'dock-scene-line', line));
+      const line = this.tab === 'cargo' ? (this.rumour() ?? person.line) : person.line;
+      caption.append(el('div', 'dock-scene-who sro-label', `${person.name} · ${person.role}`), el('div', 'dock-scene-line', line));
       view.append(caption);
     }
     return view;
@@ -827,7 +831,12 @@ export class DockScreen {
     const rules = this.loot;
     const first = this.quotes?.rumours?.[0];
     if (!rules || !first) return null;
-    return rumourLine(first, lootItem(rules, first.good)?.name ?? first.good);
+    return rumourLine(first, lootItem(rules, first.good)?.name ?? first.good, this.staffSeed());
+  }
+
+  /** Чьи люди встречают в доке: ключ места, а пока его нет — имя станции. */
+  private staffSeed(): string {
+    return this.placeKey ?? this.station;
   }
 
   /** Рынок станции (M12): в одном списке и покупка, и продажа. */
@@ -853,7 +862,7 @@ export class DockScreen {
     // Та же реплика торговца, что стоит под его картинкой, — для телефона, где сцены нет совсем.
     // На широком экране её прячет CSS тем же брейкпоинтом, которым показывает сцену: дважды не повторяем.
     const rumour = this.rumour();
-    if (rumour) body.append(el('div', 'dock-rumour', rumour));
+    if (rumour) body.append(el('div', 'dock-rumour', `${staffOf(this.staffSeed(), 'cargo').name}: ${rumour}`));
 
     // Быстрая продажа — первым делом: с полным трюмом в док заходят чаще, чем за покупками.
     // Две кнопки в ряд (M16a): ресурсы и модули продаются отдельно, чтобы за модулями не ходить
@@ -1377,8 +1386,17 @@ export function hullSlotViews(hull: HullParams, modules: boolean): SlotView[] {
 /** Строка характеристик пушки на витрине: класс, урон, темп, точность (у ракетницы — самонаведение), дальность, энергия. */
 export function weaponLabel(weapon: WeaponParams): string {
   const aim = weapon.missile ? 'самонаведение' : `точность ${weapon.accuracy}%`;
-  const parts = [`урон ${weapon.damage}`, `раз в ${weapon.cooldown} с`, aim, `дальность ${weapon.maxRange}`];
+  // Дробовик и залп (M19): в файле damage — за дробину и за ракету, и написать одно это число значило бы
+  // соврать вчетверо. Пишем «5 × 38», чтобы витрина показывала то, что на самом деле уходит за нажатие.
+  const shots = (weapon.pellets ?? 1) * (weapon.salvo ?? 1);
+  const damage = shots > 1 ? `урон ${shots} × ${weapon.damage}` : `урон ${weapon.damage}`;
+  const parts = [damage, `раз в ${weapon.cooldown} с`, aim, `дальность ${weapon.maxRange}`];
   if (weapon.class) parts.unshift(weapon.class);
+  if (weapon.pellets && weapon.pellets > 1) parts.push('веером');
+  if (weapon.salvo && weapon.salvo > 1) parts.push('залпом');
+  // Гаусс и ионка (M19): множители меняют роль пушки сильнее, чем её урон, и в строке им место.
+  if (weapon.shieldFactor !== undefined && weapon.shieldFactor !== 1) parts.push(`по щиту ×${weapon.shieldFactor}`);
+  if (weapon.hullFactor !== undefined && weapon.hullFactor !== 1) parts.push(`по корпусу ×${weapon.hullFactor}`);
   if (weapon.power) parts.push(`энергия ${weapon.power}`);
   return parts.join(' · ');
 }

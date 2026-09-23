@@ -35,6 +35,19 @@ export interface WeaponParams {
   missile?: MissileParams | null;
   /** Вид урона (M15.6): от него зависит, какая защита цели может попадание отбить. Нет — кинетика. */
   damageType?: string;
+  /** Множители урона по щиту и по корпусу (ион, гаусс M19); нет — по 1. */
+  shieldFactor?: number;
+  hullFactor?: number;
+  /** Дробовик (M19): сколько дробин за нажатие и на сколько градусов расходится веер. Нет — одна. */
+  pellets?: number;
+  spread?: number;
+  /** Ракетный залп (M19): сколько ракет уходит за выстрел. Нет — одна. */
+  salvo?: number;
+}
+
+/** Урон за одно нажатие: у дробовика он весь веер, у залпа — весь залп. Для витрины и карточки цели. */
+export function volleyDamage(weapon: WeaponParams): number {
+  return weapon.damage * (weapon.pellets ?? 1) * (weapon.salvo ?? 1);
 }
 
 /**

@@ -251,14 +251,15 @@ internal sealed class LootSystem(Func<int> nextId, Random rng, ILogger log)
     }
 
     /// <summary>Корабль подлетел к грузу — луч забирает его в трюм; все видят луч, как у пилота.</summary>
+    /// <param name="range">Радиус захвата этого корабля (M19): у «Тягача» он вдвое шире обычного.</param>
     /// <returns>true — забрал.</returns>
-    public bool TryScavenge<T>(T ship, int lootId, LootRules loot, double capacity)
+    public bool TryScavenge<T>(T ship, int lootId, LootRules loot, double capacity, double range)
         where T : ShipEntity, IScavenger
     {
         var index = _drops.FindIndex(d => d.Id == lootId);
         if (index < 0) return false;
         var drop = _drops[index];
-        if (Math.Sqrt(Sq(ship.Ship.X - drop.X) + Sq(ship.Ship.Y - drop.Y)) > loot.PickupRange) return false;
+        if (Math.Sqrt(Sq(ship.Ship.X - drop.X) + Sq(ship.Ship.Y - drop.Y)) > range) return false;
         if (loot.IsGear(drop.Item) || !ship.Hold.Fits(drop.Item, drop.Count, capacity, loot)) return false;
         ship.Hold.Add(drop.Item, drop.Count);
         _drops.RemoveAt(index);
@@ -281,11 +282,13 @@ internal sealed class LootSystem(Func<int> nextId, Random rng, ILogger log)
     /// пометил, и только когда тот подлетел ближе PickupRange.
     /// </summary>
     /// <param name="capacity">Трюм корпуса с модулями: грузовой расширитель (M11) его увеличивает.</param>
+    /// <param name="range">Радиус захвата: корпус и грузовые захваты его расширяют (M19).</param>
     public GrabResult TryGrab(
         Player player,
         int lootId,
         LootRules loot,
         double capacity,
+        double range,
         long tick)
     {
         var index = _drops.FindIndex(d => d.Id == lootId);
@@ -293,7 +296,7 @@ internal sealed class LootSystem(Func<int> nextId, Random rng, ILogger log)
 
         var drop = _drops[index];
         var distance = Math.Sqrt(Sq(player.Ship.X - drop.X) + Sq(player.Ship.Y - drop.Y));
-        if (distance > loot.PickupRange) return GrabResult.TooFar;
+        if (distance > range) return GrabResult.TooFar;
         // Трофей едет домой в трюме и занимает место наравне с грузом: на склад он переезжает в доке.
         if (!player.Cargo.Fits(drop.Item, drop.Count, capacity, loot)) return GrabResult.NoRoom;
 

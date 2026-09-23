@@ -61,6 +61,9 @@ public sealed record WeaponParams(
     double BlastShare = 0,
     double BlastFalloff = 1.5,
     string DamageType = DamageTypes.Kinetic,
+    int Pellets = 1,
+    double Spread = 0,
+    int Salvo = 1,
     int Tier = 1)
 {
     [System.Text.Json.Serialization.JsonIgnore] public int SlowTicks => Combat.SecondsToTicks(SlowSeconds);
@@ -73,6 +76,12 @@ public sealed record WeaponParams(
     public string Hits => Missile is not null ? DamageTypes.Missile : DamageType;
 
     public const string MissileKind = "missile";
+
+    /// <summary>Больше дробин за нажатие не бывает: каждая — свой бросок, свой урон и своя строка в ленте.</summary>
+    public const int MaxPellets = 8;
+
+    /// <summary>Больше ракет в залпе не бывает: каждая летит и сбивается сама.</summary>
+    public const int MaxSalvo = 6;
 
     /// <returns>Описание ошибки или null, если параметры годятся.</returns>
     public string? Validate()
@@ -104,6 +113,14 @@ public sealed record WeaponParams(
         // Вид «ракета» в файле не пишут: одна правда — сам блок missile. Иначе можно было бы описать
         // ракетницу, которую отбивает броня, и такую же ракету, которую нет.
         if (DamageType == DamageTypes.Missile) return "damageType 'missile' is implied by the missile block, not written";
+        // Дробовик и залп (M19): damage у них — за одну дробину и за одну ракету, иначе тиры Mk2/Mk3
+        // (они умножают только damage) множили бы урон дважды.
+        if (Pellets is < 1 or > MaxPellets) return $"pellets must be within 1..{MaxPellets}";
+        if (!(Spread >= 0 && Spread <= 45)) return "spread must be within 0..45";
+        if (Spread > 0 && Pellets < 2) return "spread without pellets does nothing";
+        if (Pellets > 1 && Missile is not null) return "a missile launcher does not fire pellets";
+        if (Salvo is < 1 or > MaxSalvo) return $"salvo must be within 1..{MaxSalvo}";
+        if (Salvo > 1 && Missile is null) return "salvo needs a missile block";
         return null;
     }
 }
