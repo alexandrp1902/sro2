@@ -158,6 +158,21 @@ function spiralKey(own: { x: number; y: number }, item: TargetCandidate, ring: n
  * Список закольцован: после последнего снова первый, перед первым — последний.
  * Ничего не выделено — берём ближайший объект, а дальше идём по спирали от него.
  */
+/**
+ * Tab (M17b): всегда ближайшая цель. Идёт бой — ближайший враг; никто не нападает или врагов нет —
+ * ближайшее, что есть вообще: корабль, камень или предмет. Если ближайшее уже в прицеле, вызывающий
+ * шагает дальше по кольцу (cycle), иначе повторный Tab ничего бы не делал.
+ */
+export function pickNearest(
+  own: { x: number; y: number },
+  foes: Iterable<TargetCandidate>,
+  everything: Iterable<TargetCandidate>,
+  inCombat: boolean,
+): number | null {
+  const foe = inCombat ? nearestLoot(own, foes, Infinity) : null;
+  return foe ?? nearestLoot(own, everything, Infinity);
+}
+
 export function cycle(
   own: { x: number; y: number },
   ships: Iterable<TargetCandidate>,

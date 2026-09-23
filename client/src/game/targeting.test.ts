@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { pickNearest, describe, expect, it } from 'vitest';
 import weapons from '../../../shared/weapons.json';
 import type { WeaponParams } from '../sim/combat';
 import {
@@ -155,5 +155,26 @@ describe('cycle', () => {
     // Кольцо шире всех дистанций — остаётся чистый обход по часовой стрелке.
     expect(cycle(own, ships, 4, 1, 100_000)).toBe(5);
     expect(cycle(own, ships, 5, 1, 100_000)).toBe(1);
+  });
+});
+
+describe('Tab — всегда ближайшая цель', () => {
+  const own = { x: 0, y: 0 };
+  const pirate = { id: 7, x: 500, y: 0, size: 20 };
+  const meteor = { id: 9, x: 100, y: 0, size: 30 };
+  const item = { id: 11, x: 50, y: 0, size: 10 };
+
+  it('в бою — ближайший враг, даже если камень ближе', () => {
+    expect(pickNearest(own, [pirate], [pirate, meteor, item], true)).toBe(7);
+  });
+
+  it('в покое — ближайшее что угодно: предмет, камень, корабль', () => {
+    expect(pickNearest(own, [pirate], [pirate, meteor, item], false)).toBe(11);
+    expect(pickNearest(own, [pirate], [pirate, meteor], false)).toBe(9);
+  });
+
+  it('в бою без врагов рядом — ближайшее что угодно; пусто — ничего', () => {
+    expect(pickNearest(own, [], [meteor, item], true)).toBe(11);
+    expect(pickNearest(own, [], [], true)).toBeNull();
   });
 });

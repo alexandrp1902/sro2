@@ -5,7 +5,7 @@ import './style.css';
 import { Application, Container } from 'pixi.js';
 import { SPAWN, STATION } from './game/layout';
 import { FixedLoop } from './game/loop';
-import { LOOT_MOUSE_RADIUS_PX, METEOR_MOUSE_RADIUS_PX, cycle, nearest, nearestLoot, pickArrow, pickAt } from './game/targeting';
+import { LOOT_MOUSE_RADIUS_PX, METEOR_MOUSE_RADIUS_PX, cycle, nearest, nearestLoot, pickArrow, pickAt, pickNearest } from './game/targeting';
 import { Controls } from './input/controls';
 import { FireControl, bindCombatKeys } from './input/fire';
 import { preventBrowserGestures } from './input/gestures';
@@ -391,6 +391,8 @@ async function main(): Promise<void> {
   // Док станции (GDD §26): корабль уходит из космоса, поверх мира — торговля, магазин и ангар.
   // Пока пристыкованы, полёт стоит: входы не шлём, при вылете их нумерация начинается заново.
   let docked = false;
+  /** Сколько враждебных NPC держат меня целью — по последнему кадру; Tab по этому выбирает врага, а не камень. */
+  let attackersNow = 0;
   const send = (message: Parameters<Connection['send']>[0]) => {
     if (isOnline()) connection!.send(message);
   };
@@ -583,16 +585,32 @@ async function main(): Promise<void> {
    * Перебираются корабли, добыча, станция и врата вперемешку: id кораблей и добычи из одного счётчика сервера,
    * у станции и врат свои, отрицательные. Прицел один: шаг на что-то одно снимает остальное.
    */
+  const select = (id: number) => {
+    if (id < 0) setMark(id);
+    else if (loot.get(id)) setLoot(id);
+    else setTarget(id);
+  };
   const stepSelection = (step: -1 | 1) => {
     // Свои по группе в перебор не попадают: Q/E — для боя и дел, а союзника выбирают тапом.
     const candidates = [...targets().filter((t) => !isAlly(t.id)), ...loot.visible(), ...marks()];
     const from = markId !== 0 ? markId : selectedLootId !== 0 ? selectedLootId : targetId;
+    if (step === 1) {
+      // Tab — всегда ближайшее (M17b): в бою ближайший враг, в покое ближайшее что угодно — корабль,
+      // камень или предмет. Ближайшее уже в прицеле — тогда шаг дальше по кольцу, как раньше.
+      const alive = targets().filter((t) => !isAlly(t.id) && !('dead' in t && t.dead));
+      const foes = alive.filter(
+        (t) => 'kind' in t && (t.kind === 'pirate' || t.kind === 'drone' || ('targetId' in t && t.targetId === ownId())),
+      );
+      const id = pickNearest(prediction.curr, foes, [...alive, ...loot.visible()], attackersNow > 0 || audio.inCombat);
+      if (id !== null && id !== from) {
+        select(id);
+        return;
+      }
+    }
     // Кольцо спирали — сектор: сначала обходим всё вокруг себя, потом уходим на виток дальше.
     const id = cycle(prediction.curr, candidates, from, step, sectorUnit);
     if (id === null) return;
-    if (id < 0) setMark(id);
-    else if (loot.get(id)) setLoot(id);
-    else setTarget(id);
+    select(id);
   };
   for (const [button, step] of [
     ['target-prev', -1],
@@ -1270,6 +1288,7 @@ async function main(): Promise<void> {
     const me = ownId();
     let attackers = 0;
     for (const ship of remote.visible()) if (ship.kind !== 'player' && ship.kind !== 'drone' && ship.targetId === me) attackers++;
+    attackersNow = attackers;
 
     // Курс (M16b): какие врата этой системы ведут к следующей — подсвечиваем их в мире и на карте.
     const courseNow = galaxy && system ? courseView(galaxy, system.id, course, system.gates) : null;

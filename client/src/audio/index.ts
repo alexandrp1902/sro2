@@ -95,6 +95,11 @@ export class GameAudio {
     void this.bank.load(this.engine.ctx).then(() => this.ensureMusic());
   }
 
+  /** Идёт ли бой по меркам музыки: по мне стреляли, я стрелял по кораблю, меня держат целью, летит ракета. */
+  get inCombat(): boolean {
+    return this.mood === 'combat';
+  }
+
   /** Первый жест пользователя: вход в игру, тап по стику, нажатие клавиши. */
   unlock(): void {
     this.engine?.unlock();
