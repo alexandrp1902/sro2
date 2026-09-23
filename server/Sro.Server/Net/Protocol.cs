@@ -589,8 +589,29 @@ public sealed record RepMsg(
 /// <summary>Текущий шаг обучения (GDD §54).</summary>
 /// <param name="Step">Номер шага с нуля.</param>
 /// <param name="Total">Шагов всего.</param>
-/// <param name="Id">Что засчитывает шаг: <see cref="MissionRules.TutorialIds"/>.</param>
-public sealed record TutorialDto(int Step, int Total, string Id, string Title, string Hint);
+/// <param name="Id">Имя шага в списке пути (M18: не обязательно то, что он засчитывает).</param>
+/// <param name="Kind">Что засчитывает шаг: <see cref="MissionRules.TutorialKinds"/> — по нему клиент выбирает цель.</param>
+/// <param name="HintTouch">Подсказка для сенсорного экрана (M18); null — та же <paramref name="Hint"/>.</param>
+/// <param name="Place">Где продать или купить (M18) — туда и указывает маркер цели; null — где угодно.</param>
+/// <param name="System">Куда прыгнуть, где сбить пирата или где стоит <paramref name="Place"/> (M18); null — где угодно.</param>
+/// <param name="Buoy">Учебный буй шага «остановиться» (M18); null — у шага его нет.</param>
+public sealed record TutorialDto(
+    int Step,
+    int Total,
+    string Id,
+    string Title,
+    string Hint,
+    string Kind,
+    string? HintTouch = null,
+    string? Place = null,
+    string? System = null,
+    BuoyDto? Buoy = null);
+
+/// <summary>
+/// Учебный буй (M18): место, у которого он висит, и смещение в его осях. Мировые координаты клиент считает
+/// сам по орбите места, как станцию и планеты, — сообщение не надо слать каждый кадр.
+/// </summary>
+public sealed record BuoyDto(string Place, double X, double Y);
 
 /// <summary>Что только что сделано — для строки в ленте.</summary>
 /// <param name="Kind">
@@ -824,10 +845,11 @@ public static class Protocol
     /// 24 — смена пароля, ремонт после гибели, M15.7;
     /// 25 — вкладки «Вход» и «Регистрация» на стартовом экране, M15.8;
     /// 26 — станция продаёт всё, что на складе, продажа всех модулей одной кнопкой, M16a;
-    /// 27 — группа до десяти, метки группы на миникарте, номера врат, маршрут по галактике и обмен между игроками, M16b).
+    /// 27 — группа до десяти, метки группы на миникарте, номера врат, маршрут по галактике и обмен между игроками, M16b;
+    /// 28 — шаг обучения с видом, местом, системой, подсказкой для телефона и учебным буем, M18).
     /// Зеркало PROTOCOL_VERSION в client/src/net/protocol.ts.
     /// </summary>
-    public const int Version = 27;
+    public const int Version = 28;
 
     public const string DroneKind = "drone";
     public const string PirateKind = "pirate";

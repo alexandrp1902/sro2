@@ -62,6 +62,27 @@
     "weaponSlots": ["M", "S", "S"],
     "utilitySlots": 1
   },
+  "starterTrader": {
+    "name": "«Ослик»",
+    "role": "стартовый грузовой",
+    "maxSpeed": 120,
+    "acceleration": 90,
+    "brakeAcceleration": 115,
+    "turnRate": 75,
+    "lateralDampTime": 1.2,
+    "lateralToForward": 0,
+    "size": 32,
+    "hp": 600,
+    "shield": 180,
+    "shieldRegen": 22,
+    "evasion": 6,
+    "moveEvasion": 3,
+    "cargo": 45,
+    "radar": 2000,
+    "class": "S",
+    "weaponSlots": ["S", "S"],
+    "utilitySlots": 1
+  },
   "industrial": {
     "name": "«Мул»",
     "role": "грузовой",

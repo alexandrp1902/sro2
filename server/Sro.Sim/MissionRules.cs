@@ -3,11 +3,50 @@ using System.Text.Json.Serialization;
 
 namespace Sro.Sim;
 
-/// <summary>Шаг обучения (GDD §54). Что засчитывает шаг, решает его id — см. <see cref="MissionRules.TutorialIds"/>.</summary>
+/// <summary>
+/// Шаг обучения (GDD §54). Id — имя шага в списке и в профиле (M18: прогресс хранится по id). Что шаг
+/// засчитывает, решает <see cref="Kind"/>, а без него сам id, как до M18 (см. <see cref="MissionRules.TutorialKinds"/>).
+/// </summary>
 /// <param name="Title">Что сделать — строка трекера цели.</param>
-/// <param name="Hint">Как это сделать — подсказка под ней.</param>
+/// <param name="Hint">Как это сделать — подсказка под ней; на ПК — она.</param>
 /// <param name="Reward">Кредиты за шаг.</param>
-public sealed record TutorialStep(string Id, string Title, string Hint = "", int Reward = 0);
+/// <param name="Kind">Какое событие закрывает шаг; null — то, что названо id.</param>
+/// <param name="Place">Только в этом месте («st:sol», «pl:vegaOne») — для sell и buy.</param>
+/// <param name="Goods">Только этот товар — для sell и buy.</param>
+/// <param name="System">Прыжок — только в эту систему; kill — только в ней.</param>
+/// <param name="HintTouch">Подсказка для сенсорного экрана; null — та же <see cref="Hint"/>.</param>
+/// <param name="Buoy">Учебный буй шага stop — смещение от места вылета в его осях (+x — вдоль орбиты, +y — от звезды).</param>
+public sealed record TutorialStep(
+    string Id,
+    string Title,
+    string Hint = "",
+    int Reward = 0,
+    string? Kind = null,
+    string? Place = null,
+    string? Goods = null,
+    string? System = null,
+    string? HintTouch = null,
+    TutorialBuoy? Buoy = null)
+{
+    /// <summary>Что засчитывает шаг.</summary>
+    [JsonIgnore] public string What => Kind ?? Id;
+
+    /// <summary>Буй шага stop; не задан в файле — по умолчанию.</summary>
+    [JsonIgnore] public TutorialBuoy BuoyOrDefault => Buoy ?? TutorialBuoy.Default;
+}
+
+/// <summary>
+/// Смещение учебного буя (M18) от места, откуда пилот вылетел, в осях этого места: +x — вдоль орбиты,
+/// +y — прочь от звезды. По умолчанию — вдоль орбиты: наружу от Терры буй встал бы у самой кромки
+/// мира, рядом с вратами, а вдоль неё он и от врат, и от жара звезды далеко.
+/// </summary>
+public sealed record TutorialBuoy(double X = 1500, double Y = 0)
+{
+    public static readonly TutorialBuoy Default = new();
+}
+
+/// <summary>Что случилось — для сверки с условиями шага обучения (M18): где, с каким товаром, в какой системе.</summary>
+public readonly record struct TutorialEvent(string Kind, string? Place = null, string? Goods = null, string? System = null);
 
 /// <summary>Шаблон задания «уничтожить» (GDD §36): count пиратов типа npc в системе рядом со станцией.</summary>
 /// <param name="Npc">Тип из npcs.json; null — любой пират.</param>
@@ -250,8 +289,45 @@ public sealed record MissionRules(
     public const string JumpStep = "jump";
     /// <summary>Купить товар на рынке (M15.5): шаг пути торговца.</summary>
     public const string BuyStep = "buy";
+    /// <summary>Долететь до учебного буя и остановиться (M18).</summary>
+    public const string StopStep = "stop";
+    /// <summary>Сбить пирата (M18) — в системе шага, если она названа.</summary>
+    public const string KillStep = "kill";
+    /// <summary>Взять задание на доске (M18) — вход в обычный цикл.</summary>
+    public const string BoardStep = "board";
 
-    public static readonly string[] TutorialIds = [UndockStep, DroneStep, GrabStep, SellStep, JumpStep, BuyStep];
+    public static readonly string[] TutorialKinds =
+        [UndockStep, DroneStep, GrabStep, SellStep, JumpStep, BuyStep, StopStep, KillStep, BoardStep];
+
+    /// <summary>Буй засчитан, если пилот ближе стольких единиц к нему (M18).</summary>
+    public const double BuoyRadius = 500;
+    /// <summary>«Стоит» — медленнее этого, ед/с.</summary>
+    public const double StillSpeed = 5;
+    /// <summary>Сначала надо разогнаться быстрее этого: корабль, не тронувший газ у дока, шаг не закрывает.</summary>
+    public const double MovedSpeed = 40;
+    /// <summary>Сколько секунд подряд стоять у буя.</summary>
+    public const double StillSeconds = 1;
+
+    /// <summary>
+    /// Списки шагов, какими они были до M18, когда профиль хранил номер шага: по ним старый номер
+    /// переводится в id. Не править — это история, а не баланс.
+    /// </summary>
+    private static readonly string[] LegacyCommon = [UndockStep, DroneStep, GrabStep, SellStep, JumpStep];
+    private static readonly string[] LegacyTrader = [UndockStep, SellStep, BuyStep, DroneStep, JumpStep];
+
+    /// <summary>Id шага по номеру из профиля старше M18; null — обучение пройдено (или номер вне списка).</summary>
+    public static string? LegacyStep(string? career, int index)
+    {
+        var steps = career == "trader" ? LegacyTrader : LegacyCommon;
+        return index >= 0 && index < steps.Length ? steps[index] : null;
+    }
+
+    /// <summary>Закрывает ли событие этот шаг: вид совпал, и совпало всё, что шаг уточняет.</summary>
+    public static bool Matches(TutorialStep step, TutorialEvent happened) =>
+        step.What == happened.Kind
+        && (step.Place is null || step.Place == happened.Place)
+        && (step.Goods is null || step.Goods == happened.Goods)
+        && (step.System is null || step.System == happened.System);
 
     public const int MaxOffers = 8;
     public const int MaxCount = 100;
@@ -290,8 +366,8 @@ public sealed record MissionRules(
 
     /// <summary>
     /// Обучение этого пути (M15.5): у торговца свои первые шаги. Пути нет в файле — общий список,
-    /// он же путь рейнджера. Сохранён только номер шага, поэтому список пути **нельзя переупорядочивать
-    /// задним числом**: пилот, бросивший игру посередине, вернётся не на тот шаг.
+    /// он же путь рейнджера. С M18 профиль хранит id шага, поэтому шаги можно вставлять и переставлять;
+    /// нельзя только переименовывать: пилот на шаге с исчезнувшим id считается прошедшим обучение.
     /// </summary>
     public IReadOnlyList<TutorialStep> StepsFor(string? career) =>
         career is not null && TutorialMap.TryGetValue(career, out var own) ? own : Steps;
@@ -306,8 +382,35 @@ public sealed record MissionRules(
         return index >= 0 && index < steps.Count ? steps[index] : null;
     }
 
-    /// <summary>Один список шагов: id из белого списка, без повторов, с названием и неотрицательной наградой.</summary>
-    private static string? Check(IReadOnlyList<TutorialStep> steps, string where)
+    /// <summary>Номер шага с этим id в списке пути; -1 — такого нет (id null — обучение пройдено).</summary>
+    public int IndexOf(string? career, string? id)
+    {
+        if (id is null) return -1;
+        var steps = StepsFor(career);
+        for (var i = 0; i < steps.Count; i++)
+            if (steps[i].Id == id) return i;
+        return -1;
+    }
+
+    /// <summary>Шаг этого пути по id; null — пройдено или такого шага в списке больше нет.</summary>
+    public TutorialStep? Step(string? career, string? id) => Step(career, IndexOf(career, id));
+
+    /// <summary>Id шага, что идёт за этим; null — этот был последним.</summary>
+    public string? Next(string? career, string id)
+    {
+        var index = IndexOf(career, id);
+        return index < 0 ? null : Step(career, index + 1)?.Id;
+    }
+
+    /// <summary>Первый шаг пути; null — обучения у пути нет.</summary>
+    public string? First(string? career) => Step(career, 0)?.Id;
+
+    /// <summary>
+    /// Один список шагов: вид из белого списка, id без повторов, с названием и неотрицательной наградой;
+    /// товар, место и система — те, что есть в игре.
+    /// </summary>
+    private static string? Check(
+        IReadOnlyList<TutorialStep> steps, string where, IReadOnlyDictionary<string, LootItem> items, GalaxyRules? galaxy)
     {
         for (var i = 0; i < steps.Count; i++)
         {
@@ -315,10 +418,17 @@ public sealed record MissionRules(
             var problem = step switch
             {
                 null => "is null",
-                _ when !TutorialIds.Contains(step.Id) => $"unknown id '{step.Id}': must be one of {string.Join(", ", TutorialIds)}",
+                _ when string.IsNullOrWhiteSpace(step.Id) => "id is empty",
+                _ when !TutorialKinds.Contains(step.What) =>
+                    $"unknown kind '{step.What}': must be one of {string.Join(", ", TutorialKinds)}",
                 _ when steps.Take(i).Any(s => s?.Id == step.Id) => $"duplicate id '{step.Id}'",
                 _ when string.IsNullOrWhiteSpace(step.Title) => "title is empty",
                 _ when step.Reward < 0 => "reward must not be negative",
+                _ when step.Goods is { } goods && !items.ContainsKey(goods) => $"unknown goods '{goods}'",
+                _ when galaxy is not null && step.Place is { } place && !galaxy.HasPlace(place) => $"unknown place '{place}'",
+                _ when galaxy is not null && step.System is { } system && galaxy.System(system) is null =>
+                    $"unknown system '{system}'",
+                _ when step.Buoy is { } buoy && !(double.IsFinite(buoy.X) && double.IsFinite(buoy.Y)) => "buoy must be finite",
                 _ => null,
             };
             if (problem is not null) return $"{where}[{i}]: {problem}";
@@ -329,16 +439,18 @@ public sealed record MissionRules(
     /// <param name="npcs">Типы NPC: пираты для kill и засад, рейнджеры для patrol.</param>
     /// <param name="items">Предметы лута для collect.</param>
     /// <param name="sizes">Размеры метеоритов из meteors.json — для hunt.</param>
+    /// <param name="galaxy">Галактика — сверить места и системы шагов обучения; null — не сверять.</param>
     public string? Validate(
         IReadOnlyDictionary<string, NpcType> npcs,
         IReadOnlyDictionary<string, LootItem> items,
-        IReadOnlyDictionary<string, MeteorSize> sizes)
+        IReadOnlyDictionary<string, MeteorSize> sizes,
+        GalaxyRules? galaxy = null)
     {
         if (Offers is < 0 or > MaxOffers) return $"offers must be within 0..{MaxOffers}";
         if (!(DangerBonus >= 0)) return "dangerBonus must not be negative";
-        if (Check(Steps, "tutorial") is { } bad) return bad;
+        if (Check(Steps, "tutorial", items, galaxy) is { } bad) return bad;
         foreach (var (career, steps) in TutorialMap)
-            if (Check(steps, $"tutorials.{career}") is { } wrong) return wrong;
+            if (Check(steps, $"tutorials.{career}", items, galaxy) is { } wrong) return wrong;
         for (var i = 0; i < KillList.Count; i++)
         {
             var t = KillList[i];
@@ -467,7 +579,8 @@ public sealed record MissionRules(
         IReadOnlyDictionary<string, LootItem> items,
         IReadOnlyDictionary<string, MeteorSize> sizes,
         out MissionRules rules,
-        out string? error)
+        out string? error,
+        GalaxyRules? galaxy = null)
     {
         rules = None;
         MissionRules? parsed;
@@ -485,7 +598,7 @@ public sealed record MissionRules(
             error = "no rules";
             return false;
         }
-        error = parsed.Validate(npcs, items, sizes);
+        error = parsed.Validate(npcs, items, sizes, galaxy);
         if (error is not null) return false;
         rules = parsed;
         return true;

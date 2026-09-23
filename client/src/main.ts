@@ -46,7 +46,7 @@ import { DEFAULT_HULL, Hulls } from './sim/hulls';
 import { NO_LOOT, gearVolume, lootItem, lootLabel, rarityColor, type GearItem, type LootRules } from './sim/loot';
 import type { MarketRules } from './sim/market';
 import { DT, ION_SLOW, directionAngle, localVelocity, slowedHull, type MoveInput } from './sim/movement';
-import { orbitSeconds } from './sim/orbits';
+import { orbitSeconds, placeOrbit, toWorld, type Point } from './sim/orbits';
 import { objective, objectiveSystem, trackerLines, doneLines, type MissionNames, type Objective } from './sim/missions';
 import { AutoTarget } from './sim/autoTarget';
 import type { NpcRules } from './sim/npcs';
@@ -59,9 +59,10 @@ import { Feed, describeBlock, describeBurn, describeKill, describeNotice, descri
 import { FlightHud } from './ui/flightHud';
 import { GalaxyMap } from './ui/galaxyMap';
 import { ControlsWindow } from './ui/controlsWindow';
-import { BurgerMenu } from './ui/menu';
+import { BurgerMenu, coarsePointer } from './ui/menu';
 import { PasswordForm } from './ui/passwordForm';
 import { ConfirmCard, logoutLines } from './ui/confirm';
+import { TipsCard } from './ui/tips';
 import { keymap, type KeyAction } from './input/keymap';
 import { bindMouseButtons } from './input/mouseButtons';
 import { InvasionBoard, InvasionHud } from './ui/invasion';
@@ -145,6 +146,8 @@ async function main(): Promise<void> {
   /** Пушка первого слота: по её выстрелам крутится кольцо перезарядки на кнопке огня. */
   const mainWeaponId = () => fit?.weapons.find((id) => !!id) ?? DEFAULT_WEAPON;
   const controls = new Controls();
+  // Чем управляют, пока ни к чему не прикоснулись (M18): от этого зависит подсказка «как тормозить».
+  controls.source = coarsePointer() ? 'stick' : 'keyboard';
   const keyboard = new KeyboardControls(controls);
   bindKeyboard(keyboard);
   const stick = new Stick(el('stick'), controls);
@@ -421,6 +424,8 @@ async function main(): Promise<void> {
   const controlsWindow = new ControlsWindow(el('controls'));
   // Вопрос «точно?» — пока только для выхода в полёте: корабль остаётся в космосе.
   const confirm = new ConfirmCard(el('confirm'));
+  // «Что дальше» (M18): сама — один раз после обучения, потом — из бургера.
+  const tips = new TipsCard(el('tips'));
   // Бургер (M15.5): одно меню на док и на полёт, чтобы пункты не разъезжались.
   // Выход из меню сам показывает окно «Пилот»: кнопка в самом окне делает это за себя.
   const leave = () => {
@@ -436,6 +441,7 @@ async function main(): Promise<void> {
   const menu = new BurgerMenu(el('menu'), (action) => {
     if (action === 'audio') audioWindow.toggle();
     else if (action === 'controls') controlsWindow.toggle();
+    else if (action === 'tips') tips.show(coarsePointer());
     else if (action === 'password') passwordForm.show();
     // Пункт есть только на телефоне: там строки полёта нет, а dev-панель нужна на плейтесте.
     // dev объявлен ниже — к первому клику он уже создан.
@@ -894,6 +900,8 @@ async function main(): Promise<void> {
    * Где цель задания в этой системе: ближайший дрон, пират или груз, станция, врата. Кого нет на радаре —
    * на того и не указываем: трекер всё равно говорит, что делать.
    */
+  /** Учебный буй (M18) в этот кадр; null — шаг не тот, пилот в доке или буй в другой системе. */
+  let buoyNow: Point | null = null;
   const locateObjective = (goal: Objective | null, from: { x: number; y: number }) => {
     if (!goal) return null;
     const closest = <T extends { x: number; y: number }>(list: Iterable<T>): T | null => {
@@ -933,6 +941,15 @@ async function main(): Promise<void> {
         return remote.get(goal.id) ?? null;
       case 'point':
         return { x: goal.x, y: goal.y, size: OBJECTIVE_POINT_SIZE };
+      // Буй считается в кадре по орбите места (M18) — здесь только забираем готовую точку.
+      case 'buoy':
+        return buoyNow ? { ...buoyNow, size: OBJECTIVE_POINT_SIZE } : null;
+      // Место продажи (M18): станция этой системы или поселение на планете.
+      case 'place': {
+        if (system && goal.key === `st:${system.id}`) return system.station ? { ...systemView.stationAt, size: STATION.radius } : null;
+        const planet = systemView.planets.find((p) => p.place === goal.key);
+        return planet ? { x: planet.x, y: planet.y, size: planet.size } : null;
+      }
     }
   };
 
@@ -1055,6 +1072,8 @@ async function main(): Promise<void> {
       // Письмо места в трюме не занимает, поэтому в cargo его нет — показываем по взятому заданию (M14).
       cargoHud.setLetter(message.active?.offer.kind === 'courier');
       if (message.done) for (const line of doneLines(message.done)) feed.add(line);
+      // Последний шаг обучения (M18) — «что дальше»: сервер присылает это событие один раз.
+      if (message.done?.kind === 'tutorial' && message.done.last) tips.show(coarsePointer());
       refreshGalaxyMap();
     };
     connection.onAccount = (message) => {
@@ -1245,6 +1264,11 @@ async function main(): Promise<void> {
     // Станция и планеты — по орбитальному времени сервера: от тика, на котором сейчас рисуется мир.
     const worldTick = Number.isNaN(remote.renderTick) ? (connection?.lastTick ?? 0) : remote.renderTick;
     systemView.update(orbitSeconds(system, worldTick));
+    // Учебный буй (M18) ходит по орбите вместе с местом, от которого висит: считаем его в том же времени.
+    const buoy = missions?.tutorial?.buoy ?? null;
+    const buoyOrbit = buoy && !docked && !dead ? placeOrbit(system, buoy.place) : null;
+    buoyNow = buoy && buoyOrbit ? toWorld(buoyOrbit, orbitSeconds(system, worldTick), buoy) : null;
+    systemView.setBuoy(buoyNow, now);
     warnHeat(state.x, state.y, dead || docked);
     const jumpers: Jumper[] = [];
     if (ownDto?.j && !dead) jumpers.push({ x: state.x, y: state.y, size: hull.size, jumpAt: ownDto.j });
@@ -1297,7 +1321,9 @@ async function main(): Promise<void> {
 
     // Цель задания или обучения: на неё указывает золотой маркер, на миникарте — кольцо.
     const goal = online ? locateObjective(objective(missions, system?.id ?? null, galaxy, docked || dead), state) : null;
-    objectiveHud.update(online && !docked ? trackerLines(missions, system?.id ?? null, docked, names) : null);
+    objectiveHud.update(
+      online && !docked ? trackerLines(missions, system?.id ?? null, docked, names, controls.source === 'stick') : null,
+    );
     dockScreen.tick(Date.now()); // срок письма идёт и в доке (M14)
     // Вторжение в приоритете: там идёт бой и тикает таймер, а спрос подождёт в ленте, в доке и на карте.
     invasionHud.update(online ? (invasion.lines(now, roster.get(me)?.name ?? '') ?? demand.lines(now, goodName)) : null);
@@ -1448,6 +1474,7 @@ async function main(): Promise<void> {
         ships: [...remote.visible()].map((s) => ({ id: s.id, x: s.x, y: s.y, kind: isAlly(s.id) ? 'party' : s.kind, dead: s.dead })),
         targetId,
         objective: goal,
+        buoy: buoyNow,
         missiles: missiles.visible(),
         sos: sos.active(now, (id) => {
           const ship = remote.get(id);

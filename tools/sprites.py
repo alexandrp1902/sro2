@@ -68,6 +68,9 @@ SINGLES = [
     # Корпуса пилотов (M11): пламени у них нет — клиент подставляет чужое (см. render/ship.ts).
     *[(f"ships-extra/ships-{n}", f"ships-{n}", 256) for n in
       ["scout", "interceptor", "industrial", "frigate", "freighter", "cruiser"]],
+    # Флот, пачка J (M18): пока только «Ослик» — стартовый торговец. Ключ — ships-<id корпуса>, чтобы
+    # shipSprite() находил его без таблицы соответствий; остальные девять придут с корпусами в M19.
+    ("ships-fleet/ships-trader-starter", "ships-starterTrader", 256),
     # Новые звёзды, планеты и станции (пачка B).
     *[(f"galaxy/planets-{n}", f"planets-{n}", 512) for n in ["barren", "jungle", "lava", "ocean", "ringed", "toxic"]],
     *[(f"galaxy/stations-{n}", f"stations-{n}", 512) for n in ["outpost", "pirate", "ranger", "trade"]],

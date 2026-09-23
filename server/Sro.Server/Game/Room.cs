@@ -312,7 +312,7 @@ public sealed partial class Room
             player.HullPlaces[id] = Balance.Galaxy.HasPlace(saved) ? saved! : player.HomePlace ?? PlaceKey.Station(SystemId);
         }
         // Обучение — только новому пилоту (GDD §54): профиль старше M8 считается прошедшим его.
-        player.Missions.Tutorial = profile is null ? 0 : profile.Tutorial ?? MissionLog.Finished;
+        player.Missions.Tutorial = TutorialFrom(profile, player.Career);
         // Живое задание в комнату не возвращается: его конвой и звено остались в прошлом вылете (M14).
         // Профиль старше M15 зовёт заказчика и адрес по системе — переводим в ключи мест.
         player.Missions.Active =
@@ -331,7 +331,8 @@ public sealed partial class Room
         // лечилась бы перезаходом. Строго после Enter: он ставит корабль в мир и корпус при этом полный.
         // Профиль старше M15.7 прочности не знает — такой пилот входит целым.
         if (profile?.Hp is { } savedHp) player.Hp = Math.Clamp(savedHp, 1, player.MaxHp(player.Effective(Balance)));
-        if (profile is null || profile.Fit is null) Save(player);
+        // Профиль старше M18 хранит номер шага: переведённый в id, он записывается сразу.
+        if (profile is null || profile.Fit is null || profile.TutorialStep is null) Save(player);
         if (tanksSold > 0)
         {
             connection.Send(new NoticeMsg(Protocol.TanksSoldNotice, tanksSold));
@@ -339,6 +340,22 @@ public sealed partial class Room
             Save(player);
             _log.LogInformation("Player {Id} got {Credits} credits back for fuel tanks", player.Id, tanksSold);
         }
+    }
+
+    /// <summary>
+    /// Шаг обучения из профиля (M18). Новый пилот — первый шаг своего пути. С M18 шаг хранится по id;
+    /// до него — номером в списке, каким тот был тогда (<see cref="MissionRules.LegacyStep"/>): кто стоял
+    /// на «дроне», на нём и остаётся, а вставленное перед ним уже позади. Профиль старше M8 — пройдено.
+    /// Шага с таким id в списке больше нет — тоже пройдено: лучше так, чем вернуть пилота в начало.
+    /// </summary>
+    private string? TutorialFrom(AccountProfile? profile, string? career)
+    {
+        var rules = Balance.Missions;
+        var id = profile is null ? rules.First(career)
+            : profile.TutorialStep is { } step ? step
+            : profile.Tutorial is { } index ? MissionRules.LegacyStep(career, index)
+            : null;
+        return rules.Step(career, id) is null ? null : id;
     }
 
     /// <summary>
@@ -511,7 +528,8 @@ public sealed partial class Room
         }
         // Доска — уже этой системы. Прыжок — шаг обучения; засчитывается после welcome, чтобы строка в ленте
         // пришла уже в новую систему.
-        if (arrival is null || !Advance(player, MissionRules.JumpStep)) SendMissions(player);
+        if (arrival is null || !Advance(player, new TutorialEvent(MissionRules.JumpStep, System: SystemId)))
+            SendMissions(player);
         BroadcastPlayers();
         _log.LogInformation("Player {Id} '{Name}' arrived in {System}", player.Id, player.Name, SystemId);
     }
@@ -1914,7 +1932,7 @@ public sealed partial class Room
                 SendCargo(player);
                 SendHangar(player); // подобранное снаряжение попадает на склад
                 Save(player);
-                if (!Advance(player, MissionRules.GrabStep)) SendCollect(player);
+                if (!Advance(player, new TutorialEvent(MissionRules.GrabStep))) SendCollect(player);
                 break;
             case LootSystem.GrabResult.NoRoom:
                 WarnCargoFull(player);
@@ -1946,6 +1964,8 @@ public sealed partial class Room
 
         var credits = 0;
         var sold = 0;
+        // Что именно ушло — шаг обучения может ждать конкретный товар (M18).
+        var goods = new List<string>();
         if (item is null)
         {
             // Весь трюм — каждый груз по здешней цене; чем тут не торгуют, то остаётся в трюме.
@@ -1957,6 +1977,7 @@ public sealed partial class Room
                 credits += SellToStation(player, id, have);
                 player.Cargo.Remove(id, have);
                 sold += have;
+                goods.Add(id);
             }
         }
         else
@@ -1972,6 +1993,7 @@ public sealed partial class Room
             sold = count <= 0 ? have : Math.Min(count, have);
             credits = SellToStation(player, item, sold);
             player.Cargo.Remove(item, sold);
+            goods.Add(item);
         }
         if (sold <= 0)
         {
@@ -1986,7 +2008,9 @@ public sealed partial class Room
         BroadcastMarket();
         Save(player);
         _log.LogInformation("Player {Id} sold {Count} cargo for {Credits} credits", player.Id, sold, credits);
-        if (!Advance(player, MissionRules.SellStep)) SendCollect(player);
+        // Any останавливается на первом засчитанном: один шаг за одну продажу.
+        if (!goods.Any(id => Advance(player, new TutorialEvent(MissionRules.SellStep, player.DockedPlace, id))))
+            SendCollect(player);
     }
 
     /// <summary>
@@ -2147,7 +2171,10 @@ public sealed partial class Room
         }
         SendHangar(player);
         if (on) return;
-        Advance(player, MissionRules.UndockStep);
+        // Шаг «остановиться» (M18) начинается заново с каждым вылетом: разгон и остановка — уже в космосе.
+        player.Missions.Moved = false;
+        player.Missions.StillSince = null;
+        Advance(player, new TutorialEvent(MissionRules.UndockStep));
         StartRun(player); // конвой и звено выходят вместе с пилотом, а не ждут его в космосе (M14)
     }
 
@@ -2360,7 +2387,8 @@ public sealed partial class Room
             Weapons: [],
             Cargo: new Dictionary<string, int>(player.Cargo.Items),
             System: player.Home,
-            Tutorial: player.Missions.Tutorial,
+            // Номер шага (до M18) больше не пишется: шаг хранится по id, «done» — пройдено.
+            TutorialStep: player.Missions.Tutorial ?? MissionLog.Finished,
             Mission: player.Missions.Active,
             MissionSeed: player.Missions.Seed,
             Fit: player.Fit,
@@ -2419,6 +2447,12 @@ public sealed partial class Room
                 log.Seed++;
                 player.Cargo.Reserved = Reserve(log.Active);
                 _log.LogInformation("Player {Id} took a {Kind} mission for {Reward} credits", player.Id, offer.Kind, offer.Reward);
+                // Последний шаг обучения (M18) — взять работу: трюм, задания и профиль Advance уже отправил.
+                if (Advance(player, new TutorialEvent(MissionRules.BoardStep)))
+                {
+                    SendMarket(player);
+                    return;
+                }
                 break;
             }
             case Protocol.AbandonMission:
@@ -2437,8 +2471,8 @@ public sealed partial class Room
                 return;
             }
             case Protocol.SkipTutorial:
-                if (log.Tutorial == MissionLog.Finished) return;
-                log.Tutorial = MissionLog.Finished;
+                if (log.Tutorial is null) return;
+                log.Tutorial = null;
                 break;
             default:
                 return;
@@ -2450,14 +2484,22 @@ public sealed partial class Room
         Save(player);
     }
 
-    /// <summary>Шаг обучения stepId сделан — если он сейчас текущий. Шаги идут строго по порядку.</summary>
+    /// <summary>
+    /// Случилось то, что закрывает текущий шаг обучения, — засчитываем. Шаги идут строго по порядку,
+    /// и шаг с местом, товаром или системой (M18) ждёт именно их: «продать машины на верфи» не
+    /// закроет «продайте машины на Ледяной Веге».
+    /// </summary>
     /// <returns>true — засчитан: состояние заданий уже ушло клиенту.</returns>
-    private bool Advance(Player player, string stepId)
+    private bool Advance(Player player, TutorialEvent happened)
     {
         var rules = Balance.Missions;
-        if (rules.Step(player.Career, player.Missions.Tutorial) is not { } step || step.Id != stepId) return false;
-        var last = rules.Step(player.Career, player.Missions.Tutorial + 1) is null;
-        player.Missions.Tutorial = last ? MissionLog.Finished : player.Missions.Tutorial + 1;
+        if (rules.Step(player.Career, player.Missions.Tutorial) is not { } step || !MissionRules.Matches(step, happened))
+            return false;
+        var next = rules.Next(player.Career, step.Id);
+        var last = next is null;
+        player.Missions.Tutorial = next;
+        player.Missions.Moved = false;
+        player.Missions.StillSince = null;
         player.Credits += step.Reward;
         SendCargo(player);
         SendMissions(player, new MissionDoneDto(Protocol.TutorialDone, step.Reward, step.Title, Last: last));
@@ -2471,9 +2513,12 @@ public sealed partial class Room
     {
         if (victim is Drone)
         {
-            Advance(player, MissionRules.DroneStep);
+            Advance(player, new TutorialEvent(MissionRules.DroneStep));
             return;
         }
+        // Сбить пирата (M18) — шаг рейнджера после прыжка; дальше пират идёт в счёт задания как обычно.
+        if (victim is Pirate { Type.IsPirate: true })
+            Advance(player, new TutorialEvent(MissionRules.KillStep, System: SystemId));
         // Охота на метеориты (M14). Разбившийся о корабль пилота попадает сюда наравне с расстрелянным
         // (M16a): MeteorSystem.Ram проставляет камню убийцу, и дальше путь у них общий — один камень,
         // один плюс к счёту, кто бы его ни доломал.
@@ -2596,14 +2641,11 @@ public sealed partial class Room
     private void SendMissions(Player player, MissionDoneDto? done = null)
     {
         if (player.Connection is null) return;
-        var rules = Balance.Missions;
-        var log = player.Missions;
-        var step = rules.Step(player.Career, log.Tutorial);
-        var active = log.Active;
+        var active = player.Missions.Active;
         if (active?.Offer is { Kind: MissionRules.CollectKind, Item: { } item })
             active = active with { Progress = Math.Min(active.Offer.Count, player.Cargo.Items.GetValueOrDefault(item)) };
         player.Connection.Send(new MissionsMsg(
-            step is null ? null : new TutorialDto(log.Tutorial, rules.StepsFor(player.Career).Count, step.Id, step.Title, step.Hint),
+            TutorialOf(player),
             active,
             Board(player),
             done,

@@ -529,7 +529,10 @@ public sealed record Balance(
         if (sources.Missions is not null)
         {
             // После метеоритов: «охота» называет размер камня поимённо, и опечатку надо ловить при разборе (M14).
-            if (!MissionRules.TryParse(sources.Missions, npcs.TypeMap, loot.ItemMap, meteors.SizeMap, out var missions, out error))
+            // После галактики: шаг обучения называет место и систему (M18).
+            if (!MissionRules.TryParse(
+                    sources.Missions, npcs.TypeMap, loot.ItemMap, meteors.SizeMap, out var missions, out error,
+                    parsed.GalaxySet))
             {
                 error = $"{MissionsFile}: {error}";
                 return false;

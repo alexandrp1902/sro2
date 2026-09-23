@@ -8,11 +8,23 @@ namespace Sro.Server.Game;
 /// </summary>
 public sealed class MissionLog
 {
-    /// <summary>Обучение пройдено или пропущено — какой бы длины ни стал список шагов в missions.json.</summary>
-    public const int Finished = int.MaxValue;
+    /// <summary>
+    /// Так пройденное обучение записано в профиле (M18): там null значит «профиль старше M18»,
+    /// и отличить его от «пройдено» надо.
+    /// </summary>
+    public const string Finished = "done";
 
-    /// <summary>Номер текущего шага обучения; <see cref="Finished"/> — обучения нет.</summary>
-    public int Tutorial = Finished;
+    /// <summary>Id текущего шага обучения (M18; до него — номер); null — обучения нет: пройдено или пропущено.</summary>
+    public string? Tutorial;
+
+    /// <summary>
+    /// Шаг «остановиться» (M18): разогнался ли пилот после вылета. Без этого шаг закрыл бы корабль,
+    /// так и не тронувший газ у дока. Не хранится: перезашёл — разгонись снова.
+    /// </summary>
+    public bool Moved;
+
+    /// <summary>С какой секунды комнаты пилот стоит у буя; null — не стоит.</summary>
+    public double? StillSince;
 
     /// <summary>Взятое задание; null — нет. Одно на пилота.</summary>
     public ActiveMission? Active;

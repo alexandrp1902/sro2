@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { GalaxyDto, MissionOffer, MissionsMsg } from '../net/protocol';
+import type { GalaxyDto, MissionOffer, MissionsMsg, TutorialDto } from '../net/protocol';
 import { startTab } from '../ui/dockScreen';
 import { nearestStation, nextHop } from './galaxy';
 import {
@@ -108,10 +108,19 @@ describe('mission text', () => {
   });
 
   it('puts the tutorial ahead of a mission in the tracker', () => {
-    const tutorial = { step: 1, total: 5, id: 'drone' as const, title: 'Уничтожьте учебный дрон', hint: 'огонь' };
+    const tutorial = { step: 1, total: 5, id: 'drone', kind: 'drone' as const, title: 'Уничтожьте учебный дрон', hint: 'огонь' };
     const both = withActive({ offer: offer({ kind: 'kill', system: 'vega' }), progress: 0 }, tutorial);
     expect(trackerLines(both, 'sol', false, names)).toEqual({ title: 'Обучение 2/5: Уничтожьте учебный дрон', hint: 'огонь' });
     expect(trackerLines(withActive(null), 'sol', false, names)).toBeNull();
+  });
+
+  it('gives a touch hint to the stick, and the plain one to the keyboard', () => {
+    // M18: как тормозить — на ПК клавишей, на телефоне двойным тапом по стику.
+    const stop = { step: 1, total: 8, id: 'stop', kind: 'stop' as const, title: 'Стоп', hint: 'удерживайте {brake}', hintTouch: 'двойной тап' };
+    expect(trackerLines(withActive(null, stop), 'sol', false, names, true)?.hint).toBe('двойной тап');
+    expect(trackerLines(withActive(null, stop), 'sol', false, names, false)?.hint).toBe('удерживайте {brake}');
+    // Своей подсказки для телефона нет — та же, что на ПК.
+    expect(trackerLines(withActive(null, { ...stop, hintTouch: null }), 'sol', false, names, true)?.hint).toBe('удерживайте {brake}');
   });
 
   it('writes what was done to the feed', () => {
@@ -214,13 +223,34 @@ describe('M14 missions', () => {
 
 describe('objective', () => {
   it('follows the tutorial step', () => {
-    const step = (id: 'undock' | 'drone' | 'grab' | 'sell' | 'jump') =>
-      objective(withActive(null, { step: 0, total: 5, id, title: '', hint: '' }), 'sol', galaxy, false);
+    const step = (kind: 'undock' | 'drone' | 'grab' | 'sell' | 'jump' | 'board') =>
+      objective(withActive(null, { step: 0, total: 5, id: kind, kind, title: '', hint: '' }), 'sol', galaxy, false);
     expect(step('undock')).toBeNull();
     expect(step('drone')).toEqual({ kind: 'drone' });
     expect(step('grab')).toEqual({ kind: 'loot' });
     expect(step('sell')).toEqual({ kind: 'station' });
     expect(step('jump')).toEqual({ kind: 'gate', to: null });
+    expect(step('board')).toBeNull();
+  });
+
+  it('M18: the buoy, the place to trade, and the system the step lives in', () => {
+    const tutorial = (fields: Partial<TutorialDto> & Pick<TutorialDto, 'kind'>) =>
+      withActive(null, { step: 0, total: 10, id: fields.kind, title: '', hint: '', ...fields });
+    const buoy = { place: 'pl:terra', x: 1500, y: 0 };
+    expect(objective(tutorial({ kind: 'stop', buoy }), 'sol', galaxy, false)).toEqual({ kind: 'buoy', ...buoy });
+    expect(objective(tutorial({ kind: 'stop' }), 'sol', galaxy, false)).toBeNull();
+
+    // Продать на Веге I: из Сол — к вратам, на месте — к планете, а не к станции.
+    const sell = tutorial({ kind: 'sell', place: 'pl:vegaOne', system: 'vega' });
+    expect(objective(sell, 'sol', galaxy, false)).toEqual({ kind: 'gate', to: 'vega' });
+    expect(objective(sell, 'vega', galaxy, false)).toEqual({ kind: 'place', key: 'pl:vegaOne' });
+    expect(objectiveSystem(sell, 'sol', galaxy)).toBe('vega');
+    expect(objectiveSystem(sell, 'vega', galaxy)).toBeNull();
+
+    const pirate = tutorial({ kind: 'kill', system: 'vega' });
+    expect(objective(pirate, 'sol', galaxy, false)).toEqual({ kind: 'gate', to: 'vega' });
+    expect(objective(pirate, 'vega', galaxy, false)).toEqual({ kind: 'pirate', npc: null });
+    expect(objective(tutorial({ kind: 'jump', system: 'vega' }), 'sol', galaxy, false)).toEqual({ kind: 'gate', to: 'vega' });
   });
 
   it('points at the next gate until the target system, then at the target', () => {
@@ -246,7 +276,7 @@ describe('objective', () => {
 
 describe('startTab', () => {
   it('opens the dock on missions when something waits there', () => {
-    const tutorial = { step: 0, total: 5, id: 'undock' as const, title: '', hint: '' };
+    const tutorial = { step: 0, total: 5, id: 'undock', kind: 'undock' as const, title: '', hint: '' };
     expect(startTab(withActive(null, tutorial), {})).toBe('missions');
     const collect = withActive({ offer: offer({ kind: 'collect', item: 'titanium' }), progress: 0 });
     expect(startTab(collect, { titanium: 3 })).toBe('cargo');

@@ -347,6 +347,10 @@
     "w": 160,
     "h": 256
   },
+  "ships-starterTrader": {
+    "w": 213,
+    "h": 256
+  },
   "planets-barren": {
     "w": 512,
     "h": 509

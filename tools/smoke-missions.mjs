@@ -1,12 +1,12 @@
-// Сквозная проверка обучения и заданий без браузера (M8, дополнена в M14): новый пилот начинает в доке,
-// проходит пять шагов обучения — вылет, учебный дрон, подбор его груза, продажа на станции, прыжок в Vega, —
-// получает награды; затем берёт задание на станции Vega: доставку в Sol везёт и сдаёт, любое другое берёт и бросает.
+// Сквозная проверка обучения и заданий без браузера (M8, дополнена в M14 и M18): новый пилот начинает в доке,
+// проходит шаги обучения — вылет, остановка у учебного буя, учебный дрон, подбор его груза, продажа на станции,
+// прыжок в Vega, — получает награды; шаг «сбить пирата» пропускает (налёт ждать долго, его проверяет серверный тест); затем берёт задание на станции Vega: доставку в Sol везёт и сдаёт, любое другое берёт и бросает.
 // Дальше — задания M14: письмо (срок, трюм не занимает, платит получатель), провал по сроку и живое задание
 // (сопровождение или патруль): вылет с ним поднимает в системе конвой или звено и даёт метку цели.
 // Нужен запущенный сервер и Node 24 (встроенный WebSocket). Заводит аккаунт smk-<число>. Идёт 1–3 минуты.
 //   node tools/smoke-missions.mjs [ws://localhost:5000/ws]
 
-import { aroundSun, openSocket, stationAt } from './wire.mjs';
+import { aroundSun, openSocket, placeToWorld, stationAt } from './wire.mjs';
 
 const url = process.argv[2] ?? 'ws://localhost:5000/ws';
 const INPUT_INTERVAL_MS = 50;
@@ -209,8 +209,17 @@ async function main() {
 
   // 1. Вылет.
   a.send({ t: 'dock', on: false });
-  await a.until(() => step(a) === 'drone', 3000, 'tutorial: drone');
-  check(`undocked → «${a.missions.tutorial.title}»`, true);
+  await a.until(() => step(a) === 'stop', 3000, 'tutorial: stop');
+  const buoy = a.missions.tutorial.buoy;
+  check(`undocked → «${a.missions.tutorial.title}», buoy at ${buoy?.place}`, !!buoy);
+
+  // 1a. Долететь до буя и остановиться (M18): пока стоим у дока, шаг не засчитывается.
+  await a.until(() => a.snapshot, 3000, 'a snapshot');
+  await sleep(1500);
+  check('standing still at the dock does not count', step(a) === 'stop');
+  await a.flyTo(() => placeToWorld(a.welcome.system, buoy.place, a.snapshot.tick, buoy), 300, 60000);
+  await a.until(() => step(a) === 'drone', 5000, 'tutorial: drone');
+  check(`stopped at the buoy → «${a.missions.tutorial.title}»`, true);
 
   // 2. Учебный дрон — стоит на месте, возле станции.
   await a.until(() => a.players && a.snapshot, 3000, 'roster');
@@ -225,7 +234,9 @@ async function main() {
   // 3. Груз с дрона.
   await a.until(() => (a.snapshot?.loot ?? []).length > 0, 3000, 'drone loot in space');
   const me = a.me;
-  const drop = [...a.snapshot.loot].sort((p, q) => Math.hypot(p.x - me.x, p.y - me.y) - Math.hypot(q.x - me.x, q.y - me.y))[0];
+  // Металл с дрона, а не что попало: рядом может лежать чужой трофей-снаряжение, а его «продать всё» не продаёт.
+  const near = (list) => list.sort((p, q) => Math.hypot(p.x - me.x, p.y - me.y) - Math.hypot(q.x - me.x, q.y - me.y))[0];
+  const drop = near(a.snapshot.loot.filter((l) => l.i === 'metal')) ?? near([...a.snapshot.loot]);
   a.send({ t: 'loot', id: drop.id });
   await a.flyTo({ x: drop.x, y: drop.y }, 60, 30000);
   a.send({ t: 'grab' });
@@ -242,12 +253,14 @@ async function main() {
   a.send({ t: 'dock', on: false });
   await a.until(() => !a.hangar.docked && a.me, 3000, 'undocked again');
   await a.jump('vega');
-  await a.until(() => step(a) === 'done', 3000, 'tutorial done');
-  const last = a.done[a.done.length - 1];
+  // M18: после прыжка обучение продолжается — пират в Веге, потом доска. Налёта ждать долго: пропускаем.
+  await a.until(() => step(a) === 'pirate', 3000, 'tutorial: pirate');
+  check(`jumped to Vega → «${a.missions.tutorial.title}»`, a.missions.tutorial.kind === 'kill');
   const rewards = a.done.filter((d) => d.kind === 'tutorial').reduce((sum, d) => sum + d.reward, 0);
-  check(`jumped to Vega: tutorial finished (last ${last?.last}), rewards ${rewards} credits`, last?.last === true && rewards > 0);
   await a.until(() => a.cargo.credits > credits + rewards - 1, 3000, 'credits');
-  check(`credits ${credits} → ${a.cargo.credits}`, a.cargo.credits >= credits + rewards);
+  check(`credits ${credits} → ${a.cargo.credits}, rewards ${rewards}`, rewards > 0 && a.cargo.credits >= credits + rewards);
+  a.send({ t: 'mission', action: 'skip' });
+  await a.until(() => step(a) === 'done', 3000, 'tutorial skipped');
 
   // Задание на станции Vega.
   await a.dock();

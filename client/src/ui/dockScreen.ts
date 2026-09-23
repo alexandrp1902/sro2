@@ -985,7 +985,7 @@ export class DockScreen {
       box.append(el('div', 'dock-name sro-row__name', tutorial.title));
       if (tutorial.hint) box.append(el('div', 'dock-stats sro-row__meta', keyHint(tutorial.hint, keymap)));
       const actions = el('div', 'dock-mission-actions');
-      if (tutorial.id === 'undock') actions.append(button('Вылет', 'dock-buy sro-btn sro-btn--sm', () => this.handlers.onUndock()));
+      if (tutorial.kind === 'undock') actions.append(button('Вылет', 'dock-buy sro-btn sro-btn--sm', () => this.handlers.onUndock()));
       actions.append(button('Пропустить обучение', 'dock-link sro-btn sro-btn--ghost sro-btn--sm', () => this.handlers.onSkipTutorial()));
       box.append(actions);
       body.append(box);

@@ -26,7 +26,7 @@ import { Feed } from './feed';
 import { FlightHud } from './flightHud';
 import { GalaxyMap, type GalaxyMapState } from './galaxyMap';
 import { InvasionHud } from './invasion';
-import { BurgerMenu } from './menu';
+import { BurgerMenu, coarsePointer } from './menu';
 import { PasswordForm } from './passwordForm';
 import { PilotForm } from './pilotForm';
 import { Minimap, type MinimapFrame } from './minimap';
@@ -34,6 +34,7 @@ import { ObjectiveHud } from './objectiveHud';
 import { InviteCard, PartyPanel, type PartyMark, type PartyRow } from './party';
 import { TradeWindow } from './trade';
 import { StatusHud } from './statusHud';
+import { TipsCard } from './tips';
 
 /* loot.json — JSONC с комментариями, сборщик его не ест: каталог груза для витрины задан здесь. */
 const LOOT = {
@@ -305,7 +306,7 @@ export function runDemo(screen: string): void {
     };
     const missions: MissionsMsg = {
       t: 'missions',
-      tutorial: { step: 2, total: 6, id: 'grab', title: 'Подберите груз у сбитого пирата', hint: 'Подлетите к контейнеру и нажмите G' },
+      tutorial: { step: 2, total: 6, id: 'grab', kind: 'grab', title: 'Подберите груз у сбитого пирата', hint: 'Подлетите к контейнеру и нажмите G' },
       active: {
         offer: { id: 'm1', kind: 'deliver', system: 'vega', item: 'metal', count: 5, reward: 420, from: 'sol', place: 'st:vega' },
         progress: 2,
@@ -363,6 +364,24 @@ export function runDemo(screen: string): void {
     case 'password':
       flightHud();
       passwordForm.show();
+      break;
+    case 'buoy': {
+      // Шаг «остановиться» (M18): подсказка по источнику ввода и зона буя на миникарте.
+      flightHud();
+      const touch = coarsePointer();
+      objectiveHud.update({
+        title: 'Обучение 2/8: Долетите до буя и остановитесь',
+        hint: touch ? 'Стоп — двойной тап по стику' : 'Тормоз — полный назад: удерживайте {brake}, пока скорость не упадёт до нуля',
+      });
+      const own = DEMO_MINIMAP.own!;
+      const buoy = { x: own.x + 900, y: own.y - 700 };
+      minimap.update({ ...DEMO_MINIMAP, buoy, objective: buoy }, 1e9 + 1000);
+      break;
+    }
+    case 'tips':
+      // «Что дальше» (M18): карточка после последнего шага обучения.
+      flightHud();
+      new TipsCard(el('tips')).show(coarsePointer());
       break;
     case 'trade':
       // Стол обмена (M16b): своя половина со степперами, чужая только для чтения, и он уже готов.

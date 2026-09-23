@@ -16,9 +16,15 @@ public class MissionRulesTests
     {
         var missions = Shared().Missions;
         // Общий список — путь рейнджера: с M15.5 он же достаётся всем, у кого своей ветки нет.
+        // M18: сразу после вылета — «остановиться», после прыжка — пират в Веге и доска заданий.
         Assert.Equal(
-            [MissionRules.UndockStep, MissionRules.DroneStep, MissionRules.GrabStep, MissionRules.SellStep, MissionRules.JumpStep],
-            missions.Steps.Select(s => s.Id));
+            [
+                MissionRules.UndockStep, MissionRules.StopStep, MissionRules.DroneStep, MissionRules.GrabStep,
+                MissionRules.SellStep, MissionRules.JumpStep, MissionRules.KillStep, MissionRules.BoardStep,
+            ],
+            missions.Steps.Select(s => s.What));
+        var pirate = missions.Steps.Single(s => s.What == MissionRules.KillStep);
+        Assert.Equal("vega", pirate.System);
         Assert.True(missions.Offers > 0);
     }
 
@@ -32,6 +38,88 @@ public class MissionRulesTests
         // Незнакомый путь и путь без своей ветки учатся общим списком.
         Assert.Equal(missions.Steps, missions.StepsFor("ranger"));
         Assert.Equal(missions.Steps, missions.StepsFor(null));
+    }
+
+    /// <summary>
+    /// Круг торговца (M18): продовольствие Терры — на Ледяную Вегу, её топливные ячейки — на станцию Сол,
+    /// машины Сол — на Терру. Каждое плечо проверяется по рынку, а не по тексту: поменяй market.json —
+    /// тест скажет, что круг разорван.
+    /// </summary>
+    [Fact]
+    public void SharedMissionsJson_TraderLoop_BuysWhereItIsMade_AndSellsWhereItIsWanted()
+    {
+        var balance = Shared();
+        var trader = balance.Missions.StepsFor("trader");
+        Assert.Equal(MissionRules.StopStep, trader[1].What);
+        Assert.Equal(MissionRules.BoardStep, trader[^1].What);
+        var trades = trader.Where(s => s.What is MissionRules.SellStep or MissionRules.BuyStep).ToList();
+        Assert.Contains(trades, s => s is { What: MissionRules.SellStep, Place: "pl:vegaOne", Goods: "food" });
+        Assert.Contains(trades, s => s is { What: MissionRules.SellStep, Place: "st:sol", Goods: "fuelCells" });
+        Assert.Contains(trades, s => s is { What: MissionRules.SellStep, Place: "pl:terra", Goods: "machinery" });
+        foreach (var step in trades)
+        {
+            Assert.NotNull(step.Place);
+            Assert.NotNull(step.Goods);
+            var market = balance.MarketSet!.Places![step.Place!];
+            var list = step.What == MissionRules.BuyStep ? market.ProduceList : market.ConsumeList;
+            Assert.Contains(step.Goods!, list);
+        }
+        // Старые id на месте: по ним переводятся профили старше M18.
+        foreach (var id in new[] { MissionRules.UndockStep, MissionRules.SellStep, MissionRules.BuyStep, MissionRules.DroneStep, MissionRules.JumpStep })
+            Assert.Contains(id, trader.Select(s => s.Id));
+    }
+
+    [Fact]
+    public void SharedMissionsJson_StopStep_HasHintsForBothInputs()
+    {
+        var missions = Shared().Missions;
+        foreach (var steps in new[] { missions.Steps, missions.StepsFor("trader") })
+        {
+            var stop = steps.Single(s => s.What == MissionRules.StopStep);
+            Assert.Contains("{brake}", stop.Hint);
+            Assert.False(string.IsNullOrWhiteSpace(stop.HintTouch));
+        }
+    }
+
+    [Fact]
+    public void Matches_ChecksKind_ThenEveryConditionTheStepNames()
+    {
+        var step = new TutorialStep("sellVega", "t", Kind: MissionRules.SellStep, Place: "pl:vegaOne", Goods: "machinery");
+        Assert.True(MissionRules.Matches(step, new(MissionRules.SellStep, "pl:vegaOne", "machinery")));
+        Assert.False(MissionRules.Matches(step, new(MissionRules.SellStep, "st:vega", "machinery")));
+        Assert.False(MissionRules.Matches(step, new(MissionRules.SellStep, "pl:vegaOne", "food")));
+        Assert.False(MissionRules.Matches(step, new(MissionRules.BuyStep, "pl:vegaOne", "machinery")));
+        // Шаг без условий засчитывается где угодно; вид без kind — сам id, как до M18.
+        Assert.True(MissionRules.Matches(new TutorialStep(MissionRules.SellStep, "t"), new(MissionRules.SellStep, "st:sol", "food")));
+        var jump = new TutorialStep(MissionRules.JumpStep, "t", System: "vega");
+        Assert.True(MissionRules.Matches(jump, new(MissionRules.JumpStep, System: "vega")));
+        Assert.False(MissionRules.Matches(jump, new(MissionRules.JumpStep, System: "tau")));
+    }
+
+    [Theory]
+    [InlineData(null, 0, MissionRules.UndockStep)]
+    [InlineData(null, 1, MissionRules.DroneStep)]
+    [InlineData(null, 4, MissionRules.JumpStep)]
+    [InlineData(null, 5, null)]
+    [InlineData("ranger", 2, MissionRules.GrabStep)]
+    [InlineData("trader", 1, MissionRules.SellStep)]
+    [InlineData("trader", 2, MissionRules.BuyStep)]
+    [InlineData("trader", 3, MissionRules.DroneStep)]
+    [InlineData("trader", int.MaxValue, null)]
+    [InlineData("trader", -1, null)]
+    public void LegacyStep_ReadsTheListAsItWasBeforeM18(string? career, int index, string? expected) =>
+        Assert.Equal(expected, MissionRules.LegacyStep(career, index));
+
+    [Fact]
+    public void NextAndIndexOf_WalkTheListById()
+    {
+        var missions = Shared().Missions;
+        var trader = missions.StepsFor("trader");
+        Assert.Equal(MissionRules.UndockStep, missions.First("trader"));
+        Assert.Equal(trader[2].Id, missions.Next("trader", trader[1].Id));
+        Assert.Null(missions.Next("trader", trader[^1].Id));
+        Assert.Equal(-1, missions.IndexOf("trader", "nope"));
+        Assert.Null(missions.Step("trader", (string?)null));
     }
 
     [Fact]
@@ -225,8 +313,12 @@ public class MissionRulesTests
     }
 
     [Theory]
-    [InlineData("""{ "tutorial": [{ "id": "fly", "title": "?" }] }""", "tutorial[0]: unknown id")]
+    [InlineData("""{ "tutorial": [{ "id": "fly", "title": "?" }] }""", "tutorial[0]: unknown kind 'fly'")]
+    [InlineData("""{ "tutorial": [{ "id": "a", "kind": "fly", "title": "?" }] }""", "tutorial[0]: unknown kind 'fly'")]
     [InlineData("""{ "tutorial": [{ "id": "jump", "title": "a" }, { "id": "jump", "title": "b" }] }""", "tutorial[1]: duplicate id")]
+    [InlineData("""{ "tutorials": { "trader": [{ "id": "s", "kind": "sell", "title": "a", "goods": "gold" }] } }""", "tutorials.trader[0]: unknown goods")]
+    [InlineData("""{ "tutorial": [{ "id": "s", "kind": "sell", "title": "a", "place": "pl:atlantis" }] }""", "tutorial[0]: unknown place")]
+    [InlineData("""{ "tutorial": [{ "id": "j", "kind": "jump", "title": "a", "system": "narnia" }] }""", "tutorial[0]: unknown system")]
     [InlineData("""{ "kill": [{ "npc": "dragon", "min": 1, "max": 2, "reward": 10 }] }""", "kill[0]: unknown npc")]
     [InlineData("""{ "kill": [{ "npc": null, "min": 3, "max": 2, "reward": 10 }] }""", "kill[0]: min and max")]
     [InlineData("""{ "collect": [{ "item": "gold", "min": 1, "max": 2 }] }""", "collect[0]: unknown item")]
@@ -244,7 +336,7 @@ public class MissionRulesTests
     {
         var balance = Shared();
         Assert.False(MissionRules.TryParse(
-            json, balance.Npc.TypeMap, balance.Loot.ItemMap, balance.Meteors.SizeMap, out _, out var error));
+            json, balance.Npc.TypeMap, balance.Loot.ItemMap, balance.Meteors.SizeMap, out _, out var error, balance.Galaxy));
         Assert.StartsWith(problem, error);
     }
 

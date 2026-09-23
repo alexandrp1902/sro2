@@ -136,7 +136,8 @@ async function main() {
   await trader.open();
   await trader.until(() => trader.welcome && trader.hangar && trader.cargo && trader.missions, 8000, 'the trader joins');
   const cargo = Object.entries(trader.cargo.items ?? {});
-  check(`the trader flies a ${trader.hangar.hull}`, trader.hangar.hull === 'industrial');
+  // M18: «Ослик», а не «Мул» — «Мул» теперь первая покупка торговца.
+  check(`the trader flies a ${trader.hangar.hull}`, trader.hangar.hull === 'starterTrader');
   check(`and carries ${cargo.map(([i, n]) => `${n} ${i}`).join(', ') || 'nothing'}`, cargo.length > 0);
   check(`with ${trader.cargo.credits} credits, fewer than a ranger's 1000`, trader.cargo.credits < 1000);
   check(
@@ -158,7 +159,7 @@ async function main() {
   const again = new Client({ name: fresh, password: PASSWORD, career: 'ranger' });
   await again.open();
   await again.until(() => again.hangar !== null, 8000, 'the trader comes back');
-  check(`coming back as a «ranger» changes nothing: still a ${again.hangar.hull}`, again.hangar.hull === 'industrial');
+  check(`coming back as a «ranger» changes nothing: still a ${again.hangar.hull}`, again.hangar.hull === 'starterTrader');
   again.close();
 
   // Рейнджер по умолчанию — ровно тот старт, что был до M15.5.

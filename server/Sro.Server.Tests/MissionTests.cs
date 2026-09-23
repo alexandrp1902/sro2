@@ -295,7 +295,7 @@ public sealed class MissionTests : IDisposable
     {
         var a = PilotInDock();
         Assert.True(a.Last<HangarMsg>().Docked);
-        Assert.Equal(new TutorialDto(0, 5, MissionRules.UndockStep, "Вылетите", ""), Missions(a).Tutorial);
+        Assert.Equal(new TutorialDto(0, 5, MissionRules.UndockStep, "Вылетите", "", MissionRules.UndockStep), Missions(a).Tutorial);
 
         Do(a, r => r.Dock(a, false));
         Assert.Equal(new MissionDoneDto(Protocol.TutorialDone, 10, "Вылетите"), Missions(a).Done);
@@ -321,7 +321,7 @@ public sealed class MissionTests : IDisposable
         Assert.Equal(new MissionDoneDto(Protocol.TutorialDone, 50, "Прыжок", Last: true), last.Done);
         // Старт, награды за пять шагов и два металла с дрона.
         Assert.Equal(1000 + 10 + 20 + 30 + 40 + 50 + 20, Credits(a));
-        Assert.Equal(MissionLog.Finished, _accounts.Profile(AccountId())!.Tutorial);
+        Assert.Equal(MissionLog.Finished, _accounts.Profile(AccountId())!.TutorialStep);
     }
 
     [Fact]
@@ -354,7 +354,7 @@ public sealed class MissionTests : IDisposable
         Do(a, r => r.Mission(a, Protocol.SkipTutorial, null));
         Assert.Null(Missions(a).Tutorial);
         Assert.Equal(1000, Credits(a));
-        Assert.Equal(MissionLog.Finished, _accounts.Profile(AccountId())!.Tutorial);
+        Assert.Equal(MissionLog.Finished, _accounts.Profile(AccountId())!.TutorialStep);
     }
 
     [Fact]
@@ -365,6 +365,183 @@ public sealed class MissionTests : IDisposable
         // В доке, как и всякий вход с M15.6, но без обучения: его шаг не с чего начинать.
         Assert.True(a.Last<HangarMsg>().Docked);
         Assert.Null(Missions(a).Tutorial);
+    }
+
+    /// <summary>Профиль старше M18 хранит номер шага — в id он переводится по списку, каким тот был тогда.</summary>
+    [Theory]
+    [InlineData(null, 2, MissionRules.GrabStep)]
+    [InlineData(null, 4, MissionRules.JumpStep)]
+    [InlineData("trader", 2, MissionRules.BuyStep)]
+    [InlineData("trader", 3, MissionRules.DroneStep)]
+    [InlineData(null, int.MaxValue, null)]
+    [InlineData("trader", 7, null)]
+    public void ProfileOlderThanM18_KeepsItsStep_ByTheOldList(string? career, int index, string? expected)
+    {
+        // Между шагами обоих путей вставлен новый — «остановиться»: он уже позади.
+        _galaxy = New(KillOnly with
+        {
+            Tutorial = [Tutorial[0], new TutorialStep(MissionRules.StopStep, "Стоп"), .. Tutorial.Skip(1)],
+            Tutorials = new Dictionary<string, IReadOnlyList<TutorialStep>>
+            {
+                ["trader"] =
+                [
+                    new(MissionRules.UndockStep, "Вылет"), new(MissionRules.StopStep, "Стоп"),
+                    new(MissionRules.SellStep, "Продать"), new(MissionRules.BuyStep, "Купить"),
+                    new(MissionRules.DroneStep, "Дрон"), new(MissionRules.JumpStep, "Прыжок"),
+                    new("sellFar", "Продать там", Kind: MissionRules.SellStep),
+                ],
+            },
+        });
+        _accounts.Save(AccountId(), new AccountProfile(
+            500, "light", "pulse", ["light"], [], new Dictionary<string, int>(), Tutorial: index, Career: career));
+        var a = PilotInDock();
+        Assert.Equal(expected, Missions(a).Tutorial?.Id);
+        // Переведённый шаг записан сразу, уже по id.
+        Assert.Equal(expected ?? MissionLog.Finished, _accounts.Profile(AccountId())!.TutorialStep);
+    }
+
+    [Fact]
+    public void TutorialStep_IsKeptById_AndAStepThatIsGoneMeansDone()
+    {
+        _accounts.Save(AccountId(), new AccountProfile(
+            500, "light", "pulse", ["light"], [], new Dictionary<string, int>(), TutorialStep: MissionRules.SellStep));
+        var a = PilotInDock();
+        Assert.Equal(new TutorialDto(3, 5, MissionRules.SellStep, "Продайте", "", MissionRules.SellStep), Missions(a).Tutorial);
+        _galaxy.Disconnect(a);
+        Steps(Room.ReconnectGraceTicks + 1);
+
+        _accounts.Save(AccountId(), _accounts.Profile(AccountId())! with { TutorialStep = "renamed" });
+        Assert.Null(Missions(PilotInDock()).Tutorial);
+    }
+
+    /// <summary>Мировые координаты учебного буя — так же, как их посчитает клиент.</summary>
+    private (double X, double Y) BuoyAt(FakeConnection connection)
+    {
+        var buoy = Missions(connection).Tutorial!.Buoy!;
+        var room = RoomOf(connection);
+        return room.Balance.Place(buoy.Place)!.Orbit.ToWorld(room.OrbitSeconds, buoy.X, buoy.Y);
+    }
+
+    private static readonly MissionRules StopFirst = KillOnly with
+    {
+        Tutorial =
+        [
+            new(MissionRules.UndockStep, "Вылетите"),
+            new(MissionRules.StopStep, "Остановитесь", "Удерживайте {brake}", Reward: 25, HintTouch: "Двойной тап"),
+            new(MissionRules.DroneStep, "Дрон"),
+        ],
+    };
+
+    [Fact]
+    public void StopStep_NeedsARunUp_TheBuoy_AndASecondStill()
+    {
+        _galaxy = New(StopFirst);
+        var a = Pilot();
+        var step = Missions(a).Tutorial!;
+        Assert.Equal((MissionRules.StopStep, "Двойной тап", "st:home"), (step.Kind, step.HintTouch, step.Buoy?.Place));
+
+        // Стоит у дока, газа не трогал — не засчитано, сколько ни стой.
+        Steps(SimConfig.TickRate * 2);
+        Assert.Equal(MissionRules.StopStep, Missions(a).Tutorial?.Id);
+
+        // Разогнался, но остановился далеко от буя — тоже нет.
+        PlayerOf(a).Ship = new ShipState { X = 0, Y = 0, Vx = 100 };
+        Steps(1);
+        Place(a, -3000, -3000);
+        Steps(SimConfig.TickRate * 2);
+        Assert.Equal(MissionRules.StopStep, Missions(a).Tutorial?.Id);
+
+        // У буя: полсекунды мало, секунда — шаг.
+        var (bx, by) = BuoyAt(a);
+        Place(a, bx + 100, by);
+        Steps(SimConfig.TickRate / 2);
+        Assert.Equal(MissionRules.StopStep, Missions(a).Tutorial?.Id);
+        Steps(SimConfig.TickRate);
+        Assert.Equal(MissionRules.DroneStep, Missions(a).Tutorial?.Id);
+        Assert.Equal(new MissionDoneDto(Protocol.TutorialDone, 25, "Остановитесь"), Missions(a).Done);
+        Assert.Null(Missions(a).Tutorial!.Buoy); // у следующего шага буя нет
+    }
+
+    [Fact]
+    public void StopStep_ForgetsTheRunUp_OnTheNextUndock()
+    {
+        _galaxy = New(StopFirst);
+        var a = Pilot();
+        PlayerOf(a).Ship = new ShipState { X = 0, Y = 0, Vx = 100 };
+        Steps(1);
+        Dock(a);
+        Do(a, r => r.Dock(a, false));
+        var (bx, by) = BuoyAt(a);
+        Place(a, bx, by);
+        Steps(SimConfig.TickRate * 2);
+        Assert.Equal(MissionRules.StopStep, Missions(a).Tutorial?.Id);
+    }
+
+    [Fact]
+    public void SellStep_WithAPlaceAndGoods_WaitsForExactlyThem()
+    {
+        _galaxy = New(KillOnly with
+        {
+            Tutorial =
+            [
+                new(MissionRules.UndockStep, "Вылетите"),
+                new("sellElsewhere", "Продайте в порту", Kind: MissionRules.SellStep, Place: "st:port"),
+                new("sellMetal", "Продайте металл", Kind: MissionRules.SellStep, Place: "st:home", Goods: "metal"),
+            ],
+        });
+        var a = Pilot();
+        PlayerOf(a).Cargo.Add("metal", 2);
+        Dock(a);
+        Do(a, r => r.Sell(a, "metal", 1));
+        Assert.Equal("sellElsewhere", Missions(a).Tutorial?.Id); // продали, но не там
+    }
+
+    [Fact]
+    public void SellAll_CountsTheStep_WhenTheWantedGoodsWereInIt()
+    {
+        _galaxy = New(KillOnly with
+        {
+            Tutorial =
+            [
+                new(MissionRules.UndockStep, "Вылетите"),
+                new("sellMetal", "Продайте металл", Kind: MissionRules.SellStep, Place: "st:home", Goods: "metal"),
+            ],
+        });
+        var a = Pilot();
+        PlayerOf(a).Cargo.Add("metal", 2);
+        Dock(a);
+        Do(a, r => r.Sell(a, null));
+        Assert.Null(Missions(a).Tutorial);
+        Assert.True(Missions(a).Done?.Last);
+    }
+
+    [Fact]
+    public void KillStep_CountsAPirate_OnlyInItsSystem_AndBoardStepIsTakingAMission()
+    {
+        _galaxy = New(KillOnly with
+        {
+            Tutorial =
+            [
+                new(MissionRules.UndockStep, "Вылетите"),
+                new(MissionRules.JumpStep, "В wild", System: "wild"),
+                new("pirate", "Сбейте пирата", Kind: MissionRules.KillStep, System: "wild", Reward: 200),
+                new(MissionRules.BoardStep, "Возьмите задание", Reward: 100),
+            ],
+        });
+        var a = Pilot();
+        JumpTo(a, "wild");
+        Assert.Equal((MissionRules.KillStep, "wild"), (Missions(a).Tutorial?.Kind, Missions(a).Tutorial?.System));
+        Kill(a, NpcId(a, Protocol.PirateKind));
+        Assert.Equal(MissionRules.BoardStep, Missions(a).Tutorial?.Id);
+
+        JumpTo(a, "home");
+        Dock(a);
+        var before = Credits(a);
+        Accept(a, MissionRules.KillKind);
+        Assert.Null(Missions(a).Tutorial);
+        Assert.Equal(new MissionDoneDto(Protocol.TutorialDone, 100, "Возьмите задание", Last: true), Missions(a).Done);
+        Assert.NotNull(Missions(a).Active);
+        Assert.Equal(before + 100, Credits(a));
     }
 
     [Fact]

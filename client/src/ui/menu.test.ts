@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { menuItems } from './menu';
 import { logoutLines } from './confirm';
+import { tipLines } from './tips';
 
 describe('menuItems', () => {
   it('на ПК есть звук, управление и выход', () => {
@@ -27,16 +28,25 @@ describe('menuItems', () => {
     ]);
   });
 
-  it('смена пароля — только вошедшему по нику и паролю', () => {
-    // M15.7: гость играет без аккаунта, менять ему нечего.
+  it('советы и смена пароля — только вошедшему по нику и паролю', () => {
+    // M15.7: гость играет без аккаунта, менять ему нечего. M18: и обучения у него нет — советы после него тоже.
     expect(menuItems(true, true)).toEqual([
       { id: 'audio', label: 'Звук' },
+      { id: 'tips', label: 'Советы' },
       { id: 'password', label: 'Сменить пароль' },
       { id: 'dev', label: 'Отладка' },
       { id: 'logout', label: 'Выход' },
     ]);
-    expect(menuItems(false, true).map((i) => i.id)).toEqual(['audio', 'controls', 'password', 'logout']);
+    expect(menuItems(false, true).map((i) => i.id)).toEqual(['audio', 'controls', 'tips', 'password', 'logout']);
     expect(menuItems(false, false).map((i) => i.id)).toEqual(['audio', 'controls', 'logout']);
+  });
+});
+
+describe('tipLines', () => {
+  it('три совета: доска, груз, карта — и про клавишу карты только на ПК', () => {
+    expect(tipLines(false).map((t) => t.title)).toEqual(['Доска заданий', 'Груз и слухи', 'Карта и курс']);
+    expect(tipLines(false)[2].text).toMatch(/^M или клик/);
+    expect(tipLines(true)[2].text).toMatch(/^Тап/);
   });
 });
 

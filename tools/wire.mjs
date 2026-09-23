@@ -43,6 +43,19 @@ export function orbitAt(system, orbit, tick) {
   return { x: orbit.radius * Math.cos(angle), y: orbit.radius * Math.sin(angle) };
 }
 
+/**
+ * Точка в осях места → мир (M18: учебный буй): +y — прочь от звезды, +x — вдоль орбиты.
+ * Зеркало toWorld из client/src/sim/orbits.ts; place — ключ места («st:sol», «pl:terra»).
+ */
+export function placeToWorld(system, place, tick, local) {
+  const orbit = place.startsWith('pl:') ? settlement(system, place)?.orbit : system?.stationOrbit;
+  if (!orbit || orbit.radius <= 0) return { x: local.x, y: local.y };
+  const s = orbitAt(system, orbit, tick);
+  const cos = s.x / orbit.radius;
+  const sin = s.y / orbit.radius;
+  return { x: s.x + local.x * sin + local.y * cos, y: s.y - local.x * cos + local.y * sin };
+}
+
 /** Планета системы с поселением по ключу места («pl:terra»); undefined — такой тут нет. */
 export function settlement(system, key) {
   return (system?.planets ?? []).find((p) => p.id && `pl:${p.id}` === key);

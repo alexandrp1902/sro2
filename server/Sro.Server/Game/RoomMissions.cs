@@ -74,6 +74,7 @@ public sealed partial class Room
     /// </summary>
     private void StepMissions()
     {
+        StepTutorial();
         foreach (var kill in _kills)
         {
             if (_players.GetValueOrDefault(kill.Id) is { Missions.Active.Offer.Kind: { } kind } dead &&

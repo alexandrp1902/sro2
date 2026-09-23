@@ -13,6 +13,9 @@
 
   "hulls": {
     "light": 0,
+    // «Ослик» (M18) — стартовый корабль торговца. В продаже только в Новом Порту: вернуть себе,
+    // если продал, а не купить вместо «Мула» — тот и есть первая покупка торговца.
+    "starterTrader": 1500,
     "scout": 2500,
     "medium": 3000,
     "industrial": 5000,
@@ -118,7 +121,7 @@
 
     // Поселения (M15). На поверхности снаряжение дешевле, чем на орбите, но выбор беднее: чинят
     // везде, а корпуса продают лишь там, где верфь (см. settlement.shipyard в galaxy.json).
-    "pl:terra": { "title": "Порт Новый Порт", "price": 0.95 },
+    "pl:terra": { "title": "Порт Новый Порт", "hulls": ["starterTrader"], "price": 0.95 },
     "pl:vegaOne": { "title": "Склад Ледяной Веги", "remove": ["heavyLaser"], "price": 0.93 },
     "pl:alphaTwo": { "title": "Лавка Купола Альфы", "remove": ["cannon"], "price": 0.9 },
     "pl:tauPrima": { "title": "Верфь Пыльной Гавани", "hulls": ["industrial"], "items": ["cargoPod"], "price": 0.97 },

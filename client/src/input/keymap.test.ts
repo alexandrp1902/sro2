@@ -105,4 +105,11 @@ describe('labels', () => {
     keys.assign('targetPrev', 0, { code: 'KeyZ' });
     expect(keyHint(hint, keys)).toBe('Выберите цель: тапом, кликом или Z / E и включите огонь: V или «ОГОНЬ»');
   });
+
+  it('names the brake key where the hint says {brake} (M18)', () => {
+    const keys = new Keymap(memoryStore());
+    expect(keyHint('удерживайте {brake}', keys)).toBe('удерживайте S');
+    keys.assign('brake', 0, { code: 'KeyX' });
+    expect(keyHint('удерживайте {brake}', keys)).toBe('удерживайте X');
+  });
 });

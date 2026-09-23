@@ -11,7 +11,7 @@ import type { ReputationRules } from '../sim/reputation';
 import type { ShopRules } from '../sim/shop';
 
 /** Версия протокола; зеркало Protocol.Version на сервере. Сервер другой версии (или старый, без поля) — не играем. */
-export const PROTOCOL_VERSION = 27;
+export const PROTOCOL_VERSION = 28;
 
 /** Состояние ИИ пирата: патруль, бой, возврат в логово (налётчик — полёт от врат к точке), уход из системы. */
 export type AiState = 'patrol' | 'attack' | 'return' | 'leave';
@@ -744,13 +744,37 @@ export interface MissionMarkDto {
   y: number;
 }
 
-/** Шаг обучения (GDD §54). id — что его засчитывает. */
+/** Что засчитывает шаг обучения (M18: у шага id и вид — не одно и то же). */
+export type TutorialKind = 'undock' | 'stop' | 'drone' | 'grab' | 'sell' | 'buy' | 'jump' | 'kill' | 'board';
+
+/**
+ * Учебный буй (M18): место, у которого он висит, и смещение в его осях. Мировые координаты считаются
+ * по орбите места (sim/orbits.ts), как у станции и планет.
+ */
+export interface BuoyDto {
+  place: string;
+  x: number;
+  y: number;
+}
+
+/** Шаг обучения (GDD §54). */
 export interface TutorialDto {
   step: number;
   total: number;
-  id: 'undock' | 'drone' | 'grab' | 'sell' | 'jump' | 'buy';
+  /** Имя шага в списке пути. */
+  id: string;
+  /** Что его засчитывает — по нему выбирается цель. */
+  kind: TutorialKind;
   title: string;
   hint: string;
+  /** Подсказка для сенсорного экрана (M18); нет — та же hint. */
+  hintTouch?: string | null;
+  /** Где продать или купить (M18): «st:sol», «pl:vegaOne». */
+  place?: string | null;
+  /** Куда прыгнуть, где сбить пирата или где стоит place (M18). */
+  system?: string | null;
+  /** Буй шага «остановиться» (M18). */
+  buoy?: BuoyDto | null;
 }
 
 /** Обучение и задания пилота: по событию — вход, прыжок, прогресс, правка баланса. */

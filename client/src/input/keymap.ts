@@ -268,12 +268,14 @@ export function bindingLabel(b: KeyBinding): string {
 
 /**
  * Подсказки обучения приходят с сервера со стандартными клавишами («пробел», «Q / E») — подставляем текущие.
+ * «{brake}» (M18) — клавиша тормоза: у неё нет «стандартного» слова, которое можно было бы узнать в тексте.
  */
 export function keyHint(text: string, keys: Keymap): string {
   const fire = keys.label('fire');
   return text
     .replace(/пробел/g, fire === 'Пробел' ? 'пробел' : fire)
-    .replace(/Q \/ E/g, `${keys.label('targetPrev')} / ${keys.label('targetNext')}`);
+    .replace(/Q \/ E/g, `${keys.label('targetPrev')} / ${keys.label('targetNext')}`)
+    .replace(/\{brake\}/g, keys.label('brake'));
 }
 
 /** Раскладка этого устройства. */

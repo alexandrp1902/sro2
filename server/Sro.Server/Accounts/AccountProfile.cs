@@ -11,7 +11,10 @@ namespace Sro.Server.Accounts;
 /// <param name="Weapons">До M9 — купленные пушки; теперь пусто, всё купленное — в <paramref name="Storage"/> и <paramref name="Fit"/>.</param>
 /// <param name="Cargo">Трюм: предмет — количество. Груз живёт у пилота, а не у корабля (GDD §24).</param>
 /// <param name="System">Система последней стыковки — «домашняя база»; null — стартовая.</param>
-/// <param name="Tutorial">Шаг обучения (GDD §54); null — профиль старше M8: обучение считается пройденным.</param>
+/// <param name="Tutorial">
+/// Номер шага обучения (GDD §54) — так он хранился до M18; null — профиль старше M8 или уже с
+/// <paramref name="TutorialStep"/>. Новые профили его не пишут: номер переводится в id при входе.
+/// </param>
 /// <param name="Mission">Взятое задание; null — нет.</param>
 /// <param name="MissionSeed">Сид доски заданий; null — любой.</param>
 /// <param name="Fit">Оснащение корабля: пушки по слотам и модули; null — профиль старше M9.</param>
@@ -40,6 +43,10 @@ namespace Sro.Server.Accounts;
 /// не стоила: достаточно было перезайти. Теперь разбитый корпус переживает и выход, и перезапуск сервера.
 /// null — профиль старше M15.7 или корабль целый: читается как полный корпус.
 /// </param>
+/// <param name="TutorialStep">
+/// Id шага обучения (M18): по id, а не по номеру, чтобы шаги можно было вставлять в середину.
+/// «done» — пройдено или пропущено; null — профиль старше M18, тогда смотрится <paramref name="Tutorial"/>.
+/// </param>
 public sealed record AccountProfile(
     int Credits,
     string Hull,
@@ -58,4 +65,5 @@ public sealed record AccountProfile(
     string? Place = null,
     string? Career = null,
     IReadOnlyDictionary<string, string>? Ships = null,
-    double? Hp = null);
+    double? Hp = null,
+    string? TutorialStep = null);

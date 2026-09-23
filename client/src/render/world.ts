@@ -2,6 +2,7 @@ import { Container, Graphics, Sprite, Text } from 'pixi.js';
 import { STATION } from '../game/layout';
 import type { PlanetDto, SystemDto } from '../net/protocol';
 import { gateLabel } from '../sim/galaxy';
+import { BUOY_RADIUS } from '../sim/missions';
 import { WORLD_HALF_SIZE } from '../sim/movement';
 import { CENTER, frameRotation, orbitAt, type Point } from '../sim/orbits';
 import { Corona, discRadius } from './corona';
@@ -24,6 +25,10 @@ const SUN_SCALE = 1.3;
 /** Картинка планеты в радиусах планеты: у газового гиганта кольца шире диска. */
 const PLANET_SCALE = 1.15;
 const PIRATE_BASE_RADIUS = 140;
+/** Учебный буй (M18) — янтарный, как маркер цели: это и есть цель шага. */
+export const BUOY_COLOR = 0xffc857;
+/** Сколько штрихов в пунктире зоны буя: по кругу в 500 единиц — штрих примерно в корпус. */
+const BUOY_DASHES = 40;
 /** Станция по опасности системы, когда своя картинка не задана: безопасная — кольцо, дальше — купол и рудная. */
 const STATIONS: SpriteName[] = ['stations-ring', 'stations-habitat', 'stations-mining', 'stations-mining', 'stations-mining', 'stations-mining'];
 
@@ -74,6 +79,9 @@ export class SystemView {
   private readonly corona: Corona | null = null;
   /** Где станция сейчас: с этим считаются стыковка, прицел и миникарта. */
   readonly stationAt: Point = { x: STATION.x, y: STATION.y };
+  /** Учебный буй (M18): зона остановки пунктиром, мигающее ядро и подпись. Виден только на шаге «стоп». */
+  private readonly buoy = new Container();
+  private readonly buoyCore = new Graphics();
 
   constructor(private readonly system: SystemDto | null) {
     const view = this.view;
@@ -142,7 +150,31 @@ export class SystemView {
       view.addChild(g, caption);
       this.gateViews.push({ ring: g, label: caption, text });
     });
+
+    // Буй рисуется кодом, спрайт ему не нужен: пунктир — где остановиться, ядро — куда целиться.
+    const zone = new Graphics();
+    for (let i = 0; i < BUOY_DASHES; i++) {
+      const from = (i / BUOY_DASHES) * Math.PI * 2;
+      const to = from + (Math.PI / BUOY_DASHES) * 1.1;
+      zone.moveTo(BUOY_RADIUS * Math.cos(from), BUOY_RADIUS * Math.sin(from)).arc(0, 0, BUOY_RADIUS, from, to);
+    }
+    zone.stroke({ width: 4, color: BUOY_COLOR, alpha: 0.55 }).circle(0, 0, BUOY_RADIUS).fill({ color: BUOY_COLOR, alpha: 0.04 });
+    this.buoyCore.circle(0, 0, 26).stroke({ width: 4, color: BUOY_COLOR }).circle(0, 0, 10).fill({ color: BUOY_COLOR });
+    this.buoy.addChild(zone, this.buoyCore, label('Учебный буй', 0, -BUOY_RADIUS - 22, BUOY_COLOR, 18));
+    this.buoy.visible = false;
+    view.addChild(this.buoy);
     this.update(0);
+  }
+
+  /**
+   * Учебный буй (M18) в мировых координатах; null — прятать. now — часы кадра, мс: ядро мигает,
+   * чтобы буй читался целью, а не ещё одним кругом на карте.
+   */
+  setBuoy(at: Point | null, now: number): void {
+    this.buoy.visible = at !== null;
+    if (!at) return;
+    this.buoy.position.set(at.x, at.y);
+    this.buoyCore.alpha = 0.55 + 0.45 * Math.abs(Math.sin(now / 400));
   }
 
   /**

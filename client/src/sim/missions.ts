@@ -10,6 +10,9 @@ export interface MissionNames {
   place(key: string): string;
 }
 
+/** Буй засчитан ближе этого (M18); зеркало MissionRules.BuoyRadius — им же рисуется зона буя. */
+export const BUOY_RADIUS = 500;
+
 /** Куда сдавать: место назначения, а если его нет — там же, где взяли. */
 export function destination(offer: MissionOffer): string {
   return offer.place ?? offer.from;
@@ -180,7 +183,11 @@ export type Objective =
   | { kind: 'gate'; to: string | null }
   | { kind: 'ship'; id: number }
   | { kind: 'point'; x: number; y: number }
-  | { kind: 'meteor'; size: string | null };
+  | { kind: 'meteor'; size: string | null }
+  /** Учебный буй (M18): смещение в осях места — мир считается по его орбите. */
+  | { kind: 'buoy'; place: string; x: number; y: number }
+  /** Станция или поселение этой системы по ключу (M18): «продайте на Веге I» указывает на планету. */
+  | { kind: 'place'; key: string };
 
 export function objective(
   missions: MissionsMsg | null,
@@ -195,15 +202,23 @@ export function objective(
   };
   const tutorial = missions.tutorial;
   if (tutorial) {
-    switch (tutorial.id) {
+    // Шаг с системой (M18): не здесь — сначала врата к ней.
+    const away = tutorial.system && tutorial.system !== here ? tutorial.system : null;
+    switch (tutorial.kind) {
+      case 'stop':
+        return tutorial.buoy ? { kind: 'buoy', ...tutorial.buoy } : null;
       case 'drone':
         return { kind: 'drone' };
       case 'grab':
         return { kind: 'loot' };
       case 'sell':
-        return { kind: 'station' };
+      case 'buy':
+        if (away) return gateTo(away);
+        return tutorial.place ? { kind: 'place', key: tutorial.place } : { kind: 'station' };
       case 'jump':
-        return { kind: 'gate', to: null };
+        return away ? gateTo(away) : { kind: 'gate', to: null };
+      case 'kill':
+        return away ? gateTo(away) : { kind: 'pirate', npc: null };
       default:
         return null;
     }
@@ -238,7 +253,10 @@ export function objective(
 
 /** Система цели для карты галактики; null — цель здесь или её нет. */
 export function objectiveSystem(missions: MissionsMsg | null, here: string | null, galaxy: GalaxyDto | null): string | null {
-  const active = missions?.tutorial ? null : missions?.active;
+  // Шаг обучения в другой системе (M18): прыжок в Вегу, продажа на Веге I — на карте видно куда.
+  const tutorial = missions?.tutorial;
+  if (tutorial) return tutorial.system && tutorial.system !== here ? tutorial.system : null;
+  const active = missions?.active;
   if (!active || !here) return null;
   const { offer } = active;
   // Конвой и патруль целиком укладываются в эту систему: на карте галактики им указывать не на что.
@@ -251,17 +269,22 @@ export function objectiveSystem(missions: MissionsMsg | null, here: string | nul
   return offer.system === here ? null : (offer.system ?? null);
 }
 
-/** Строки трекера цели: обучение важнее задания. null — прятать. */
+/**
+ * Строки трекера цели: обучение важнее задания. null — прятать.
+ * touch — управляют со стика (M18): у шага может быть своя подсказка для телефона.
+ */
 export function trackerLines(
   missions: MissionsMsg | null,
   here: string | null,
   docked: boolean,
   names: MissionNames,
+  touch = false,
 ): { title: string; hint: string } | null {
   if (!missions) return null;
   const tutorial = missions.tutorial;
   if (tutorial) {
-    return { title: `Обучение ${tutorial.step + 1}/${tutorial.total}: ${tutorial.title}`, hint: tutorial.hint };
+    const hint = (touch && tutorial.hintTouch) || tutorial.hint;
+    return { title: `Обучение ${tutorial.step + 1}/${tutorial.total}: ${tutorial.title}`, hint };
   }
   if (!missions.active) return null;
   return { title: activeLine(missions.active, names), hint: activeHint(missions.active, here, docked, names) };

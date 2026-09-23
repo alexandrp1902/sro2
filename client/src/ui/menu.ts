@@ -3,7 +3,7 @@
  * экран дока перерисовывается целиком после каждой покупки, и меню внутри него умирало бы на полуслове.
  */
 
-export type MenuAction = 'audio' | 'controls' | 'password' | 'dev' | 'logout';
+export type MenuAction = 'audio' | 'controls' | 'tips' | 'password' | 'dev' | 'logout';
 
 export interface MenuItem {
   id: MenuAction;
@@ -16,12 +16,15 @@ export interface MenuItem {
  * @param coarse Палец, а не мышь: переназначать клавиши не на чем, и пункта «Управление» нет (M10.5).
  *   Зато нужна «Отладка»: на телефоне dev-панель открывали тапом по строке полёта, а её в космосе больше нет.
  * @param account Пилот вошёл по нику и паролю (M15.7); гостю менять нечего — у него и аккаунта нет.
+ *   Ему же — «Советы» (M18): карточка «Что дальше» после обучения, которого у гостя нет.
  */
 export function menuItems(coarse: boolean, account = false): MenuItem[] {
   // «Звук» есть в обоих режимах, и первым: на телефоне у вкладки нет отдельного ползунка в системе,
   // а приглушить игру одним движением нужно чаще, чем всё остальное в этом меню.
   const items: MenuItem[] = [{ id: 'audio', label: 'Звук' }];
   if (!coarse) items.push({ id: 'controls', label: 'Управление' });
+  // «Что дальше» после обучения (M18) — перечитать. Гостю обучения нет, и советы ему не показывали.
+  if (account) items.push({ id: 'tips', label: 'Советы' });
   if (account) items.push({ id: 'password', label: 'Сменить пароль' });
   if (coarse) items.push({ id: 'dev', label: 'Отладка' });
   items.push({ id: 'logout', label: 'Выход' });

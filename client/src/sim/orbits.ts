@@ -46,3 +46,14 @@ export function toWorld(orbit: OrbitDto, seconds: number, local: Point): Point {
 export function frameRotation(orbit: OrbitDto, seconds: number): number {
   return orbit.radius <= 0 ? 0 : orbitAngle(orbit, seconds) - Math.PI / 2;
 }
+
+/**
+ * Орбита места этой системы по ключу (M18): «st:sol» — станция, «pl:terra» — поселение на планете.
+ * null — места здесь нет (оно в другой системе или пропало из баланса).
+ */
+export function placeOrbit(system: SystemDto | null, key: string): OrbitDto | null {
+  if (!system) return key.startsWith('st:') ? CENTER : null;
+  if (key === `st:${system.id}`) return system.station ? system.stationOrbit : null;
+  if (key.startsWith('pl:')) return system.planets.find((p) => p.id === key.slice(3))?.orbit ?? null;
+  return null;
+}

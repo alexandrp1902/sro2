@@ -1,5 +1,6 @@
 import type { GateDto, PirateBaseDto } from '../net/protocol';
 import { dangerColor, gateLetters, gateNumber } from '../sim/galaxy';
+import { BUOY_RADIUS } from '../sim/missions';
 import { WORLD_HALF_SIZE } from '../sim/movement';
 import { color } from './cargoHud';
 import type { PartyMark } from './party';
@@ -99,6 +100,8 @@ export interface MinimapFrame {
   targetId: number;
   /** Цель задания или обучения — золотое кольцо; null — нет. */
   objective?: { x: number; y: number } | null;
+  /** Учебный буй (M18) — пунктирная зона остановки в масштабе карты; null — шаг не тот. */
+  buoy?: { x: number; y: number } | null;
   /** Ракеты в полёте. */
   missiles?: readonly { x: number; y: number }[];
   /** Торговцы, которые зовут на помощь: мигающее красное кольцо — и за радаром. */
@@ -332,6 +335,19 @@ export class Minimap {
       ctx.moveTo(x + s, y - s);
       ctx.lineTo(x - s, y + s);
       ctx.stroke();
+    }
+
+    if (frame.buoy) {
+      // Зона в масштабе карты: видно, куда долететь и где уже можно тормозить.
+      const r = Math.max(4 * dpr, BUOY_RADIUS * scale);
+      ctx.save();
+      ctx.setLineDash([3 * dpr, 3 * dpr]);
+      ctx.beginPath();
+      ctx.arc(px(frame.buoy.x), px(frame.buoy.y), r, 0, 2 * Math.PI);
+      ctx.strokeStyle = palette.warn;
+      ctx.lineWidth = 1 * dpr;
+      ctx.stroke();
+      ctx.restore();
     }
 
     if (frame.objective) {
