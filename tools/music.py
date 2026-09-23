@@ -402,7 +402,7 @@ def taiko_drums(rng):
         for s in shime[phrase]:
             S.place(buf, _shime(rng), S.n_of(t0 + s * st), (0.6 if s % 4 == 0 else 0.4) * (0.85 + 0.05 * phrase))
         for s in ka[phrase]:
-            S.place(buf, _ka(rng), S.n_of(t0 + s * st), 0.22)
+            S.place(buf, _ka(rng), S.n_of(t0 + s * st), 0.1)
         if i == PHRASE_BARS - 1:
             # Дробь симэ тридцать вторыми на две последние доли, с нарастанием, и два больших в конце.
             for k in range(16):
@@ -423,7 +423,6 @@ def taiko_strings(rng):
             semi = chord[0] if e % 2 == 0 else chord[(e // 2) % len(chord)]
             octave = -1 if e % 2 == 0 else 0
             note = _string_short(hz(semi, octave), eighth * 0.9, rng)
-            note += _string_short(hz(semi, octave + 1), eighth * 0.9, rng) * 0.35
             accent = 1.0 if e in (0, 4) else 0.75
             S.place(buf, note, S.n_of(b * bar + e * eighth), 0.3 * accent * (0.9 + 0.04 * phrase))
     return wrap(S.reverb(buf, ir, 0.22), n)
@@ -450,7 +449,7 @@ def taiko_hits(rng):
     for phrase in range(len(TAIKO_CHORDS) // PHRASE_BARS):
         t0 = phrase * PHRASE_BARS * bar
         S.place(buf, _brass_stab(A_MINOR, 0.6, rng), S.n_of(t0), 0.45)
-        S.place(buf, _crash(rng), S.n_of(t0), 0.12)
+        S.place(buf, _crash(rng), S.n_of(t0), 0.05)
         if phrase % 2 == 1:
             S.place(buf, _riser(rng, bar), S.n_of(t0 + 3 * bar), 0.16)
         if phrase >= 2:
@@ -518,7 +517,6 @@ def chase_strings(rng):
         for e in range(8):
             semi = chord[order[e] % len(chord)]
             note = _string_short(hz(semi, 0), eighth * 0.8, rng, attack=0.008)
-            note += _string_short(hz(semi, 1), eighth * 0.8, rng, attack=0.008) * 0.3
             accent = 1.0 if e in (0, 3) else 0.7
             S.place(buf, note, S.n_of(b * bar + e * eighth), 0.3 * accent * (0.9 + 0.03 * phrase))
     return wrap(S.reverb(buf, ir, 0.2), n)
@@ -535,7 +533,7 @@ def chase_brass(rng):
         t0 = phrase * PHRASE_BARS * bar
         chord = CHASE_CHORDS[phrase * PHRASE_BARS]
         S.place(buf, _brass_stab(chord, 0.45, rng), S.n_of(t0), 0.5)
-        S.place(buf, _crash(rng, 1.2), S.n_of(t0), 0.1)
+        S.place(buf, _crash(rng, 1.2), S.n_of(t0), 0.04)
         if phrase % 2 == 1 or phrase == 4:
             m = S.n_of(8 * beat)
             stack = np.zeros(m)
@@ -695,9 +693,9 @@ def build(only=None):
 # Громкости боевых слоёв для проверки сведения — копия MIX из client/src/audio/music.ts для настроения
 # «бой». Проверяется не каждый слой по отдельности, а то, что услышит игрок.
 CHECK_MIX = {
-    "taiko": {"taiko-drums": 1.0, "taiko-strings": 0.8, "taiko-flute": 0.7, "taiko-hits": 0.7},
+    "taiko": {"taiko-drums": 1.0, "taiko-strings": 0.8, "taiko-flute": 0.0, "taiko-hits": 0.7},
     "chase": {"chase-drums": 1.0, "chase-bass": 0.75, "chase-strings": 0.8, "chase-brass": 0.8},
-    "duel": {"duel-drums": 1.0, "duel-riff": 0.9, "duel-choir": 0.6, "duel-lead": 0.7},
+    "duel": {"duel-drums": 1.0, "duel-riff": 0.9, "duel-choir": 0.6, "duel-lead": 0.0},
 }
 
 

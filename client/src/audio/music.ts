@@ -38,7 +38,9 @@ const MIX: Record<StemName, Record<Mood, number>> = {
   'calm-arp': { calm: 0.4, combat: 0, dock: 0, dead: 0 },
   'taiko-drums': { calm: 0, combat: 1, dock: 0, dead: 0 },
   'taiko-strings': { calm: 0, combat: 0.8, dock: 0, dead: 0 },
-  'taiko-flute': { calm: 0, combat: 0.7, dock: 0, dead: 0 },
+  // Флейта и смычковый лид выключены по итогам прослушивания: самый высокий голос темы раздражал.
+  // Файлы на месте — вернуть можно одной цифрой.
+  'taiko-flute': { calm: 0, combat: 0, dock: 0, dead: 0 },
   'taiko-hits': { calm: 0, combat: 0.7, dock: 0, dead: 0 },
   'chase-drums': { calm: 0, combat: 1, dock: 0, dead: 0 },
   'chase-bass': { calm: 0, combat: 0.75, dock: 0, dead: 0 },
@@ -47,7 +49,7 @@ const MIX: Record<StemName, Record<Mood, number>> = {
   'duel-drums': { calm: 0, combat: 1, dock: 0, dead: 0 },
   'duel-riff': { calm: 0, combat: 0.9, dock: 0, dead: 0 },
   'duel-choir': { calm: 0, combat: 0.6, dock: 0, dead: 0 },
-  'duel-lead': { calm: 0, combat: 0.7, dock: 0, dead: 0 },
+  'duel-lead': { calm: 0, combat: 0, dock: 0, dead: 0 },
   'dock-pad': { calm: 0, combat: 0, dock: 0.9, dead: 0.3 },
 };
 
