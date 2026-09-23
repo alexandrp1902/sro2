@@ -62,6 +62,8 @@ export class GameAudio {
 
   private listener: Listener = { x: 0, y: 0, zoom: 1, halfWidth: 640 };
   private mood: Mood = 'calm';
+  /** Под крышей станции или на планете: космос за стеной не слышен — ни выстрелы, ни эфир. */
+  private docked = false;
   private lastHostileShot = 0;
   private lastOwnShot = 0;
   private alarmAt = 0;
@@ -103,6 +105,7 @@ export class GameAudio {
   frame(f: AudioFrame): void {
     if (!this.engine) return;
     this.listener = { x: f.camera.x, y: f.camera.y, zoom: f.camera.zoom, halfWidth: window.innerWidth / 2 };
+    this.docked = f.docked;
 
     const mood = nextMood({
       now: f.now,
@@ -143,7 +146,7 @@ export class GameAudio {
     now: number,
     vsShip: boolean,
   ): void {
-    if (!this.sfx) return;
+    if (!this.sfx || this.docked) return;
     const mine = shot.from === ownId;
     const atMe = shot.to === ownId;
     if (vsShip && mine) this.lastOwnShot = now;
@@ -170,6 +173,7 @@ export class GameAudio {
 
   /** Корабль уничтожен. @param victim кто именно — пират, с которым шёл бой, может сказать последнее */
   kill(at: Place | null, size: number, own: boolean, now: number, victim: Speaker | null = null): void {
+    if (this.docked) return;
     this.sfx?.play(killVoice(size, own), this.at(at), 0, now);
     if (!victim) return;
     const line = this.chatter.kill(victim, this.myId, now);
@@ -184,11 +188,13 @@ export class GameAudio {
 
   /** Пуск ракеты: новая ракета в снапшоте. */
   launch(weapon: WeaponParams | null, at: Place | null, source: number, mine: boolean, now: number): void {
+    if (this.docked) return;
     this.sfx?.play(launchVoice(weapon, mine), this.at(at), source, now);
   }
 
   /** Предмет ушёл в трюм. */
   pick(at: Place | null, now: number): void {
+    if (this.docked) return;
     this.cue('loot', at, 0, now);
   }
 
@@ -253,6 +259,7 @@ export class GameAudio {
 
   /** Реплика в эфир: субтитр в ленту (если включены) и голос с панорамой по положению корабля. */
   private speak(line: Line): void {
+    if (this.docked) return; // в доке эфир не ловится: SOS и последние слова тоже остаются снаружи
     const spoken = this.radio ? this.radio.say(line, this.at(line)?.pan ?? 0) : true;
     if (spoken && this.settings.prefs.subtitles) this.onSubtitle?.(line.name, line.text);
   }

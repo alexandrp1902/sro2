@@ -43,10 +43,9 @@ PEAK = 0.8
 # Кто говорит → голос Edge, темп и высота. Пират ниже и медленнее, рейнджер быстрее и суше.
 # Ключ voice в реплике («m»/«f») выбирает пол там, где у говорящего есть оба голоса.
 PROFILES = {
-    # Торговцы читались хуже всех — на плейтесте не разобрали Светлану. Русских нейронных голосов в Edge
-    # всего два, поэтому обе «половины» торговцев говорят Дмитрием, чуть выше и медленнее рейнджера;
-    # ключ voice в банке остаётся, чтобы вернуть женский голос одной строкой, если найдётся внятный.
-    "trader": {"m": ("ru-RU-DmitryNeural", "-3%", "+5Hz"), "f": ("ru-RU-DmitryNeural", "-3%", "+5Hz")},
+    # Светлана — помедленнее и чуть ниже: так её разобрали на плейтесте. «Невнятность» первой версии была
+    # не в голосе, а в обрезанных потоках Edge (см. tts_edge): реплика на 4 с приходила длиной 1,8 с.
+    "trader": {"m": ("ru-RU-DmitryNeural", "-3%", "+5Hz"), "f": ("ru-RU-SvetlanaNeural", "-12%", "-10Hz")},
     # Понижение голоса держим малым: −25 Гц у Дмитрия превращало речь в невнятный рык.
     "pirate": {"m": ("ru-RU-DmitryNeural", "-5%", "-8Hz")},
     "ranger": {"m": ("ru-RU-DmitryNeural", "+4%", "-2Hz")},
@@ -82,11 +81,32 @@ async def tts_edge(text: str, voice: str, rate: str, pitch: str, path: Path) -> 
             await edge_tts.Communicate(text, voice, rate=rate, pitch=pitch).save(str(path))
         except Exception as error:  # noqa: BLE001 — сеть, лимит запросов: подождать и повторить
             last = error
-        if path.exists() and path.stat().st_size > 0:
+        if complete(path, text):
             return
         path.unlink(missing_ok=True)
         await asyncio.sleep(2.0 * (attempt + 1))
     raise RuntimeError(f"Edge не отдал звук для «{text[:40]}»: {last}")
+
+
+# Меньше стольких миллисекунд на знак речь быть не может: поток пришёл обрезанным.
+MIN_MS_PER_CHAR = 55
+
+
+def complete(path: Path, text: str) -> bool:
+    """
+    Edge иногда обрывает поток посреди фразы и не считает это ошибкой: файл есть, а в нём половина
+    реплики, и на слух это «читает какие-то буквы». Ловим по длительности: русская речь идёт примерно
+    80–100 мс на знак, всё, что короче 55, — обрывок.
+    """
+    import soundfile as sf
+
+    if not path.exists() or path.stat().st_size == 0:
+        return False
+    try:
+        x = trim(load_audio(path))  # без тишины по краям: обрывок с длинной паузой в конце сошёл бы за целый
+    except RuntimeError:
+        return False
+    return len(x) / S.SR * 1000 >= MIN_MS_PER_CHAR * len(text.strip())
 
 
 def tts_sapi(text: str, sex: str, path: Path) -> None:
@@ -153,7 +173,7 @@ def radio(x: np.ndarray, speaker: str, rng: np.random.Generator) -> np.ndarray:
 async def synth_all(jobs: list[dict], force: bool) -> str:
     """Синтезировать всё, чего нет в кэше. Возвращает движок: edge или sapi."""
     engine = "edge"
-    todo = [j for j in jobs if force or not j["cache"].exists() or j["cache"].stat().st_size == 0]
+    todo = [j for j in jobs if force or not complete(j["cache"], j["text"])]
     if not todo:
         return engine
     CACHE.mkdir(parents=True, exist_ok=True)
@@ -170,7 +190,7 @@ async def synth_all(jobs: list[dict], force: bool) -> str:
         print(f"Edge недоступен ({type(error).__name__}: {error}); читаю локальными голосами Windows")
         engine = "sapi"
         for job in todo:
-            if not job["cache"].exists() or job["cache"].stat().st_size == 0:
+            if not complete(job["cache"], job["text"]):
                 tts_sapi(job["text"], job["sex"], job["cache"])
                 print(f"  {job['key']:<16} sapi      «{job['text'][:48]}»")
     return engine

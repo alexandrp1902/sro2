@@ -6,7 +6,7 @@
       "category": "traderHail"
     },
     "traderHail-2": {
-      "ms": 4531,
+      "ms": 5391,
       "category": "traderHail"
     },
     "traderHail-3": {
@@ -14,7 +14,7 @@
       "category": "traderHail"
     },
     "traderHail-4": {
-      "ms": 4622,
+      "ms": 4944,
       "category": "traderHail"
     },
     "traderHail-5": {
@@ -26,7 +26,7 @@
       "category": "traderHail"
     },
     "traderHail-7": {
-      "ms": 4788,
+      "ms": 5370,
       "category": "traderHail"
     },
     "traderHail-8": {
@@ -38,7 +38,7 @@
       "category": "traderHail"
     },
     "traderHail-10": {
-      "ms": 4616,
+      "ms": 5063,
       "category": "traderHail"
     },
     "traderHail-11": {
@@ -46,7 +46,19 @@
       "category": "traderHail"
     },
     "traderHail-12": {
-      "ms": 4715,
+      "ms": 5145,
+      "category": "traderHail"
+    },
+    "traderHail-13": {
+      "ms": 5161,
+      "category": "traderHail"
+    },
+    "traderHail-14": {
+      "ms": 5634,
+      "category": "traderHail"
+    },
+    "traderHail-15": {
+      "ms": 6709,
       "category": "traderHail"
     },
     "traderIdle-1": {
@@ -54,7 +66,7 @@
       "category": "traderIdle"
     },
     "traderIdle-2": {
-      "ms": 4606,
+      "ms": 5056,
       "category": "traderIdle"
     },
     "traderIdle-3": {
@@ -62,7 +74,7 @@
       "category": "traderIdle"
     },
     "traderIdle-4": {
-      "ms": 3460,
+      "ms": 3939,
       "category": "traderIdle"
     },
     "traderIdle-5": {
@@ -70,7 +82,7 @@
       "category": "traderIdle"
     },
     "traderIdle-6": {
-      "ms": 5708,
+      "ms": 6444,
       "category": "traderIdle"
     },
     "traderIdle-7": {
@@ -82,7 +94,7 @@
       "category": "traderIdle"
     },
     "traderIdle-9": {
-      "ms": 3946,
+      "ms": 4494,
       "category": "traderIdle"
     },
     "traderIdle-10": {
@@ -90,11 +102,51 @@
       "category": "traderIdle"
     },
     "traderIdle-11": {
-      "ms": 3386,
+      "ms": 3761,
       "category": "traderIdle"
     },
     "traderIdle-12": {
       "ms": 2975,
+      "category": "traderIdle"
+    },
+    "traderIdle-13": {
+      "ms": 4800,
+      "category": "traderIdle"
+    },
+    "traderIdle-14": {
+      "ms": 4323,
+      "category": "traderIdle"
+    },
+    "traderIdle-15": {
+      "ms": 4842,
+      "category": "traderIdle"
+    },
+    "traderIdle-16": {
+      "ms": 3586,
+      "category": "traderIdle"
+    },
+    "traderIdle-17": {
+      "ms": 5199,
+      "category": "traderIdle"
+    },
+    "traderIdle-18": {
+      "ms": 5044,
+      "category": "traderIdle"
+    },
+    "traderIdle-19": {
+      "ms": 6394,
+      "category": "traderIdle"
+    },
+    "traderIdle-20": {
+      "ms": 5593,
+      "category": "traderIdle"
+    },
+    "traderIdle-21": {
+      "ms": 4219,
+      "category": "traderIdle"
+    },
+    "traderIdle-22": {
+      "ms": 6930,
       "category": "traderIdle"
     },
     "rangerHail-1": {
@@ -135,6 +187,18 @@
     },
     "rangerHail-10": {
       "ms": 3721,
+      "category": "rangerHail"
+    },
+    "rangerHail-11": {
+      "ms": 6069,
+      "category": "rangerHail"
+    },
+    "rangerHail-12": {
+      "ms": 4123,
+      "category": "rangerHail"
+    },
+    "rangerHail-13": {
+      "ms": 7472,
       "category": "rangerHail"
     },
     "rangerWarn-1": {
@@ -209,6 +273,22 @@
       "ms": 2479,
       "category": "convoyIdle"
     },
+    "convoyIdle-9": {
+      "ms": 5451,
+      "category": "convoyIdle"
+    },
+    "convoyIdle-10": {
+      "ms": 5926,
+      "category": "convoyIdle"
+    },
+    "convoyIdle-11": {
+      "ms": 2997,
+      "category": "convoyIdle"
+    },
+    "convoyIdle-12": {
+      "ms": 3501,
+      "category": "convoyIdle"
+    },
     "pirateThreat-1": {
       "ms": 6281,
       "category": "pirateThreat"
@@ -226,11 +306,11 @@
       "category": "pirateThreat"
     },
     "pirateThreat-5": {
-      "ms": 2213,
+      "ms": 4907,
       "category": "pirateThreat"
     },
     "pirateThreat-6": {
-      "ms": 1230,
+      "ms": 3784,
       "category": "pirateThreat"
     },
     "pirateThreat-7": {
@@ -247,6 +327,18 @@
     },
     "pirateThreat-10": {
       "ms": 4855,
+      "category": "pirateThreat"
+    },
+    "pirateThreat-11": {
+      "ms": 5457,
+      "category": "pirateThreat"
+    },
+    "pirateThreat-12": {
+      "ms": 4785,
+      "category": "pirateThreat"
+    },
+    "pirateThreat-13": {
+      "ms": 4274,
       "category": "pirateThreat"
     },
     "pirateTaunt-1": {
@@ -279,6 +371,18 @@
     },
     "pirateTaunt-8": {
       "ms": 2173,
+      "category": "pirateTaunt"
+    },
+    "pirateTaunt-9": {
+      "ms": 1959,
+      "category": "pirateTaunt"
+    },
+    "pirateTaunt-10": {
+      "ms": 4139,
+      "category": "pirateTaunt"
+    },
+    "pirateTaunt-11": {
+      "ms": 2327,
       "category": "pirateTaunt"
     },
     "beg-1": {
@@ -321,6 +425,14 @@
       "ms": 3484,
       "category": "beg"
     },
+    "beg-11": {
+      "ms": 4298,
+      "category": "beg"
+    },
+    "beg-12": {
+      "ms": 4364,
+      "category": "beg"
+    },
     "lastWords-1": {
       "ms": 3550,
       "category": "lastWords"
@@ -345,12 +457,20 @@
       "ms": 2553,
       "category": "lastWords"
     },
+    "lastWords-7": {
+      "ms": 2663,
+      "category": "lastWords"
+    },
+    "lastWords-8": {
+      "ms": 2251,
+      "category": "lastWords"
+    },
     "sos-1": {
       "ms": 4005,
       "category": "sos"
     },
     "sos-2": {
-      "ms": 5113,
+      "ms": 5562,
       "category": "sos"
     },
     "sos-3": {
@@ -358,7 +478,7 @@
       "category": "sos"
     },
     "sos-4": {
-      "ms": 4189,
+      "ms": 4716,
       "category": "sos"
     },
     "sos-5": {
@@ -366,7 +486,7 @@
       "category": "sos"
     },
     "sos-6": {
-      "ms": 4959,
+      "ms": 5504,
       "category": "sos"
     },
     "thanks-1": {
@@ -374,7 +494,7 @@
       "category": "thanks"
     },
     "thanks-2": {
-      "ms": 6650,
+      "ms": 7386,
       "category": "thanks"
     },
     "thanks-3": {
@@ -382,7 +502,7 @@
       "category": "thanks"
     },
     "thanks-4": {
-      "ms": 4345,
+      "ms": 4872,
       "category": "thanks"
     },
     "thanks-5": {
@@ -390,7 +510,15 @@
       "category": "thanks"
     },
     "thanks-6": {
-      "ms": 5794,
+      "ms": 6647,
+      "category": "thanks"
+    },
+    "thanks-7": {
+      "ms": 5354,
+      "category": "thanks"
+    },
+    "thanks-8": {
+      "ms": 5544,
       "category": "thanks"
     }
   }
