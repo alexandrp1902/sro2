@@ -24,6 +24,8 @@ const lineUrl = (id: string) => `radio/${id}.mp3`;
 interface Speaking {
   token: number;
   priority: number;
+  /** Чей это голос: погиб — реплика обрывается на полуслове. */
+  shipId: number;
   source: AudioBufferSourceNode | null;
 }
 
@@ -47,7 +49,7 @@ export class Radio {
     if (this.current && this.current.priority >= line.priority) return false;
     this.stop();
     const token = ++this.token;
-    const speaking: Speaking = { token, priority: line.priority, source: null };
+    const speaking: Speaking = { token, priority: line.priority, shipId: line.shipId, source: null };
     this.current = speaking;
     const started = performance.now();
     this.click('squelch-open');
@@ -72,6 +74,18 @@ export class Radio {
       source.start();
     });
     return true;
+  }
+
+  /**
+   * Говоривший уничтожен: реплика обрывается на полуслове, со щелчком отбоя. Пират, который грозит
+   * из уже разлетевшегося корабля, — то, что ломает всю иллюзию эфира.
+   */
+  cutOff(shipId: number): void {
+    const speaking = this.current;
+    if (!speaking || speaking.shipId !== shipId) return;
+    this.stop();
+    this.click('squelch-close');
+    this.engine.duck(1, 1, 0.4);
   }
 
   /** Прыжок, обрыв связи, гибель: эфир смолкает без щелчка отбоя. */

@@ -178,6 +178,7 @@ export class GameAudio {
 
   /** Корабль уничтожен. @param victim кто именно — пират, с которым шёл бой, может сказать последнее */
   kill(at: Place | null, size: number, own: boolean, now: number, victim: Speaker | null = null): void {
+    if (victim) this.radio?.cutOff(victim.id); // говоривший погиб — обрываем его на полуслове
     if (this.docked) return;
     this.sfx?.play(killVoice(size, own), this.at(at), 0, now);
     if (!victim) return;
