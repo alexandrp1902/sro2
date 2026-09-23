@@ -27,12 +27,13 @@ const SHARED: StemName[] = (Object.keys(meta.stems) as StemName[]).filter(
  * а не в манифесте: правится без перерисовки музыки. Боевые громкости продублированы в CHECK_MIX
  * в tools/music.py — там по ним считается спектр смеси при приёмке.
  *
- * Дрон не смолкает нигде, кроме гибели, — он держит тональность, и переходы всегда имеют опору.
+ * На станции и на планете (настроение dock) музыки нет вовсе: под крышей тишина, по решению плейтеста.
+ * Дрон не смолкает нигде, кроме дока и гибели, — он держит тональность, и переходы всегда имеют опору.
  * В бою он и пэд почти убраны: у боевых тем своё основание (струнные, бас, рифф), и дрон поверх
  * него только мажет.
  */
 const MIX: Record<StemName, Record<Mood, number>> = {
-  'calm-drone': { calm: 0.9, combat: 0.3, dock: 0.35, dead: 0.18 },
+  'calm-drone': { calm: 0.9, combat: 0.3, dock: 0, dead: 0.18 },
   'calm-pad': { calm: 0.85, combat: 0.12, dock: 0, dead: 0 },
   // В бою арпеджио молчит: звонкий щипок поверх ударных и есть тот самый «аркадный» призвук.
   'calm-arp': { calm: 0.4, combat: 0, dock: 0, dead: 0 },
@@ -50,7 +51,6 @@ const MIX: Record<StemName, Record<Mood, number>> = {
   'duel-riff': { calm: 0, combat: 0.9, dock: 0, dead: 0 },
   'duel-choir': { calm: 0, combat: 0.6, dock: 0, dead: 0 },
   'duel-lead': { calm: 0, combat: 0, dock: 0, dead: 0 },
-  'dock-pad': { calm: 0, combat: 0, dock: 0.9, dead: 0.3 },
 };
 
 /**
