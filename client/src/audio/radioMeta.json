@@ -2,99 +2,99 @@
   "engine": "edge",
   "lines": {
     "traderHail-1": {
-      "ms": 4628,
+      "ms": 4767,
       "category": "traderHail"
     },
     "traderHail-2": {
-      "ms": 1841,
+      "ms": 4531,
       "category": "traderHail"
     },
     "traderHail-3": {
-      "ms": 4895,
+      "ms": 5039,
       "category": "traderHail"
     },
     "traderHail-4": {
-      "ms": 4380,
+      "ms": 4622,
       "category": "traderHail"
     },
     "traderHail-5": {
-      "ms": 5737,
+      "ms": 5911,
       "category": "traderHail"
     },
     "traderHail-6": {
-      "ms": 3965,
+      "ms": 4081,
       "category": "traderHail"
     },
     "traderHail-7": {
-      "ms": 2687,
+      "ms": 4788,
       "category": "traderHail"
     },
     "traderHail-8": {
-      "ms": 4681,
+      "ms": 5043,
       "category": "traderHail"
     },
     "traderHail-9": {
-      "ms": 4304,
+      "ms": 4816,
       "category": "traderHail"
     },
     "traderHail-10": {
-      "ms": 3585,
+      "ms": 4616,
       "category": "traderHail"
     },
     "traderHail-11": {
-      "ms": 4919,
+      "ms": 4981,
       "category": "traderHail"
     },
     "traderHail-12": {
-      "ms": 3233,
+      "ms": 4715,
       "category": "traderHail"
     },
     "traderIdle-1": {
-      "ms": 3520,
+      "ms": 3682,
       "category": "traderIdle"
     },
     "traderIdle-2": {
-      "ms": 3911,
+      "ms": 4606,
       "category": "traderIdle"
     },
     "traderIdle-3": {
-      "ms": 3668,
+      "ms": 4321,
       "category": "traderIdle"
     },
     "traderIdle-4": {
-      "ms": 3950,
+      "ms": 3460,
       "category": "traderIdle"
     },
     "traderIdle-5": {
-      "ms": 3060,
+      "ms": 4585,
       "category": "traderIdle"
     },
     "traderIdle-6": {
-      "ms": 3828,
+      "ms": 5708,
       "category": "traderIdle"
     },
     "traderIdle-7": {
-      "ms": 4361,
+      "ms": 4378,
       "category": "traderIdle"
     },
     "traderIdle-8": {
-      "ms": 3766,
+      "ms": 4727,
       "category": "traderIdle"
     },
     "traderIdle-9": {
-      "ms": 2895,
+      "ms": 3946,
       "category": "traderIdle"
     },
     "traderIdle-10": {
-      "ms": 2173,
+      "ms": 2678,
       "category": "traderIdle"
     },
     "traderIdle-11": {
-      "ms": 2254,
+      "ms": 3386,
       "category": "traderIdle"
     },
     "traderIdle-12": {
-      "ms": 3446,
+      "ms": 2975,
       "category": "traderIdle"
     },
     "rangerHail-1": {
@@ -346,51 +346,51 @@
       "category": "lastWords"
     },
     "sos-1": {
-      "ms": 3228,
+      "ms": 4005,
       "category": "sos"
     },
     "sos-2": {
-      "ms": 4995,
+      "ms": 5113,
       "category": "sos"
     },
     "sos-3": {
-      "ms": 5928,
+      "ms": 5193,
       "category": "sos"
     },
     "sos-4": {
-      "ms": 5788,
+      "ms": 4189,
       "category": "sos"
     },
     "sos-5": {
-      "ms": 3923,
+      "ms": 4029,
       "category": "sos"
     },
     "sos-6": {
-      "ms": 5724,
+      "ms": 4959,
       "category": "sos"
     },
     "thanks-1": {
-      "ms": 5089,
+      "ms": 6255,
       "category": "thanks"
     },
     "thanks-2": {
-      "ms": 4908,
+      "ms": 6650,
       "category": "thanks"
     },
     "thanks-3": {
-      "ms": 3528,
+      "ms": 5637,
       "category": "thanks"
     },
     "thanks-4": {
-      "ms": 2861,
+      "ms": 4345,
       "category": "thanks"
     },
     "thanks-5": {
-      "ms": 4112,
+      "ms": 4082,
       "category": "thanks"
     },
     "thanks-6": {
-      "ms": 3973,
+      "ms": 5794,
       "category": "thanks"
     }
   }
