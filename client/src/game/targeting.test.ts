@@ -10,7 +10,9 @@ import {
   pickAt,
   type EdgeArrow,
   type ScreenView,
-  type TargetCandidate,, pickNearest } from './targeting';
+  type TargetCandidate,
+  pickNearest,
+} from './targeting';
 
 /** Сектор ±60° — чтобы проверять выбор «сначала в секторе» независимо от баланса в weapons.json. */
 const pulse = { ...(weapons.pulse as WeaponParams), arc: 60 };
