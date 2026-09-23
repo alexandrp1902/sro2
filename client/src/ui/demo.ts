@@ -59,7 +59,7 @@ const CAREERS: CareerDto[] = [
 
 /** Кадр миникарты для витрины: система со звездой, станцией, планетой и парой чужих кораблей. */
 const DEMO_MINIMAP: MinimapFrame = {
-  name: 'Sol',
+  name: 'Сол',
   danger: 1,
   sun: true,
   burnRadius: 600,
@@ -73,8 +73,8 @@ const DEMO_MINIMAP: MinimapFrame = {
   pirateBase: null,
   // Врата подписаны буквой системы за ними (M16c); вторые — по проложенному курсу.
   gates: [
-    { to: 'vega', name: 'Vega', x: -1900, y: -2300 },
-    { to: 'tau', name: 'Tau', x: 2600, y: 1500 },
+    { to: 'vega', name: 'Вега', x: -1900, y: -2300 },
+    { to: 'tau', name: 'Тау', x: 2600, y: 1500 },
     { to: 'castor', name: 'Кастор', x: 2300, y: -2400 },
   ],
   routeGate: 2,
@@ -93,12 +93,12 @@ const BIG_PARTY: PartyRow[] = [
   { id: 2, n: 1, name: 'Борей', leader: true, self: false, hp: 150, maxHp: 150, sh: 60, maxSh: 60, where: '0.8с', status: '' },
   { id: 3, n: 2, name: 'Вега', leader: false, self: false, hp: 40, maxHp: 150, sh: 0, maxSh: 60, where: '1.4с', status: '' },
   { id: 4, n: 4, name: 'Гелиос', leader: false, self: false, hp: 150, maxHp: 400, sh: 90, maxSh: 200, where: '3.1с', status: '' },
-  { id: 5, n: 5, name: 'Дедал', leader: false, self: false, hp: 400, maxHp: 400, sh: 200, maxSh: 200, where: 'Vega', status: 'в доке' },
+  { id: 5, n: 5, name: 'Дедал', leader: false, self: false, hp: 400, maxHp: 400, sh: 200, maxSh: 200, where: 'Вега', status: 'в доке' },
   { id: 6, n: 6, name: 'Елена', leader: false, self: false, hp: 0, maxHp: 150, sh: 0, maxSh: 60, where: '2.2с', status: 'сбит' },
-  { id: 7, n: 7, name: 'Зевс', leader: false, self: false, hp: 260, maxHp: 400, sh: 120, maxSh: 200, where: 'Tau', status: 'нет связи' },
+  { id: 7, n: 7, name: 'Зевс', leader: false, self: false, hp: 260, maxHp: 400, sh: 120, maxSh: 200, where: 'Тау', status: 'нет связи' },
   { id: 8, n: 8, name: 'Икар', leader: false, self: false, hp: 90, maxHp: 150, sh: 25, maxSh: 60, where: '0.4с', status: '' },
   { id: 9, n: 9, name: 'Кассиопея', leader: false, self: false, hp: 330, maxHp: 400, sh: 180, maxSh: 200, where: '5.0с', status: '' },
-  { id: 10, n: 10, name: 'Лира', leader: false, self: false, hp: 140, maxHp: 150, sh: 55, maxSh: 60, where: 'Nova', status: '' },
+  { id: 10, n: 10, name: 'Лира', leader: false, self: false, hp: 140, maxHp: 150, sh: 55, maxSh: 60, where: 'Нова', status: '' },
 ];
 
 /** Метки тех из группы, кто в этой же системе: номера совпадают с панелью. */
@@ -121,14 +121,14 @@ export function demoScreen(search: string): string | null {
 /** Восемь систем в трёх регионах — плотность как у настоящей galaxy.json; порядок gates согласован со связями. */
 const GALAXY: GalaxyDto = {
   systems: [
-    { id: 'sol', name: 'Sol', danger: 1, pvp: 'off', station: true, x: 18, y: 55, region: 'core', gates: ['vega', 'tau'], places: [{ key: 'st:sol', name: 'Гавань Сол' }] },
-    { id: 'vega', name: 'Vega', danger: 2, pvp: 'on', station: true, x: 45, y: 35, region: 'core', gates: ['sol', 'rigel', 'deneb', 'nova'], places: [{ key: 'st:vega', name: 'Вега-1' }] },
-    { id: 'tau', name: 'Tau', danger: 3, pvp: 'on', station: false, x: 40, y: 74, region: 'frontier', gates: ['sol', 'nova'], places: [] },
-    { id: 'nova', name: 'Nova', danger: 4, pvp: 'on', station: true, x: 62, y: 46, region: 'frontier', gates: ['tau', 'vega', 'castor'], places: [{ key: 'st:nova', name: 'Форт Нова' }] },
+    { id: 'sol', name: 'Сол', danger: 1, pvp: 'off', station: true, x: 18, y: 55, region: 'core', gates: ['vega', 'tau'], places: [{ key: 'st:sol', name: 'Гавань Сол' }] },
+    { id: 'vega', name: 'Вега', danger: 2, pvp: 'on', station: true, x: 45, y: 35, region: 'core', gates: ['sol', 'rigel', 'deneb', 'nova'], places: [{ key: 'st:vega', name: 'Вега-1' }] },
+    { id: 'tau', name: 'Тау', danger: 3, pvp: 'on', station: false, x: 40, y: 74, region: 'frontier', gates: ['sol', 'nova'], places: [] },
+    { id: 'nova', name: 'Нова', danger: 4, pvp: 'on', station: true, x: 62, y: 46, region: 'frontier', gates: ['tau', 'vega', 'castor'], places: [{ key: 'st:nova', name: 'Форт Нова' }] },
     { id: 'castor', name: 'Кастор', danger: 3, pvp: 'on', station: true, x: 56, y: 14, region: 'frontier', gates: ['nova', 'deneb'], places: [{ key: 'st:castor', name: 'Рудник' }] },
-    { id: 'rigel', name: 'Rigel', danger: 4, pvp: 'on', station: false, x: 72, y: 66, region: 'rim', gates: ['vega', 'deneb', 'sigma'], places: [] },
-    { id: 'deneb', name: 'Deneb', danger: 5, pvp: 'on', station: true, x: 84, y: 28, region: 'rim', gates: ['vega', 'rigel', 'castor'], places: [{ key: 'st:deneb', name: 'Денеб' }] },
-    { id: 'sigma', name: 'Sigma', danger: 6, pvp: 'on', station: false, x: 92, y: 82, region: 'rim', gates: ['rigel'], places: [] },
+    { id: 'rigel', name: 'Ригель', danger: 4, pvp: 'on', station: false, x: 72, y: 66, region: 'rim', gates: ['vega', 'deneb', 'sigma'], places: [] },
+    { id: 'deneb', name: 'Денеб', danger: 5, pvp: 'on', station: true, x: 84, y: 28, region: 'rim', gates: ['vega', 'rigel', 'castor'], places: [{ key: 'st:deneb', name: 'Денеб' }] },
+    { id: 'sigma', name: 'Сигма', danger: 6, pvp: 'on', station: false, x: 92, y: 82, region: 'rim', gates: ['rigel'], places: [] },
   ] as GalaxyDto['systems'],
   links: [
     { a: 'sol', b: 'vega' },
@@ -228,23 +228,23 @@ export function runDemo(screen: string): void {
     // Первый кадр может прийти раньше, чем истечёт порог перерисовки, — сбрасываем его напрямую.
     (status as unknown as { lastRender: number }).lastRender = -1e9;
     (flight as unknown as { lastRender: number }).lastRender = -1e9;
-    status.update(online, 60, false, 'Sol · PvP нет');
+    status.update(online, 60, false, 'Сол · PvP нет');
     flight.update('Пчела', 240, 0.8);
     combatHud.update(own, target, null);
     cargoHud.setRules(loot);
     cargoHud.setCargo(cargo);
     cargoHud.update({ kind: 'station', distance: 340, inRange: false });
-    objectiveHud.update({ title: 'Доставить Металл ×5 на Vega', hint: 'Откройте карту — M, прыгайте через врата' });
+    objectiveHud.update({ title: 'Доставить Металл ×5 на Вегу', hint: 'Откройте карту — M, прыгайте через врата' });
     invasionHud.update({ title: 'Вторжение пиратов', hint: 'волна 2 из 3 · 01:20', alert: true });
     partyPanel.update(
       [
         { id: 1, n: 1, name: 'Аякс', leader: true, self: true, hp: 120, maxHp: 150, sh: 40, maxSh: 60, where: '1.2с', status: '' },
-        { id: 2, n: 2, name: 'Борей', leader: false, self: false, hp: 60, maxHp: 150, sh: 0, maxSh: 60, where: 'Vega', status: 'в доке' },
+        { id: 2, n: 2, name: 'Борей', leader: false, self: false, hp: 60, maxHp: 150, sh: 0, maxSh: 60, where: 'Вега', status: 'в доке' },
       ],
       10,
     );
     feed.add('Рейнджер-123 входит в систему');
-    feed.add('+5 Sol: пират уничтожен');
+    feed.add('+5 Сол: пират уничтожен');
     feed.warn('Подлетите ближе к вратам');
     feed.add('SOS: торговец «Альба» под атакой у врат B', true);
     minimap.hidden = false;
@@ -326,7 +326,7 @@ export function runDemo(screen: string): void {
         // А это — груз здешнего задания «собрать»: запас виден, купить нельзя.
         { id: 'crystals', buy: 104, sell: 96, stock: 4, norm: 30, sells: false },
       ],
-      rumours: [{ kind: 'route', good: 'crystals', system: 'vega', name: 'Vega', hops: 1, price: 120, profit: 45 }],
+      rumours: [{ kind: 'route', good: 'crystals', system: 'vega', name: 'Вега', hops: 1, price: 120, profit: 45 }],
       station: { produces: ['metal', 'ore'], consumes: ['crystals'] } as MarketMsg['station'],
       demand: { case: 'uprising', title: 'Восстание на Терре', goods: ['energy'], mul: 1.8, left: 30, quota: 40 },
     };

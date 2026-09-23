@@ -5,7 +5,7 @@
   "startSystem": "sol",
   "systems": {
     "sol": {
-      "name": "Sol",
+      "name": "Сол",
       "danger": 1,
       "pvp": "off",
       "station": true,
@@ -189,7 +189,7 @@
       "dockScene": "ring"
     },
     "vega": {
-      "name": "Vega",
+      "name": "Вега",
       "danger": 2,
       "pvp": "border",
       "station": true,
@@ -436,7 +436,7 @@
       "dockScene": "habitat"
     },
     "tau": {
-      "name": "Tau",
+      "name": "Тау",
       "danger": 3,
       "pvp": "border",
       "station": false,
@@ -572,7 +572,7 @@
       }
     },
     "nova": {
-      "name": "Nova",
+      "name": "Нова",
       "danger": 4,
       "pvp": "free",
       "station": true,
@@ -945,7 +945,7 @@
       "dockScene": "ranger"
     },
     "sigma": {
-      "name": "Sigma",
+      "name": "Сигма",
       "danger": 5,
       "pvp": "free",
       "station": false,

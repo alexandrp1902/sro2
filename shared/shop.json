@@ -107,11 +107,11 @@
   // Личные отличия мест: что добавили, чего нет и как плавают цены.
   // Ключ — место (M15): «st:<система>» — станция, «pl:<планета>» — поселение.
   "places": {
-    "st:sol": { "title": "Торговый порт Sol" },
+    "st:sol": { "title": "Торговый порт Сол" },
     "st:vega": { "title": "Верфь Веги", "items": ["heavyLaser"], "price": 1.05 },
     "st:alphaCen": { "title": "Причал Альфы", "remove": ["cannon"], "price": 0.92 },
     "st:castor": { "title": "Шахтёрский склад Кастора", "hulls": ["freighter"], "items": ["cargoPod"], "price": 0.95 },
-    "st:nova": { "title": "Военная станция Nova", "items": ["railgun", "reactiveArmor"], "price": 1.1 },
+    "st:nova": { "title": "Военная станция Нова", "items": ["railgun", "reactiveArmor"], "price": 1.1 },
     "st:barnard": { "title": "Пост рейнджеров Барнарда", "items": ["pointDefense", "ion", "repair", "antiMissile"], "price": 1.05 },
     "st:aldebaran": { "title": "Крепость Альдебарана", "items": ["torpedoes"], "price": 1.12 },
     "st:epsilon": { "title": "Вольная гавань Эпсилона", "hulls": ["cruiser"], "price": 1.15 },
