@@ -163,29 +163,33 @@ def combat_bass(rng):
             m = S.n_of(eighth * 0.9)
             freq = S.ramp(root * 1.6, root, S.n_of(0.02))
             note = S.osc(np.concatenate([freq, np.full(m - len(freq), root)]), m)
-            note += S.osc(root * 2, m) * 0.18
+            # Перегруженная гармоника сверху: чистый синус на 55 Гц в телефоне просто не слышно.
+            note += S.drive(S.osc(root * 2, m, "saw"), 2.5) * 0.3
             note *= S.env(m, 0.004, eighth * 0.8, power=2.2)
             S.place(buf, note, S.n_of(b * bar + s * eighth), 0.75)
-    return wrap(S.drive(buf, 1.4), n)
+    return wrap(S.biquad(S.drive(buf, 1.8), 2600, "lp"), n)
 
 
 def _kick(rng):
-    m = S.n_of(0.16)
-    x = S.osc(S.ramp(130, 44, m), m) * S.env(m, 0.001, 0.15, power=2.6)
-    click = S.biquad(S.noise(S.n_of(0.006), rng), 1500, "hp") * 0.25
-    return S.mix(x, click)
+    """Бочка: длиннее и ниже обычной, с перегрузом — в бою она должна бить в грудь, а не щёлкать."""
+    m = S.n_of(0.24)
+    x = S.osc(S.ramp(150, 38, m), m) * S.env(m, 0.001, 0.23, power=2.2)
+    click = S.biquad(S.noise(S.n_of(0.005), rng), 1200, "hp") * 0.18
+    return S.drive(S.mix(x, click), 2.0)
 
 
 def _snare(rng):
-    m = S.n_of(0.2)
-    body = S.band(S.noise(m, rng), 900, 4500) * S.env(m, 0.001, 0.18, power=2.4)
-    tone = S.osc(S.ramp(230, 170, m), m) * S.env(m, 0.001, 0.09, power=3.0) * 0.4
-    return S.mix(body, tone)
+    """Малый: корпуса больше, звона меньше — верхняя полоса срезана до 3 кГц."""
+    m = S.n_of(0.22)
+    body = S.band(S.noise(m, rng), 250, 3000) * S.env(m, 0.001, 0.2, power=2.2)
+    tone = S.osc(S.ramp(200, 140, m), m) * S.env(m, 0.001, 0.12, power=2.6) * 0.6
+    return S.drive(S.mix(body, tone), 1.6)
 
 
-def _hat(rng, length=0.05):
+def _hat(rng, length=0.04):
+    """Хэт держит темп, но не сверкает: полоса ниже и уже, иначе весь верх занимает он."""
     m = S.n_of(length)
-    return S.band(S.noise(m, rng), 6000, 12000) * S.env(m, 0.0008, length, power=3.5)
+    return S.band(S.noise(m, rng), 2600, 6500, order=4) * S.env(m, 0.0008, length, power=4.0)
 
 
 def combat_drums(rng):
@@ -203,26 +207,39 @@ def combat_drums(rng):
             if s in snare_on:
                 S.place(buf, _snare(rng), at, 0.5)
             if s % 2 == 0:
-                S.place(buf, _hat(rng), at, 0.22 if s % 4 else 0.3)
+                S.place(buf, _hat(rng), at, 0.07 if s % 4 else 0.12)
     return wrap(buf, n)
 
 
 def combat_lead(rng):
-    """Лид: шестнадцатые по тонам аккорда сквозь фильтр — тревожная беготня поверх баса."""
+    """
+    Риф: рубленые восьмые внизу с перегрузом.
+
+    Сначала здесь бежали шестнадцатые высоко наверху — получался игровой автомат, а не бой.
+    Теперь партия лежит в басовом регистре, ноты короткие и заглушённые, две расстроенные пилы идут
+    через мягкое искажение: слышно не мелодию, а работу. Эхо убрано — оно и размазывало ритм.
+    """
     buf, n = canvas(1.0)
     bar = bar_seconds(COMBAT_BPM)
-    sixteenth = bar / 16
-    shape = [0, 1, 2, 1, 0, 2, 1, 2]
+    eighth = bar / 8
+    # (доля такта, полутон от основания аккорда). Рисунок не меняется от такта к такту — он опора.
+    riff = [(0, 0), (2, 0), (3, 7), (4, 0), (6, 3), (7, 0)]
     for b in range(int(round(LOOP_SECONDS / bar))):
         chord = COMBAT_CHORDS[b % len(COMBAT_CHORDS)]
-        for s in range(16):
-            semi = chord[shape[s % len(shape)]]
-            octave = 1 if s % 8 >= 4 else 0
-            m = S.n_of(sixteenth * 1.4)
-            note = S.osc(hz(semi, octave), m, "saw") * S.env(m, 0.003, sixteenth * 1.2, power=2.6)
-            note = S.sweep(note, S.ramp(3600, 900, m), q=2.2)
-            S.place(buf, note, S.n_of(b * bar + s * sixteenth), 0.16)
-    return wrap(S.delay(buf * 0.9, sixteenth * 1000 * 3, feedback=0.3, wet=0.28), n)
+        root = chord[0]
+        for step, interval in riff:
+            m = S.n_of(eighth * 0.9)
+            freq = hz(root + interval, -1)
+            note = S.osc(freq, m, "saw") + 0.8 * S.osc(freq * 1.007, m, "saw") + 0.5 * S.osc(freq / 2, m)
+            note *= S.env(m, 0.004, eighth * 0.55, power=2.2)
+            note = S.sweep(note, S.ramp(3200, 1300, m), q=1.4)
+            note = S.drive(note * 0.5, 3.2)
+            # Серединный гриль: та же нота, перегруженная сильнее и оставленная в полосе 500-3000 Гц.
+            # Без него риф уходит целиком под 200 Гц, и в динамике телефона от боя остаётся тишина —
+            # так же, как у настоящей перегруженной гитары: основа внизу, узнаётся она по серединам.
+            grit = S.band(S.drive(note, 5.0), 500, 3000) * 0.9
+            S.place(buf, S.mix(note, grit), S.n_of(b * bar + step * eighth), 0.5)
+    return wrap(S.biquad(buf, 5200, "lp"), n)
 
 
 def combat_braam(rng):
@@ -232,14 +249,16 @@ def combat_braam(rng):
     ir = S.reverb_ir(1.8, rng, 1600)
     for phrase in range(int(round(LOOP_SECONDS / (bar * 4)))):
         chord = COMBAT_CHORDS[(phrase * 4) % len(COMBAT_CHORDS)]
-        m = S.n_of(bar * 1.6)
+        m = S.n_of(bar * 2.0)
         stack = np.zeros(m)
-        for j, semi in enumerate(chord + [chord[0] + 12]):
-            for detune in (-0.12, 0.0, 0.13):
-                stack += S.osc(hz(semi + detune, -1 if j == 0 else 0), m, "saw") * (0.5 - 0.08 * j)
-        stack *= S.env(m, 0.06, bar * 1.4, power=1.8)
-        stack = S.sweep(stack, S.ramp(600, 2600, S.n_of(0.35)), q=1.3)
-        S.place(buf, S.drive(stack * 0.12, 1.6), S.n_of(phrase * bar * 4), 1.0)
+        # Октавой ниже прежнего и с добавленным субом: медь должна давить, а не трубить.
+        for j, semi in enumerate(chord):
+            for detune in (-0.14, 0.0, 0.15):
+                stack += S.osc(hz(semi + detune, -2 if j == 0 else -1), m, "saw") * (0.5 - 0.08 * j)
+        stack += S.osc(hz(chord[0], -3), m) * 0.9
+        stack *= S.env(m, 0.05, bar * 1.8, power=1.6)
+        stack = S.sweep(stack, S.ramp(400, 1600, S.n_of(0.5)), q=1.2)
+        S.place(buf, S.drive(stack * 0.14, 2.2), S.n_of(phrase * bar * 4), 1.0)
     return wrap(S.reverb(buf, ir, 0.3), n)
 
 

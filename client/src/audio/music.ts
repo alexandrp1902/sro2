@@ -21,8 +21,9 @@ type StemName = keyof typeof meta.stems;
  */
 const MIX: Record<StemName, Record<Mood, number>> = {
   'calm-drone': { calm: 0.9, combat: 0.5, dock: 0.35, dead: 0.18 },
-  'calm-pad': { calm: 0.85, combat: 0.3, dock: 0, dead: 0 },
-  'calm-arp': { calm: 0.4, combat: 0.15, dock: 0, dead: 0 },
+  'calm-pad': { calm: 0.85, combat: 0.25, dock: 0, dead: 0 },
+  // В бою арпеджио молчит: звонкий щипок поверх рифа и есть тот самый «аркадный» призвук.
+  'calm-arp': { calm: 0.4, combat: 0, dock: 0, dead: 0 },
   'combat-bass': { calm: 0, combat: 0.9, dock: 0, dead: 0 },
   'combat-drums': { calm: 0, combat: 1, dock: 0, dead: 0 },
   'combat-lead': { calm: 0, combat: 0.7, dock: 0, dead: 0 },

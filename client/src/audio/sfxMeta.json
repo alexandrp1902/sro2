@@ -7,7 +7,7 @@
     },
     "shot-beam": {
       "n": 3,
-      "ms": 160,
+      "ms": 200,
       "gain": 0.3
     },
     "shot-orb": {
@@ -22,7 +22,7 @@
     },
     "shot-ion": {
       "n": 3,
-      "ms": 240,
+      "ms": 280,
       "gain": 0.45
     },
     "shot-flak": {
