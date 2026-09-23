@@ -1,4 +1,4 @@
-import { pickNearest, describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import weapons from '../../../shared/weapons.json';
 import type { WeaponParams } from '../sim/combat';
 import {
@@ -10,8 +10,7 @@ import {
   pickAt,
   type EdgeArrow,
   type ScreenView,
-  type TargetCandidate,
-} from './targeting';
+  type TargetCandidate,, pickNearest } from './targeting';
 
 /** Сектор ±60° — чтобы проверять выбор «сначала в секторе» независимо от баланса в weapons.json. */
 const pulse = { ...(weapons.pulse as WeaponParams), arc: 60 };
