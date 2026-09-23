@@ -19,9 +19,9 @@ const ROWS: Row[] = [
   { id: 'sfx', label: 'Звуки', hint: 'Выстрелы, взрывы, стыковка' },
 ];
 
-/** Две боевые темы на выбор — плейтест решит, какая останется. */
-const THEME_LABELS: Record<CombatTheme, string> = { organ: 'Орган', march: 'Марш' };
-const THEME_HINT = 'Орган — барабаны и церковный орган, тревога. Марш — медь, малый барабан и струнные, космическая опера.';
+/** Три боевые темы на выбор — плейтест решит, какая останется. */
+const THEME_LABELS: Record<CombatTheme, string> = { taiko: 'Тайко', chase: 'Погоня', duel: 'Дуэль' };
+const THEME_HINT = 'Тайко — барабаны, струнные и флейта. Погоня — быстрее всех, бас и валторны. Дуэль — тяжёлая полудоля, хор и смычок.';
 
 export class AudioWindow {
   constructor(

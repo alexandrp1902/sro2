@@ -10,7 +10,7 @@ import meta from './musicMeta.json';
  * Слои зациклены средствами Web Audio: буфер у всех одинаковой длины, все стартуют в одну и ту же секунду,
  * и разойтись они не могут, сколько бы игра ни шла.
  *
- * Боевых тем две (манифест, themes), и качается только выбранная: четыре лишних слоя — это пять мегабайт
+ * Боевых тем три (манифест, themes), и качается только выбранная: четыре лишних слоя — это пять мегабайт
  * распакованного звука на телефоне. При смене темы новые слои встают в круг с того же места, где сейчас
  * старые, — по времени старта петли, а не «с начала».
  */
@@ -28,22 +28,26 @@ const SHARED: StemName[] = (Object.keys(meta.stems) as StemName[]).filter(
  * в tools/music.py — там по ним считается спектр смеси при приёмке.
  *
  * Дрон не смолкает нигде, кроме гибели, — он держит тональность, и переходы всегда имеют опору.
- * В бою он и пэд почти убраны: основание боя — педаль органа, а пилы дрона поверх неё звучат
- * электроникой, которой в боевой теме быть не должно.
+ * В бою он и пэд почти убраны: у боевых тем своё основание (струнные, бас, рифф), и дрон поверх
+ * него только мажет.
  */
 const MIX: Record<StemName, Record<Mood, number>> = {
   'calm-drone': { calm: 0.9, combat: 0.3, dock: 0.35, dead: 0.18 },
   'calm-pad': { calm: 0.85, combat: 0.12, dock: 0, dead: 0 },
   // В бою арпеджио молчит: звонкий щипок поверх ударных и есть тот самый «аркадный» призвук.
   'calm-arp': { calm: 0.4, combat: 0, dock: 0, dead: 0 },
-  'combat-drums': { calm: 0, combat: 1, dock: 0, dead: 0 },
-  'combat-organ': { calm: 0, combat: 0.85, dock: 0, dead: 0 },
-  'combat-pedal': { calm: 0, combat: 0.8, dock: 0, dead: 0 },
-  'combat-swell': { calm: 0, combat: 0.6, dock: 0, dead: 0 },
-  'march-drums': { calm: 0, combat: 0.9, dock: 0, dead: 0 },
-  'march-brass': { calm: 0, combat: 0.9, dock: 0, dead: 0 },
-  'march-strings': { calm: 0, combat: 0.7, dock: 0, dead: 0 },
-  'march-swell': { calm: 0, combat: 0.6, dock: 0, dead: 0 },
+  'taiko-drums': { calm: 0, combat: 1, dock: 0, dead: 0 },
+  'taiko-strings': { calm: 0, combat: 0.8, dock: 0, dead: 0 },
+  'taiko-flute': { calm: 0, combat: 0.7, dock: 0, dead: 0 },
+  'taiko-hits': { calm: 0, combat: 0.7, dock: 0, dead: 0 },
+  'chase-drums': { calm: 0, combat: 1, dock: 0, dead: 0 },
+  'chase-bass': { calm: 0, combat: 0.75, dock: 0, dead: 0 },
+  'chase-strings': { calm: 0, combat: 0.8, dock: 0, dead: 0 },
+  'chase-brass': { calm: 0, combat: 0.8, dock: 0, dead: 0 },
+  'duel-drums': { calm: 0, combat: 1, dock: 0, dead: 0 },
+  'duel-riff': { calm: 0, combat: 0.9, dock: 0, dead: 0 },
+  'duel-choir': { calm: 0, combat: 0.6, dock: 0, dead: 0 },
+  'duel-lead': { calm: 0, combat: 0.7, dock: 0, dead: 0 },
   'dock-pad': { calm: 0, combat: 0, dock: 0.9, dead: 0.3 },
 };
 

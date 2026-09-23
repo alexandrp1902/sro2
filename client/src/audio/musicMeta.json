@@ -4,28 +4,38 @@
     "calm-drone": "calm",
     "calm-pad": "calm",
     "calm-arp": "calm",
-    "combat-drums": "combat",
     "dock-pad": "dock",
-    "combat-organ": "combat",
-    "combat-pedal": "combat",
-    "combat-swell": "combat",
-    "march-drums": "combat",
-    "march-brass": "combat",
-    "march-strings": "combat",
-    "march-swell": "combat"
+    "taiko-drums": "combat",
+    "taiko-strings": "combat",
+    "taiko-flute": "combat",
+    "taiko-hits": "combat",
+    "chase-drums": "combat",
+    "chase-bass": "combat",
+    "chase-strings": "combat",
+    "chase-brass": "combat",
+    "duel-drums": "combat",
+    "duel-riff": "combat",
+    "duel-choir": "combat",
+    "duel-lead": "combat"
   },
   "themes": {
-    "organ": [
-      "combat-drums",
-      "combat-organ",
-      "combat-pedal",
-      "combat-swell"
+    "taiko": [
+      "taiko-drums",
+      "taiko-strings",
+      "taiko-flute",
+      "taiko-hits"
     ],
-    "march": [
-      "march-drums",
-      "march-brass",
-      "march-strings",
-      "march-swell"
+    "chase": [
+      "chase-drums",
+      "chase-bass",
+      "chase-strings",
+      "chase-brass"
+    ],
+    "duel": [
+      "duel-drums",
+      "duel-riff",
+      "duel-choir",
+      "duel-lead"
     ]
   }
 }

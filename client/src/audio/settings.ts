@@ -7,11 +7,11 @@ import { storage } from '../util/storage';
  */
 
 /**
- * Боевая тема: «орган» — барабаны и церковный орган по заданию (docs/SRO - Задание на боевую музыку.md),
- * «марш» — медь, малый барабан и струнные в духе космической оперы. Оба набора в одной тональности
- * и темпе, так что переключение — тот же кроссфейд, что и вход в бой.
+ * Боевая тема, три на выбор (по мотивам «Shadow Fight»): «тайко» — барабаны тайко, низкие струнные и
+ * флейта; «погоня» — малый барабан, пульс баса, спиккато и валторны; «дуэль» — полудоля, рифф виолончелей,
+ * хор и смычковый лид. Все в одной тональности, так что переключение — тот же кроссфейд, что и вход в бой.
  */
-export const COMBAT_THEMES = ['organ', 'march'] as const;
+export const COMBAT_THEMES = ['taiko', 'chase', 'duel'] as const;
 export type CombatTheme = (typeof COMBAT_THEMES)[number];
 
 export interface AudioPrefs {
@@ -30,7 +30,7 @@ export interface AudioPrefs {
  * Музыка тише звуков нарочно: саундтрек не должен перекрывать выстрел по мне — это боевая информация,
  * а не украшение.
  */
-export const DEFAULT_PREFS: AudioPrefs = { master: 0.8, music: 0.5, sfx: 0.8, radio: 0.9, subtitles: true, combat: 'organ' };
+export const DEFAULT_PREFS: AudioPrefs = { master: 0.8, music: 0.5, sfx: 0.8, radio: 0.9, subtitles: true, combat: 'taiko' };
 
 export const AUDIO_KEY = 'sro.audio';
 
