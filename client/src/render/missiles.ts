@@ -50,6 +50,12 @@ export class MissileField {
   private readonly drawn: MissileInfo[] = [];
   private latestTick = 0;
 
+  /**
+   * Новая ракета в снапшоте — это пуск: по нему звучит стартовый заряд (M17). Ракеты, уже летящие
+   * в момент подключения, тоже сочтутся новыми, но их пуски погасит бюджет звука.
+   */
+  onLaunch: ((dto: MissileDto) => void) | null = null;
+
   constructor(private readonly weapons: Weapons) {}
 
   push(message: SnapshotMsg): void {
@@ -60,6 +66,7 @@ export class MissileField {
         m = { dto, samples: [], trail: [], body: new Graphics(), tail: new Graphics(), lastTick: message.tick };
         this.view.addChild(m.tail, m.body);
         this.flying.set(dto.id, m);
+        this.onLaunch?.(dto);
       }
       m.dto = dto;
       m.lastTick = message.tick;

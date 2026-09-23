@@ -2,7 +2,7 @@
  * Витрина интерфейса без сервера: `?demo=<экран>` собирает настоящие построители HUD, дока и окон
  * на фиксированных данных. Нужна проходам по дизайну (скриншоты headless-браузером на ПК и телефоне)
  * и ничего не шлёт. Экраны: flight, dock-missions, dock-cargo, dock-hulls, dock-ships, dock-fitting,
- * galaxy, controls, confirm, menu, password, death, login, login-new, login-over, party10, trade.
+ * galaxy, controls, audio, confirm, menu, password, death, login, login-new, login-over, party10, trade.
  */
 import type { Connection } from '../net/connection';
 import type { CareerDto, GalaxyDto, HangarMsg, MarketMsg, MissionsMsg, RepMsg } from '../net/protocol';
@@ -18,6 +18,8 @@ import { KeyboardControls, bindKeyboard } from '../input/keyboard';
 import { CargoHud } from './cargoHud';
 import { CombatHud } from './combatHud';
 import { ConfirmCard, logoutLines } from './confirm';
+import { AudioWindow } from './audioWindow';
+import { AudioSettings } from '../audio/settings';
 import { ControlsWindow } from './controlsWindow';
 import { DockScreen, type Tab } from './dockScreen';
 import { Feed } from './feed';
@@ -199,6 +201,9 @@ export function runDemo(screen: string): void {
   const pilotForm = new PilotForm(el('connect'), { onLogin: noop, onLogout: noop, onCheckName: noop });
   const galaxyMap = new GalaxyMap(el('galaxy'));
   const controlsWindow = new ControlsWindow(el('controls'));
+  // Окно «Звук» (M17) живёт на порте настроек, поэтому в витрине обходится без AudioContext.
+  // Ключ свой: витрина не должна переписывать громкости, с которыми человек играет.
+  const audioWindow = new AudioWindow(el('audio'), new AudioSettings('sro.audio.demo'));
   const minimap = new Minimap(el('minimap') as HTMLCanvasElement, noop);
   void inviteCard;
 
@@ -401,6 +406,10 @@ export function runDemo(screen: string): void {
     case 'controls':
       flightHud();
       controlsWindow.show();
+      break;
+    case 'audio':
+      flightHud();
+      audioWindow.show();
       break;
     case 'login':
       // Стартовый экран, вкладка «Вход»: ник помним с прошлого раза, за окном заставка.

@@ -2360,3 +2360,56 @@ body {
     opacity: 0.55;
   }
 }
+
+/* ---------- Окно «Звук» (M17) ---------- */
+.audio-card {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-width: 480px;
+  max-height: 100%;
+  overflow: auto;
+}
+
+.audio-table {
+  display: grid;
+  gap: var(--space-1);
+  padding: 10px 16px;
+}
+
+/* Название, ползунок и проценты в строку; подсказка уходит под них через всю ширину. */
+.audio-row {
+  display: grid;
+  grid-template-columns: 86px 1fr 52px;
+  column-gap: 10px;
+  align-items: center;
+}
+
+.audio-label {
+  font-size: 14px;
+}
+
+.audio-value {
+  text-align: right;
+  color: var(--steel);
+}
+
+.audio-hint {
+  grid-column: 1 / -1;
+  margin-top: -10px;
+  font-size: 12px;
+  line-height: 16px;
+}
+
+.audio-note {
+  padding: 4px 16px 10px;
+  font-size: 13px;
+  line-height: 18px;
+}
+
+.audio-foot {
+  display: flex;
+  justify-content: flex-end;
+  padding: 10px 16px;
+  border-top: 1px solid var(--line-soft);
+}

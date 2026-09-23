@@ -35,6 +35,8 @@ import { loadSprites, moduleSprite, weaponSprite } from './render/sprites';
 import { Starfield } from './render/starfield';
 import { WeaponArc } from './render/weaponArc';
 import { GATE_SIZE, SystemView, type PlanetInfo } from './render/world';
+import { GameAudio } from './audio';
+import { AudioWindow } from './ui/audioWindow';
 import { Landing } from './ui/landing';
 import { DEFAULT_SECTOR_UNIT, assessBest, cooldownTicks, damageType, evasion, longestRange } from './sim/combat';
 import { Modules, effectiveHull, fitWeapons, tierOf, type ShipFit } from './sim/fitting';
@@ -115,6 +117,14 @@ async function main(): Promise<void> {
   await loadSprites();
   const el = (id: string) => document.getElementById(id)!;
 
+  // Звук (M17): банк и музыка качаются в фоне и игру не задерживают. Разбудить контекст обязан жест
+  // пользователя — так требуют браузеры; вход в игру, тап по стику и любая клавиша годятся одинаково.
+  const audio = new GameAudio();
+  audio.prepare();
+  for (const gesture of ['pointerdown', 'keydown'] as const) {
+    window.addEventListener(gesture, () => audio.unlock(), { once: true, capture: true });
+  }
+
   const hulls = new Hulls();
   const weapons = new Weapons();
   const modules = new Modules();
@@ -184,6 +194,10 @@ async function main(): Promise<void> {
   const loot = new LootField();
   const meteors = new MeteorField();
   const missiles = new MissileField(weapons);
+  // Пуск слышно там, где ракета появилась: сам выстрел ракетницы в снапшот не приходит (M17).
+  missiles.onLaunch = (dto) => {
+    audio.launch(weapons.has(dto.w) ? weapons.get(dto.w) : null, dto, dto.o, dto.o === ownId(), performance.now());
+  };
   const jumpFx = new JumpFx();
   let systemView = new SystemView(null);
   world.addChild(
@@ -251,6 +265,7 @@ async function main(): Promise<void> {
     // Захват стрелка — исключение: он ничего не выбирал, и гасить ему удержанный огонь не за что.
     // Так автозахват не меняет состояние огня ни в одну сторону: держал — стреляет в ответ, не держал — молчит.
     if (!auto) fire.release();
+    if (id !== 0) audio.own('lock');
   };
   // Группа (GDD §37): свои — другим цветом, не цели для огня; позвать — с карточки цели.
   const party = new PartyBoard();
@@ -414,8 +429,10 @@ async function main(): Promise<void> {
   const passwordForm = new PasswordForm(el('password'), (current, fresh) => {
     connection?.send({ t: 'password', old: current, new: fresh });
   });
+  const audioWindow = new AudioWindow(el('audio'), audio.settings, () => audio.preview());
   const menu = new BurgerMenu(el('menu'), (action) => {
-    if (action === 'controls') controlsWindow.toggle();
+    if (action === 'audio') audioWindow.toggle();
+    else if (action === 'controls') controlsWindow.toggle();
     else if (action === 'password') passwordForm.show();
     // Пункт есть только на телефоне: там строки полёта нет, а dev-панель нужна на плейтесте.
     // dev объявлен ниже — к первому клику он уже создан.
@@ -558,6 +575,7 @@ async function main(): Promise<void> {
   };
   fire.onChange = (on) => {
     if (isOnline()) connection!.send({ t: 'fire', on });
+    audio.own(on ? 'fire-on' : 'fire-off');
   };
   /**
    * Предыдущий / следующий объект по удалённости: Q/E, Shift+←/→, Tab на ПК, кнопки < > у кнопки огня на телефоне.
@@ -758,7 +776,10 @@ async function main(): Promise<void> {
   const play = (event: CombatEvent, now: number) => {
     if (event.kind === 'kill') {
       const at = locate(event.kill.id);
-      if (at) fx.explosion(at.x, at.y, at.size, now);
+      if (at) {
+        fx.explosion(at.x, at.y, at.size, now);
+        audio.kill(at, at.size, event.kill.id === ownId(), now);
+      }
       return;
     }
     if (event.kind === 'pick') {
@@ -769,10 +790,22 @@ async function main(): Promise<void> {
       const mine = event.pick.by === ownId();
       const label = mine ? `+${lootLabel(lootRules, event.pick.i, event.pick.n)}` : '';
       fx.tractor(event.pick.by, at, from.x, from.y, rarityColor(lootRules, event.pick.i), label, now);
+      audio.pick(at, now);
       return;
     }
     const shot = event.shot;
     fx.shot(shot, now, locate);
+    // Звук берёт те же точки, что и картинка: выстрел звучит у ствола, удар — там, куда долетел снаряд.
+    // Стрельба по метеориту боем не считается — иначе добыча минералов включала бы боевую музыку.
+    audio.shot(
+      shot,
+      isPseudoWeapon(shot.w) ? null : weapons.get(shot.w),
+      locate(shot.from),
+      locate(shot.to),
+      ownId(),
+      now,
+      !isMeteor(shot.to),
+    );
     // Осколки и таран идут под псевдо-пушкой (M15.5): полосу перезарядки они не крутят,
     // и спрашивать про них weapons.get нельзя — он молча вернёт импульсную.
     if (!isPseudoWeapon(shot.w) && shot.from === ownId() && shot.w === mainWeaponId() && !weapons.get(shot.w).missile) {
@@ -815,6 +848,9 @@ async function main(): Promise<void> {
       setMark(0);
       setTarget(0);
       fire.release();
+      // Новая система — новый бой и новые id: всё, что звучало, к ней не относится.
+      audio.reset();
+      if (was) audio.own('jump');
       if (was) {
         stick.reset();
         controls.setThrottle(0);
@@ -982,10 +1018,13 @@ async function main(): Promise<void> {
         fire.release();
         stick.reset();
         controls.setThrottle(0);
+        audio.reset(); // под крышей станции бой не слышен
+        audio.own('dock');
       }
       // Вылет: сервер начал буфер входов заново — и мы нумеруем их с 1, первый снапшот принимаем как есть.
       if (!docked && was) {
         prediction.resetNet();
+        audio.own('undock');
         landing.stop(); // взлетели, не досмотрев спуск
         dockScreen.setMarket(null); // цены того места больше не наши: в следующем они свои
         dockScreen.setShop(null); // и витрина тоже: до следующей стыковки живём той, что в welcome
@@ -1116,6 +1155,8 @@ async function main(): Promise<void> {
   let wasOnline = false;
   let wasDead = false;
   let missileWarned = false;
+  /** Гудит ли сейчас накопитель прыжка: по нему звук начинается и обрывается вместе с самим прыжком. */
+  let jumpHumming = false;
   app.ticker.add(() => {
     const now = performance.now();
     const frameSeconds = Math.min(0.1, (now - lastFrame) / 1000);
@@ -1128,6 +1169,7 @@ async function main(): Promise<void> {
       meteors.clear();
       missiles.clear();
       combat.clear();
+      audio.reset(); // связи нет — выстрелы, тревога и гул прыжка больше ни к чему не относятся
       ownDto = null;
       docked = false; // с новым соединением сервер заново скажет, где корабль
       dockScreen.setHangar(null);
@@ -1160,8 +1202,14 @@ async function main(): Promise<void> {
       stick.reset();
       controls.setThrottle(0);
       fire.release();
+      // Взрыв своего корабля уже прозвучал по событию боя — здесь гасим всё остальное: тревогу,
+      // гул прыжка, доносящуюся стрельбу. Обломкам не до них.
+      audio.reset();
     }
-    if (!dead && wasDead) killedBy = '';
+    if (!dead && wasDead) {
+      killedBy = '';
+      audio.own('respawn', now);
+    }
     wasDead = dead;
 
     const alpha = loop.advance(now);
@@ -1182,6 +1230,12 @@ async function main(): Promise<void> {
     if (ownDto?.j && !dead) jumpers.push({ x: state.x, y: state.y, size: hull.size, jumpAt: ownDto.j });
     for (const ship of remote.visible()) if (ship.jumpAt > 0 && !ship.dead) jumpers.push(ship);
     jumpFx.update(jumpers, remote.renderTick, (system?.jumpSeconds ?? 3) / DT, now);
+    // Накопитель прыжка гудит, пока сервер держит тик ухода. Прыжок состоялся — гул снимет смена
+    // системы (applySystem), сорвали — снимет эта же строка на спаде.
+    const humming = !!ownDto?.j && !dead;
+    if (humming && !jumpHumming) audio.startJump(system?.jumpSeconds ?? 3);
+    else if (!humming && jumpHumming) audio.endJump(false);
+    jumpHumming = humming;
     loot.update(now, remote.renderTick);
     meteors.update(now);
     missiles.update(remote.renderTick, ownId());
@@ -1239,6 +1293,9 @@ async function main(): Promise<void> {
     inviteCard.tick(now);
 
     camera.follow(state.x, state.y, zoom.value).apply(world, app.screen.width, app.screen.height);
+    // Звук слышит оттуда же, откуда смотрит камера. Здесь же решается, что играть: бой начинают
+    // выстрелы и наведённые на меня пушки, а кончает семь секунд тишины (audio/mood.ts).
+    audio.frame({ now, camera, threats: attackers, incoming, docked, dead });
     starfield.update(camera.x, camera.y, camera.zoom, app.screen.width, app.screen.height);
     nebula.update(now);
     weaponArc.update(state.x, state.y, state.rot, target && !dead && !docked ? weapon : null, aim?.state === 'ready');

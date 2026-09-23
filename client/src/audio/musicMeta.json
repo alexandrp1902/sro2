@@ -1,0 +1,13 @@
+{
+  "loopSeconds": 30.0,
+  "stems": {
+    "calm-drone": "calm",
+    "calm-pad": "calm",
+    "calm-arp": "calm",
+    "combat-bass": "combat",
+    "combat-drums": "combat",
+    "combat-lead": "combat",
+    "combat-braam": "combat",
+    "dock-pad": "dock"
+  }
+}

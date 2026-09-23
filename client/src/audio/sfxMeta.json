@@ -1,0 +1,149 @@
+{
+  "cues": {
+    "shot-bolt": {
+      "n": 3,
+      "ms": 170,
+      "gain": 0.45
+    },
+    "shot-beam": {
+      "n": 3,
+      "ms": 160,
+      "gain": 0.3
+    },
+    "shot-orb": {
+      "n": 3,
+      "ms": 300,
+      "gain": 0.5
+    },
+    "shot-rail": {
+      "n": 3,
+      "ms": 260,
+      "gain": 0.6
+    },
+    "shot-ion": {
+      "n": 3,
+      "ms": 240,
+      "gain": 0.45
+    },
+    "shot-flak": {
+      "n": 3,
+      "ms": 200,
+      "gain": 0.3
+    },
+    "guard": {
+      "n": 2,
+      "ms": 180,
+      "gain": 0.28
+    },
+    "launch-missile": {
+      "n": 2,
+      "ms": 500,
+      "gain": 0.55
+    },
+    "launch-torpedo": {
+      "n": 2,
+      "ms": 750,
+      "gain": 0.6
+    },
+    "hit-shield": {
+      "n": 3,
+      "ms": 200,
+      "gain": 0.42
+    },
+    "hit-hull": {
+      "n": 3,
+      "ms": 190,
+      "gain": 0.5
+    },
+    "block": {
+      "n": 2,
+      "ms": 140,
+      "gain": 0.38
+    },
+    "whizz": {
+      "n": 2,
+      "ms": 130,
+      "gain": 0.25
+    },
+    "explode": {
+      "n": 3,
+      "ms": 950,
+      "gain": 1.0
+    },
+    "death": {
+      "n": 1,
+      "ms": 1500,
+      "gain": 1.0
+    },
+    "splash": {
+      "n": 2,
+      "ms": 420,
+      "gain": 0.55
+    },
+    "ram": {
+      "n": 2,
+      "ms": 380,
+      "gain": 0.8
+    },
+    "loot": {
+      "n": 2,
+      "ms": 420,
+      "gain": 0.4
+    },
+    "dock": {
+      "n": 1,
+      "ms": 500,
+      "gain": 0.5
+    },
+    "undock": {
+      "n": 1,
+      "ms": 500,
+      "gain": 0.5
+    },
+    "jump-charge": {
+      "n": 1,
+      "ms": 3000,
+      "gain": 0.4
+    },
+    "jump": {
+      "n": 1,
+      "ms": 900,
+      "gain": 0.7
+    },
+    "alarm": {
+      "n": 1,
+      "ms": 420,
+      "gain": 0.55
+    },
+    "squelch-open": {
+      "n": 2,
+      "ms": 90,
+      "gain": 0.3
+    },
+    "squelch-close": {
+      "n": 2,
+      "ms": 60,
+      "gain": 0.26
+    },
+    "fire-on": {
+      "n": 1,
+      "ms": 80,
+      "gain": 0.25
+    },
+    "fire-off": {
+      "n": 1,
+      "ms": 70,
+      "gain": 0.22
+    },
+    "lock": {
+      "n": 1,
+      "ms": 160,
+      "gain": 0.3
+    },
+    "respawn": {
+      "n": 1,
+      "ms": 800,
+      "gain": 0.55
+    }
+  }
+}

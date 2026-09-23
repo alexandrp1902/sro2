@@ -3,7 +3,7 @@
  * экран дока перерисовывается целиком после каждой покупки, и меню внутри него умирало бы на полуслове.
  */
 
-export type MenuAction = 'controls' | 'password' | 'dev' | 'logout';
+export type MenuAction = 'audio' | 'controls' | 'password' | 'dev' | 'logout';
 
 export interface MenuItem {
   id: MenuAction;
@@ -18,7 +18,9 @@ export interface MenuItem {
  * @param account Пилот вошёл по нику и паролю (M15.7); гостю менять нечего — у него и аккаунта нет.
  */
 export function menuItems(coarse: boolean, account = false): MenuItem[] {
-  const items: MenuItem[] = [];
+  // «Звук» есть в обоих режимах, и первым: на телефоне у вкладки нет отдельного ползунка в системе,
+  // а приглушить игру одним движением нужно чаще, чем всё остальное в этом меню.
+  const items: MenuItem[] = [{ id: 'audio', label: 'Звук' }];
   if (!coarse) items.push({ id: 'controls', label: 'Управление' });
   if (account) items.push({ id: 'password', label: 'Сменить пароль' });
   if (coarse) items.push({ id: 'dev', label: 'Отладка' });
