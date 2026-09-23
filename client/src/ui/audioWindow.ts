@@ -1,4 +1,4 @@
-import type { AudioPrefs, AudioPrefsPort } from '../audio/settings';
+import { COMBAT_THEMES, type AudioPrefs, type AudioPrefsPort, type CombatTheme } from '../audio/settings';
 
 /**
  * Окно «Звук» (M17): общая громкость, музыка и звуки. Устроено как окно «Управление» (ui/controlsWindow.ts) —
@@ -18,6 +18,10 @@ const ROWS: Row[] = [
   { id: 'music', label: 'Музыка', hint: 'Космос в покое, бой — сам по себе' },
   { id: 'sfx', label: 'Звуки', hint: 'Выстрелы, взрывы, стыковка' },
 ];
+
+/** Две боевые темы на выбор — плейтест решит, какая останется. */
+const THEME_LABELS: Record<CombatTheme, string> = { organ: 'Орган', march: 'Марш' };
+const THEME_HINT = 'Орган — барабаны и церковный орган, тревога. Марш — медь, малый барабан и струнные, космическая опера.';
 
 export class AudioWindow {
   constructor(
@@ -60,6 +64,7 @@ export class AudioWindow {
 
     const table = el('div', 'audio-table');
     for (const row of ROWS) table.append(this.slider(row));
+    table.append(this.themeRow());
     card.append(table);
 
     const note = el('div', 'audio-note sro-muted');
@@ -93,6 +98,25 @@ export class AudioWindow {
       this.prefs.set({ [row.id]: Number(input.value) / 100 } as Partial<AudioPrefs>);
     });
     line.append(label, input, value, el('div', 'audio-hint sro-muted', row.hint));
+    return line;
+  }
+
+  private themeRow(): HTMLElement {
+    const line = el('div', 'audio-row audio-row--themes');
+    const label = el('div', 'audio-label', 'Бой');
+    const tabs = el('div', 'audio-themes sro-tabs');
+    tabs.setAttribute('role', 'group');
+    tabs.setAttribute('aria-label', 'Боевая тема');
+    for (const theme of COMBAT_THEMES) {
+      const tab = button(THEME_LABELS[theme], 'sro-tab', () => {
+        this.prefs.set({ combat: theme });
+        this.render();
+      });
+      tab.setAttribute('aria-pressed', String(this.prefs.prefs.combat === theme));
+      tab.dataset.theme = theme;
+      tabs.append(tab);
+    }
+    line.append(label, tabs, el('div', 'audio-value'), el('div', 'audio-hint sro-muted', THEME_HINT));
     return line;
   }
 }

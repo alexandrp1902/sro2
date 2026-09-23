@@ -6,6 +6,14 @@ import { storage } from '../util/storage';
  * читает при создании, пишет при каждой правке, оповещает подписчиков.
  */
 
+/**
+ * Боевая тема: «орган» — барабаны и церковный орган по заданию (docs/SRO - Задание на боевую музыку.md),
+ * «марш» — медь, малый барабан и струнные в духе космической оперы. Оба набора в одной тональности
+ * и темпе, так что переключение — тот же кроссфейд, что и вход в бой.
+ */
+export const COMBAT_THEMES = ['organ', 'march'] as const;
+export type CombatTheme = (typeof COMBAT_THEMES)[number];
+
 export interface AudioPrefs {
   /** Все громкости 0..1. */
   master: number;
@@ -15,13 +23,14 @@ export interface AudioPrefs {
   radio: number;
   /** Субтитры эфира в ленте — отдельно от голоса: звук можно выключить, а текст читать. */
   subtitles: boolean;
+  combat: CombatTheme;
 }
 
 /**
  * Музыка тише звуков нарочно: саундтрек не должен перекрывать выстрел по мне — это боевая информация,
  * а не украшение.
  */
-export const DEFAULT_PREFS: AudioPrefs = { master: 0.8, music: 0.5, sfx: 0.8, radio: 0.9, subtitles: true };
+export const DEFAULT_PREFS: AudioPrefs = { master: 0.8, music: 0.5, sfx: 0.8, radio: 0.9, subtitles: true, combat: 'organ' };
 
 export const AUDIO_KEY = 'sro.audio';
 
@@ -39,6 +48,7 @@ export function parsePrefs(raw: string | null): AudioPrefs {
       sfx: clamp01(json.sfx, DEFAULT_PREFS.sfx),
       radio: clamp01(json.radio, DEFAULT_PREFS.radio),
       subtitles: typeof json.subtitles === 'boolean' ? json.subtitles : DEFAULT_PREFS.subtitles,
+      combat: (COMBAT_THEMES as readonly string[]).includes(json.combat as string) ? (json.combat as CombatTheme) : DEFAULT_PREFS.combat,
     };
   } catch {
     return { ...DEFAULT_PREFS };

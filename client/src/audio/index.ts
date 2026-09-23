@@ -59,9 +59,10 @@ export class GameAudio {
     }
     this.engine = engine;
     this.sfx = engine ? new Sfx(engine, this.bank) : null;
-    this.music = engine ? new Music(engine) : null;
+    this.music = engine ? new Music(engine, this.settings.prefs.combat) : null;
     this.settings.onChange((prefs) => {
       engine?.applyPrefs(prefs);
+      this.music?.setTheme(prefs.combat);
       this.ensureMusic(); // музыку прибавили после того, как выключили, — теперь её надо скачать
     });
   }

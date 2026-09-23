@@ -4,10 +4,28 @@
     "calm-drone": "calm",
     "calm-pad": "calm",
     "calm-arp": "calm",
-    "combat-bass": "combat",
     "combat-drums": "combat",
-    "combat-lead": "combat",
-    "combat-braam": "combat",
-    "dock-pad": "dock"
+    "dock-pad": "dock",
+    "combat-organ": "combat",
+    "combat-pedal": "combat",
+    "combat-swell": "combat",
+    "march-drums": "combat",
+    "march-brass": "combat",
+    "march-strings": "combat",
+    "march-swell": "combat"
+  },
+  "themes": {
+    "organ": [
+      "combat-drums",
+      "combat-organ",
+      "combat-pedal",
+      "combat-swell"
+    ],
+    "march": [
+      "march-drums",
+      "march-brass",
+      "march-strings",
+      "march-swell"
+    ]
   }
 }

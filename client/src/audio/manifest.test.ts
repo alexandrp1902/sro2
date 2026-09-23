@@ -48,4 +48,25 @@ describe('слои музыки', () => {
     expect(moods.has('calm')).toBe(true);
     expect(moods.has('combat')).toBe(true);
   });
+
+  it('каждый боевой слой принадлежит ровно одной теме, и обе темы не пусты', () => {
+    const stems = music.stems as Record<string, string>;
+    const owners = new Map<string, string>();
+    for (const [theme, names] of Object.entries(music.themes)) {
+      expect(names.length, theme).toBeGreaterThan(0);
+      for (const name of names) {
+        expect(stems[name], `${theme}: ${name} нет в манифесте`).toBe('combat');
+        expect(owners.has(name), `${name} сразу в двух темах`).toBe(false);
+        owners.set(name, theme);
+      }
+    }
+    for (const [name, mood] of Object.entries(stems)) {
+      if (mood === 'combat') expect(owners.has(name), `${name} вне тем`).toBe(true);
+    }
+  });
+
+  it('файлов без записи в манифесте нет: старые слои не должны лежать мёртвым грузом', () => {
+    const extra = [...musicFiles].filter((name) => !(name in music.stems));
+    expect(extra).toEqual([]);
+  });
 });
