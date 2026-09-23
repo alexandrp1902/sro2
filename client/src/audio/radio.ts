@@ -19,7 +19,7 @@ const LATE_MS = 2500;
 /** Голос слышен отовсюду одинаково — это рация, а не крик через космос; панорама только намекает, откуда. */
 const PAN_SCALE = 0.6;
 
-const lineUrl = (id: string) => `radio/${id}.mp3`;
+const lineUrl = (id: string) => `radio/${id}.mp3?v=${meta.revision}`;
 
 interface Speaking {
   token: number;

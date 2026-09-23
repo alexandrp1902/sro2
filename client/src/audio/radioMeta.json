@@ -1,376 +1,449 @@
 {
   "engine": "edge",
+  "revision": "0436aad509aa5be1",
   "lines": {
     "traderHail-1": {
-      "ms": 4767,
+      "ms": 3313,
       "category": "traderHail"
     },
     "traderHail-2": {
-      "ms": 5391,
+      "ms": 3301,
       "category": "traderHail"
     },
     "traderHail-3": {
-      "ms": 5039,
+      "ms": 3824,
       "category": "traderHail"
     },
     "traderHail-4": {
-      "ms": 4944,
+      "ms": 3648,
       "category": "traderHail"
     },
     "traderHail-5": {
-      "ms": 5911,
+      "ms": 3948,
       "category": "traderHail"
     },
     "traderHail-6": {
-      "ms": 4081,
+      "ms": 3532,
       "category": "traderHail"
     },
     "traderHail-7": {
-      "ms": 5370,
+      "ms": 4349,
       "category": "traderHail"
     },
     "traderHail-8": {
-      "ms": 5043,
+      "ms": 3587,
       "category": "traderHail"
     },
     "traderHail-9": {
-      "ms": 4816,
+      "ms": 3254,
       "category": "traderHail"
     },
     "traderHail-10": {
-      "ms": 5063,
+      "ms": 4456,
       "category": "traderHail"
     },
     "traderHail-11": {
-      "ms": 4981,
+      "ms": 5385,
       "category": "traderHail"
     },
     "traderHail-12": {
-      "ms": 5145,
+      "ms": 3796,
       "category": "traderHail"
     },
     "traderHail-13": {
-      "ms": 5161,
+      "ms": 3663,
       "category": "traderHail"
     },
     "traderHail-14": {
-      "ms": 5634,
+      "ms": 3636,
       "category": "traderHail"
     },
     "traderHail-15": {
-      "ms": 6709,
+      "ms": 3972,
+      "category": "traderHail"
+    },
+    "traderHail-16": {
+      "ms": 5293,
+      "category": "traderHail"
+    },
+    "traderHail-17": {
+      "ms": 4484,
+      "category": "traderHail"
+    },
+    "traderHail-18": {
+      "ms": 3479,
       "category": "traderHail"
     },
     "traderIdle-1": {
-      "ms": 3682,
+      "ms": 3988,
       "category": "traderIdle"
     },
     "traderIdle-2": {
-      "ms": 5056,
+      "ms": 3769,
       "category": "traderIdle"
     },
     "traderIdle-3": {
-      "ms": 4321,
+      "ms": 3689,
       "category": "traderIdle"
     },
     "traderIdle-4": {
-      "ms": 3939,
+      "ms": 4185,
       "category": "traderIdle"
     },
     "traderIdle-5": {
-      "ms": 4585,
+      "ms": 3451,
       "category": "traderIdle"
     },
     "traderIdle-6": {
-      "ms": 6444,
+      "ms": 4053,
       "category": "traderIdle"
     },
     "traderIdle-7": {
-      "ms": 4378,
+      "ms": 3569,
       "category": "traderIdle"
     },
     "traderIdle-8": {
-      "ms": 4727,
+      "ms": 3585,
       "category": "traderIdle"
     },
     "traderIdle-9": {
-      "ms": 4494,
+      "ms": 3804,
       "category": "traderIdle"
     },
     "traderIdle-10": {
-      "ms": 2678,
+      "ms": 3151,
       "category": "traderIdle"
     },
     "traderIdle-11": {
-      "ms": 3761,
+      "ms": 3932,
       "category": "traderIdle"
     },
     "traderIdle-12": {
-      "ms": 2975,
+      "ms": 2378,
       "category": "traderIdle"
     },
     "traderIdle-13": {
-      "ms": 4800,
+      "ms": 3940,
       "category": "traderIdle"
     },
     "traderIdle-14": {
-      "ms": 4323,
+      "ms": 3293,
       "category": "traderIdle"
     },
     "traderIdle-15": {
-      "ms": 4842,
+      "ms": 3987,
       "category": "traderIdle"
     },
     "traderIdle-16": {
-      "ms": 3586,
+      "ms": 3317,
       "category": "traderIdle"
     },
     "traderIdle-17": {
-      "ms": 5199,
+      "ms": 3480,
       "category": "traderIdle"
     },
     "traderIdle-18": {
-      "ms": 5044,
+      "ms": 3613,
       "category": "traderIdle"
     },
     "traderIdle-19": {
-      "ms": 6394,
+      "ms": 3364,
       "category": "traderIdle"
     },
     "traderIdle-20": {
-      "ms": 5593,
+      "ms": 4060,
       "category": "traderIdle"
     },
     "traderIdle-21": {
-      "ms": 4219,
+      "ms": 4369,
       "category": "traderIdle"
     },
     "traderIdle-22": {
-      "ms": 6930,
+      "ms": 3736,
+      "category": "traderIdle"
+    },
+    "traderIdle-23": {
+      "ms": 4468,
+      "category": "traderIdle"
+    },
+    "traderIdle-24": {
+      "ms": 2211,
+      "category": "traderIdle"
+    },
+    "traderIdle-25": {
+      "ms": 5464,
       "category": "traderIdle"
     },
     "rangerHail-1": {
-      "ms": 4099,
+      "ms": 3435,
       "category": "rangerHail"
     },
     "rangerHail-2": {
-      "ms": 3159,
+      "ms": 3047,
       "category": "rangerHail"
     },
     "rangerHail-3": {
-      "ms": 4998,
+      "ms": 3175,
       "category": "rangerHail"
     },
     "rangerHail-4": {
-      "ms": 4055,
+      "ms": 3275,
       "category": "rangerHail"
     },
     "rangerHail-5": {
-      "ms": 5063,
+      "ms": 3361,
       "category": "rangerHail"
     },
     "rangerHail-6": {
-      "ms": 4073,
+      "ms": 3232,
       "category": "rangerHail"
     },
     "rangerHail-7": {
-      "ms": 4567,
+      "ms": 3412,
       "category": "rangerHail"
     },
     "rangerHail-8": {
-      "ms": 4257,
+      "ms": 2549,
       "category": "rangerHail"
     },
     "rangerHail-9": {
-      "ms": 4188,
+      "ms": 3543,
       "category": "rangerHail"
     },
     "rangerHail-10": {
-      "ms": 3721,
+      "ms": 3275,
       "category": "rangerHail"
     },
     "rangerHail-11": {
-      "ms": 6069,
+      "ms": 4310,
       "category": "rangerHail"
     },
     "rangerHail-12": {
-      "ms": 4123,
+      "ms": 2769,
       "category": "rangerHail"
     },
     "rangerHail-13": {
-      "ms": 7472,
+      "ms": 3744,
+      "category": "rangerHail"
+    },
+    "rangerHail-14": {
+      "ms": 4151,
+      "category": "rangerHail"
+    },
+    "rangerHail-15": {
+      "ms": 3273,
+      "category": "rangerHail"
+    },
+    "rangerHail-16": {
+      "ms": 3704,
       "category": "rangerHail"
     },
     "rangerWarn-1": {
-      "ms": 3797,
+      "ms": 3302,
       "category": "rangerWarn"
     },
     "rangerWarn-2": {
-      "ms": 4562,
+      "ms": 3692,
       "category": "rangerWarn"
     },
     "rangerWarn-3": {
-      "ms": 4471,
+      "ms": 3894,
       "category": "rangerWarn"
     },
     "rangerWarn-4": {
-      "ms": 4149,
+      "ms": 3193,
       "category": "rangerWarn"
     },
     "rangerWarn-5": {
-      "ms": 3783,
+      "ms": 3447,
       "category": "rangerWarn"
     },
     "rangerWarn-6": {
-      "ms": 4406,
+      "ms": 3628,
       "category": "rangerWarn"
     },
     "rangerWarn-7": {
-      "ms": 4622,
+      "ms": 3103,
       "category": "rangerWarn"
     },
     "rangerWarn-8": {
-      "ms": 3556,
+      "ms": 4280,
       "category": "rangerWarn"
     },
     "rangerWarn-9": {
-      "ms": 4253,
+      "ms": 3240,
       "category": "rangerWarn"
     },
     "rangerWarn-10": {
-      "ms": 4289,
+      "ms": 3666,
+      "category": "rangerWarn"
+    },
+    "rangerWarn-11": {
+      "ms": 4032,
+      "category": "rangerWarn"
+    },
+    "rangerWarn-12": {
+      "ms": 3442,
+      "category": "rangerWarn"
+    },
+    "rangerWarn-13": {
+      "ms": 3773,
       "category": "rangerWarn"
     },
     "convoyIdle-1": {
-      "ms": 3571,
+      "ms": 3441,
       "category": "convoyIdle"
     },
     "convoyIdle-2": {
-      "ms": 4213,
+      "ms": 3859,
       "category": "convoyIdle"
     },
     "convoyIdle-3": {
-      "ms": 3944,
+      "ms": 3136,
       "category": "convoyIdle"
     },
     "convoyIdle-4": {
-      "ms": 4065,
+      "ms": 3686,
       "category": "convoyIdle"
     },
     "convoyIdle-5": {
-      "ms": 3543,
+      "ms": 3591,
       "category": "convoyIdle"
     },
     "convoyIdle-6": {
-      "ms": 3390,
+      "ms": 3305,
       "category": "convoyIdle"
     },
     "convoyIdle-7": {
-      "ms": 3539,
+      "ms": 3631,
       "category": "convoyIdle"
     },
     "convoyIdle-8": {
-      "ms": 2479,
+      "ms": 3770,
       "category": "convoyIdle"
     },
     "convoyIdle-9": {
-      "ms": 5451,
+      "ms": 4176,
       "category": "convoyIdle"
     },
     "convoyIdle-10": {
-      "ms": 5926,
+      "ms": 4439,
       "category": "convoyIdle"
     },
     "convoyIdle-11": {
-      "ms": 2997,
+      "ms": 3837,
       "category": "convoyIdle"
     },
     "convoyIdle-12": {
-      "ms": 3501,
+      "ms": 3731,
+      "category": "convoyIdle"
+    },
+    "convoyIdle-13": {
+      "ms": 4769,
+      "category": "convoyIdle"
+    },
+    "convoyIdle-14": {
+      "ms": 4116,
+      "category": "convoyIdle"
+    },
+    "convoyIdle-15": {
+      "ms": 4025,
       "category": "convoyIdle"
     },
     "pirateThreat-1": {
-      "ms": 6281,
+      "ms": 3426,
       "category": "pirateThreat"
     },
     "pirateThreat-2": {
-      "ms": 4088,
+      "ms": 2927,
       "category": "pirateThreat"
     },
     "pirateThreat-3": {
-      "ms": 4779,
+      "ms": 2035,
       "category": "pirateThreat"
     },
     "pirateThreat-4": {
-      "ms": 5191,
+      "ms": 3842,
       "category": "pirateThreat"
     },
     "pirateThreat-5": {
-      "ms": 4907,
+      "ms": 3098,
       "category": "pirateThreat"
     },
     "pirateThreat-6": {
-      "ms": 3784,
+      "ms": 3265,
       "category": "pirateThreat"
     },
     "pirateThreat-7": {
-      "ms": 4548,
+      "ms": 3661,
       "category": "pirateThreat"
     },
     "pirateThreat-8": {
-      "ms": 4063,
+      "ms": 3149,
       "category": "pirateThreat"
     },
     "pirateThreat-9": {
-      "ms": 3987,
+      "ms": 3271,
       "category": "pirateThreat"
     },
     "pirateThreat-10": {
-      "ms": 4855,
+      "ms": 3774,
       "category": "pirateThreat"
     },
     "pirateThreat-11": {
-      "ms": 5457,
+      "ms": 4273,
       "category": "pirateThreat"
     },
     "pirateThreat-12": {
-      "ms": 4785,
+      "ms": 3596,
       "category": "pirateThreat"
     },
     "pirateThreat-13": {
-      "ms": 4274,
+      "ms": 3574,
+      "category": "pirateThreat"
+    },
+    "pirateThreat-14": {
+      "ms": 4246,
+      "category": "pirateThreat"
+    },
+    "pirateThreat-15": {
+      "ms": 3895,
+      "category": "pirateThreat"
+    },
+    "pirateThreat-16": {
+      "ms": 3872,
       "category": "pirateThreat"
     },
     "pirateTaunt-1": {
-      "ms": 3912,
+      "ms": 2143,
       "category": "pirateTaunt"
     },
     "pirateTaunt-2": {
-      "ms": 4301,
+      "ms": 3568,
       "category": "pirateTaunt"
     },
     "pirateTaunt-3": {
-      "ms": 4326,
+      "ms": 3654,
       "category": "pirateTaunt"
     },
     "pirateTaunt-4": {
-      "ms": 3470,
+      "ms": 3201,
       "category": "pirateTaunt"
     },
     "pirateTaunt-5": {
-      "ms": 2564,
+      "ms": 2374,
       "category": "pirateTaunt"
     },
     "pirateTaunt-6": {
-      "ms": 4017,
+      "ms": 3760,
       "category": "pirateTaunt"
     },
     "pirateTaunt-7": {
-      "ms": 2527,
+      "ms": 2649,
       "category": "pirateTaunt"
     },
     "pirateTaunt-8": {
-      "ms": 2173,
+      "ms": 3452,
       "category": "pirateTaunt"
     },
     "pirateTaunt-9": {
@@ -378,147 +451,195 @@
       "category": "pirateTaunt"
     },
     "pirateTaunt-10": {
-      "ms": 4139,
+      "ms": 3115,
       "category": "pirateTaunt"
     },
     "pirateTaunt-11": {
-      "ms": 2327,
+      "ms": 1581,
+      "category": "pirateTaunt"
+    },
+    "pirateTaunt-12": {
+      "ms": 2560,
+      "category": "pirateTaunt"
+    },
+    "pirateTaunt-13": {
+      "ms": 3494,
+      "category": "pirateTaunt"
+    },
+    "pirateTaunt-14": {
+      "ms": 2503,
       "category": "pirateTaunt"
     },
     "beg-1": {
-      "ms": 4178,
+      "ms": 3326,
       "category": "beg"
     },
     "beg-2": {
-      "ms": 4236,
+      "ms": 3113,
       "category": "beg"
     },
     "beg-3": {
-      "ms": 4033,
+      "ms": 3644,
       "category": "beg"
     },
     "beg-4": {
-      "ms": 3844,
+      "ms": 3006,
       "category": "beg"
     },
     "beg-5": {
-      "ms": 3871,
+      "ms": 3102,
       "category": "beg"
     },
     "beg-6": {
-      "ms": 3334,
+      "ms": 3262,
       "category": "beg"
     },
     "beg-7": {
-      "ms": 4047,
+      "ms": 3104,
       "category": "beg"
     },
     "beg-8": {
-      "ms": 3840,
+      "ms": 2965,
       "category": "beg"
     },
     "beg-9": {
-      "ms": 3695,
+      "ms": 3058,
       "category": "beg"
     },
     "beg-10": {
-      "ms": 3484,
+      "ms": 3293,
       "category": "beg"
     },
     "beg-11": {
-      "ms": 4298,
+      "ms": 3635,
       "category": "beg"
     },
     "beg-12": {
-      "ms": 4364,
+      "ms": 3360,
+      "category": "beg"
+    },
+    "beg-13": {
+      "ms": 3502,
+      "category": "beg"
+    },
+    "beg-14": {
+      "ms": 3663,
+      "category": "beg"
+    },
+    "beg-15": {
+      "ms": 4951,
       "category": "beg"
     },
     "lastWords-1": {
-      "ms": 3550,
+      "ms": 3372,
       "category": "lastWords"
     },
     "lastWords-2": {
-      "ms": 2830,
+      "ms": 3091,
       "category": "lastWords"
     },
     "lastWords-3": {
-      "ms": 3451,
+      "ms": 3041,
       "category": "lastWords"
     },
     "lastWords-4": {
-      "ms": 2565,
+      "ms": 2926,
       "category": "lastWords"
     },
     "lastWords-5": {
-      "ms": 3804,
+      "ms": 3431,
       "category": "lastWords"
     },
     "lastWords-6": {
-      "ms": 2553,
+      "ms": 3017,
       "category": "lastWords"
     },
     "lastWords-7": {
-      "ms": 2663,
+      "ms": 3341,
       "category": "lastWords"
     },
     "lastWords-8": {
-      "ms": 2251,
+      "ms": 2644,
+      "category": "lastWords"
+    },
+    "lastWords-9": {
+      "ms": 2900,
+      "category": "lastWords"
+    },
+    "lastWords-10": {
+      "ms": 2961,
       "category": "lastWords"
     },
     "sos-1": {
-      "ms": 4005,
+      "ms": 3304,
       "category": "sos"
     },
     "sos-2": {
-      "ms": 5562,
+      "ms": 4337,
       "category": "sos"
     },
     "sos-3": {
-      "ms": 5193,
+      "ms": 3204,
       "category": "sos"
     },
     "sos-4": {
-      "ms": 4716,
+      "ms": 3661,
       "category": "sos"
     },
     "sos-5": {
-      "ms": 4029,
+      "ms": 3783,
       "category": "sos"
     },
     "sos-6": {
-      "ms": 5504,
+      "ms": 3921,
+      "category": "sos"
+    },
+    "sos-7": {
+      "ms": 4104,
+      "category": "sos"
+    },
+    "sos-8": {
+      "ms": 4707,
       "category": "sos"
     },
     "thanks-1": {
-      "ms": 6255,
+      "ms": 3970,
       "category": "thanks"
     },
     "thanks-2": {
-      "ms": 7386,
+      "ms": 3964,
       "category": "thanks"
     },
     "thanks-3": {
-      "ms": 5637,
+      "ms": 3933,
       "category": "thanks"
     },
     "thanks-4": {
-      "ms": 4872,
+      "ms": 4653,
       "category": "thanks"
     },
     "thanks-5": {
-      "ms": 4082,
+      "ms": 3739,
       "category": "thanks"
     },
     "thanks-6": {
-      "ms": 6647,
+      "ms": 5442,
       "category": "thanks"
     },
     "thanks-7": {
-      "ms": 5354,
+      "ms": 4375,
       "category": "thanks"
     },
     "thanks-8": {
-      "ms": 5544,
+      "ms": 4764,
+      "category": "thanks"
+    },
+    "thanks-9": {
+      "ms": 3942,
+      "category": "thanks"
+    },
+    "thanks-10": {
+      "ms": 4317,
       "category": "thanks"
     }
   }

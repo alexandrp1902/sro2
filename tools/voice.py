@@ -47,9 +47,9 @@ PROFILES = {
     # не в голосе, а в обрезанных потоках Edge (см. tts_edge): реплика на 4 с приходила длиной 1,8 с.
     "trader": {"m": ("ru-RU-DmitryNeural", "-3%", "+5Hz"), "f": ("ru-RU-SvetlanaNeural", "-12%", "-10Hz")},
     # Понижение голоса держим малым: −25 Гц у Дмитрия превращало речь в невнятный рык.
-    "pirate": {"m": ("ru-RU-DmitryNeural", "-5%", "-8Hz")},
-    "ranger": {"m": ("ru-RU-DmitryNeural", "+4%", "-2Hz")},
-    "convoy": {"m": ("ru-RU-DmitryNeural", "+0%", "-5Hz")},
+    "pirate": {"m": ("ru-RU-DmitryNeural", "-5%", "-8Hz"), "f": ("ru-RU-SvetlanaNeural", "+0%", "-12Hz")},
+    "ranger": {"m": ("ru-RU-DmitryNeural", "+4%", "-2Hz"), "f": ("ru-RU-SvetlanaNeural", "+4%", "+2Hz")},
+    "convoy": {"m": ("ru-RU-DmitryNeural", "-7%", "+0Hz"), "f": ("ru-RU-SvetlanaNeural", "-6%", "+8Hz")},
 }
 
 # Обработка рации по говорящему: (нижняя частота, верхняя, перегруз, шум эфира).
@@ -232,7 +232,13 @@ def build(only: set[str] | None, force: bool) -> None:
         if path.stem not in lines:
             path.unlink()
     META.parent.mkdir(parents=True, exist_ok=True)
-    META.write_text(json.dumps({"engine": engine, "lines": lines}, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    # Обновлённый банк получает новый URL: браузер не подставит прежнюю речь к новым субтитрам.
+    digest = hashlib.sha256()
+    for key in sorted(lines):
+        digest.update(key.encode("utf-8"))
+        digest.update((OUT / f"{key}.mp3").read_bytes())
+    revision = digest.hexdigest()[:16]
+    META.write_text(json.dumps({"engine": engine, "revision": revision, "lines": lines}, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     seconds = sum(v["ms"] for v in lines.values()) / 1000
     print(f"\n{len(lines)} реплик, {seconds:.0f} с речи, {total / 1024:.0f} КБ, движок {engine}, манифест: {META.relative_to(ROOT)}")
 
