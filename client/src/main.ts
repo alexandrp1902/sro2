@@ -596,12 +596,12 @@ async function main(): Promise<void> {
     const from = markId !== 0 ? markId : selectedLootId !== 0 ? selectedLootId : targetId;
     if (step === 1) {
       // Tab — всегда ближайшее (M17b): в бою ближайший враг, в покое ближайшее что угодно — корабль,
-      // камень или предмет. Ближайшее уже в прицеле — тогда шаг дальше по кольцу, как раньше.
+      // камень, предмет, а также станция, планета или врата. Ближайшее уже в прицеле — шаг дальше по кольцу.
       const alive = targets().filter((t) => !isAlly(t.id) && !('dead' in t && t.dead));
       const foes = alive.filter(
         (t) => 'kind' in t && (t.kind === 'pirate' || t.kind === 'drone' || ('targetId' in t && t.targetId === ownId())),
       );
-      const id = pickNearest(prediction.curr, foes, [...alive, ...loot.visible()], attackersNow > 0 || audio.inCombat);
+      const id = pickNearest(prediction.curr, foes, [...alive, ...loot.visible(), ...marks()], attackersNow > 0 || audio.inCombat);
       if (id !== null && id !== from) {
         select(id);
         return;
