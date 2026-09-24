@@ -255,8 +255,8 @@ export function runDemo(screen: string): void {
     minimap.update(DEMO_MINIMAP, 1e9);
     // Телефон: стик и кнопки боя — как их показывает игра при первом касании.
     if (matchMedia('(pointer: coarse)').matches) {
-      document.documentElement.style.setProperty('--stick-r', '50px');
-      el('stick').style.setProperty('--stick-r', '50px');
+      document.documentElement.style.setProperty('--stick-r', '62px');
+      el('stick').style.setProperty('--stick-r', '62px');
       el('stick').hidden = false;
       el('combat-pad').hidden = false;
       el('stop').hidden = false;

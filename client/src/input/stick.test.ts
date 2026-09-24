@@ -114,6 +114,6 @@ describe('Stick', () => {
     kit.win.innerHeight = 568;
     kit.win.fire('resize', {});
     expect(kit.controls.throttle).toBe(thrown);
-    expect(knobY(kit)).toBeCloseTo((before * 45) / 49.92); // радиус 49.92 → 45
+    expect(knobY(kit)).toBeCloseTo((before * 56) / 62.4); // радиус 62.4 → 56
   });
 });

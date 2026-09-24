@@ -38,10 +38,10 @@ describe('stickThrottle', () => {
 });
 
 describe('stickRadius', () => {
-  it('stays within 45–58 CSS px (M20c: на 20 % меньше, чем советует §27)', () => {
-    expect(stickRadius(390, 844)).toBeCloseTo(49.92);
-    expect(stickRadius(320, 568)).toBe(45);
-    expect(stickRadius(1920, 1080)).toBe(58);
+  it('stays within 56–72 CSS px (§27)', () => {
+    expect(stickRadius(390, 844)).toBeCloseTo(62.4);
+    expect(stickRadius(320, 568)).toBe(56);
+    expect(stickRadius(1920, 1080)).toBe(72);
   });
 });
 
@@ -142,8 +142,8 @@ describe('StickGrab', () => {
 
 describe('rescaleKnob', () => {
   it('сохраняет долю радиуса: наклон и уже отправленная тяга не разъезжаются', () => {
-    const [x, y] = rescaleKnob(30, 40, 62.4, 49.92);
-    expect(Math.hypot(x, y) / 49.92).toBeCloseTo(Math.hypot(30, 40) / 62.4);
+    const [x, y] = rescaleKnob(30, 40, 62.4, 56);
+    expect(Math.hypot(x, y) / 56).toBeCloseTo(Math.hypot(30, 40) / 62.4);
   });
 
   it('без прежнего радиуса ничего не считает', () => {

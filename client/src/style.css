@@ -16,32 +16,33 @@
   --pill-h: 28px;
   --hud-top: calc(env(safe-area-inset-top) + var(--hud-inset));
   --hud-row2: calc(var(--hud-top) + var(--pill-h) + var(--space-2));
-  /* Стик (§27): отступ от низа и зона захвата шире основания. С M20c и то, и другое на 20 % меньше. */
-  --stick-bottom: 10px;
-  --stick-grab: 38px;
-  /* Центр стика от низа экрана — на этой же высоте стоит центр кнопки огня. */
-  --pad-centre: calc(env(safe-area-inset-bottom) + var(--stick-bottom) + var(--stick-r, 64px) + var(--stick-grab) / 2);
+  /* Стик (§27): отступ от низа и зона захвата шире основания. */
+  --stick-bottom: 16px;
+  --stick-grab: 48px;
   /*
-   * Маленькие кнопки пада (M20c): «Стоп» и доп. действие — по диагонали вверх-вправо от стика и от огня.
-   * Диаметр — половина кнопки огня и ровно --touch; ниже --touch не опускать, палец уже не попадёт.
+   * Центр кнопки огня от низа экрана. Раньше он стоял на высоте центра стика; с M20c кнопка меньше
+   * и ниже — её низ на одной линии с низом основания стика, а сам стик остался как был.
+   */
+  --pad-centre: calc(env(safe-area-inset-bottom) + var(--stick-bottom) + var(--stick-grab) / 2 + var(--fire-size) / 2);
+  /*
+   * Маленькие кнопки пада (M20c): «Стоп» и доп. действие — по диагонали вверх-влево и вверх-вправо
+   * от кнопки огня, зеркально друг другу. Диаметр — половина огня и ровно --touch; ниже --touch
+   * не опускать, палец уже не попадёт.
    */
   --mini-btn: calc(var(--fire-size) / 2);
   /*
-   * Просвет от обода большой кнопки. 16, а не 12: нижний край кнопки действия лежит на (--act-offset − 22)
+   * Просвет от обода кнопки огня. 16, а не 12: нижний край маленькой кнопки лежит на (--mini-offset − 22)
    * над --pad-centre, а шеврон цели высотой 64 достаёт до (--pad-centre + 32) — нужно 0.71·(66 + g) − 22 > 32,
    * то есть g > 10.4. При 12 остаётся 1.2 px, при 16 — 4.2 px.
    */
   --mini-gap: 16px;
   --mini-diag: 0.71; /* cos 45°: обе стоят по диагонали */
   --step-w: 48px; /* ширина шеврона цели — по ней считается центр кнопки огня */
-  --stick-centre-x: calc(env(safe-area-inset-left) + 8px + var(--stick-r, 64px) + var(--stick-grab) / 2);
   --fire-centre-x: calc(env(safe-area-inset-right) + 12px + var(--step-w) + var(--space-1) + var(--fire-size) / 2);
-  --stop-offset: calc(var(--mini-diag) * (var(--stick-r, 64px) + var(--mini-btn) / 2 + var(--mini-gap)));
-  --act-offset: calc(var(--mini-diag) * (var(--fire-size) / 2 + var(--mini-btn) / 2 + var(--mini-gap)));
+  --mini-offset: calc(var(--mini-diag) * (var(--fire-size) / 2 + var(--mini-btn) / 2 + var(--mini-gap)));
   /* Верхние края того, что стоит внизу: по ним панели над ними считают свой отступ. */
   --stick-top: calc(env(safe-area-inset-bottom) + var(--stick-bottom) + 2 * var(--stick-r, 64px) + var(--stick-grab));
-  --stop-top: calc(var(--pad-centre) + var(--stop-offset) + var(--mini-btn) / 2);
-  --act-top: calc(var(--pad-centre) + var(--act-offset) + var(--mini-btn) / 2);
+  --mini-top: calc(var(--pad-centre) + var(--mini-offset) + var(--mini-btn) / 2);
 }
 
 html,
@@ -764,24 +765,24 @@ body {
 }
 
 /*
- * Маленькие кнопки телефона (M20c): «Стоп» вверх-вправо от стика, доп. действие — от кнопки огня.
+ * Маленькие кнопки телефона (M20c): «Стоп» вверх-влево от кнопки огня, доп. действие — вверх-вправо,
+ * зеркально. Обе под большим пальцем правой руки, а стик слева остаётся только для полёта.
  * Стоят отдельно от пада: у него pointer-events: none, а эти нажимают, и выравнены они по своим центрам.
  */
 .pad-mini {
   position: fixed;
   width: var(--mini-btn);
   height: var(--mini-btn);
+  bottom: calc(var(--pad-centre) + var(--mini-offset) - var(--mini-btn) / 2);
   touch-action: none;
 }
 
 .pad-mini--stop {
-  left: calc(var(--stick-centre-x) + var(--stop-offset) - var(--mini-btn) / 2);
-  bottom: calc(var(--pad-centre) + var(--stop-offset) - var(--mini-btn) / 2);
+  right: calc(var(--fire-centre-x) + var(--mini-offset) - var(--mini-btn) / 2);
 }
 
 .pad-mini--act {
-  right: calc(var(--fire-centre-x) - var(--act-offset) - var(--mini-btn) / 2);
-  bottom: calc(var(--pad-centre) + var(--act-offset) - var(--mini-btn) / 2);
+  right: calc(var(--fire-centre-x) - var(--mini-offset) - var(--mini-btn) / 2);
 }
 
 .pad-mini span {
@@ -888,16 +889,16 @@ body {
   .target {
     position: fixed;
     top: auto;
-    bottom: calc(max(var(--pad-centre) + var(--fire-size) / 2, var(--act-top)) + var(--space-2));
+    bottom: calc(var(--mini-top) + var(--space-2));
     left: auto;
     right: calc(env(safe-area-inset-right) + var(--hud-inset));
     transform: none;
     width: min(220px, 60vw);
   }
 
-  /* Над стиком и кнопкой «Стоп»: что из них выше, то и держит отступ. */
+  /* Над стиком: он занимает низ слева на 2r + захват. */
   .party {
-    bottom: calc(max(var(--stick-top), var(--stop-top)) + var(--space-2));
+    bottom: calc(var(--stick-top) + var(--space-2));
     width: min(150px, 40vw);
   }
 

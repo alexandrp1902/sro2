@@ -17,14 +17,9 @@ export function stickThrottle(distance: number): number {
   return t ** THROTTLE_CURVE;
 }
 
-/**
- * Радиус стика под экран; CSS-пиксели уже не зависят от плотности экрана.
- *
- * §27 советует 60–75 px, но на телефоне такой стик занимал четверть экрана: с M20c он и его зона захвата
- * на 20 % меньше — 45–58 px. Это осознанное отступление от документа, а не просчёт.
- */
+/** §27: радиус 60–75 px; CSS-пиксели уже не зависят от плотности экрана. */
 export function stickRadius(viewportWidth: number, viewportHeight: number): number {
-  return Math.min(58, Math.max(45, 0.128 * Math.min(viewportWidth, viewportHeight)));
+  return Math.min(72, Math.max(56, 0.16 * Math.min(viewportWidth, viewportHeight)));
 }
 
 export function clampToCircle(x: number, y: number, radius: number): [number, number] {
