@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { NO_SHOP, formatCredits, price, repairCost } from './shop';
+import vectors from '../../../shared/test-vectors/shop.json';
+import { NO_SHOP, formatCredits, price, repairCost, sellHullPrice, sellShipPrice, type ShopRules } from './shop';
 
 describe('shop', () => {
   it('knows what is not for sale', () => {
@@ -30,5 +31,21 @@ describe('shop', () => {
   it('groups thousands', () => {
     expect(formatCredits(1800).replace(/\s/g, ' ')).toBe('1 800 кр');
     expect(formatCredits(40)).toBe('40 кр');
+  });
+});
+
+describe('выкуп корабля с оснащением совпадает с сервером (shared/test-vectors/shop.json)', () => {
+  const shop = vectors.shop as unknown as ShopRules;
+
+  it('корпус и каждая вещь округляются вниз по отдельности', () => {
+    for (const c of vectors.sell) {
+      expect(sellShipPrice(shop, c.hull, c.items), `${c.hull} + ${c.items.join(', ') || 'голый'}`).toBe(c.credits);
+    }
+  });
+
+  it('за стартовый корпус в прайсе не дают ничего, за неизвестный — тоже', () => {
+    expect(sellHullPrice(shop, 'light')).toBe(0);
+    expect(sellHullPrice(shop, 'notInThePriceList')).toBe(0);
+    expect(sellHullPrice(shop, 'fighter')).toBe(1500);
   });
 });

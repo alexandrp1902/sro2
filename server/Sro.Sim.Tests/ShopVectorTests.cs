@@ -22,13 +22,19 @@ public class ShopVectorTests
     /// <summary>Ремонт: сколько прочности недостаёт, какая она полная и сколько стоит корпус.</summary>
     private sealed record RepairCase(double MissingHp, double MaxHp, int HullPrice, int Credits);
 
-    private sealed record VectorFile(ShopRules Shop, TransportCase[] Transport, RepairCase[] Repair);
+    /// <summary>Выкуп корабля из ангара вместе с оснащением (M20c).</summary>
+    private sealed record SellCase(string Hull, string[] Items, int Credits);
+
+    private sealed record VectorFile(ShopRules Shop, TransportCase[] Transport, RepairCase[] Repair, SellCase[] Sell);
 
     /// <summary>
     /// Свой прайс: эталон не должен ездить от тюнинга shared/shop.json. Числа тарифа — те же, что в файле,
     /// потому что именно их баланс и проверяется глазами в плейтесте.
     /// </summary>
     private static ShopRules Shop() => new(
+        Hulls: new Dictionary<string, int> { ["light"] = 0, ["fighter"] = 3000, ["liner"] = 26_000, ["cruiser"] = 60_000 },
+        // 999 — нарочно нечётная цена: доля от неё округляется вниз, и обе формулы должны сделать это одинаково.
+        Items: new Dictionary<string, int> { ["laser"] = 800, ["shieldM"] = 2400, ["engineL"] = 5500, ["scrap"] = 999 },
         RepairPrice: 0.25,
         RepairHullShare: 0.06,
         Transport: new TransportDef(Base: 400, PerJump: 800, HullShare: 0.05));
@@ -51,9 +57,11 @@ public class ShopVectorTests
         var shop = Shop();
         Assert.Equal(generated.Transport.Length, stored.Transport.Length);
         Assert.Equal(generated.Repair.Length, stored.Repair.Length);
+        Assert.Equal(generated.Sell.Length, stored.Sell.Length);
 
         foreach (var c in stored.Transport) Assert.Equal(c.Credits, shop.TransportCost(c.HullPrice, c.Jumps));
         foreach (var c in stored.Repair) Assert.Equal(c.Credits, shop.RepairCost(c.MissingHp, c.MaxHp, c.HullPrice));
+        foreach (var c in stored.Sell) Assert.Equal(c.Credits, shop.SellShipPrice(c.Hull, c.Items));
     }
 
     /// <summary>Без блока transport услуги нет вовсе: кнопки перевозки в доке не будет.</summary>
@@ -94,7 +102,20 @@ public class ShopVectorTests
             }
         }
 
-        return new VectorFile(shop, [.. transport], [.. repair]);
+        // Выкуп корабля: голый корпус, он же с оснащением, самый дорогой с полным набором, стартовый
+        // (за корпус не дают ничего, а вещи на нём всё равно стоят) и нечётная цена — на округление вниз.
+        SellCase sell(string hull, params string[] items) => new(hull, items, shop.SellShipPrice(hull, items));
+        SellCase[] sells =
+        [
+            sell("fighter"),
+            sell("fighter", "laser", "laser"),
+            sell("cruiser", "laser", "laser", "shieldM", "engineL"),
+            sell("light", "laser"),
+            sell("fighter", "scrap"),
+            sell("fighter", "notInThePriceList"),
+        ];
+
+        return new VectorFile(shop, [.. transport], [.. repair], sells);
     }
 
     /// <summary>По строке на случай — чтобы diff файла читался.</summary>
@@ -103,7 +124,8 @@ public class ShopVectorTests
         var sb = new StringBuilder("{\n");
         sb.Append("  \"shop\": ").Append(JsonSerializer.Serialize(file.Shop, Json)).Append(",\n");
         AppendList(sb, "transport", file.Transport, last: false);
-        AppendList(sb, "repair", file.Repair, last: true);
+        AppendList(sb, "repair", file.Repair, last: false);
+        AppendList(sb, "sell", file.Sell, last: true);
         sb.Append("}\n");
         return sb.ToString();
     }

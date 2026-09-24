@@ -243,6 +243,9 @@ public sealed class WebSocketConnection(WebSocket socket, ILogger log) : IClient
                 case SellItemMsg sell when joined:
                     room.SellItem(this, sell.Id);
                     break;
+                case SellHullMsg sellHull when joined:
+                    room.SellHull(this, sellHull.Hull);
+                    break;
                 case NameMsg name when joined:
                     room.Rename(this, name.Name);
                     break;

@@ -39,6 +39,10 @@ const NOTICES: Record<string, string> = {
   noCredits: 'Не хватает кредитов',
   notSold: 'Здесь этого не продают — ищите в другом регионе',
   shipElsewhere: 'Этот корабль стоит в другом доке — слетайте за ним или закажите перевозку',
+  // Отказы верфи и оснащения: текста у них не было вовсе, и отказ проходил молча.
+  noShipyard: 'Здесь нет верфи — корабли меняют и продают не в каждом поселении',
+  nothingToFit: 'Снимать или ставить нечего',
+  starterHull: 'Стартовый корабль не продаётся — он положен каждому пилоту',
   noRoute: 'Отсюда туда нет пути по вратам',
   gateFar: 'Подлетите ближе к вратам',
   jumpCancelled: 'Прыжок сорван',
@@ -111,7 +115,7 @@ export function describeRepChange(change: RepChangeDto, name?: string | null): s
 const REFUSALS = new Set([
   'cargoFull', 'tooFar', 'noCredits', 'notSold', 'gateFar', 'noPower', 'badClass', 'badSlot',
   'noGoods', 'noStock', 'missionGoods', 'dockClosed', 'needRep', 'jumpCancelled', 'jumpHit', 'missionAway',
-  'shipElsewhere', 'noRoute', 'wrongPassword', 'badPassword',
+  'shipElsewhere', 'noRoute', 'wrongPassword', 'badPassword', 'noShipyard', 'nothingToFit', 'starterHull',
   'storyItem', 'notYours', 'storyHold',
 ]);
 

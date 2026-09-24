@@ -192,6 +192,18 @@ export function fitWith(fit: ShipFit, slot: string, id: string | null): ShipFit 
   return { ...fit, [slot]: id };
 }
 
+/**
+ * Всё, что стоит на корабле, по порядку слотов: пушки, модули, вспомогательные. Зеркало ShipFit.Items()
+ * на сервере — по этому списку считается выкуп корабля вместе с оснащением (M20c).
+ */
+export function fitItems(fit: ShipFit): string[] {
+  return [
+    ...fit.weapons.filter((id): id is string => !!id),
+    ...MODULE_SLOTS.map((slot) => fit[slot]).filter((id): id is string => !!id),
+    ...(fit.utility ?? []).filter((id): id is string => !!id),
+  ];
+}
+
 /** Стоящие вспомогательные модули. */
 export function utilities(fit: ShipFit, modules: ModuleConfig | null): ModuleParams[] {
   if (!modules) return [];

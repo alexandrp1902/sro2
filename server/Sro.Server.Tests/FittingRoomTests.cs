@@ -870,4 +870,90 @@ public sealed class FittingRoomTests : IDisposable
         Assert.True(merchant.LeaveAtTick == 0 || merchant.LeaveAtTick > charging, "the hit did not reset the jump");
         Assert.NotNull(_room.Entity(merchant.Id));
     }
+
+    /// <summary>
+    /// Продажа корабля из ангара (M20c): за корпус и за всё, что на нём стоит, — включая обязательную
+    /// тройку. «Снять всё» её нарочно оставляет, чтобы корабль не застрял без хода, но проданному летать
+    /// незачем; иначе «раздеть, потом продать» давало бы за тот же корабль больше.
+    /// </summary>
+    [Fact]
+    public void SellingAParkedShip_PaysForItsWholeFit_IncludingTheRequiredThree()
+    {
+        // Генератору даём цену: иначе оплату обязательной тройки в этом прайсе просто не увидеть.
+        var shop = Shop with { Items = new Dictionary<string, int>(Shop.ItemPrices) { ["generatorS"] = 200 } };
+        _room = NewRoom(NewBalance() with { ShopSet = shop });
+        var a = Pilot();
+        var player = Docked(a);
+        _room.Buy(a, Protocol.HullItem, "heavy"); // корпус 900, приходит голым
+        _room.Buy(a, Protocol.ItemKind, "plasma", "w0");
+        _room.SetHull(a, "light"); // «Молот» ждёт в ангаре с плазмой
+        var fit = player.HullFits["heavy"];
+        var credits = player.Credits;
+
+        _room.SellHull(a, "heavy");
+
+        // 450 за корпус, 250 за плазму, 100 за генератор S; двигатель и радар в этом прайсе даром.
+        Assert.Equal(800, shop.SellShipPrice("heavy", fit.Items().Select(item => item.Id)));
+        Assert.Equal(credits + 800, player.Credits);
+        Assert.DoesNotContain("heavy", player.Hulls);
+        Assert.False(player.HullPlaces.ContainsKey("heavy"));
+        Assert.False(player.HullFits.ContainsKey("heavy"));
+        // Оснащение оплачено и ушло с кораблём, а не переехало на склад.
+        Assert.False(player.Storage.ContainsKey("plasma"));
+        Assert.DoesNotContain("heavy", a.Last<HangarMsg>().Hulls);
+    }
+
+    [Fact]
+    public void SellingAShip_RefusesTheStarter_TheActiveOne_AndOneParkedElsewhere()
+    {
+        var a = Pilot();
+        var player = Docked(a);
+        _room.Buy(a, Protocol.HullItem, "heavy");
+        var credits = player.Credits;
+
+        // Под пилотом — молча: такой кнопки клиент не рисует.
+        _room.SellHull(a, "heavy");
+        Assert.Equal(credits, player.Credits);
+        Assert.Contains("heavy", player.Hulls);
+        Assert.Empty(a.Messages.OfType<NoticeMsg>());
+
+        // Стартовый заводится заново при каждом входе — продажа отменилась бы сама собой.
+        _room.SellHull(a, "light");
+        Assert.Equal(Protocol.StarterHullNotice, a.Last<NoticeMsg>().Code);
+        Assert.Equal(credits, player.Credits);
+        Assert.Contains("light", player.Hulls);
+
+        // Корабля, которого здесь нет, не продать: его негде осмотреть и некому забрать.
+        _room.SetHull(a, "light");
+        player.HullPlaces["heavy"] = PlaceKey.Station("elsewhere");
+        _room.SellHull(a, "heavy");
+        Assert.Equal(Protocol.ShipElsewhereNotice, a.Last<NoticeMsg>().Code);
+        Assert.Contains("heavy", player.Hulls);
+    }
+
+    /// <summary>Выкуп — такая же работа верфи, как продажа и пересадка: где её нет, корабль не примут (M20c).</summary>
+    [Fact]
+    public void ASettlementWithoutAShipyard_DoesNotBuyShipsBack()
+    {
+        var terra = new PlanetDef("Терра", "terran", 150, new OrbitDef(Radius: 2000, PeriodMinutes: 600), "terra", new SettlementDef("Новый Порт"));
+        var galaxy = new GalaxyRules(Systems: new Dictionary<string, SystemDef> { ["sol"] = new SystemDef("Sol", Planets: [terra]) });
+        _room = NewRoom((NewBalance() with { GalaxySet = galaxy }).ForSystem("sol"));
+        const string settlement = "pl:terra";
+        var a = Pilot();
+        var player = PlayerOf(a);
+        player.Hulls.Add("heavy");
+        player.HullPlaces["heavy"] = settlement;
+        var credits = player.Credits;
+        var (x, y) = _room.PlacePosition(_room.Balance.Place(settlement)!);
+        _room.Dock(a, false); // вход теперь в доке станции (M15.6), а сесть надо в поселении
+        player.Ship = new ShipState { X = x, Y = y };
+        _room.Dock(a, true, settlement);
+        Assert.Equal(settlement, player.DockedPlace);
+
+        _room.SellHull(a, "heavy");
+
+        Assert.Equal(Protocol.NoShipyardNotice, a.Last<NoticeMsg>().Code);
+        Assert.Contains("heavy", player.Hulls);
+        Assert.Equal(credits, player.Credits);
+    }
 }

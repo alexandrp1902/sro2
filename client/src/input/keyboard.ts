@@ -53,7 +53,9 @@ export class KeyboardControls {
     } else if (code in THROTTLE_KEYS) {
       this.setThrottle(THROTTLE_KEYS[code]);
     } else if (code === STOP_KEY) {
-      this.setThrottle(0); // §24: стоп, корабль тормозит сам
+      // §24: стоп, корабль тормозит сам. Разовый, а не замок: замок горит на кнопке телефона, а на ПК
+      // её нет — защёлкнутая тяга без индикатора читалась бы как поломка.
+      this.setThrottle(0);
     }
   }
 
@@ -90,9 +92,10 @@ export class KeyboardControls {
     const turn = (this.isHeld('right') ? 1 : 0) - (this.isHeld('left') ? 1 : 0);
 
     if (brake) this.controls.setThrottle(0);
-    else if (thrust) this.controls.setThrottle(1);
+    else if (thrust) this.controls.thrust(1);
     else if (this.throttling) {
-      // Отпустили газ или тормоз — держим набранную скорость.
+      // Отпустили газ или тормоз — держим набранную скорость. Это не команда игрока, поэтому «Стоп»
+      // остаётся защёлкнутым: иначе «нажал стоп, отпустил газ» снимало бы его само.
       this.controls.setThrottle(Math.max(0, localVelocity(ship).forward) / hull.maxSpeed);
     }
 
@@ -107,8 +110,10 @@ export class KeyboardControls {
     this.turning = turn !== 0;
   }
 
+  /** Тяга с клавиш, колеса и X. Ненулевая — это явный «ход», и он снимает «Стоп» (M20c). */
   private setThrottle(throttle: number): void {
-    this.controls.setThrottle(throttle);
+    if (throttle > 0) this.controls.thrust(throttle);
+    else this.controls.setThrottle(0);
     this.controls.source = 'keyboard';
   }
 

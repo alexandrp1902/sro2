@@ -19,6 +19,7 @@ import {
   canInstall,
   describeFitProblem,
   fitGet,
+  fitItems,
   hullSlots,
   hullUtilitySlots,
   moduleLabel,
@@ -35,7 +36,7 @@ import {
 import { keyHint, keymap } from '../input/keymap';
 import { hops, type GalaxyDto } from '../sim/galaxy';
 import { gearIcon, hasSprite, moduleSprite, shipSprite, spriteUrl, weaponSprite } from '../render/sprites';
-import type { Hulls } from '../sim/hulls';
+import { DEFAULT_HULL, type Hulls } from '../sim/hulls';
 import type { HullParams } from '../sim/movement';
 import { activeHint, activeLine, offerNote, offerTitle, timeLeft, type MissionNames } from '../sim/missions';
 import { isStory, lootItem, rarityColor, type LootRules } from '../sim/loot';
@@ -52,10 +53,21 @@ import {
   repPrice,
   type ReputationRules,
 } from '../sim/reputation';
-import { NO_SHOP, formatCredits, price, repairCost, sells, sellPrice, transportCost, type ShopRules } from '../sim/shop';
+import {
+  NO_SHOP,
+  formatCredits,
+  price,
+  repairCost,
+  sells,
+  sellHullPrice,
+  sellPrice,
+  sellShipPrice,
+  transportCost,
+  type ShopRules,
+} from '../sim/shop';
 import type { Weapons } from '../sim/weapons';
 import { color, round, type CargoState } from './cargoHud';
-import { sellItemLines, type ConfirmLines } from './confirm';
+import { sellItemLines, sellShipLines, type ConfirmLines } from './confirm';
 
 /** Что можно сделать с корпусом или пушкой на витрине. */
 export type OfferState =
@@ -282,6 +294,8 @@ export interface DockHandlers {
   onConfirm(lines: ConfirmLines, yes: () => void): void;
   /** Продать со склада все модули разом (M16a): кнопка на рынке. */
   onSellGear(): void;
+  /** Продать корабль из ангара вместе с его оснащением (M20c). */
+  onSellHull(id: string): void;
   onRepair(): void;
   onUndock(): void;
   /** Бургер-меню (M15.5): открыть под кнопкой, прямоугольник которой передан. */
@@ -1158,6 +1172,24 @@ export class DockScreen {
     }
   }
 
+  /**
+   * Продать корабль вместе с оснащением (M20c). Считаем по сырой местной цене, без repCost: репутация
+   * двигает только покупку (Room.Buy), а выкуп — нет (Room.SellItem, Room.SellHull), и кнопка иначе
+   * разошлась бы с суммой, которую начислит сервер.
+   */
+  private sellShip(id: string): HTMLButtonElement {
+    const bare = sellHullPrice(this.shop, id);
+    const fit = this.hangar?.fits?.[id];
+    const total = sellShipPrice(this.shop, id, fit ? fitItems(fit) : []);
+    const sell = button(`Продать · ${formatCredits(total)}`, 'dock-sell sro-btn sro-btn--sm sro-btn--ghost', () =>
+      this.handlers.onConfirm(sellShipLines(this.hulls.get(id).name, this.parkedDressed(id), total, formatCredits), () =>
+        this.handlers.onSellHull(id),
+      ),
+    );
+    sell.title = `Корпус ${formatCredits(bare)} + оснащение ${formatCredits(total - bare)}`;
+    return sell;
+  }
+
   /** Есть ли что снимать с корабля, стоящего в ангаре: обязательные модули не в счёт. */
   private parkedDressed(id: string): boolean {
     const fit = this.hangar?.fits?.[id];
@@ -1195,6 +1227,8 @@ export class DockScreen {
       strip.disabled = !this.parkedDressed(id);
       strip.title = strip.disabled ? 'На нём только то, без чего он не полетит' : 'Снять с него всё на склад станции';
       actions.append(strip);
+      // Стартовый корабль не продаётся: сервер отказывает, и кнопка обещала бы неправду.
+      if (id !== DEFAULT_HULL) actions.append(this.sellShip(id));
       return actions;
     }
     const system = this.placeIndex().get(where)?.system;

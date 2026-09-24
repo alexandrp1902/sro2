@@ -7,10 +7,12 @@ import { SPAWN, STATION } from './game/layout';
 import { FixedLoop } from './game/loop';
 import { LOOT_MOUSE_RADIUS_PX, METEOR_MOUSE_RADIUS_PX, cycle, nearest, nearestLoot, pickArrow, pickAt, pickNearest } from './game/targeting';
 import { Controls } from './input/controls';
+import { AbilityButton } from './input/ability';
 import { FireControl, bindCombatKeys } from './input/fire';
 import { preventBrowserGestures } from './input/gestures';
 import { KeyboardControls, bindKeyboard } from './input/keyboard';
 import { Stick } from './input/stick';
+import { StopButton } from './input/stopButton';
 import { TapSelect } from './input/tapSelect';
 import { Zoom } from './input/zoom';
 import { CombatEvents, type CombatEvent } from './net/combatEvents';
@@ -152,6 +154,7 @@ async function main(): Promise<void> {
   const keyboard = new KeyboardControls(controls);
   bindKeyboard(keyboard);
   const stick = new Stick(el('stick'), controls);
+  const stopButton = new StopButton(el('stop'), controls);
   const zoom = new Zoom(app.canvas);
 
   // Корпус и оснащение сообщает сервер из аккаунта (hangar); до этого летим на стартовых.
@@ -255,6 +258,15 @@ async function main(): Promise<void> {
   /** Захват стрелка: когда можно навестись самим и когда игрок просил этого не делать. */
   const autoAim = new AutoTarget();
   const fire = new FireControl(el('fire'), el('combat-pad'));
+  // Кнопка активного модуля — пока заглушка (M20c): активируемых модулей в игре нет, и она это говорит.
+  const ability = new AbilityButton(el('ability'));
+  let abilityHintAt = 0;
+  ability.onPress = () => {
+    const now = Date.now();
+    if (now - abilityHintAt < 10_000) return; // жмут её часто, а сказать нечего — не засоряем ленту
+    abilityHintAt = now;
+    feed.warn('Активный модуль не установлен');
+  };
   const setTarget = (id: number, auto = false) => {
     if (id === targetId) return;
     autoAim.changed(auto, Date.now());
@@ -412,6 +424,7 @@ async function main(): Promise<void> {
     onSellItem: (id) => send({ t: 'sellItem', id }),
     // Весь склад одной сделкой (M16a): что продаётся — решает сервер по своим же ценам выкупа.
     onSellGear: () => send({ t: 'sellItem', id: null }),
+    onSellHull: (id) => send({ t: 'sellHull', hull: id }),
     onRepair: () => send({ t: 'repair' }),
     onUndock: () => send({ t: 'dock', on: false }),
     onMenu: (anchor) => menu.toggleAt(anchor),
@@ -908,7 +921,7 @@ async function main(): Promise<void> {
       if (was) audio.own('jump');
       if (was) {
         stick.reset();
-        controls.setThrottle(0);
+        controls.release();
       }
       if (system && announce) feed.add(describeSystem(system));
       // Курс (M16b): пришли куда шли — он пройден; система отрезана или исчезла — курс снимается.
@@ -1083,7 +1096,7 @@ async function main(): Promise<void> {
         setMark(0); // после вылета пробел снова стреляет, а не стыкует
         fire.release();
         stick.reset();
-        controls.setThrottle(0);
+        controls.release();
         audio.reset(); // под крышей станции бой не слышен
         audio.own('dock');
       }
@@ -1278,7 +1291,7 @@ async function main(): Promise<void> {
     const dead = prediction.isDead;
     if (dead && !wasDead) {
       stick.reset();
-      controls.setThrottle(0);
+      controls.release();
       fire.release();
       // Взрыв своего корабля уже прозвучал по событию боя — здесь гасим всё остальное: тревогу,
       // гул прыжка, доносящуюся стрельбу. Обломкам не до них.
@@ -1294,7 +1307,9 @@ async function main(): Promise<void> {
     const state = prediction.render(alpha, frameSeconds);
     const hull = ownHulls.get(prediction.hullId);
     const input = flightInput();
-    const desired = input.throttle > 0 && controls.source === 'stick' ? directionAngle(input.dx, input.dy) : null;
+    // При защёлкнутом «Стопе» тяги нет, а крутиться на месте можно — указатель желаемого курса (§26) нужен.
+    const desired =
+      (input.throttle > 0 || controls.stopLock) && controls.source === 'stick' ? directionAngle(input.dx, input.dy) : null;
     ownShip.view.visible = !dead && !docked;
     ownShip.update(state.x, state.y, state.rot, prediction.hullId, hull, engineGlow(prediction.curr, input.throttle, hull), desired);
     ownAnchor = { x: state.x, y: state.y, size: hull.size };
@@ -1431,6 +1446,8 @@ async function main(): Promise<void> {
               : 'fire',
     );
     fire.render(now, !target ? 'none' : aim?.state === 'ready' ? 'ready' : 'blocked');
+    stopButton.render(); // замок снимают и со стороны — прыжком, стыковкой, гибелью
+    ability.render(now);
 
     combatHud.update(
       ownDto && online ? { hp: ownDto.hp, maxHp: hull.hp, sh: ownDto.sh, maxSh: hull.shield, protectedSeconds, attackers } : null,

@@ -139,3 +139,36 @@ describe('KeyboardControls (W — газ, S — тормоз, A/D — повор
     expect(controls.throttle).toBeLessThan(1); // газ отпущен — держим скорость
   });
 });
+
+describe('KeyboardControls и замок «Стоп» (M20c)', () => {
+  it('W снимает замок, а фиксация круиза после него — нет', () => {
+    const { controls, keyboard, ship, tick } = setup();
+    keyboard.keyDown('KeyW');
+    tick(10);
+    keyboard.keyUp('KeyW');
+    tick(); // отпустили газ — клавиатура держит набранную скорость
+    expect(controls.throttle).toBeGreaterThan(0);
+
+    controls.setStop(true);
+    tick(5); // круиз продолжает считаться каждый шаг, но замок держится
+    expect(controls.stopLock).toBe(true);
+    expect(controls.throttle).toBe(0);
+
+    keyboard.keyDown('KeyW');
+    tick();
+    expect(controls.stopLock).toBe(false);
+    expect(controls.throttle).toBe(1);
+    expect(ship).toBeDefined();
+  });
+
+  it('X остаётся разовым стопом, а не защёлкой: на ПК кнопки-индикатора нет', () => {
+    const { controls, keyboard } = setup();
+    keyboard.keyDown('Digit4');
+    expect(controls.throttle).toBe(1);
+    keyboard.keyDown('KeyX');
+    expect(controls.throttle).toBe(0);
+    expect(controls.stopLock).toBe(false);
+    keyboard.keyDown('Digit2');
+    expect(controls.throttle).toBe(0.5);
+  });
+});

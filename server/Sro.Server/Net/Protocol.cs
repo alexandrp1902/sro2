@@ -18,6 +18,7 @@ namespace Sro.Server.Net;
 [JsonDerivedType(typeof(FitMsg), "fit")]
 [JsonDerivedType(typeof(FitAllMsg), "fitAll")]
 [JsonDerivedType(typeof(SellItemMsg), "sellItem")]
+[JsonDerivedType(typeof(SellHullMsg), "sellHull")]
 [JsonDerivedType(typeof(NameMsg), "name")]
 [JsonDerivedType(typeof(TargetMsg), "target")]
 [JsonDerivedType(typeof(FireMsg), "fire")]
@@ -118,6 +119,14 @@ public sealed record FitAllMsg(string? Mode, string? Hull = null) : ClientMessag
 
 /// <summary>Продать со склада пушку или модуль (в доке) — за долю цены. Id = null — весь склад разом (M16a).</summary>
 public sealed record SellItemMsg(string? Id) : ClientMessage;
+
+/// <summary>
+/// Продать корабль из ангара вместе со всем, что на нём стоит (M20c): доля местной цены корпуса
+/// (shop.json sellShare) и такая же доля за каждую пушку и модуль его оснащения. Только в доке,
+/// только на верфи и только тот корабль, который стоит здесь же и не под пилотом.
+/// </summary>
+/// <param name="Hull">Корпус из ангара.</param>
+public sealed record SellHullMsg(string? Hull) : ClientMessage;
 
 /// <summary>Смена ника на лету — только у гостя: у пилота с аккаунтом ник и есть вход.</summary>
 public sealed record NameMsg(string? Name) : ClientMessage;
@@ -919,12 +928,13 @@ public static class Protocol
     /// 29 — особенность корпуса, дробовик веером, залп ракет и модули, меняющие прочность и скорость, M19;
     /// 30 — сюжетные кампании «Тихой войны», M20a;
     /// 31 — снять и поставить оснащение пачкой, своё оснащение у каждого корпуса ангара, слух про чужую верфь, M20;
-    /// 32 — вторая половина «Тихой войны»: корабли корпорации своими силуэтами и «Ретранслятор» на Руднике Прайм, M20b).
+    /// 32 — вторая половина «Тихой войны»: корабли корпорации своими силуэтами и «Ретранслятор» на Руднике Прайм, M20b;
+    /// 33 — продажа корабля из ангара вместе с оснащением, M20c).
     /// Кадр снапшота в 29 тот же, что в 28: версия растёт потому, что старый клиент не знает про perk,
     /// hpMul и speedMul — и предсказывал бы и движение, и прочность своего корабля мимо сервера.
     /// Зеркало PROTOCOL_VERSION в client/src/net/protocol.ts.
     /// </summary>
-    public const int Version = 32;
+    public const int Version = 33;
 
     public const string DroneKind = "drone";
     public const string PirateKind = "pirate";
@@ -988,6 +998,8 @@ public static class Protocol
     public const string JettisonedNotice = "jettisoned";
     /// <summary>Здесь нет верфи: корабль меняют не в каждом поселении (M15).</summary>
     public const string NoShipyardNotice = "noShipyard";
+    /// <summary>Стартовый корабль не продаётся: он заводится заново при каждом входе (M20c).</summary>
+    public const string StarterHullNotice = "starterHull";
     /// <summary>Это продают только своим — не хватает репутации места (M13).</summary>
     public const string NeedRepNotice = "needRep";
     /// <summary>Пилот отстал от конвоя: вернуться, пока задание не провалено (M14).</summary>

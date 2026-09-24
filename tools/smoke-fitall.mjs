@@ -1,6 +1,7 @@
 // Сквозная проверка оснащения пачкой и своего фита у каждого корпуса (M20) без браузера: покупка корпуса
 // не раздевает прежний, «снять всё» и «поставить всё» работают, корабль в ангаре раздевается на месте,
-// а мастер верфи рассказывает про чужой стапель. Заводит аккаунт fitall-NNN — он останется в data/accounts.
+// мастер верфи рассказывает про чужой стапель, а корабль из ангара продаётся вместе с оснащением (M20c).
+// Заводит аккаунт fitall-NNN — он останется в data/accounts.
 // Нужен запущенный сервер и Node 24 (встроенный WebSocket). Идёт несколько секунд.
 //   node tools/smoke-fitall.mjs [ws://localhost:5000/ws]
 
@@ -141,6 +142,29 @@ async function main() {
     await c.act({ t: 'fitAll', mode: 'strip', hull: starterHull }, 'parked ship stripped');
     check('«снять всё» в ангаре кладёт его снаряжение на склад', dressed(c.hangar.fits?.[starterHull] ?? {}) === 0);
     check('раздетый корабль всё ещё может летать', at(c.hangar.fits?.[starterHull], 'engine') !== null);
+
+    // Стартовый корабль не продаётся, даже когда он стоит в ангаре, а пилот сидит в другом.
+    c.notices.length = 0;
+    c.send({ t: 'sellHull', hull: starterHull });
+    await c.until(() => c.notices.includes('starterHull'), 4000, 'starter hull refusal');
+    check('стартовый корабль не продаётся: он положен каждому пилоту', c.hangar.hulls.includes(starterHull));
+
+    // Продажа корабля из ангара вместе с оснащением (M20c): пересаживаемся обратно и продаём купленный.
+    await c.act({ t: 'hull', id: starterHull }, 'back on the starter');
+    const share = shop.sellShare ?? 0.5;
+    const floor = (price) => Math.floor((price ?? 0) * share + 1e-9);
+    const items = c.hangar.fits?.[hullId] ?? {};
+    const onBoard = [
+      ...(items.weapons ?? []).filter(Boolean),
+      ...['engine', 'shield', 'radar', 'generator'].map((slot) => items[slot]).filter(Boolean),
+      ...(items.utility ?? []).filter(Boolean),
+    ];
+    const quote = onBoard.reduce((sum, id) => sum + floor((shop.items ?? {})[id]), floor(prices[hullId]));
+    const purse = c.cargo?.credits ?? 0;
+    await c.act({ t: 'sellHull', hull: hullId }, 'hull sold');
+    check(`за «${hullId}» с оснащением дают ${quote} — ровно то, что обещал бы док`, (c.cargo?.credits ?? 0) === purse + quote);
+    check('проданный корабль ушёл из ангара', !c.hangar.hulls.includes(hullId) && c.hangar.fits?.[hullId] === undefined && (c.hangar.ships ?? {})[hullId] === undefined);
+
   }
 
   // Слух мастера верфи: он про корпус, которого у пилота нет, и про чужую систему.

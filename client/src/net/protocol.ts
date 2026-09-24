@@ -11,7 +11,7 @@ import type { ReputationRules } from '../sim/reputation';
 import type { ShopRules } from '../sim/shop';
 
 /** Версия протокола; зеркало Protocol.Version на сервере. Сервер другой версии (или старый, без поля) — не играем. */
-export const PROTOCOL_VERSION = 32;
+export const PROTOCOL_VERSION = 33;
 
 /** Состояние ИИ пирата: патруль, бой, возврат в логово (налётчик — полёт от врат к точке), уход из системы. */
 export type AiState = 'patrol' | 'attack' | 'return' | 'leave';
@@ -55,6 +55,8 @@ export type ClientMessage =
   | { t: 'fitAll'; mode: 'strip' | 'fill'; hull?: string }
   /** Продать со склада пушку или модуль — за долю цены; id = null — весь склад разом (M16a). */
   | { t: 'sellItem'; id: string | null }
+  /** Продать корабль из ангара вместе с оснащением (M20c): доля цены за корпус и за каждую вещь на нём. */
+  | { t: 'sellHull'; hull: string }
   | { t: 'name'; name: string }
   /** Выбранная цель (GDD §9); 0 — цели нет. */
   | { t: 'target'; id: number }

@@ -98,6 +98,8 @@ public sealed class GalaxyHost : BackgroundService
 
     public void SellItem(IClientConnection connection, string? id) => With(connection, r => r.SellItem(connection, id));
 
+    public void SellHull(IClientConnection connection, string? hullId) => With(connection, r => r.SellHull(connection, hullId));
+
     public void Repair(IClientConnection connection) => With(connection, r => r.Repair(connection));
 
     public void Jump(IClientConnection connection, string? to) => With(connection, r => r.Jump(connection, to));

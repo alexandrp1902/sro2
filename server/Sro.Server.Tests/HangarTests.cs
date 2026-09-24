@@ -280,4 +280,30 @@ public sealed class HangarTests : IDisposable
         Assert.Equal("port", RoomOf(again).SystemId);
         Assert.Equal(new Dictionary<string, string> { ["light"] = "st:home" }, Ships(again));
     }
+
+    /// <summary>
+    /// Продажа корабля из ангара (M20c): он уходит изо всех трёх списков — свои корпуса, где стоят
+    /// и чем снаряжены, — и не возвращается после перезахода. До M20c из Hulls не удаляли ничего.
+    /// </summary>
+    [Fact]
+    public void SellingAShip_RemovesItEverywhere_AndSurvivesARestart()
+    {
+        var a = Pilot();
+        Dock(a);
+        Do(a, r => r.Buy(a, Protocol.HullItem, "heavy"));
+        Do(a, r => r.SetHull(a, "light")); // «Молот» ждёт здесь же
+        var credits = a.Last<CargoMsg>().Credits;
+
+        Do(a, r => r.SellHull(a, "heavy"));
+
+        // Верфь платит половину местной цены: 8 000 → 4 000. Оснащение в этом прайсе даром.
+        Assert.Equal(credits + 4000, a.Last<CargoMsg>().Credits);
+        Assert.DoesNotContain("heavy", a.Last<HangarMsg>().Hulls);
+        Assert.DoesNotContain("heavy", Ships(a).Keys);
+        Assert.DoesNotContain("heavy", _accounts.Profile(AccountId())!.Hulls!);
+
+        _galaxy = New();
+        var again = Pilot();
+        Assert.DoesNotContain("heavy", again.Last<HangarMsg>().Hulls);
+    }
 }

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import vectors from '../../../shared/test-vectors/fitting.json';
 import type { WeaponConfig } from './combat';
-import { canInstall, effectiveHull, fitGet, fitOutput, fitPower, fitWith, hullSlots, weaponIndex, type ModuleConfig, type ShipFit } from './fitting';
+import { canInstall, effectiveHull, fitGet, fitItems, fitOutput, fitPower, fitWith, hullSlots, weaponIndex, type ModuleConfig, type ShipFit } from './fitting';
 import type { HullConfig } from './movement';
 
 const hulls = vectors.hulls as unknown as HullConfig;
@@ -57,5 +57,24 @@ describe('slots', () => {
     expect(weaponIndex('engine')).toBeNull();
     expect(hullSlots(hulls.heavy)).toEqual(['L', 'M']);
     expect(hullSlots({ ...hulls.light, weaponSlots: undefined, class: undefined })).toEqual(['L']);
+  });
+});
+
+describe('fitItems: всё, что стоит на корабле (зеркало ShipFit.Items)', () => {
+  it('перечисляет пушки, модули и вспомогательные, пропуская пустые слоты', () => {
+    expect(
+      fitItems({
+        weapons: ['laser', null, 'railgun'],
+        engine: 'engineM',
+        shield: null,
+        radar: 'radarS',
+        generator: 'generatorS',
+        utility: [null, 'repair', null],
+      }),
+    ).toEqual(['laser', 'railgun', 'engineM', 'radarS', 'generatorS', 'repair']);
+  });
+
+  it('голый корпус — пустой список', () => {
+    expect(fitItems({ weapons: [null] })).toEqual([]);
   });
 });

@@ -1,5 +1,5 @@
 {
-  "shop": {"startCredits":1000,"repairPrice":0.25,"hulls":null,"items":null,"sellShare":0.5,"tiers":null,"regions":null,"places":null,"stock":null,"title":null,"repairHullShare":0.06,"transport":{"base":400,"perJump":800,"hullShare":0.05},"legacy":null},
+  "shop": {"startCredits":1000,"repairPrice":0.25,"hulls":{"light":0,"fighter":3000,"liner":26000,"cruiser":60000},"items":{"laser":800,"shieldM":2400,"engineL":5500,"scrap":999},"sellShare":0.5,"tiers":null,"regions":null,"places":null,"stock":null,"title":null,"repairHullShare":0.06,"transport":{"base":400,"perJump":800,"hullShare":0.05},"legacy":null},
   "transport": [
     {"hullPrice":0,"jumps":0,"credits":400},
     {"hullPrice":0,"jumps":1,"credits":1200},
@@ -39,5 +39,13 @@
     {"missingHp":1,"maxHp":400,"hullPrice":60000,"credits":10},
     {"missingHp":200,"maxHp":400,"hullPrice":60000,"credits":1850},
     {"missingHp":400,"maxHp":400,"hullPrice":60000,"credits":3700}
+  ],
+  "sell": [
+    {"hull":"fighter","items":[],"credits":1500},
+    {"hull":"fighter","items":["laser","laser"],"credits":2300},
+    {"hull":"cruiser","items":["laser","laser","shieldM","engineL"],"credits":34750},
+    {"hull":"light","items":["laser"],"credits":400},
+    {"hull":"fighter","items":["scrap"],"credits":1999},
+    {"hull":"fighter","items":["notInThePriceList"],"credits":1500}
   ]
 }

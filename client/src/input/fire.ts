@@ -1,3 +1,4 @@
+import { revealOnTouch } from './gestures';
 import { keymap as defaultKeymap, type Keymap } from './keymap';
 
 export type FireAim = 'ready' | 'blocked' | 'none';
@@ -53,10 +54,7 @@ export class FireControl {
     pad: HTMLElement,
   ) {
     this.stateLabel = el.querySelector('.fire-state');
-    if (matchMedia('(pointer: coarse)').matches) pad.hidden = false;
-    window.addEventListener('pointerdown', (e) => {
-      if (e.pointerType === 'touch') pad.hidden = false;
-    });
+    revealOnTouch(pad);
     this.label = el.querySelector('.fire-label');
     el.addEventListener('pointerdown', (e) => {
       e.preventDefault();

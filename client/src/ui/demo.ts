@@ -255,10 +255,12 @@ export function runDemo(screen: string): void {
     minimap.update(DEMO_MINIMAP, 1e9);
     // Телефон: стик и кнопки боя — как их показывает игра при первом касании.
     if (matchMedia('(pointer: coarse)').matches) {
-      document.documentElement.style.setProperty('--stick-r', '62px');
-      el('stick').style.setProperty('--stick-r', '62px');
+      document.documentElement.style.setProperty('--stick-r', '50px');
+      el('stick').style.setProperty('--stick-r', '50px');
       el('stick').hidden = false;
       el('combat-pad').hidden = false;
+      el('stop').hidden = false;
+      el('ability').hidden = false;
       el('fire').dataset.active = 'true';
       el('fire').dataset.aim = 'ready';
       el('fire').querySelector('.fire-state')!.textContent = 'вкл';
@@ -275,7 +277,7 @@ export function runDemo(screen: string): void {
     };
     const screen = new DockScreen(el('dock'), hulls, weapons, modules, {
       onSell: noop, onBuyGoods: noop, onBuy: noop, onEquip: noop, onTransport: noop, onFit: noop, onFitAll: noop,
-      onSellItem: noop, onSellGear: noop, onRepair: noop, onUndock: noop, onMenu: (anchor) => menu.toggleAt(anchor),
+      onSellItem: noop, onSellGear: noop, onSellHull: noop, onRepair: noop, onUndock: noop, onMenu: (anchor) => menu.toggleAt(anchor),
       onAccept: noop, onAbandon: noop, onComplete: noop, onSkipTutorial: noop, onRelay: noop,
       // Витрина ничего не делает, но вопрос показать должна: на нём проверяют карточку поверх дока.
       onConfirm: (lines, yes) => confirm.ask(lines, yes),

@@ -47,6 +47,24 @@ export function sellItemLines(name: string, credits: number, price: (value: numb
       };
 }
 
+/**
+ * Продажа корабля из ангара (M20c): оснащение уходит вместе с ним, и сказать об этом надо до, а не после.
+ * Числом вещей не хвастаемся: «5 предметов» требует падежей, а пользы от него нет.
+ *
+ * @param dressed стоит ли на корабле что-то, кроме обязательного
+ * @param credits сколько дадут за корабль целиком
+ */
+export function sellShipLines(name: string, dressed: boolean, credits: number, price: (value: number) => string): ConfirmLines {
+  return {
+    title: 'Продать корабль?',
+    text: dressed
+      ? `${name} уйдёт с верфи вместе со всем, что на нём стоит, — за ${price(credits)}. Обратно — только за полную цену.`
+      : `${name} уйдёт с верфи за ${price(credits)}. Обратно — только за полную цену.`,
+    yes: 'Продать',
+    no: 'Отмена',
+  };
+}
+
 export class ConfirmCard {
   private readonly title: HTMLElement;
   private readonly text: HTMLElement;

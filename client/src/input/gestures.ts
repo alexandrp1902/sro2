@@ -27,3 +27,14 @@ export function preventBrowserGestures(): void {
     { passive: false },
   );
 }
+
+/**
+ * Кнопки телефона (стик, огонь, «Стоп», доп. действие): на ПК их нет. Показываем сразу на сенсорном
+ * экране, а на гибридном ноутбуке — после первого касания, когда стало понятно, чем играют.
+ */
+export function revealOnTouch(el: HTMLElement): void {
+  if (matchMedia('(pointer: coarse)').matches) el.hidden = false;
+  window.addEventListener('pointerdown', (e) => {
+    if (e.pointerType === 'touch') el.hidden = false;
+  });
+}

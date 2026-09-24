@@ -664,6 +664,55 @@
   margin: calc(var(--stick-r, 55px) * -0.42) 0 0 calc(var(--stick-r, 55px) * -0.42);
 }
 
+/*
+ * Маленькая круглая кнопка пада (M20c): «Стоп» и доп. действие, половина кнопки огня.
+ * Не `sro-btn`: у того aria-pressed значит «красный вкл», а красный в игре занят огнём — включённый
+ * «Стоп» стальной, как активная вкладка.
+ */
+.sro-pad-btn {
+  position: relative;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 2px solid var(--line);
+  border-radius: 50%;
+  background: var(--bg-pane);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  color: var(--text-muted);
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  cursor: pointer;
+  pointer-events: auto;
+}
+
+.sro-pad-btn[aria-pressed='true'] {
+  border-color: var(--steel);
+  background: var(--steel-tint);
+  color: var(--text-strong);
+  box-shadow: var(--glow-steel);
+}
+
+/* Пусто: ставить нечего. Пунктирное кольцо стоит там же, где у огня кольцо перезарядки, — когда
+   появятся активируемые модули, откат займёт его место, ничего не сдвигая. */
+.sro-pad-btn[data-state='empty'] {
+  opacity: var(--opacity-disabled);
+}
+
+.sro-pad-btn__ring {
+  position: absolute;
+  inset: -7px;
+  border-radius: 50%;
+}
+
+.sro-pad-btn[data-state='empty'] .sro-pad-btn__ring {
+  border: 2px dashed var(--line);
+}
+
 /* ---------- Ползунок (M17) ---------- */
 /* Единственный компонент, который выглядит как полоска HUD, но им двигают: трек такой же, как у
    `.sro-bar--thin`, а бегунок — стальной кружок. Строка целиком высотой 44 px: её тянут пальцем. */

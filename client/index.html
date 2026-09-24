@@ -76,6 +76,19 @@
       </button>
     </div>
 
+    <!--
+      Маленькие кнопки телефона (M20c): «Стоп» вверх-вправо от стика, доп. действие — от кнопки огня.
+      Соседи стика и пада, а не их дети: у стика обработчик pointerdown на корне, и нажатие вложенной
+      кнопки всплыло бы в него и начало перетаскивание ручки.
+    -->
+    <button id="stop" class="pad-mini sro-pad-btn pad-mini--stop" type="button" aria-pressed="false"
+            title="Стоп: тяга 0, а поворот стиком остаётся" hidden>СТОП</button>
+    <div id="ability" class="pad-mini sro-pad-btn pad-mini--act" role="button" tabindex="-1" data-state="empty"
+         aria-disabled="true" aria-label="Активный модуль не установлен" hidden>
+      <span class="sro-pad-btn__ring"></span>
+      <span class="sro-pad-btn__label">—</span>
+    </div>
+
     <div id="dock" class="dock" hidden></div>
 
     <!--

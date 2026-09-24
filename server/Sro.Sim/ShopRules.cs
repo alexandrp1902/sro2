@@ -106,8 +106,20 @@ public sealed record ShopRules(
     /// <summary>Продают ли здесь эту пушку или модуль.</summary>
     public bool SellsItem(string id) => ItemPrice(id) is not null && (Stock is null || Stock.Contains(id));
 
+    /// <summary>Доля цены, которую место платит за вещь; округляется вниз.</summary>
+    private int Share(int price) => (int)Math.Floor(price * SellShare + 1e-9);
+
     /// <summary>Сколько станция даёт за пушку или модуль со склада; то, чего нет в прайсе, — даром.</summary>
-    public int SellPrice(string id) => ItemPrice(id) is { } price ? (int)Math.Floor(price * SellShare + 1e-9) : 0;
+    public int SellPrice(string id) => ItemPrice(id) is { } price ? Share(price) : 0;
+
+    /// <summary>Сколько верфь даёт за голый корпус; то, чего нет в прайсе, — даром.</summary>
+    public int SellHullPrice(string id) => HullPrice(id) is { } price ? Share(price) : 0;
+
+    /// <summary>
+    /// Сколько верфь даёт за корабль вместе с оснащением (M20c): корпус и каждая вещь считаются отдельно,
+    /// каждая часть округляется вниз сама. Зеркало sellShipPrice в client/src/sim/shop.ts.
+    /// </summary>
+    public int SellShipPrice(string hullId, IEnumerable<string> items) => SellHullPrice(hullId) + items.Sum(SellPrice);
 
     /// <summary>
     /// Сколько стоит довести корпус до полной прочности; округляется вверх. С M12 к плате за единицу

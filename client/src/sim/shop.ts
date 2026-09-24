@@ -42,6 +42,21 @@ export function sellPrice(shop: ShopRules, id: string): number {
   return cost === null ? 0 : Math.floor(cost * (shop.sellShare ?? 0.5) + 1e-9);
 }
 
+/** Сколько верфь даёт за голый корпус — как на сервере (ShopRules.SellHullPrice). */
+export function sellHullPrice(shop: ShopRules, id: string): number {
+  const cost = price(shop.hulls, id);
+  return cost === null ? 0 : Math.floor(cost * (shop.sellShare ?? 0.5) + 1e-9);
+}
+
+/**
+ * Сколько верфь даёт за корабль вместе с оснащением (M20c) — как на сервере (ShopRules.SellShipPrice):
+ * корпус и каждая вещь считаются отдельно, каждая часть округляется вниз сама. Совпадение проверяет
+ * shared/test-vectors/shop.json: кнопка в ангаре обещает ровно то, что начислит сервер.
+ */
+export function sellShipPrice(shop: ShopRules, hullId: string, items: readonly string[]): number {
+  return items.reduce((sum, id) => sum + sellPrice(shop, id), sellHullPrice(shop, hullId));
+}
+
 /** Цена корпуса или пушки; null — нет в прайсе. */
 export function price(prices: Record<string, number> | null | undefined, id: string): number | null {
   return prices?.[id] ?? null;

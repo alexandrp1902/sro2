@@ -974,6 +974,51 @@ public sealed partial class Room
         _log.LogInformation("Player {Id} sold {Count} stored items for {Credits} credits", player.Id, sold, credits);
     }
 
+    /// <summary>
+    /// Продать корабль из ангара вместе со всем, что на нём стоит (M20c): доля местной цены корпуса
+    /// и такая же доля за каждую вещь его оснащения (<see cref="ShopRules.SellShipPrice"/>).
+    ///
+    /// Обязательную тройку — двигатель, радар, генератор — тоже оплачиваем. «Снять всё» её нарочно
+    /// оставляет, чтобы корабль в ангаре не застрял без хода, но проданному летать незачем, а куплена
+    /// она была вместе с корпусом. Иначе «раздеть, потом продать» давало бы за тот же корабль больше.
+    ///
+    /// Репутация цену выкупа не двигает — как и при продаже модулей (<see cref="SellItem"/>).
+    /// </summary>
+    public void SellHull(IClientConnection connection, string? hullId)
+    {
+        if (hullId is null || !_byConnection.TryGetValue(connection.Id, out var player)) return;
+        // Гость, полёт, чужой корпус и тот, под которым сидят, — молча: таких кнопок клиент не рисует.
+        // IsGuest первым: OwnsHull у гостя отвечает «своё» на что угодно.
+        if (player.IsGuest || !player.Docked || !player.OwnsHull(hullId) || hullId == player.HullId) return;
+        // Стартовый корабль заводится заново при каждом входе (Player.Hulls), так что продажа отменилась бы
+        // сама собой — а дай кто-нибудь «light» ненулевую цену, это стало бы печатным станком.
+        if (hullId == SimConfig.DefaultHull)
+        {
+            connection.Send(new NoticeMsg(Protocol.StarterHullNotice));
+            return;
+        }
+        if (PlaceOf(player) is not { } here || !here.Shipyard)
+        {
+            connection.Send(new NoticeMsg(Protocol.NoShipyardNotice));
+            return;
+        }
+        if (player.HullPlaces.GetValueOrDefault(hullId) != here.Key)
+        {
+            connection.Send(new NoticeMsg(Protocol.ShipElsewhereNotice));
+            return;
+        }
+        var fit = player.HullFits.GetValueOrDefault(hullId, Fitting.Empty);
+        var credits = ShopOf(player).SellShipPrice(hullId, fit.Items().Select(item => item.Id));
+        player.Credits += credits;
+        player.Hulls.Remove(hullId);
+        player.HullPlaces.Remove(hullId);
+        player.HullFits.Remove(hullId);
+        SendCargo(player);
+        SendHangar(player);
+        Save(player);
+        _log.LogInformation("Player {Id} sold hull {Hull} with its fit for {Credits} credits", player.Id, hullId, credits);
+    }
+
     /// <summary>Цель выбирает клиент. Себя, несуществующий корабль и 0 сервер понимает как «цели нет».</summary>
     public void SetTarget(IClientConnection connection, int targetId)
     {
