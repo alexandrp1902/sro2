@@ -176,21 +176,35 @@ describe('слухи торговца', () => {
     ];
     for (const line of lines) {
       expect(line).not.toMatch(/\d/);
-      expect(line).not.toContain('кр');
+      expect(line).not.toContain('кредит');
     }
   });
 
-  it('дефицит объясняется по-человечески, а не числом', () => {
+  it('дефицит объясняется бедой, а не числом', () => {
     const epidemic = rumourLine(
       { kind: 'route', good: 'medicine', system: 'epsilon', name: 'Эпсилон', hops: 2, price: 120, scarce: true },
       'Медикаменты',
+      'st:castor',
     );
-    const famine = rumourLine(
-      { kind: 'route', good: 'food', system: 'epsilon', name: 'Эпсилон', hops: 2, price: 70, scarce: true },
-      'Продовольствие',
-    );
-    expect(epidemic).toContain('эпидемия');
-    expect(famine).toContain('голодают');
+    expect(epidemic).toMatch(/эпидемия|лихорадки|карантин/);
+  });
+
+  it('у разных торговцев про одно и то же — разные истории, у одного — всегда одна', () => {
+    const rumour = { kind: 'route', good: 'titanium', system: 'vega', name: 'Вега', hops: 1, price: 90 } as const;
+    const lines = new Set<string>();
+    for (let i = 0; i < 40; i++) lines.add(rumourLine(rumour, 'Титан', `st:place${i}`));
+    expect(lines.size).toBeGreaterThan(10);
+    expect(rumourLine(rumour, 'Титан', 'st:vega')).toBe(rumourLine(rumour, 'Титан', 'st:vega'));
+  });
+
+  it('не только «возвращаются довольные»: торговец объясняет, зачем туда везут', () => {
+    const lines = new Set<string>();
+    for (let i = 0; i < 40; i++) {
+      lines.add(rumourLine({ kind: 'route', good: 'luxury', system: 'n', name: 'Нова', hops: 1, price: 90 }, 'Предметы роскоши', `k${i}`));
+    }
+    const all = [...lines].join(' ');
+    expect(all).toMatch(/гонки|соревнования|свадьба|казино|делегация/);
+    expect([...lines].filter((l) => l.includes('довольные')).length).toBeLessThan(lines.size / 2);
   });
 
   it('без дефицита обходится без выдумок про эпидемию', () => {
@@ -204,27 +218,26 @@ describe('слухи торговца', () => {
 
   it('товар ставится в винительный падеж', () => {
     const line = rumourLine({ kind: 'glut', good: 'ore', system: 'c', name: 'Кастор', hops: 1, price: 5 }, 'Руда');
-    expect(line).toContain('руду');
-    expect(line).not.toContain('руда');
+    expect(line.toLowerCase()).toContain('руду');
+    expect(line.toLowerCase()).not.toContain('руда');
   });
 
   it('завал: где взять дёшево', () => {
     const line = rumourLine({ kind: 'glut', good: 'ore', system: 'castor', name: 'Кастор', hops: 2, price: 5 }, 'Руда');
     expect(line).toContain('Кастор');
     expect(line).toContain('даром');
-    expect(line).toContain('порожняком');
   });
 
-  it('это слух, а не сводка: торговец за свои слова не ручается', () => {
-    const scarce = rumourLine(
-      { kind: 'route', good: 'medicine', system: 'e', name: 'Эпсилон', hops: 2, price: 120, scarce: true },
-      'Медикаменты',
-    );
-    const plain = rumourLine({ kind: 'route', good: 'food', system: 'a', name: 'Альдебаран', hops: 3, price: 64 }, 'Продовольствие');
-    const glut = rumourLine({ kind: 'glut', good: 'ore', system: 'c', name: 'Кастор', hops: 2, price: 5 }, 'Руда');
-    expect(scarce).toContain('если не врут');
-    expect(plain).toContain('слышно');
-    expect(glut).toContain('болтают');
+  it('это слух, а не сводка: торговец пересказывает чужие слова', () => {
+    for (let i = 0; i < 20; i++) {
+      const scarce = rumourLine(
+        { kind: 'route', good: 'medicine', system: 'e', name: 'Эпсилон', hops: 2, price: 120, scarce: true },
+        'Медикаменты',
+        `s${i}`,
+      );
+      expect(scarce).toMatch(/Говорят|Болтают|Слух|рассказывают|судачат|передавали|шепнули/);
+      expect(scarce).toMatch(/[Ее]сли не врут/);
+    }
   });
 
   it('незнакомый товар не ломает строку', () => {

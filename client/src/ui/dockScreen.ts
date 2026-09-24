@@ -151,11 +151,18 @@ const SCENE_SETS: Record<string, readonly string[]> = {
   'orbital-platform': ['office', 'trader', 'shipyard', 'hangar'],
 };
 
+/**
+ * Имя картинки сцены без пути и расширения («ring-office»): по нему же sim/staff.ts понимает,
+ * кто на ней нарисован, чтобы имя в подписи совпадало с лицом.
+ */
+export function sceneArt(place: Place, tab: Tab, set?: string | null): string {
+  const art = SCENES[tab].art;
+  return set && SCENE_SETS[set]?.includes(art) ? `${set}-${art}` : `${place}-${art}`;
+}
+
 /** Адрес фона сцены: относительный, как и спрайты. */
 export function sceneUrl(place: Place, tab: Tab, set?: string | null): string {
-  const art = SCENES[tab].art;
-  if (set && SCENE_SETS[set]?.includes(art)) return `dock/${set}-${art}.webp`;
-  return `dock/${place}-${art}.webp`;
+  return `dock/${sceneArt(place, tab, set)}.webp`;
 }
 
 /** Что можно сделать с пушкой или модулем для выбранного слота. */
@@ -733,7 +740,7 @@ export class DockScreen {
       view.append(ship);
     }
     if (scene.who) {
-      const person = staffOf(this.staffSeed(), scene.who);
+      const person = staffOf(this.staffSeed(), scene.who, sceneArt(this.place, this.tab, this.scene_));
       const caption = el('div', 'dock-scene-caption');
       // Торговец вместо приветствия рассказывает, что слышал: подсказка ценнее вежливости.
       const line = this.tab === 'cargo' ? (this.rumour() ?? person.line) : person.line;
@@ -862,7 +869,7 @@ export class DockScreen {
     // Та же реплика торговца, что стоит под его картинкой, — для телефона, где сцены нет совсем.
     // На широком экране её прячет CSS тем же брейкпоинтом, которым показывает сцену: дважды не повторяем.
     const rumour = this.rumour();
-    if (rumour) body.append(el('div', 'dock-rumour', `${staffOf(this.staffSeed(), 'cargo').name}: ${rumour}`));
+    if (rumour) body.append(el('div', 'dock-rumour', `${staffOf(this.staffSeed(), 'cargo', sceneArt(this.place, 'cargo', this.scene_)).name}: ${rumour}`));
 
     // Быстрая продажа — первым делом: с полным трюмом в док заходят чаще, чем за покупками.
     // Две кнопки в ряд (M16a): ресурсы и модули продаются отдельно, чтобы за модулями не ходить
