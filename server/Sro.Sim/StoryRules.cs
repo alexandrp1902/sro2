@@ -23,17 +23,25 @@ public sealed record StoryLines(
 /// <param name="Flag">Уникален в пределах кампании: по нему M20b и узнает, как пилот тогда поступил.</param>
 /// <param name="Lines">Что скажут в ответ; пусто — карточка просто закроется.</param>
 /// <param name="Take">Забрать сюжетный предмет миссии из трюма: «отдать» — это отдать.</param>
+/// <param name="Decline">
+/// Отказ (M20b): работа тут же бросается, и цепочка остаётся стоять на этой же миссии. Так сделан ответ
+/// «не сейчас» в седьмой: Ева раскрылась, но пилот не обязан соглашаться в ту же минуту.
+/// </param>
 public sealed record StoryOption(
     string Label,
     string Flag,
     IReadOnlyList<string>? Lines = null,
-    bool Take = false);
+    bool Take = false,
+    bool Decline = false);
 
 /// <summary>
 /// Выбор посреди миссии (M20a): карточка с вопросом и двумя кнопками. Ответ пишет флаг и, если
 /// <see cref="StoryMission.Finish"/> — «choice», закрывает миссию.
 /// </summary>
-/// <param name="Trigger">Когда спрашивают; сейчас умеем только <see cref="StoryRules.OnPickup"/>.</param>
+/// <param name="Trigger">
+/// Когда спрашивают: <see cref="StoryRules.OnPickup"/> — подняв груз, <see cref="StoryRules.OnAccept"/> —
+/// в тот же миг, когда работу взяли (M20b).
+/// </param>
 /// <param name="Who">Кто спрашивает; null — тот же, кто выдал работу.</param>
 public sealed record StoryChoice(
     string Question,
@@ -49,10 +57,26 @@ public sealed record StoryChoice(
 /// Скриптованное появление (M20a): по событию миссии в названной точке встают корабли.
 /// Это то же, чем живут засады сопровождения, только состав и место берутся из сюжета, а не из таблицы волн.
 /// </summary>
-/// <param name="Trigger"><see cref="StoryRules.OnAccept"/>, <see cref="StoryRules.OnUndock"/> или <see cref="StoryRules.OnPickup"/>.</param>
+/// <param name="Trigger">
+/// Когда выходят на сцену: <see cref="StoryRules.OnAccept"/>, <see cref="StoryRules.OnUndock"/>,
+/// <see cref="StoryRules.OnPickup"/> или <see cref="StoryRules.OnArrive"/>.
+/// </param>
 /// <param name="Name">Имя над кораблём; null — обычное «Тип Ур.N». Одно на всю группу.</param>
 /// <param name="At">Где встают; null — у врат <paramref name="Gate"/>, а без них — рядом с пилотом.</param>
 /// <param name="Gate">Врата в эту систему: засада ждёт там, где пилот и так пройдёт.</param>
+/// <param name="Drop">
+/// Что корабль роняет, погибнув (M20b): ящик кладётся адресно хозяину миссии и не протухает. Без этого
+/// чертёж из восьмой подобрал бы посторонний или он истлел бы за две минуты, и цепочка встала бы.
+/// </param>
+/// <param name="Hold">
+/// Стоит и ждёт (M20b): не боится зоны станции, не уходит по поводку и бьёт только того, для кого вызван.
+/// Так стоит охрана корпорации — иначе она развернулась бы у шлюза и по дороге постреляла посторонних.
+/// </param>
+/// <param name="Flee">
+/// Убегает (M20b): корабль сразу идёт к вратам <paramref name="Gate"/>, готовит там прыжок и исчезает.
+/// Отдельного ИИ для этого не нужно — так уходит любой налётчик; сюжету остаётся поставить его на выход
+/// с первого тика. Попадание сбивает ему прыжок так же, как игроку.
+/// </param>
 public sealed record StorySpawn(
     string Trigger,
     string Npc,
@@ -60,7 +84,17 @@ public sealed record StorySpawn(
     int Count = 1,
     string? Name = null,
     StoryPoint? At = null,
-    string? Gate = null);
+    string? Gate = null,
+    string? Drop = null,
+    bool Hold = false,
+    bool Flee = false);
+
+/// <summary>
+/// Второй набор реплик — для тех, кто в прошлом выборе поступил иначе (M20b). Один флаг на миссию:
+/// развилок в кампании мало, а держать по варианту на каждый флаг значило бы писать кампанию дважды.
+/// </summary>
+/// <param name="Flag">Чей это вариант: у кого этот флаг стоит, тот и услышит эти реплики.</param>
+public sealed record StoryAlt(string Flag, StoryLines? Lines = null);
 
 /// <summary>
 /// Миссия кампании (M20a). Механика — из уже существующих видов заданий: сюжет добавляет не новые
@@ -90,6 +124,19 @@ public sealed record StorySpawn(
 /// в диалоге, и дока для этого не нужно.
 /// </param>
 /// <param name="DoneBy">Кто говорит на сдаче; null — тот же, кто выдал.</param>
+/// <param name="Cost">
+/// Сколько стоит взяться (M20b): кредиты списываются при взятии, не хватило — работа не берётся.
+/// Так сделана покупка реактора: своего магазина ей не нужно, а скидка «Другу» по общей шкале
+/// отношения (−5 %) той сцене не годится.
+/// </param>
+/// <param name="CostRep">Ступень отношения к месту выдачи, с которой цена падает до <paramref name="CostCut"/>.</param>
+/// <param name="CostCut">Цена для своих; 0 — бесплатно.</param>
+/// <param name="RewardHull">Корпус в ангар на месте сдачи (M20b); null — корабля не дарят.</param>
+/// <param name="RewardIf">Флаг, при котором даётся <paramref name="RewardHull"/>; null — даётся всем.</param>
+/// <param name="Alt">Другой набор реплик для тех, у кого стоит названный флаг.</param>
+/// <param name="Convoy">Escort: тип NPC, которым идёт конвой; null — обычный торговец системы.</param>
+/// <param name="ConvoyName">Имя над конвоем: у сюжетного транспорта есть водитель, а не «Торговец».</param>
+/// <param name="ConvoyAt">Откуда конвой стартует; null — от пилота, как у обычного сопровождения.</param>
 public sealed record StoryMission(
     string Id,
     string Title,
@@ -118,7 +165,16 @@ public sealed record StoryMission(
     IReadOnlyList<string>? Give = null,
     string Finish = StoryRules.FinishDock,
     string? DoneBy = null,
-    string? DoneRole = null)
+    string? DoneRole = null,
+    int Cost = 0,
+    string? CostRep = null,
+    int CostCut = 0,
+    string? RewardHull = null,
+    string? RewardIf = null,
+    StoryAlt? Alt = null,
+    string? Convoy = null,
+    string? ConvoyName = null,
+    StoryPoint? ConvoyAt = null)
 {
     [JsonIgnore] public IReadOnlyList<StorySpawn> SpawnList => Spawns ?? [];
     [JsonIgnore] public IReadOnlyList<IReadOnlyList<InvasionGroup>> WaveList => Waves ?? [];
@@ -193,7 +249,14 @@ public sealed record StoryRules(IReadOnlyDictionary<string, StoryCampaign>? Camp
     public const string OnUndock = "onUndock";
     public const string OnPickup = "onPickup";
 
-    public static readonly string[] Triggers = [OnAccept, OnUndock, OnPickup];
+    /// <summary>
+    /// Пилот добрался до системы миссии (M20b). Нужен тем сценам, которые стоят на месте, а не встречают
+    /// у дока: патруль над обломками Барнарда должен ждать там, куда за ним прилетели, и ждать один раз —
+    /// сколько бы раз пилот ни садился по дороге.
+    /// </summary>
+    public const string OnArrive = "onArrive";
+
+    public static readonly string[] Triggers = [OnAccept, OnUndock, OnPickup, OnArrive];
 
     /// <summary>Чем кончается миссия: сдачей в месте или ответом в диалоге.</summary>
     public const string FinishDock = "dock";
@@ -241,11 +304,13 @@ public sealed record StoryRules(IReadOnlyDictionary<string, StoryCampaign>? Camp
     /// <param name="items">Предметы лута — что собирают и что выдают.</param>
     /// <param name="galaxy">Галактика — сверить места и системы; null — не сверять.</param>
     /// <param name="reputation">Шкала отношения — сверить названные ступени; null — не сверять.</param>
+    /// <param name="hulls">Корпуса — сверить корабль, который дарят за финал; null — не сверять.</param>
     public string? Validate(
         IReadOnlyDictionary<string, NpcType> npcs,
         IReadOnlyDictionary<string, LootItem> items,
         GalaxyRules? galaxy = null,
-        ReputationRules? reputation = null)
+        ReputationRules? reputation = null,
+        IReadOnlyDictionary<string, HullParams>? hulls = null)
     {
         foreach (var (id, campaign) in CampaignMap)
         {
@@ -260,7 +325,7 @@ public sealed record StoryRules(IReadOnlyDictionary<string, StoryCampaign>? Camp
             var list = campaign.MissionList;
             for (var i = 0; i < list.Count; i++)
             {
-                if (Check(list, i, npcs, items, galaxy, reputation, flags) is { } problem)
+                if (Check(list, i, npcs, items, galaxy, reputation, hulls, flags) is { } problem)
                     return $"{id}.missions[{i}]: {problem}";
             }
         }
@@ -274,6 +339,7 @@ public sealed record StoryRules(IReadOnlyDictionary<string, StoryCampaign>? Camp
         IReadOnlyDictionary<string, LootItem> items,
         GalaxyRules? galaxy,
         ReputationRules? reputation,
+        IReadOnlyDictionary<string, HullParams>? hulls,
         HashSet<string> flags)
     {
         var mission = list[index];
@@ -291,6 +357,11 @@ public sealed record StoryRules(IReadOnlyDictionary<string, StoryCampaign>? Camp
         if (mission.Count is < 1 or > MissionRules.MaxCount) return $"count must be within 1..{MissionRules.MaxCount}";
         if (mission.Radius < 0) return "radius must not be negative";
         if (mission.Strikes < 1) return "strikes must be at least 1";
+        if (mission.Cost < 0 || mission.CostCut < 0) return "cost must not be negative";
+        // Скидка дороже цены — это не скидка, а опечатка: своим платить больше чужих незачем.
+        if (mission.CostCut > mission.Cost) return $"costCut {mission.CostCut} is more than cost {mission.Cost}";
+        if (mission.CostRep is not null && mission.Cost == 0) return "costRep without a cost changes nothing";
+        if (mission.Alt is { } alt && string.IsNullOrWhiteSpace(alt.Flag)) return "alt.flag is empty";
 
         if (galaxy is not null)
         {
@@ -302,6 +373,15 @@ public sealed record StoryRules(IReadOnlyDictionary<string, StoryCampaign>? Camp
         }
         if (reputation is not null && mission.Rep is { } level && reputation.IndexOf(level) < 0)
             return $"unknown reputation level '{level}'";
+        if (reputation is not null && mission.CostRep is { } cheap && reputation.IndexOf(cheap) < 0)
+            return $"unknown reputation level '{cheap}' in costRep";
+        if (hulls is not null && mission.RewardHull is { } gift && !hulls.ContainsKey(gift))
+            return $"unknown hull '{gift}' in rewardHull";
+        if (mission.RewardIf is not null && mission.RewardHull is null)
+            return "rewardIf without a rewardHull gives nothing";
+        if (mission.Convoy is { } convoy && !npcs.ContainsKey(convoy)) return $"unknown npc '{convoy}' in convoy";
+        if (mission.Convoy is not null && mission.Kind != MissionRules.EscortKind)
+            return "convoy belongs to escort: nobody else has one";
 
         switch (mission.Kind)
         {
@@ -330,6 +410,10 @@ public sealed record StoryRules(IReadOnlyDictionary<string, StoryCampaign>? Camp
                 return $"spawns[{i}]: count must be within 1..{NpcSpawn.MaxCount}";
             if (galaxy is not null && spawn.Gate is { } gate && galaxy.System(gate) is null)
                 return $"spawns[{i}]: unknown gate system '{gate}'";
+            if (spawn.Drop is { } drop && !items.ContainsKey(drop)) return $"spawns[{i}]: unknown item '{drop}' in drop";
+            // Убегающему нужно, куда бежать: без врат он просто встал бы на месте и никуда не делся.
+            if (spawn.Flee && spawn.Gate is null) return $"spawns[{i}]: flee needs a gate to run to";
+            if (spawn.Flee && spawn.Hold) return $"spawns[{i}]: flee and hold mean opposite things";
         }
         for (var i = 0; i < mission.WaveList.Count; i++)
         {
@@ -348,6 +432,9 @@ public sealed record StoryRules(IReadOnlyDictionary<string, StoryCampaign>? Camp
                 return $"choice: unknown trigger '{choice.Trigger}'";
             if (choice.OptionList.Count is < 1 or > MaxOptions)
                 return $"choice needs 1..{MaxOptions} options";
+            // Вопрос при взятии не может закрывать работу: её только что взяли, закрывать нечего.
+            if (choice.Trigger == OnAccept && mission.Finish == FinishChoice)
+                return "a choice asked on accept cannot finish the mission";
             foreach (var option in choice.OptionList)
             {
                 if (option is null) return "choice: option is null";
@@ -355,6 +442,8 @@ public sealed record StoryRules(IReadOnlyDictionary<string, StoryCampaign>? Camp
                 if (string.IsNullOrWhiteSpace(option.Flag)) return "choice: option flag is empty";
                 // Флаг — память кампании: два одинаковых означали бы, что выбор ничего не решил.
                 if (!flags.Add(option.Flag)) return $"choice: duplicate flag '{option.Flag}'";
+                // Отказ бросает работу целиком: забирать при этом предмет не у кого и незачем.
+                if (option.Decline && option.Take) return "choice: a declining option takes nothing";
             }
         }
         else if (mission.Finish == FinishChoice)
@@ -374,7 +463,8 @@ public sealed record StoryRules(IReadOnlyDictionary<string, StoryCampaign>? Camp
         out StoryRules rules,
         out string? error,
         GalaxyRules? galaxy = null,
-        ReputationRules? reputation = null)
+        ReputationRules? reputation = null,
+        IReadOnlyDictionary<string, HullParams>? hulls = null)
     {
         rules = None;
         StoryRules? parsed;
@@ -392,7 +482,7 @@ public sealed record StoryRules(IReadOnlyDictionary<string, StoryCampaign>? Camp
             error = "no rules";
             return false;
         }
-        error = parsed.Validate(npcs, items, galaxy, reputation);
+        error = parsed.Validate(npcs, items, galaxy, reputation, hulls);
         if (error is not null) return false;
         rules = parsed;
         return true;

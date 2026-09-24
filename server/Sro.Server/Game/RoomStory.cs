@@ -25,6 +25,9 @@ public sealed partial class Room
     /// <summary>Кому и для какой миссии уже разложен скриптованный груз: второй раз раскладывать не надо.</summary>
     private readonly Dictionary<int, string> _storyDrops = new();
 
+    /// <summary>Кому и для какой миссии уже выведены на сцену те, кто ждёт на месте (M20b).</summary>
+    private readonly Dictionary<int, string> _storyStaged = new();
+
     /// <summary>Кто сейчас стоит перед выбором в диалоге: id пилота → миссия, которая спросила.</summary>
     private readonly Dictionary<int, StoryRef> _storyAsked = [];
 
@@ -117,7 +120,12 @@ public sealed partial class Room
                 campaign.Length,
                 log?.Lines ?? [],
                 offer,
-                offer is null && player.Missions.Active?.Offer.Story is null && campaign.Next(passed) is null);
+                offer is null && player.Missions.Active?.Offer.Story is null && campaign.Next(passed) is null,
+                // Ретранслятор (M20b): кампания пройдена целиком, и пилот стоит там, где она кончилась.
+                // Место берём из последней миссии, а не строкой в коде: вторая кампания кончится
+                // в другом доке, и искать её финал по имени места никто не должен.
+                campaign.MissionList.Count > 0 && campaign.Next(passed) is null
+                    && player.Docked && player.DockedPlace == campaign.MissionList[^1].Place);
         }
     }
 
@@ -180,18 +188,80 @@ public sealed partial class Room
         if (StoryMissionOf(story) is not { } mission) return true;
         var loot = Balance.Loot;
         var capacity = player.Effective(Balance).Cargo;
+        // Место считаем под весь груз сразу: выданная половина ящиков — это не выданный груз.
+        var taken = 0.0;
         foreach (var item in mission.GiveList)
         {
-            if (player.Cargo.Fits(item, 1, capacity, loot)) continue;
+            if (player.Cargo.Fits(item, 1, capacity - taken, loot))
+            {
+                taken += loot.Volume(item);
+                continue;
+            }
             player.Connection?.Send(new NoticeMsg(Protocol.StoryHoldNotice));
             return false;
         }
+        var price = PriceOf(player, mission);
+        if (price > 0)
+        {
+            // Платят вперёд и своими (M20b): реактор — самая большая трата кампании, и она должна
+            // ощущаться покупкой, а не строчкой в награде.
+            if (player.Credits < price)
+            {
+                player.Connection?.Send(new NoticeMsg(Protocol.NoCreditsNotice));
+                return false;
+            }
+            player.Credits -= price;
+            _log.LogInformation("Player {Id} paid {Price} for story {Mission}", player.Id, price, mission.Id);
+        }
         foreach (var item in mission.GiveList) player.Cargo.Add(item, 1);
-        Say(player, story, mission.Lines?.Accept, mission.Giver, mission.Role);
+        Say(player, story, LinesOf(player, story.Campaign, mission, l => l.Accept), mission.Giver, mission.Role);
         StorySpawn(player, mission, StoryRules.OnAccept);
         // Ящики кладём сразу: пилот стоит в доке той же системы, и к вылету они его уже ждут.
-        StoryDrops(player);
+        StoryHere(player);
+        // Вопрос при взятии (M20b): Ева раскрывается тогда же, когда даёт работу, и пилот отвечает ей,
+        // а не выполняет молча. Карточку шлём последней — она ложится поверх реплики.
+        Ask(player, story, mission, StoryRules.OnAccept);
         return true;
+    }
+
+    /// <summary>
+    /// Сколько стоит взяться за работу (M20b): полная цена, а своим — со скидкой. Магазином это не сделать:
+    /// общая шкала отношения даёт «Другу» пять процентов, а сопротивление отдаёт реактор вдвое дешевле
+    /// не за отношение к прилавку, а потому что это свой человек.
+    /// </summary>
+    private int PriceOf(Player player, StoryMission mission)
+    {
+        if (mission.Cost <= 0) return 0;
+        if (mission.CostRep is not { } level) return mission.Cost;
+        return Balance.Reputation.AtLeast(PlaceRep(player), level) ? mission.CostCut : mission.Cost;
+    }
+
+    /// <summary>
+    /// Реплики с поправкой на прошлый выбор (M20b): у кого стоит флаг альтернативы, тот слышит свой
+    /// вариант. Не заполнен — берётся общий: переписывать второй раз то, что не поменялось, незачем.
+    /// </summary>
+    private static IReadOnlyList<string>? LinesOf(
+        Player player, string campaign, StoryMission mission, Func<StoryLines, IReadOnlyList<string>?> part)
+    {
+        if (mission.Alt is { Lines: { } alt } fork
+            && player.Story.GetValueOrDefault(campaign)?.Flags.Contains(fork.Flag) == true
+            && part(alt) is { Count: > 0 } theirs)
+            return theirs;
+        return mission.Lines is null ? null : part(mission.Lines);
+    }
+
+    /// <summary>Задать вопрос миссии, если он задаётся на этом событии.</summary>
+    private void Ask(Player player, StoryRef story, StoryMission mission, string trigger)
+    {
+        if (mission.Choice is not { } choice || choice.Trigger != trigger) return;
+        _storyAsked[player.Id] = story;
+        player.Connection?.Send(new DialogMsg(
+            story.Campaign,
+            story.Mission,
+            choice.Who ?? mission.Giver,
+            choice.Role ?? mission.Role,
+            [choice.Question],
+            [.. choice.OptionList.Select(o => new DialogOptionDto(o.Label, o.Flag))]));
     }
 
     /// <summary>Сюжетная работа сдана: записать её, заплатить отношением и договорить.</summary>
@@ -207,9 +277,16 @@ public sealed partial class Room
             foreach (var item in mission.GiveList) player.Cargo.Remove(item, player.Cargo.Count(item));
             // Собранное сдаётся, только если миссия кончается сдачей. Та, что кончается выбором,
             // уже решила судьбу предмета кнопкой: «отдал» его забрал, «оставил» — оставил в трюме уликой.
-            if (mission.Finish == StoryRules.FinishDock && mission.Item is { } collected)
+            // Сданное снято ещё в Room.Mission; здесь — только остатки. Лишнее сюжетное уезжает вместе
+            // с миссией, а обычный товар остаётся пилоту (M20b): в седьмой собирают медикаменты, и забрать
+            // весь запас за то, что он привёз двадцать из тридцати, — это не сдача, а конфискация.
+            if (mission.Finish == StoryRules.FinishDock && mission.Item is { } collected
+                && Balance.Loot.IsStory(collected))
                 player.Cargo.Remove(collected, player.Cargo.Count(collected));
-            Say(player, story, mission.Lines?.Done, mission.DoneBy ?? mission.Giver, mission.DoneRole ?? mission.Role);
+            GiveHull(player, log, mission);
+            Say(
+                player, story, LinesOf(player, story.Campaign, mission, l => l.Done),
+                mission.DoneBy ?? mission.Giver, mission.DoneRole ?? mission.Role);
             // Отношение — одному месту, тому, ради которого работали. Системной половины у сюжета нет:
             // благодарить властей Новы за шестую миссию точно не за что.
             if (mission.RepReward != 0)
@@ -217,6 +294,21 @@ public sealed partial class Room
         }
         Save(player);
         _log.LogInformation("Player {Id} finished story {Campaign}/{Mission}", player.Id, story.Campaign, story.Mission);
+    }
+
+    /// <summary>
+    /// Корабль в награду (M20b): встаёт в ангаре там, где работу сдали, — пересаживать пилота силой
+    /// посреди кампании незачем. Своего корпуса второй раз не дарят, гостю — не дарят вовсе: ему
+    /// некуда его записать.
+    /// </summary>
+    private void GiveHull(Player player, StoryLog log, StoryMission mission)
+    {
+        if (mission.RewardHull is not { } gift) return;
+        if (mission.RewardIf is { } need && !log.Flags.Contains(need)) return;
+        if (player.IsGuest || !Hulls.ContainsKey(gift) || !player.Hulls.Add(gift)) return;
+        player.HullPlaces[gift] = mission.Destination;
+        SendHangar(player);
+        _log.LogInformation("Player {Id} got hull {Hull} for story {Mission}", player.Id, gift, mission.Id);
     }
 
     /// <summary>
@@ -235,6 +327,7 @@ public sealed partial class Room
     {
         _storyAsked.Remove(player.Id);
         _storyDrops.Remove(player.Id);
+        _storyStaged.Remove(player.Id);
         if (_loot.RemoveOwned(player.Id)) ClearMissingLootTargets();
         if (!_storyActors.Remove(player.Id, out var runId)) return;
         foreach (var npc in _pirates)
@@ -256,8 +349,23 @@ public sealed partial class Room
     private void StoryUndock(Player player)
     {
         if (player.Missions.Active?.Offer.Story is not { } story || StoryMissionOf(story) is not { } mission) return;
-        StoryDrops(player);
+        StoryHere(player);
         StorySpawn(player, mission, StoryRules.OnUndock);
+    }
+
+    /// <summary>
+    /// Пилот в системе миссии: разложить её груз и вывести тех, кто ждёт на месте. Зовётся отовсюду,
+    /// откуда это может оказаться правдой, — со взятия работы, с вылета и с прилёта в систему.
+    /// </summary>
+    private void StoryHere(Player player)
+    {
+        StoryDrops(player);
+        if (player.Missions.Active?.Offer.Story is not { } story) return;
+        if (StoryMissionOf(story) is not { } mission) return;
+        if (StorySystemOf(mission) is { } where && where != SystemId) return;
+        if (_storyStaged.GetValueOrDefault(player.Id) == mission.Id) return;
+        _storyStaged[player.Id] = mission.Id;
+        StorySpawn(player, mission, StoryRules.OnArrive);
     }
 
     /// <summary>
@@ -270,7 +378,10 @@ public sealed partial class Room
         if (player.Missions.Active?.Offer.Story is not { } story) return;
         if (StoryMissionOf(story) is not { Point: { } point, Item: { } item } mission) return;
         if (mission.Kind != MissionRules.CollectKind) return;
-        if (Balance.Galaxy.SystemOfPlace(mission.Destination) is { } where && where != SystemId) return;
+        if (StorySystemOf(mission) is { } where && where != SystemId) return;
+        // Предмет, который роняет корабль, на земле не валяется (M20b): у восьмой и тринадцатой точка —
+        // это место встречи, а не склад, и чертёж надо взять с курьера, а не подобрать до его прилёта.
+        if (mission.SpawnList.Any(spawn => spawn.Drop == item)) return;
         if (_storyDrops.GetValueOrDefault(player.Id) == mission.Id) return;
         // Сколько уже в трюме, столько и не кладём: пилот вернулся в систему с половиной ящиков.
         var left = mission.Count - player.Cargo.Count(item);
@@ -282,6 +393,14 @@ public sealed partial class Room
             player.Id, left, item, point.X, point.Y, mission.Id);
     }
 
+    /// <summary>
+    /// Где происходит миссия: названная система, а если не названа — та, где стоит место сдачи.
+    /// Собирают не всегда там, где сдают (M20b): каркас ждёт в Касторе, приводы — в Барнарде,
+    /// а привезти их надо на Прайм.
+    /// </summary>
+    private string? StorySystemOf(StoryMission mission) =>
+        mission.System ?? Balance.Galaxy.SystemOfPlace(mission.Destination);
+
     /// <summary>Пилот поднял груз: сюжету это повод прислать встречающих и задать вопрос.</summary>
     private void StoryPicked(Player player, LootDrop drop)
     {
@@ -290,20 +409,13 @@ public sealed partial class Room
         if (player.Cargo.Count(item) < mission.Count) return;
 
         StorySpawn(player, mission, StoryRules.OnPickup);
-        if (mission.Choice is not { Trigger: StoryRules.OnPickup } choice)
+        if (mission.Choice is not { Trigger: StoryRules.OnPickup })
         {
             // Без вопроса «собрать» сдаётся в доке, как обычная работа: счёт уже сошёлся.
             SendMissions(player);
             return;
         }
-        _storyAsked[player.Id] = story;
-        player.Connection?.Send(new DialogMsg(
-            story.Campaign,
-            story.Mission,
-            choice.Who ?? mission.Giver,
-            choice.Role ?? mission.Role,
-            [choice.Question],
-            [.. choice.OptionList.Select(o => new DialogOptionDto(o.Label, o.Flag))]));
+        Ask(player, story, mission, StoryRules.OnPickup);
     }
 
     /// <summary>
@@ -324,6 +436,17 @@ public sealed partial class Room
         Say(player, story, option.Lines, mission.DoneBy ?? mission.Giver, mission.DoneRole ?? mission.Role);
         SendCargo(player);
         _log.LogInformation("Player {Id} chose {Flag} in story {Mission}", player.Id, option.Flag, story.Mission);
+        if (option.Decline)
+        {
+            // «Не сейчас» (M20b): работа возвращается на доску, цепочка стоит на той же миссии,
+            // а уплаченное возвращается — пилот ни за что не платил.
+            if (PriceOf(player, mission) is var paid && paid > 0) player.Credits += paid;
+            Abandon(player);
+            SendCargo(player);
+            SendMissions(player);
+            Save(player);
+            return;
+        }
         if (mission.Finish == StoryRules.FinishChoice) Complete(player);
         else Save(player);
     }
@@ -334,20 +457,61 @@ public sealed partial class Room
     /// </summary>
     private void StorySpawn(Player player, StoryMission mission, string trigger)
     {
+        // Миссия, назвавшая свою систему, и сцены свои играет там (M20b): патруль над обломками Барнарда
+        // не должен встречать пилота, который вышел из дока в Нове.
+        if (StorySystemOf(mission) is { } stage && mission.System is not null && stage != SystemId) return;
         foreach (var spawn in mission.SpawnList)
         {
             if (spawn.Trigger != trigger) continue;
             var point = SpawnPointOf(player, spawn);
             if (!_storyActors.TryGetValue(player.Id, out var runId)) _storyActors[player.Id] = runId = ++_runCount;
+            // Убегающий встаёт там, где написано: залетать ему неоткуда — он уже в системе,
+            // он из неё уходит.
             var sent = SpawnWave(
                 [new InvasionGroup(spawn.Npc, spawn.Level, spawn.Count)],
-                point, invasionId: 0, missionId: runId, onSite: spawn.Gate is null, storyName: spawn.Name);
+                point, invasionId: 0, missionId: runId, onSite: spawn.Gate is null || spawn.Flee,
+                storyName: spawn.Name, touch: npc => Tune(npc, player, spawn));
             if (sent > 0) player.Connection?.Send(new NoticeMsg(Protocol.AmbushNotice));
             _log.LogInformation(
                 "Story {Mission} sent {Count} × {Npc} to player {Id} on {Trigger}",
                 mission.Id, sent, spawn.Npc, player.Id, trigger);
         }
         if (_storyActors.ContainsKey(player.Id)) BroadcastPlayers();
+    }
+
+    /// <summary>
+    /// Чем вызванный корабль отличается от рядового налётчика (M20b): за кем он пришёл, стоит ли он
+    /// на посту, что уронит и не уходит ли он в прыжок, не дожидаясь разговора.
+    /// </summary>
+    private void Tune(Pirate npc, Player player, StorySpawn spawn)
+    {
+        npc.OwnerId = player.Id;
+        npc.HoldsGround = spawn.Hold;
+        npc.StoryDrop = spawn.Drop;
+        if (!spawn.Flee || spawn.Gate is not { } to || Balance.SystemDef.GateTo(to) is not { } gate) return;
+        // Курьер не дерётся и не ждёт: с первого тика он идёт к вратам и там заряжает прыжок. Своего ИИ
+        // ему не нужно — ровно так уходит из системы любой налётчик, а попадание сбивает ему подготовку
+        // так же, как игроку (M15.7). Сколько у пилота времени — решает расстояние до врат, не код.
+        npc.ExitX = gate.X;
+        npc.ExitY = gate.Y;
+        npc.ExitIsGate = true;
+        npc.State = PirateState.Leave;
+        npc.PatrolUntilTick = Tick;
+    }
+
+    /// <summary>Что роняют сбитые сюжетные корабли (M20b): адресно хозяину миссии и без срока годности.
+    /// Иначе чертёж подобрал бы посторонний или он истлел бы за две минуты, и цепочка встала бы.</summary>
+    private void StoryKills()
+    {
+        foreach (var kill in _kills)
+        {
+            if (_ships.GetValueOrDefault(kill.Id) is not Pirate { StoryDrop: { } item } npc) continue;
+            if (!_players.TryGetValue(npc.OwnerId, out var owner)) continue;
+            _loot.SpillOne(
+                Balance.Loot, item, 1, npc.Ship.X, npc.Ship.Y, npc.DeathVx, npc.DeathVy, Tick,
+                owner.Id, waits: true);
+            _log.LogInformation("Story ship {Npc} dropped {Item} for player {Id}", npc.Id, item, owner.Id);
+        }
     }
 
     /// <summary>Где встают вызванные: в названной точке, у названных врат или рядом с пилотом.</summary>

@@ -11,7 +11,7 @@ import type { ReputationRules } from '../sim/reputation';
 import type { ShopRules } from '../sim/shop';
 
 /** Версия протокола; зеркало Protocol.Version на сервере. Сервер другой версии (или старый, без поля) — не играем. */
-export const PROTOCOL_VERSION = 31;
+export const PROTOCOL_VERSION = 32;
 
 /** Состояние ИИ пирата: патруль, бой, возврат в логово (налётчик — полёт от врат к точке), уход из системы. */
 export type AiState = 'patrol' | 'attack' | 'return' | 'leave';
@@ -439,7 +439,7 @@ export interface PlayerDto {
   kind?: NpcKind;
 }
 
-export type NpcKind = 'drone' | 'pirate' | 'trader' | 'ranger' | 'convoy' | 'wing' | 'rebel';
+export type NpcKind = 'drone' | 'pirate' | 'trader' | 'ranger' | 'convoy' | 'wing' | 'rebel' | 'corp';
 
 /** Весь список кораблей с именами — игроки и NPC; приходит при любом изменении. */
 export interface PlayersMsg {
@@ -787,6 +787,8 @@ export interface StoryStateDto {
   offer?: MissionOffer | null;
   /** Написанное кончилось: «продолжение следует». */
   more?: boolean;
+  /** Кампания пройдена вся (M20b): на её последнем месте ждёт «Ретранслятор». */
+  relay?: boolean;
 }
 
 /** Куда смотреть по живому заданию (M14): ship — идти за этим кораблём, 0 — к точке (x, y). */

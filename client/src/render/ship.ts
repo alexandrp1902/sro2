@@ -12,7 +12,7 @@ const DRONE_TINT = 0xa8dca0;
 const ALLY_TINT = 0xd8ffb8;
 
 /** Чей корабль: от этого картинка (у пиратов своя) и оттенок. */
-export type ShipLook = 'own' | 'player' | 'drone' | 'pirate' | 'trader' | 'ranger' | 'convoy' | 'wing' | 'rebel';
+export type ShipLook = 'own' | 'player' | 'drone' | 'pirate' | 'trader' | 'ranger' | 'convoy' | 'wing' | 'rebel' | 'corp';
 
 export class ShipView {
   readonly view = new Container();

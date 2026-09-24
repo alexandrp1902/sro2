@@ -541,7 +541,7 @@ public sealed partial class Room
             SendMissions(player);
         // Прилетел за скриптованным грузом — он уже ждёт: раскладывается по прибытии, а не по вылету
         // из дока, иначе пилот, взявший миссию в другой системе, нашёл бы пустые обломки (M20a).
-        if (!player.Docked) StoryDrops(player);
+        if (!player.Docked) StoryHere(player);
         BroadcastPlayers();
         _log.LogInformation("Player {Id} '{Name}' arrived in {System}", player.Id, player.Name, SystemId);
     }
@@ -1205,6 +1205,7 @@ public sealed partial class Room
             if (!dead.Cargo.IsEmpty) _spilled.Add(dead);
         }
         _loot.DropFrom(_kills, _ships, Balance.Loot, Tick);
+        StoryKills();
         foreach (var player in _spilled) LostCargo(player);
         // Подбор и продажа — по команде игрока, а не сами собой: см. Grab и Sell.
         if (_loot.Step(Tick, Balance.Loot)) ClearMissingLootTargets();
@@ -2942,12 +2943,15 @@ public sealed partial class Room
                 Pirate p => new PlayerDto(
                     p.Id, p.Name, Online: true, Npc: true,
                     Ceiling(p.MaxHp(p.Hull(Hulls))), Ceiling(p.MaxShield(p.Hull(Hulls))),
-                    p.Type.IsRanger ? p.MissionId != 0 ? Protocol.WingKind : Protocol.RangerKind
-                        : p.Story ? Protocol.RebelKind : Protocol.PirateKind),
+                    // Внешность у типа своя (M20b): повстанец — буксир, корабли корпорации — свой корпус.
+                    // Без неё вся «Тихая война» летала бы на одном силуэте шахтёрского буксира.
+                    p.Type.Look ?? (p.Type.IsRanger
+                        ? p.MissionId != 0 ? Protocol.WingKind : Protocol.RangerKind
+                        : p.Story ? Protocol.RebelKind : Protocol.PirateKind)),
                 Trader t => new PlayerDto(
                     t.Id, t.Name, Online: true, Npc: true,
                     Ceiling(t.MaxHp(t.Hull(Hulls))), Ceiling(t.MaxShield(t.Hull(Hulls))),
-                    t.MissionId != 0 ? Protocol.ConvoyKind : Protocol.TraderKind),
+                    t.Type.Look ?? (t.MissionId != 0 ? Protocol.ConvoyKind : Protocol.TraderKind)),
                 _ => new PlayerDto(s.Id, s.Name, Online: true, Npc: true),
             })
             .ToList();

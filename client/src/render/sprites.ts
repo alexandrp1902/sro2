@@ -44,7 +44,7 @@ export async function loadSprites(): Promise<void> {
 }
 
 /** Чей корабль, если не пилота: у пиратов, торговцев, рейнджеров и дронов свои картинки. */
-export type ShipRole = 'pirate' | 'trader' | 'ranger' | 'drone' | 'convoy' | 'wing' | 'rebel';
+export type ShipRole = 'pirate' | 'trader' | 'ranger' | 'drone' | 'convoy' | 'wing' | 'rebel' | 'corp';
 
 /**
  * Картинки NPC (M11): свои силуэты, чтобы их не путали с кораблями пилотов — те летают на scout, frigate
@@ -61,10 +61,16 @@ const ROLE_SPRITES: Record<ShipRole, SpriteName> = {
   // Повстанцы «Тихой войны» (M20a) — шахтёры на рабочих буксирах, а не налётчики: это должно
   // читаться силуэтом, иначе кампания про мятеж выглядит как очередное логово пиратов.
   rebel: 'ships-tug',
+  // Корабли корпорации (M20b) рисуются по своему корпусу — см. shipSprite. Запись здесь нужна только
+  // затем, чтобы список видов оставался полным: своей общей картинки у них нет и быть не должно.
+  corp: 'ships-ranger-heavy',
 };
 
 /** Спрайт корабля по корпусу и виду: у NPC свои корабли, у пилотов — по корпусу; размер — всегда по корпусу. */
 export function shipSprite(hull: string, role: ShipRole | null = null): SpriteName {
+  // Корпорация летает на обычных корпусах — «Игле», «Страже», «Галеоне» (M20b): охрана, курьер и транспорт
+  // должны отличаться друг от друга, а не быть тремя именами одного силуэта.
+  if (role === 'corp') return shipSprite(hull);
   if (role) return ROLE_SPRITES[role];
   const name = `ships-${hull}`;
   return name in meta ? (name as SpriteName) : 'ships-light';
@@ -73,11 +79,19 @@ export function shipSprite(hull: string, role: ShipRole | null = null): SpriteNa
 /** Предметы, чья картинка на листе названа иначе: tech в loot.json — «Плазменный компонент». */
 const ITEM_SPRITES: Record<string, string> = {
   tech: 'plasma',
-  // Сюжетные предметы (M20a) — подмена: своего арта у них нет, взяты ближайшие по смыслу товары.
-  // Записано в art/next-art-status.md; когда картинки появятся, эти три строки уходят.
+  // Сюжетные предметы (M20a, M20b) — подмена: своего арта у них нет, взяты ближайшие по смыслу товары.
+  // Записано в art/next-art-status.md; когда картинки появятся, эти строки уходят.
   powerCore: 'energy',
   armorSections: 'metal',
   shipLog: 'electronics',
+  // Детали прототипа (M20b) — та же подмена по смыслу: чертёж как электроника, каркас как титан,
+  // приводы как машины, реактор как плазма, нейроинтерфейс как кристалл, ствол как оружие.
+  blueprint: 'electronics',
+  mechFrame: 'titanium',
+  driveBlock: 'machinery',
+  reactor: 'plasma',
+  neuroLink: 'crystals',
+  weaponModule: 'arms',
 };
 
 /** Иконка предмета груза; неизвестный — металл. */

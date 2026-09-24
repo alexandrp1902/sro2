@@ -134,13 +134,19 @@ public sealed partial class Room
     /// Имя над корпусом для кораблей сюжета (M20a); null — обычное «Тип Ур.N». Заодно помечает их
     /// сюжетными: за таких не платят и отношение за них не меняется.
     /// </param>
+    /// <param name="touch">
+    /// Что сюжет доправляет в каждом вызванном корабле (M20b): кому он адресован, стоит ли он на посту,
+    /// что уронит и не уходит ли он сразу в прыжок. Волны и вторжения ничего этого не знают, и заводить
+    /// ради сюжета ещё пять необязательных параметров было бы хуже, чем передать одно действие.
+    /// </param>
     private int SpawnWave(
         IReadOnlyList<InvasionGroup> wave,
         (double X, double Y) point,
         int invasionId,
         int missionId,
         bool onSite = false,
-        string? storyName = null)
+        string? storyName = null,
+        Action<Pirate>? touch = null)
     {
         var npc = Balance.Npc;
         var gates = onSite ? [] : Balance.SystemDef.GateList;
@@ -184,6 +190,9 @@ public sealed partial class Room
                     pirate.Ship = new ShipState { X = x, Y = y, Rot = Math.Atan2(point.X - x, -(point.Y - y)) };
                     pirate.State = PirateState.Return;
                 }
+                // Последним: сюжету надо доправить уже расставленный корабль — в том числе отправить
+                // курьера в прыжок, а это состояние выставляется прямо здесь, строчкой выше.
+                touch?.Invoke(pirate);
                 _pirates.Add(pirate);
                 _ships[pirate.Id] = pirate;
             }

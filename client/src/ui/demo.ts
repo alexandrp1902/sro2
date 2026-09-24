@@ -276,7 +276,7 @@ export function runDemo(screen: string): void {
     const screen = new DockScreen(el('dock'), hulls, weapons, modules, {
       onSell: noop, onBuyGoods: noop, onBuy: noop, onEquip: noop, onTransport: noop, onFit: noop, onFitAll: noop,
       onSellItem: noop, onSellGear: noop, onRepair: noop, onUndock: noop, onMenu: (anchor) => menu.toggleAt(anchor),
-      onAccept: noop, onAbandon: noop, onComplete: noop, onSkipTutorial: noop,
+      onAccept: noop, onAbandon: noop, onComplete: noop, onSkipTutorial: noop, onRelay: noop,
       // Витрина ничего не делает, но вопрос показать должна: на нём проверяют карточку поверх дока.
       onConfirm: (lines, yes) => confirm.ask(lines, yes),
     }, NAMES);

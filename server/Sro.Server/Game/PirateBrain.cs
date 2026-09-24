@@ -256,6 +256,9 @@ internal static class PirateBrain
     private static bool Wants(Pirate self, ShipEntity ship, long tick, IReadOnlyDictionary<int, long>? offenders, IReadOnlySet<int>? outlaws)
     {
         if (!CanFight(self, ship, tick)) return false;
+        // Вызванный за одним пилотом ищет только его (M20b): в комнате летают посторонние, и сюжетная
+        // сцена не повод расстреливать тех, кто в ней не участвует.
+        if (self.OwnerId != 0) return ship.Id == self.OwnerId;
         if (ship is Pirate) return true; // CanFight уже проверил: чужая фракция — враг с первого взгляда
         if (self.Type.IsRanger) return offenders is not null && offenders.GetValueOrDefault(ship.Id) > tick;
         // Кого власти объявили врагом, того пираты считают своим и не трогают (M13).
@@ -314,7 +317,7 @@ internal static class PirateBrain
     }
 
     private static bool IsCandidate(Pirate self, ShipEntity? ship, long tick, Shelter shelter) =>
-        ship is not null && CanFight(self, ship, tick) && !shelter.Contains(ship);
+        ship is not null && CanFight(self, ship, tick) && (self.HoldsGround || !shelter.Contains(ship));
 
     /// <summary>
     /// Кого атаковать: того, кто напал; иначе ближайшего, кого ищет (пират — в радиусе агро, рейнджер — в радиусе
@@ -366,10 +369,14 @@ internal static class PirateBrain
     private static string? ReturnReason(Pirate pirate, ShipEntity target, HullParams hull, NpcRules npc, Shelter shelter, bool onTheWay)
     {
         if (pirate.Hp <= pirate.MaxHp(hull) * pirate.RetreatHp) return "retreat";
-        if (shelter.Contains(target)) return "target in the shelter";
-        if (shelter.Contains(pirate, SafeMargin))
-            return "too close to the shelter";
-        if (!onTheWay && Distance(pirate.Ship.X, pirate.Ship.Y, pirate.HomeX, pirate.HomeY) > (pirate.Type.LeashRange ?? npc.LeashRange)) return "too far from home";
+        // Кто стоит на посту, тот стоит и у станции (M20b): его туда и поставили — охранять шлюз.
+        if (!pirate.HoldsGround)
+        {
+            if (shelter.Contains(target)) return "target in the shelter";
+            if (shelter.Contains(pirate, SafeMargin))
+                return "too close to the shelter";
+        }
+        if (!pirate.HoldsGround && !onTheWay && Distance(pirate.Ship.X, pirate.Ship.Y, pirate.HomeX, pirate.HomeY) > (pirate.Type.LeashRange ?? npc.LeashRange)) return "too far from home";
         return null;
     }
 

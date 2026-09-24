@@ -629,7 +629,7 @@ public sealed record Balance(
             // а не на доске у пилота, который дошёл до пятой миссии.
             if (!StoryRules.TryParse(
                     sources.Story, npcs.TypeMap, loot.ItemMap, out var story, out error,
-                    parsed.GalaxySet, parsed.ReputationSet))
+                    parsed.GalaxySet, parsed.ReputationSet, parsed.Hulls))
             {
                 error = $"{StoryFile}: {error}";
                 return false;

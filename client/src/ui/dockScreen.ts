@@ -293,6 +293,8 @@ export interface DockHandlers {
   /** Сдать «собрать». */
   onComplete(): void;
   onSkipTutorial(): void;
+  /** Заглушка «Ретранслятор» (M20b): кампания пройдена, дальше — мехи. */
+  onRelay(): void;
 }
 
 /**
@@ -1056,6 +1058,18 @@ export class DockScreen {
     // Сюжет — над обычной работой и своей строкой (M20a): это не «ещё одно задание с доски»,
     // а продолжение истории, и найтись оно должно первым.
     const story = missions.story;
+    // Кампания пройдена и пилот стоит там, где она кончилась (M20b): здесь начинается следующая часть,
+    // и пока за кнопкой только обещание — но обещание должно быть видно, а не лежать в журнале.
+    if (story?.relay) {
+      const box = el('div', 'dock-mission dock-tutorial');
+      box.append(el('div', 'dock-mission-head sro-label sro-warn', `${story.name} · часть первая пройдена`));
+      box.append(el('div', 'dock-name sro-row__name', 'Ретранслятор'));
+      box.append(el('div', 'dock-stats sro-row__meta', 'Связь с машиной настраивается'));
+      const actions = el('div', 'dock-mission-actions');
+      actions.append(button('Ретранслятор', 'dock-buy sro-btn sro-btn--sm', () => this.handlers.onRelay()));
+      box.append(actions);
+      body.append(box);
+    }
     if (story?.offer) {
       body.append(el('div', 'dock-note dock-story-note sro-warn', `${story.name} · миссия ${story.offer.story?.number ?? story.done + 1} из ${story.total}`));
       body.append(this.missionRow(story.offer, active !== null));

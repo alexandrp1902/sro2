@@ -45,11 +45,22 @@ public sealed record NpcType(
     double? LeashRange = null,
     int Bounty = 0,
     IReadOnlyList<string>? Hulls = null,
-    NpcLevelScaling? LevelScaling = null)
+    NpcLevelScaling? LevelScaling = null,
+    string? Look = null)
 {
     public const string PirateFaction = "pirate";
     public const string RangerFaction = "ranger";
     public const string TraderFaction = "trader";
+
+    /// <summary>
+    /// Каким этот тип выглядит на экране (M20b): «rebel» — буксир шахтёра, «corp» — свой корпус, как у
+    /// пилотов. Пусто — как дерётся, так и выглядит: пират пиратом, рейнджер рейнджером. Вид — это внешность,
+    /// а не сторона: корпоративная охрана воюет по-пиратски, но пиратом её на экране назвать нельзя.
+    /// </summary>
+    public const string RebelLook = "rebel";
+    public const string CorpLook = "corp";
+
+    public static readonly string[] Looks = [RebelLook, CorpLook];
 
     [JsonIgnore] public IReadOnlyList<string> WeaponList => Weapons ?? (Weapon is null ? [] : [Weapon]);
     [JsonIgnore] public IReadOnlyList<string> HullList => Hulls ?? [];
@@ -83,6 +94,9 @@ public sealed record NpcType(
         if (!(DefendRange >= 0)) return "defendRange must not be negative";
         if (LeashRange is { } leash && !(leash > 0)) return "leashRange must be positive";
         if (Bounty < 0) return "bounty must not be negative";
+        // Внешность знает клиент, и список у него закрытый: незнакомое слово он нарисовать не сможет.
+        if (Look is not null && Array.IndexOf(Looks, Look) < 0)
+            return $"unknown look '{Look}': must be one of {string.Join(", ", Looks)}";
         return null;
     }
 }

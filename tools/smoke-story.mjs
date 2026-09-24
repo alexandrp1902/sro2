@@ -196,6 +196,22 @@ async function main() {
   await a.dock();
   await a.until(() => a.missions !== null, 4000, 'the board of the station');
 
+  // Вторая половина кампании (M20b) приезжает клиенту данными: без этих типов и предметов половина
+  // её сцен была бы пустым местом — курьера некому играть, а деталей прототипа не существует.
+  const npcs = a.welcome.npcs?.types ?? {};
+  for (const type of ['corpGuard', 'corpCourier', 'corpConvoy', 'rebelTug']) {
+    check(`тип NPC «${type}» приехал: ${npcs[type]?.name ?? '—'}`, !!npcs[type]);
+  }
+  check(
+    'корабли корпорации рисуются своими корпусами',
+    ['corpGuard', 'corpCourier', 'corpConvoy'].every((t) => npcs[t]?.look === 'corp'),
+  );
+  const items = a.welcome.loot?.items ?? {};
+  for (const item of ['blueprint', 'mechFrame', 'driveBlock', 'reactor', 'neuroLink', 'weaponModule']) {
+    check(`деталь «${items[item]?.name ?? item}» есть и она сюжетная`, items[item]?.story === true);
+  }
+  check(`каркас крупный: ${items.mechFrame?.volume ?? 0} мест в трюме`, (items.mechFrame?.volume ?? 0) >= 30);
+
   const state = a.story;
   check(`доска знает о кампании: «${state?.name ?? '—'}»`, !!state);
   if (!state) return;
@@ -231,6 +247,8 @@ async function main() {
   check(`брошенная миссия вернулась на доску: «${a.story.offer.story.title}»`, a.story.offer.story.mission === offer.story.mission);
   const repAfter = a.rep?.places?.['st:nova'] ?? 0;
   check(`отказ от сюжета не стоил отношения: ${repBefore} → ${repAfter}`, repAfter >= repBefore);
+  // Заглушка ждёт своего часа: до конца кампании «Ретранслятор» не показывается нигде.
+  check('до финала кампании ретранслятора нет', !a.story.relay);
 
   a.close();
 }

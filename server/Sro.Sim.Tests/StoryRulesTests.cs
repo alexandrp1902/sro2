@@ -22,9 +22,44 @@ public class StoryRulesTests
         var quiet = story.Campaign("quietWar");
         Assert.NotNull(quiet);
         Assert.Equal("Тихая война", quiet!.Name);
-        // Кампания задумана длиннее, чем написана: журнал считает «из 14» уже сейчас.
+        // Кампания дописана до конца (M20b): четырнадцать задуманных и четырнадцать написанных.
         Assert.Equal(14, quiet.Length);
-        Assert.True(quiet.MissionList.Count >= 6);
+        Assert.Equal(14, quiet.MissionList.Count);
+        Assert.Equal("prototype", quiet.MissionList[^1].Id);
+    }
+
+    [Fact]
+    public void SharedFile_KeepsTheSecondHalfPlayable()
+    {
+        var balance = Shared();
+        var quiet = balance.Story.Campaign("quietWar")!;
+
+        // Убегающему нужны врата, стерегущему — точка: иначе сцена играется в пустоту.
+        foreach (var mission in quiet.MissionList)
+        {
+            foreach (var spawn in mission.SpawnList)
+            {
+                if (spawn.Flee) Assert.NotNull(spawn.Gate);
+                if (spawn.Drop is { } drop) Assert.True(balance.Loot.Knows(drop), $"{mission.Id}: {drop}");
+            }
+        }
+
+        // Скидка своим дешевле полной цены, и обе назначены там, где работу дают.
+        var reactor = quiet.Mission("reactor")!;
+        Assert.Equal(8000, reactor.Cost);
+        Assert.Equal(4000, reactor.CostCut);
+        Assert.Equal("friend", reactor.CostRep);
+
+        // Корабль в награду существует, и достаётся он за флаг, который есть у кого получить.
+        var finale = quiet.Mission("prototype")!;
+        Assert.True(balance.Hulls.ContainsKey(finale.RewardHull!));
+        Assert.Equal("logKept", finale.RewardIf);
+        Assert.Equal("logKept", finale.Alt?.Flag);
+        var flags = quiet.MissionList
+            .SelectMany(m => m.Choice?.OptionList ?? [])
+            .Select(o => o.Flag)
+            .ToHashSet(StringComparer.Ordinal);
+        Assert.Contains(finale.RewardIf!, flags);
     }
 
     [Fact]
@@ -126,6 +161,94 @@ public class StoryRulesTests
         ] } } }
         """);
         Assert.Contains("collect needs a known item", error);
+    }
+
+    [Fact]
+    public void ARunnerNeedsAGateToRunTo()
+    {
+        var error = Error("""
+        { "campaigns": { "c": { "name": "К", "missions": [
+          { "id": "a", "title": "Т", "place": "st:home", "giver": "Г", "role": "р", "objective": "о", "item": "metal",
+            "spawns": [ { "trigger": "onUndock", "npc": "pirate", "flee": true } ] }
+        ] } } }
+        """);
+        Assert.Contains("flee needs a gate", error);
+    }
+
+    [Fact]
+    public void AShipCannotBothStandAndRun()
+    {
+        var error = Error("""
+        { "campaigns": { "c": { "name": "К", "missions": [
+          { "id": "a", "title": "Т", "place": "st:home", "giver": "Г", "role": "р", "objective": "о", "item": "metal",
+            "spawns": [ { "trigger": "onUndock", "npc": "pirate", "flee": true, "hold": true, "gate": "home" } ] }
+        ] } } }
+        """);
+        Assert.Contains("opposite things", error);
+    }
+
+    [Fact]
+    public void WhatAShipDropsMustExist()
+    {
+        var error = Error("""
+        { "campaigns": { "c": { "name": "К", "missions": [
+          { "id": "a", "title": "Т", "place": "st:home", "giver": "Г", "role": "р", "objective": "о", "item": "metal",
+            "spawns": [ { "trigger": "onUndock", "npc": "pirate", "drop": "unobtanium" } ] }
+        ] } } }
+        """);
+        Assert.Contains("unknown item 'unobtanium' in drop", error);
+    }
+
+    [Fact]
+    public void ADiscountCannotCostMoreThanTheFullPrice()
+    {
+        var error = Error("""
+        { "campaigns": { "c": { "name": "К", "missions": [
+          { "id": "a", "title": "Т", "place": "st:home", "giver": "Г", "role": "р", "objective": "о", "item": "metal",
+            "cost": 100, "costCut": 400 }
+        ] } } }
+        """);
+        Assert.Contains("is more than cost", error);
+    }
+
+    [Fact]
+    public void ARewardConditionWithoutARewardIsRefused()
+    {
+        var error = Error("""
+        { "campaigns": { "c": { "name": "К", "missions": [
+          { "id": "a", "title": "Т", "place": "st:home", "giver": "Г", "role": "р", "objective": "о", "item": "metal",
+            "rewardIf": "kept" }
+        ] } } }
+        """);
+        Assert.Contains("rewardIf without a rewardHull", error);
+    }
+
+    [Fact]
+    public void ADecliningOptionTakesNothing()
+    {
+        // Отказ бросает работу целиком: забирать предмет при этом не у кого и незачем.
+        var error = Error("""
+        { "campaigns": { "c": { "name": "К", "missions": [
+          { "id": "a", "title": "Т", "place": "st:home", "giver": "Г", "role": "р", "objective": "о", "item": "metal",
+            "choice": { "question": "?", "trigger": "onAccept", "options": [
+              { "label": "Нет", "flag": "no", "decline": true, "take": true }
+            ] } }
+        ] } } }
+        """);
+        Assert.Contains("declining option takes nothing", error);
+    }
+
+    [Fact]
+    public void AQuestionAskedOnAcceptCannotFinishTheMission()
+    {
+        var error = Error("""
+        { "campaigns": { "c": { "name": "К", "missions": [
+          { "id": "a", "title": "Т", "place": "st:home", "giver": "Г", "role": "р", "objective": "о", "item": "metal",
+            "finish": "choice",
+            "choice": { "question": "?", "trigger": "onAccept", "options": [ { "label": "Да", "flag": "yes" } ] } }
+        ] } } }
+        """);
+        Assert.Contains("cannot finish the mission", error);
     }
 
     [Fact]

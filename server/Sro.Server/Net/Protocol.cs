@@ -690,6 +690,11 @@ public sealed record MissionsMsg(
 /// или всё написанное уже пройдено.
 /// </param>
 /// <param name="More">В файле миссии кончились, но кампания задумана длиннее: «продолжение следует».</param>
+/// <param name="Relay">
+/// Кампания пройдена вся (M20b): на Руднике Прайм появляется «Ретранслятор» — заглушка, за которой
+/// начинается M21. Отдельный флаг, а не <paramref name="More"/>: тот говорит «дальше ещё напишут»,
+/// этот — «дальше уже есть куда нажать».
+/// </param>
 public sealed record StoryStateDto(
     string Campaign,
     string Name,
@@ -697,7 +702,8 @@ public sealed record StoryStateDto(
     int Total,
     IReadOnlyList<string> Lines,
     MissionOffer? Offer = null,
-    bool More = false);
+    bool More = false,
+    bool Relay = false);
 
 /// <summary>
 /// Карточка сюжетного диалога (M20a): портрет, имя, реплики и до двух кнопок. Портрета пока нет —
@@ -912,12 +918,13 @@ public static class Protocol
     /// 28 — шаг обучения с видом, местом, системой, подсказкой для телефона и учебным буем, M18;
     /// 29 — особенность корпуса, дробовик веером, залп ракет и модули, меняющие прочность и скорость, M19;
     /// 30 — сюжетные кампании «Тихой войны», M20a;
-    /// 31 — снять и поставить оснащение пачкой, своё оснащение у каждого корпуса ангара, слух про чужую верфь, M20).
+    /// 31 — снять и поставить оснащение пачкой, своё оснащение у каждого корпуса ангара, слух про чужую верфь, M20;
+    /// 32 — вторая половина «Тихой войны»: корабли корпорации своими силуэтами и «Ретранслятор» на Руднике Прайм, M20b).
     /// Кадр снапшота в 29 тот же, что в 28: версия растёт потому, что старый клиент не знает про perk,
     /// hpMul и speedMul — и предсказывал бы и движение, и прочность своего корабля мимо сервера.
     /// Зеркало PROTOCOL_VERSION в client/src/net/protocol.ts.
     /// </summary>
-    public const int Version = 31;
+    public const int Version = 32;
 
     public const string DroneKind = "drone";
     public const string PirateKind = "pirate";
@@ -928,6 +935,13 @@ public static class Protocol
     public const string WingKind = "wing";
     /// <summary>Повстанцы «Тихой войны» (M20a): дерутся как пираты, но это шахтёры, и выглядеть должны иначе.</summary>
     public const string RebelKind = "rebel";
+
+    /// <summary>
+    /// Корабли корпорации «Нова-Рудник» (M20b): охрана, курьер и конвой. Вид один на всех, а силуэт клиент
+    /// берёт по корпусу — иначе пришлось бы заводить по виду на каждый корабль, которому сюжет скажет
+    /// выйти на сцену.
+    /// </summary>
+    public const string CorpKind = "corp";
 
     /// <summary>Что покупают в доке (<see cref="BuyMsg.Kind"/>).</summary>
     public const string HullItem = "hull";

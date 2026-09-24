@@ -324,6 +324,8 @@ export function trackerLines(
  * когда написанное кончилось, номер не растёт, а место него говорится, что продолжение будет.
  */
 export function storyLine(state: StoryStateDto): string {
+  // Кампания пройдена вся (M20b): «миссия 15 из 14» журнал писать не должен.
+  if (state.done >= state.total) return `${state.name} · пройдена`;
   if (state.more) return `${state.name} · пройдено ${state.done} из ${state.total}`;
   const number = Math.min(state.done + 1, state.total);
   return `${state.name} · миссия ${number} из ${state.total}`;
@@ -332,6 +334,7 @@ export function storyLine(state: StoryStateDto): string {
 /** Что показывает журнал под этой строкой: последние реплики, а без них — одна пояснительная. */
 export function storyJournal(state: StoryStateDto | null): string[] {
   if (!state) return ['Сюжетных заданий пока нет.'];
+  if (state.done >= state.total) return [...state.lines, 'Часть первая пройдена. Продолжение следует.'];
   if (state.more) return [...state.lines, 'Продолжение следует.'];
   return state.lines.length > 0 ? state.lines : ['Возьмите сюжетное задание на доске.'];
 }

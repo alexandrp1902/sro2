@@ -128,7 +128,12 @@ public sealed partial class Room
     /// </summary>
     private bool StartEscort(MissionRun run, Player player, MissionOffer offer)
     {
-        if (Balance.Traders is not { } rules || !Balance.Npc.TypeMap.TryGetValue(rules.Type, out var type)) return false;
+        if (Balance.Traders is not { } rules) return false;
+        // Сюжетный конвой бывает и не торговцем системы (M20b): четырнадцатую ведёт «Тягач» повстанцев,
+        // и звать его «Торговец» значило бы выдать его первой же строкой над корпусом.
+        var story = StoryMissionOf(offer.Story);
+        var typeId = story?.Convoy ?? rules.Type;
+        if (!Balance.Npc.TypeMap.TryGetValue(typeId, out var type)) return false;
 
         // Сюжетный конвой идёт к месту, а не во врата (M20a): транспорт с «оборудованием» везут
         // на платформу, а не в соседнюю систему. Место едет по орбите — цель пересчитывается на ходу.
@@ -153,7 +158,10 @@ public sealed partial class Room
         var angle = _ai.NextDouble() * 2 * Math.PI;
         var x = player.Ship.X + EscortOffset * Math.Cos(angle);
         var y = player.Ship.Y + EscortOffset * Math.Sin(angle);
-        var trader = new Trader(_newId(), rules.Type, type, Balance.Npc)
+        // Сюжет может назвать место встречи: прототип ждёт в тайнике у обломков, а не выезжает
+        // из-за плеча пилота. Пилоту туда лететь самому — и это часть работы.
+        if (story?.ConvoyAt is { } meet) (x, y) = (meet.X, meet.Y);
+        var trader = new Trader(_newId(), typeId, type, Balance.Npc)
         {
             MissionId = run.Id,
             ToStation = false,
@@ -162,6 +170,7 @@ public sealed partial class Room
             // Врата конвой называет, только если туда и идёт: иначе он ушёл бы в прыжок, не доехав до места.
             Gate = toPlace is null ? offer.System : null,
         };
+        if (story?.ConvoyName is { } driver) trader.Name = driver;
         trader.Ship = new ShipState { X = x, Y = y, Rot = Math.Atan2(dx - x, -(dy - y)) };
         trader.Revive(trader.Effective(Balance), 0);
         _traders.Add(trader);
@@ -664,7 +673,7 @@ public sealed partial class Room
         // пришлось бы искать по всей системе (M20a). Набрал сколько нужно — метка гаснет.
         if (player.Missions.Active?.Offer.Story is { } story &&
             StoryMissionOf(story) is { Point: { } wreck, Item: { } item } mission &&
-            Balance.Galaxy.SystemOfPlace(mission.Destination) == SystemId &&
+            StorySystemOf(mission) == SystemId &&
             player.Cargo.Count(item) < mission.Count)
             return new MissionMarkDto(0, wreck.X, wreck.Y);
         if (RunOf(player) is not { } run) return null;

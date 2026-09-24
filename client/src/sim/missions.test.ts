@@ -368,3 +368,22 @@ describe('M20a story missions', () => {
     expect(storyJournal(null)).toEqual(['Сюжетных заданий пока нет.']);
   });
 });
+
+describe('M20b: кампания пройдена', () => {
+  const passed = {
+    campaign: 'quietWar',
+    name: 'Тихая война',
+    done: 14,
+    total: 14,
+    lines: ['Машину мы собрали. Пилота — нет.'],
+    relay: true,
+  };
+
+  it('does not promise a fifteenth mission out of fourteen', () => {
+    expect(storyLine(passed)).toBe('Тихая война · пройдена');
+    expect(storyJournal(passed)).toEqual([
+      'Машину мы собрали. Пилота — нет.',
+      'Часть первая пройдена. Продолжение следует.',
+    ]);
+  });
+});

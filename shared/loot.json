@@ -35,7 +35,16 @@
     // вместе с кораблём: цепочка миссий не должна рваться на первом же респауне. Цена 0 — их некому купить.
     "powerCore": { "name": "Силовой привод", "rarity": "rare", "volume": 2, "price": 0, "story": true },
     "armorSections": { "name": "Броневые секции", "rarity": "uncommon", "volume": 10, "price": 0, "story": true },
-    "shipLog": { "name": "Бортовой журнал", "rarity": "epic", "volume": 1, "price": 0, "story": true }
+    "shipLog": { "name": "Бортовой журнал", "rarity": "epic", "volume": 1, "price": 0, "story": true },
+
+    // Детали прототипа (M20b). Объёмы разные нарочно: каркас в 30 влезает не в каждый корпус, и это
+    // единственное место кампании, где корабль выбирают под работу, а не под бой.
+    "blueprint": { "name": "Неполный чертёж", "rarity": "epic", "volume": 1, "price": 0, "story": true },
+    "mechFrame": { "name": "Базовый каркас", "rarity": "uncommon", "volume": 30, "price": 0, "story": true },
+    "driveBlock": { "name": "Приводной блок", "rarity": "rare", "volume": 2, "price": 0, "story": true },
+    "reactor": { "name": "Реактор", "rarity": "epic", "volume": 12, "price": 0, "story": true },
+    "neuroLink": { "name": "Нейроинтерфейс", "rarity": "epic", "volume": 1, "price": 0, "story": true },
+    "weaponModule": { "name": "Оружейный модуль", "rarity": "rare", "volume": 8, "price": 0, "story": true }
   },
   "tables": {
     "pirate": {
@@ -136,6 +145,27 @@
     },
     "cache": { "rolls": [{ "item": "crystals", "chance": 1, "min": 1, "max": 2 }] },
     "drone": { "rolls": [{ "item": "metal", "chance": 1, "min": 2, "max": 3 }] },
+
+    // Корабли корпорации (M20b). Сюжетные детали они роняют не отсюда, а по указанию миссии — адресно
+    // и без срока годности; здесь только то, что с них взять и так можно.
+    "corpGuard": {
+      "levelChanceBonus": 0.05,
+      "levelCountBonus": 0.2,
+      "fit": ["laser", "cannon", "engineM", "shieldM", "reactiveArmor"],
+      "rolls": [
+        { "item": "metal", "chance": 1, "min": 3, "max": 6 },
+        { "item": "energy", "chance": 0.5, "min": 1, "max": 2 },
+        { "item": "arms", "chance": 0.2, "min": 1, "max": 1 }
+      ]
+    },
+    "corpConvoy": {
+      "rolls": [
+        { "item": "metal", "chance": 1, "min": 5, "max": 10 },
+        { "item": "titanium", "chance": 0.6, "min": 2, "max": 4 },
+        { "item": "arms", "chance": 0.4, "min": 1, "max": 2 },
+        { "item": "tech", "chance": 0.15, "min": 1, "max": 1 }
+      ]
+    },
 
     // Рейнджера обирают редко и обычно по ошибке, поэтому груза у него нет — только своё снаряжение.
     "ranger": { "fit": ["pulse_mk2", "laser_mk2", "engineM_mk2", "shieldM_mk2", "radarM_mk2"] },
