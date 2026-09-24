@@ -11,7 +11,7 @@ import type { ReputationRules } from '../sim/reputation';
 import type { ShopRules } from '../sim/shop';
 
 /** Версия протокола; зеркало Protocol.Version на сервере. Сервер другой версии (или старый, без поля) — не играем. */
-export const PROTOCOL_VERSION = 29;
+export const PROTOCOL_VERSION = 30;
 
 /** Состояние ИИ пирата: патруль, бой, возврат в логово (налётчик — полёт от врат к точке), уход из системы. */
 export type AiState = 'patrol' | 'attack' | 'return' | 'leave';
@@ -109,7 +109,7 @@ export type PartyAction = 'invite' | 'accept' | 'decline' | 'leave';
 
 export type TradeAction = 'invite' | 'accept' | 'decline' | 'offer' | 'ready' | 'cancel';
 
-export type MissionAction = 'accept' | 'abandon' | 'complete' | 'skip';
+export type MissionAction = 'accept' | 'abandon' | 'complete' | 'skip' | 'choose';
 
 /** Что покупают в доке. */
 export type BuyKind = 'hull' | 'item';
@@ -434,7 +434,7 @@ export interface PlayerDto {
   kind?: NpcKind;
 }
 
-export type NpcKind = 'drone' | 'pirate' | 'trader' | 'ranger' | 'convoy' | 'wing';
+export type NpcKind = 'drone' | 'pirate' | 'trader' | 'ranger' | 'convoy' | 'wing' | 'rebel';
 
 /** Весь список кораблей с именами — игроки и NPC; приходит при любом изменении. */
 export interface PlayersMsg {
@@ -735,6 +735,47 @@ export interface MissionOffer {
   seconds?: number;
   /** escort: в каком радиусе держаться у конвоя; patrol: как близко подойти к точке (M14). */
   radius?: number;
+  /** Сюжетная миссия кампании (M20a); нет — обычная работа с доски. */
+  story?: StoryRef | null;
+}
+
+/**
+ * Сюжетная нагрузка предложения (M20a). Тексты приходят готовыми: у сюжета нет «типа пирата» и «числа
+ * единиц», из которых sim/missions.ts строит свои заголовки, а русские строки должны жить рядом
+ * с репликами, а не в коде клиента.
+ */
+export interface StoryRef {
+  campaign: string;
+  mission: string;
+  /** Название кампании: «Тихая война». */
+  name: string;
+  title: string;
+  /** Что написано на доске под названием. */
+  brief: string;
+  /** Строка трекера цели. */
+  objective: string;
+  hint: string;
+  giver: string;
+  role: string;
+  /** Какая это миссия по счёту, с единицы. */
+  number: number;
+  total: number;
+}
+
+/** Кампания глазами пилота (M20a): для журнала и для раздела «Сюжет» на доске. */
+export interface StoryStateDto {
+  campaign: string;
+  name: string;
+  /** Сколько миссий пройдено. */
+  done: number;
+  /** Сколько их задумано всего: журнал пишет «миссия 3 из 14». */
+  total: number;
+  /** Последние реплики кампании. */
+  lines: string[];
+  /** Работа, доступная здесь и сейчас; нет — её тут не дают. */
+  offer?: MissionOffer | null;
+  /** Написанное кончилось: «продолжение следует». */
+  more?: boolean;
 }
 
 /** Куда смотреть по живому заданию (M14): ship — идти за этим кораблём, 0 — к точке (x, y). */
@@ -798,6 +839,29 @@ export interface MissionsMsg {
   } | null;
   /** Куда смотреть по живому заданию (M14); нет — метки нет. */
   mark?: MissionMarkDto | null;
+  /** Кампания (M20a); нет — сюжета в игре нет или пилот его ещё не видел. */
+  story?: StoryStateDto | null;
+}
+
+/**
+ * Карточка сюжетного диалога (M20a): кто говорит, что говорит и что можно ответить.
+ * Портрета пока нет — карточка рисует значок кампании сама (ui/dialog.ts).
+ */
+export interface DialogMsg {
+  t: 'dialog';
+  campaign: string;
+  mission: string;
+  who: string;
+  role: string;
+  lines: string[];
+  /** Кнопки выбора; нет — карточка закрывается одним «Дальше». */
+  options?: DialogOptionDto[] | null;
+}
+
+/** Кнопка в карточке: flag уходит обратно как id в сообщении mission/choose. */
+export interface DialogOptionDto {
+  label: string;
+  flag: string;
 }
 
 /** Короткое уведомление по коду; текст подставляем у себя (ui/feed.ts). */
@@ -990,4 +1054,5 @@ export type ServerMessage =
   | MarketMsg
   | ShopMsg
   | DemandMsg
-  | RepMsg;
+  | RepMsg
+  | DialogMsg;

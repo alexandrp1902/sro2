@@ -170,6 +170,16 @@ public sealed class Player(int id, string? token, string name, string hullId, st
     /// <summary>Обучение и задания (GDD §36, §54).</summary>
     public MissionLog Missions { get; } = new();
 
+    /// <summary>Сюжетные кампании (M20a): что пройдено и как пилот выбирал. Ключ — id кампании.</summary>
+    public Dictionary<string, StoryLog> Story { get; } = new(StringComparer.Ordinal);
+
+    /// <summary>Журнал кампании; заводится при первом обращении — пустой он ничего не стоит.</summary>
+    public StoryLog StoryOf(string campaign)
+    {
+        if (!Story.TryGetValue(campaign, out var log)) Story[campaign] = log = new StoryLog();
+        return log;
+    }
+
     /// <summary>Что этот клиент уже знает о системе — от этого считаются дельты снапшота.</summary>
     public SnapshotCodec.Encoder View { get; } = new();
 

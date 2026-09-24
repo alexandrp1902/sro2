@@ -7,6 +7,11 @@ namespace Sro.Server.Game;
 /// </summary>
 /// <param name="expiresAtTick">Тик, когда предмет исчезнет; long.MaxValue — не протухает (контейнер).</param>
 /// <param name="fromContainer">Предмет из контейнера, а не обломки: рисуется ящиком и ждёт на месте.</param>
+/// <param name="owner">
+/// Чей это груз (M20a): id пилота, которому его положил сюжет; 0 — общий, как всё остальное в космосе.
+/// Видят такую стопку все — снапшот в системе один, — но взять её может только хозяин. Иначе двое,
+/// идущие по одной кампании, растаскивали бы ящики друг у друга, и цепочка вставала бы намертво.
+/// </param>
 public sealed class LootDrop(
     int id,
     string item,
@@ -16,9 +21,13 @@ public sealed class LootDrop(
     double vx,
     double vy,
     long expiresAtTick,
-    bool fromContainer = false)
+    bool fromContainer = false,
+    int owner = 0)
 {
     public bool FromContainer { get; } = fromContainer;
+
+    /// <summary>Чей груз; 0 — ничей, берёт кто успел.</summary>
+    public int Owner { get; } = owner;
 
     /// <summary>Id из общего счётчика комнаты: предметы и корабли не путаются между собой.</summary>
     public int Id { get; } = id;

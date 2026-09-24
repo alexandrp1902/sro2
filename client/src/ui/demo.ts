@@ -18,6 +18,7 @@ import { KeyboardControls, bindKeyboard } from '../input/keyboard';
 import { CargoHud } from './cargoHud';
 import { CombatHud } from './combatHud';
 import { ConfirmCard, logoutLines } from './confirm';
+import { DialogCard } from './dialog';
 import { AudioWindow } from './audioWindow';
 import { AudioSettings } from '../audio/settings';
 import { ControlsWindow } from './controlsWindow';
@@ -316,6 +317,36 @@ export function runDemo(screen: string): void {
         { id: 'o1', kind: 'kill', system: 'rigel', npc: 'raider', count: 3, reward: 600, from: 'sol' },
         { id: 'o2', kind: 'collect', item: 'ore', count: 6, reward: 180, from: 'sol' },
       ],
+      // Кампания (M20a): на доске у неё свой раздел над работой станции.
+      story: {
+        campaign: 'quietWar',
+        name: 'Тихая война',
+        done: 2,
+        total: 14,
+        lines: ['Дошли. Хорошо.'],
+        offer: {
+          id: 'story:quietWar:medic',
+          kind: 'deliver',
+          system: 'sol',
+          count: 20,
+          reward: 900,
+          from: 'st:sol',
+          place: 'st:vega',
+          story: {
+            campaign: 'quietWar',
+            mission: 'medic',
+            name: 'Тихая война',
+            title: 'Инженер Морен',
+            brief: 'На Руднике Прайм кончились лекарства. Отвезите — и заодно посмотрите, чем там дышат.',
+            objective: 'Отвезите медикаменты на Рудник Прайм',
+            hint: 'Груз занимает трюм; сдать — в доке Рудника Прайм',
+            giver: 'Капитан Холт',
+            role: 'начальник охраны станции',
+            number: 3,
+            total: 14,
+          },
+        },
+      },
     };
     const market: MarketMsg = {
       t: 'market',
@@ -378,6 +409,22 @@ export function runDemo(screen: string): void {
       minimap.update({ ...DEMO_MINIMAP, buoy, objective: buoy }, 1e9 + 1000);
       break;
     }
+    case 'dialog':
+      // Сюжетный диалог (M20a) с выбором: самая сложная его форма — вопрос и две кнопки.
+      flightHud();
+      new DialogCard(el('dialog')).show(
+        {
+          who: 'Звено «Клык»',
+          role: 'патруль рейнджеров',
+          lines: ['Борт, у вас на борту записи с места крушения. Приказ — изъять. Что нам передать?'],
+          options: [
+            { label: 'Отдать записи', flag: 'logGiven' },
+            { label: 'Оставить себе', flag: 'logKept' },
+          ],
+        },
+        'Тихая война',
+      );
+      break;
     case 'tips':
       // «Что дальше» (M18): карточка после последнего шага обучения.
       flightHud();

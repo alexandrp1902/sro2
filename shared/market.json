@@ -109,6 +109,10 @@
       "produces": ["fuelCells", "energy"],
       "consumes": ["food", "medicine", "luxury", "arms"]
     },
+    "pl:novaPrime": {
+      "produces": ["ore", "titanium"],
+      "consumes": ["food", "medicine"]
+    },
     "pl:castorOre": {
       "produces": ["ore", "titanium", "rareMetal"],
       "consumes": ["food", "medicine", "machinery"]

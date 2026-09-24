@@ -375,7 +375,7 @@ public class MissionRulesTests
                 stations++;
             }
         }
-        Assert.Equal(10, settlements);
+        Assert.Equal(11, settlements);
         Assert.Equal(8, stations);
     }
 

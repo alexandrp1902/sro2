@@ -46,7 +46,7 @@ export async function loadSprites(): Promise<void> {
 }
 
 /** Чей корабль, если не пилота: у пиратов, торговцев, рейнджеров и дронов свои картинки. */
-export type ShipRole = 'pirate' | 'trader' | 'ranger' | 'drone' | 'convoy' | 'wing';
+export type ShipRole = 'pirate' | 'trader' | 'ranger' | 'drone' | 'convoy' | 'wing' | 'rebel';
 
 /**
  * Картинки NPC (M11): свои силуэты, чтобы их не путали с кораблями пилотов — те летают на scout, frigate
@@ -60,6 +60,9 @@ const ROLE_SPRITES: Record<ShipRole, SpriteName> = {
   // Корабли заданий M14: конвой и звено отличаются от рядового трафика уже силуэтом.
   convoy: 'ships-trader-convoy',
   wing: 'ships-ranger-heavy',
+  // Повстанцы «Тихой войны» (M20a) — шахтёры на рабочих буксирах, а не налётчики: это должно
+  // читаться силуэтом, иначе кампания про мятеж выглядит как очередное логово пиратов.
+  rebel: 'ships-tug',
 };
 
 /** Спрайт корабля по корпусу и виду: у NPC свои корабли, у пилотов — по корпусу; размер — всегда по корпусу. */
@@ -79,7 +82,14 @@ export function flameSprite(sprite: SpriteName): string | null {
 }
 
 /** Предметы, чья картинка на листе названа иначе: tech в loot.json — «Плазменный компонент». */
-const ITEM_SPRITES: Record<string, string> = { tech: 'plasma' };
+const ITEM_SPRITES: Record<string, string> = {
+  tech: 'plasma',
+  // Сюжетные предметы (M20a) — подмена: своего арта у них нет, взяты ближайшие по смыслу товары.
+  // Записано в art/next-art-status.md; когда картинки появятся, эти три строки уходят.
+  powerCore: 'energy',
+  armorSections: 'metal',
+  shipLog: 'electronics',
+};
 
 /** Иконка предмета груза; неизвестный — металл. */
 export function itemSprite(item: string): SpriteName {

@@ -29,7 +29,13 @@
     "medicine": { "name": "Медикаменты", "rarity": "uncommon", "volume": 1, "price": 60 },
     "machinery": { "name": "Машины", "rarity": "uncommon", "volume": 2, "price": 90 },
     "arms": { "name": "Оружие", "rarity": "rare", "volume": 2, "price": 110 },
-    "luxury": { "name": "Предметы роскоши", "rarity": "rare", "volume": 1, "price": 180 }
+    "luxury": { "name": "Предметы роскоши", "rarity": "rare", "volume": 1, "price": 180 },
+
+    // Сюжетные предметы (M20a). Место в трюме занимают, но не продаются, не выбрасываются и не тонут
+    // вместе с кораблём: цепочка миссий не должна рваться на первом же респауне. Цена 0 — их некому купить.
+    "powerCore": { "name": "Силовой привод", "rarity": "rare", "volume": 2, "price": 0, "story": true },
+    "armorSections": { "name": "Броневые секции", "rarity": "uncommon", "volume": 10, "price": 0, "story": true },
+    "shipLog": { "name": "Бортовой журнал", "rarity": "epic", "volume": 1, "price": 0, "story": true }
   },
   "tables": {
     "pirate": {

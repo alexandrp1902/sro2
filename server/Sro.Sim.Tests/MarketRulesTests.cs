@@ -65,7 +65,7 @@ public class MarketRulesTests
             }
             _ = system;
         }
-        Assert.Equal(10, settled);
+        Assert.Equal(11, settled);
     }
 
     [Fact]

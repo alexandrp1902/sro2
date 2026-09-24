@@ -1,4 +1,4 @@
-import type { MissionOffer, MissionsMsg } from '../net/protocol';
+import type { MissionOffer, MissionsMsg, StoryStateDto } from '../net/protocol';
 import { nearestStation, nextHop, type GalaxyDto } from './galaxy';
 
 /** Имена для текста заданий: сервер шлёт id системы, типа пирата и предмета. */
@@ -42,8 +42,15 @@ function rocks(size: string | null | undefined): string {
   return 'метеориты';
 }
 
-/** Строка задания на доске станции: «Уничтожить: пираты ×4 · Vega». */
+/**
+ * Строка задания на доске станции: «Уничтожить: пираты ×4 · Vega».
+ *
+ * У сюжетной работы (M20a) заголовок написан в story.json и приходит готовым. Так сделано нарочно:
+ * из вида и числа название «Пропавший транспорт» не собрать, а держать русские строки кампании
+ * в коде клиента, отдельно от реплик той же сцены, — верный способ их рассогласовать.
+ */
 export function offerTitle(offer: MissionOffer, names: MissionNames): string {
+  if (offer.story) return offer.story.title;
   switch (offer.kind) {
     case 'kill':
       return `Уничтожить: ${offer.npc ? names.npc(offer.npc) : 'пираты'} ×${offer.count} · ${names.system(offer.system ?? '')}`;
@@ -66,6 +73,7 @@ export function offerTitle(offer: MissionOffer, names: MissionNames): string {
 
 /** Подробность под строкой на доске: где и как сдаётся. */
 export function offerNote(offer: MissionOffer, names: MissionNames): string {
+  if (offer.story) return offer.story.brief;
   switch (offer.kind) {
     case 'kill':
       return 'награда — сразу за последнего';
@@ -91,6 +99,10 @@ export function offerNote(offer: MissionOffer, names: MissionNames): string {
 /** Главная строка трекера: «Пираты в Vega: 2/4». */
 export function activeLine(active: Active, names: MissionNames, now = Date.now()): string {
   const { offer, progress } = active;
+  if (offer.story) {
+    // «Соберите два привода: 1/2» — счёт дописывается только там, где он есть.
+    return offer.kind === 'collect' ? `${offer.story.objective}: ${progress}/${offer.count}` : offer.story.objective;
+  }
   switch (offer.kind) {
     case 'kill':
       return `${offer.npc ? names.npc(offer.npc) : 'Пираты'} в ${names.system(offer.system ?? '')}: ${progress}/${offer.count}`;
@@ -118,6 +130,11 @@ export function activeLine(active: Active, names: MissionNames, now = Date.now()
 /** Что делать дальше: вторая строка трекера. */
 export function activeHint(active: Active, here: string | null, docked: boolean, names: MissionNames): string {
   const { offer, progress } = active;
+  if (offer.story) {
+    // Куда лететь — считаем сами: подсказка в файле написана про «здесь» и про другую систему молчит.
+    if (offer.system && here && here !== offer.system) return `летите в ${names.system(offer.system)}`;
+    return offer.story.hint;
+  }
   switch (offer.kind) {
     case 'kill':
       return here === offer.system ? 'уничтожайте их здесь' : `летите в ${names.system(offer.system ?? '')}`;
@@ -226,6 +243,16 @@ export function objective(
   const active = missions.active;
   if (!active) return null;
   const { offer } = active;
+  if (offer.story) {
+    // Сюжетную точку называет сервер — как у живых заданий: обломки стоят там, где написано в кампании.
+    if (missions.mark) {
+      const mark = missions.mark;
+      return mark.ship ? { kind: 'ship', id: mark.ship } : { kind: 'point', x: mark.x, y: mark.y };
+    }
+    if (offer.system && here !== offer.system) return gateTo(offer.system);
+    // Сдавать — в своём месте, а не на ближайшей станции: у сюжета адрес именной.
+    return { kind: 'place', key: destination(offer) };
+  }
   switch (offer.kind) {
     case 'kill':
       return here === offer.system ? { kind: 'pirate', npc: offer.npc ?? null } : gateTo(offer.system ?? '');
@@ -259,6 +286,8 @@ export function objectiveSystem(missions: MissionsMsg | null, here: string | nul
   const active = missions?.active;
   if (!active || !here) return null;
   const { offer } = active;
+  // Сюжет всегда знает свою систему: «доставить в Нову» должно быть видно и на карте галактики.
+  if (offer.story) return offer.system && offer.system !== here ? offer.system : null;
   // Конвой и патруль целиком укладываются в эту систему: на карте галактики им указывать не на что.
   if (offer.kind === 'escort' || offer.kind === 'patrol') return null;
   if (offer.kind === 'collect') {
@@ -288,4 +317,21 @@ export function trackerLines(
   }
   if (!missions.active) return null;
   return { title: activeLine(missions.active, names), hint: activeHint(missions.active, here, docked, names) };
+}
+
+/**
+ * Строка журнала кампании: «Тихая война · миссия 3 из 14». Пока миссия не взята, номер — следующей;
+ * когда написанное кончилось, номер не растёт, а место него говорится, что продолжение будет.
+ */
+export function storyLine(state: StoryStateDto): string {
+  if (state.more) return `${state.name} · пройдено ${state.done} из ${state.total}`;
+  const number = Math.min(state.done + 1, state.total);
+  return `${state.name} · миссия ${number} из ${state.total}`;
+}
+
+/** Что показывает журнал под этой строкой: последние реплики, а без них — одна пояснительная. */
+export function storyJournal(state: StoryStateDto | null): string[] {
+  if (!state) return ['Сюжетных заданий пока нет.'];
+  if (state.more) return [...state.lines, 'Продолжение следует.'];
+  return state.lines.length > 0 ? state.lines : ['Возьмите сюжетное задание на доске.'];
 }

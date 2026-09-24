@@ -40,6 +40,21 @@ describe('menuItems', () => {
     expect(menuItems(false, true).map((i) => i.id)).toEqual(['audio', 'controls', 'tips', 'password', 'logout']);
     expect(menuItems(false, false).map((i) => i.id)).toEqual(['audio', 'controls', 'logout']);
   });
+
+  it('журнал кампании появляется, только когда есть о чём рассказывать', () => {
+    // M20a: пилот, который сюжета ещё не видел, не должен находить в меню пустой журнал.
+    expect(menuItems(false, true, false).map((i) => i.id)).not.toContain('story');
+    expect(menuItems(false, true, true).map((i) => i.id)).toEqual([
+      'audio',
+      'controls',
+      'story',
+      'tips',
+      'password',
+      'logout',
+    ]);
+    // Гостю кампания доступна так же: она просто не переживёт его выход, как и всё остальное.
+    expect(menuItems(true, false, true).map((i) => i.id)).toEqual(['audio', 'story', 'dev', 'logout']);
+  });
 });
 
 describe('tipLines', () => {

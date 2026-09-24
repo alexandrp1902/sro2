@@ -25,6 +25,9 @@ public sealed partial class Room
     /// <summary>Звено считается дошедшим до точки, если хоть кто-то из него так близко.</summary>
     private const double WingArrive = 500;
 
+    /// <summary>Конвой, идущий к месту (M20a), считается дошедшим на таком расстоянии от него.</summary>
+    private const double ConvoyArrive = 420;
+
     /// <summary>Точки маршрута патруля не ближе этого друг к другу: иначе маршрут вырождается в одно место.</summary>
     private const double PatrolLeg = 1800;
 
@@ -126,13 +129,26 @@ public sealed partial class Room
     private bool StartEscort(MissionRun run, Player player, MissionOffer offer)
     {
         if (Balance.Traders is not { } rules || !Balance.Npc.TypeMap.TryGetValue(rules.Type, out var type)) return false;
-        if (offer.System is not { } to || Balance.SystemDef.GateTo(to) is not { } gate) return false;
 
-        // Из врат и во врата — чуть ближе к центру, как ходят обычные торговцы.
-        var arrival = Balance.Galaxy.ArrivalOffset;
-        var r = Math.Sqrt(gate.X * gate.X + gate.Y * gate.Y);
-        var k = r > arrival ? (r - arrival) / r : 1;
-        var (dx, dy) = (gate.X * k, gate.Y * k);
+        // Сюжетный конвой идёт к месту, а не во врата (M20a): транспорт с «оборудованием» везут
+        // на платформу, а не в соседнюю систему. Место едет по орбите — цель пересчитывается на ходу.
+        var toPlace = offer.Story is not null ? offer.Place : null;
+        double dx, dy;
+        if (toPlace is not null)
+        {
+            if (PlacePointOf(toPlace) is not { } spot) return false;
+            (dx, dy) = spot;
+            run.Place = toPlace;
+        }
+        else
+        {
+            if (offer.System is not { } to || Balance.SystemDef.GateTo(to) is not { } gate) return false;
+            // Из врат и во врата — чуть ближе к центру, как ходят обычные торговцы.
+            var arrival = Balance.Galaxy.ArrivalOffset;
+            var r = Math.Sqrt(gate.X * gate.X + gate.Y * gate.Y);
+            var k = r > arrival ? (r - arrival) / r : 1;
+            (dx, dy) = (gate.X * k, gate.Y * k);
+        }
 
         var angle = _ai.NextDouble() * 2 * Math.PI;
         var x = player.Ship.X + EscortOffset * Math.Cos(angle);
@@ -143,7 +159,8 @@ public sealed partial class Room
             ToStation = false,
             DestX = dx,
             DestY = dy,
-            Gate = to,
+            // Врата конвой называет, только если туда и идёт: иначе он ушёл бы в прыжок, не доехав до места.
+            Gate = toPlace is null ? offer.System : null,
         };
         trader.Ship = new ShipState { X = x, Y = y, Rot = Math.Atan2(dx - x, -(dy - y)) };
         trader.Revive(trader.Effective(Balance), 0);
@@ -152,7 +169,8 @@ public sealed partial class Room
 
         run.TraderId = trader.Id;
         run.Route = Math.Sqrt((dx - x) * (dx - x) + (dy - y) * (dy - y));
-        _log.LogInformation("Player {Id} escorts convoy #{Convoy} to the gate to {To}", player.Id, trader.Id, to);
+        _log.LogInformation(
+            "Player {Id} escorts convoy #{Convoy} to {To}", player.Id, trader.Id, toPlace ?? offer.System);
         return true;
     }
 
@@ -228,6 +246,22 @@ public sealed partial class Room
         }
 
         var offer = active.Offer;
+        // Конвой к месту (M20a): место едет по орбите, поэтому цель подправляется каждый тик, а «дошёл» —
+        // это подойти к нему вплотную. Врата умеют завершать работу сами, место — нет.
+        if (run.Place is { } target && PlacePointOf(target) is { } spot)
+        {
+            trader.DestX = spot.X;
+            trader.DestY = spot.Y;
+            var ax = trader.Ship.X - spot.X;
+            var ay = trader.Ship.Y - spot.Y;
+            if (ax * ax + ay * ay <= ConvoyArrive * ConvoyArrive)
+            {
+                trader.Gone = true;
+                RemoveShip(trader);
+                Complete(player);
+                return;
+            }
+        }
         // Засады идут по долям пути: при трёх волнах — на четверти, половине и трёх четвертях.
         if (run.Wave < offer.Count && run.Route > 1)
         {
@@ -237,7 +271,7 @@ public sealed partial class Room
             var done = 1 - left / run.Route;
             if (done >= (run.Wave + 1) / (double)(offer.Count + 1))
             {
-                SpawnAmbush(run, trader);
+                SpawnAmbush(run, trader, offer);
                 run.Wave++;
                 player.Missions.Active = active with { Progress = run.Wave };
                 player.Connection?.Send(new NoticeMsg(Protocol.AmbushNotice));
@@ -346,9 +380,13 @@ public sealed partial class Room
     /// </summary>
     private const double StrikeRange = 420;
 
+    /// <summary>Где сейчас это место; null — его больше нет в балансе. Место едет по орбите, поэтому
+    /// спрашивать надо каждый раз, а не запоминать точку при старте.</summary>
+    private (double X, double Y)? PlacePointOf(string? key) =>
+        Balance.Place(key) is { } place ? PlacePosition(place) : null;
+
     /// <summary>Где сейчас обороняемое поселение; null — его больше нет в балансе.</summary>
-    private (double X, double Y)? DefendPoint(MissionRun run) =>
-        Balance.Place(run.Place) is { } place ? PlacePosition(place) : null;
+    private (double X, double Y)? DefendPoint(MissionRun run) => PlacePointOf(run.Place);
 
     /// <summary>
     /// Оборона поселения (M15): волны налётчиков идут от врат к поселению. Пилот их встречает, поселение
@@ -357,19 +395,23 @@ public sealed partial class Room
     private bool StartDefend(MissionRun run, MissionOffer offer)
     {
         if (Balance.Place(offer.Destination) is not { IsPlanet: true }) return false;
-        if (Balance.Missions.AmbushList.Count == 0) return false;
+        // Сюжетная оборона возит свои волны с собой; обычная берёт их из общей таблицы засад.
+        var story = StoryMissionOf(offer.Story);
+        if (story is null ? Balance.Missions.AmbushList.Count == 0 : story.WaveList.Count == 0) return false;
         run.Place = offer.Destination;
-        return SendRaidWave(run) > 0;
+        return SendRaidWave(run, offer) > 0;
     }
 
     /// <summary>Очередная волна налётчиков: от врат, курсом на поселение. Волны берутся из той же ambush.</summary>
     /// <returns>Сколько налётчиков вышло; 0 — некого посылать.</returns>
-    private int SendRaidWave(MissionRun run)
+    private int SendRaidWave(MissionRun run, MissionOffer? offer = null)
     {
         if (DefendPoint(run) is not { } spot) return 0;
-        var waves = Balance.Missions.AmbushList;
+        var taken = offer ?? _players.GetValueOrDefault(run.PlayerId)?.Missions.Active?.Offer;
+        var story = StoryMissionOf(taken?.Story);
         // Чем дальше волна, тем злее: как у засад на конвой. Последняя волна — самая тяжёлая.
-        var wave = waves[Math.Min(run.Wave, waves.Count - 1)];
+        var wave = story is not null ? story.Wave(run.Wave) : Balance.Missions.Wave(run.Wave);
+        if (wave.Count == 0) return 0;
         var sent = SpawnWave(wave, spot, invasionId: 0, missionId: run.Id);
         if (sent > 0) run.Wave++;
         return sent;
@@ -455,7 +497,7 @@ public sealed partial class Room
         }
         if (Tick < run.NextWaveTick) return;
         run.NextWaveTick = 0;
-        if (SendRaidWave(run) == 0)
+        if (SendRaidWave(run, offer) == 0)
         {
             Complete(player); // посылать больше некого — считаем отбитым
             return;
@@ -466,7 +508,8 @@ public sealed partial class Room
 
     /// <summary>Числа обороны берутся из шаблона: у оффера нет для них своих полей, а первый шаблон один.</summary>
     private int Strikes(MissionOffer offer) =>
-        Balance.Missions.DefendList.FirstOrDefault(t => t.Waves == offer.Count)?.Strikes
+        StoryMissionOf(offer.Story)?.Strikes
+        ?? Balance.Missions.DefendList.FirstOrDefault(t => t.Waves == offer.Count)?.Strikes
         ?? Balance.Missions.DefendList.FirstOrDefault()?.Strikes
         ?? 3;
 
@@ -534,9 +577,11 @@ public sealed partial class Room
     /// Засада на конвой: группа волны встаёт впереди по его курсу. Точка обязана быть вне жара звезды и вне
     /// укрытия станции — в укрытии пираты развернулись бы, не начав боя.
     /// </summary>
-    private void SpawnAmbush(MissionRun run, Trader trader)
+    private void SpawnAmbush(MissionRun run, Trader trader, MissionOffer offer)
     {
-        var wave = Balance.Missions.Wave(run.Wave);
+        // Сюжетная засада — из своей миссии: у кампании свои волны, и общая таблица к ней отношения не имеет.
+        var story = StoryMissionOf(offer.Story);
+        var wave = story is not null ? story.Wave(run.Wave) : Balance.Missions.Wave(run.Wave);
         if (wave.Count == 0) return;
         SpawnWave(wave, AmbushPoint(trader), invasionId: 0, missionId: run.Id, onSite: true);
     }
@@ -597,9 +642,14 @@ public sealed partial class Room
         foreach (var run in _runs.Values.ToList())
         {
             if (_players.GetValueOrDefault(run.PlayerId) is not { } player) continue;
-            var alive = run.Kind == MissionRules.EscortKind
-                ? _ships.GetValueOrDefault(run.TraderId) is Trader { IsDead: false }
-                : _pirates.Any(p => p.MissionId == run.Id && p.Type.IsRanger && !p.IsDead && !p.Gone);
+            // Живое звено проверяем только у патруля: у обороны актёры — налётчики, и «рейнджеров
+            // не осталось» означало бы там провал на ровном месте.
+            var alive = run.Kind switch
+            {
+                MissionRules.EscortKind => _ships.GetValueOrDefault(run.TraderId) is Trader { IsDead: false },
+                MissionRules.PatrolKind => _pirates.Any(p => p.MissionId == run.Id && p.Type.IsRanger && !p.IsDead && !p.Gone),
+                _ => true,
+            };
             if (!alive) Fail(player, run.Kind == MissionRules.EscortKind ? Protocol.TraderFail : Protocol.WingFail);
         }
     }
@@ -610,6 +660,13 @@ public sealed partial class Room
     /// </summary>
     private MissionMarkDto? MarkOf(Player player)
     {
+        // Сюжетная точка — такая же цель, как конвой и маршрут патруля: без неё «обломки в Нове»
+        // пришлось бы искать по всей системе (M20a). Набрал сколько нужно — метка гаснет.
+        if (player.Missions.Active?.Offer.Story is { } story &&
+            StoryMissionOf(story) is { Point: { } wreck, Item: { } item } mission &&
+            Balance.Galaxy.SystemOfPlace(mission.Destination) == SystemId &&
+            player.Cargo.Count(item) < mission.Count)
+            return new MissionMarkDto(0, wreck.X, wreck.Y);
         if (RunOf(player) is not { } run) return null;
         if (run.Kind == MissionRules.EscortKind)
             return _ships.GetValueOrDefault(run.TraderId) is Trader { IsDead: false } ? new MissionMarkDto(run.TraderId, 0, 0) : null;

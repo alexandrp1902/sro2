@@ -594,7 +594,9 @@
           "name": "Нова-Прайм",
           "kind": "desert",
           "size": 150,
-          "orbit": { "radius": 2000, "periodMinutes": 110, "phase": 330 }
+          "orbit": { "radius": 2000, "periodMinutes": 110, "phase": 330 },
+          "id": "novaPrime",
+          "settlement": { "name": "Рудник Прайм", "scene": "desert" }
         },
         {
           "name": "Нова-Гигант",

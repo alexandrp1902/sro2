@@ -173,6 +173,10 @@ public sealed record JumpMsg(string? To) : ClientMessage;
 /// бросить своё (где угодно); <see cref="Protocol.CompleteMission"/> — сдать «собрать» (в доке);
 /// <see cref="Protocol.SkipTutorial"/> — пропустить обучение.
 /// </param>
+/// <param name="Id">
+/// Задание с доски для <see cref="Protocol.AcceptMission"/>; для <see cref="Protocol.ChooseStory"/> (M20a) —
+/// флаг выбранного варианта диалога.
+/// </param>
 public sealed record MissionMsg(string? Action, string? Id = null) : ClientMessage;
 
 /// <summary>Группа (GDD §37).</summary>
@@ -230,6 +234,7 @@ public sealed record PvpMsg(bool On) : ClientMessage;
 [JsonDerivedType(typeof(MarketMsg), "market")]
 [JsonDerivedType(typeof(ShopMsg), "shop")]
 [JsonDerivedType(typeof(RepMsg), "rep")]
+[JsonDerivedType(typeof(DialogMsg), "dialog")]
 public abstract record ServerMessage;
 
 /// <param name="Id">Id своего корабля в снапшотах.</param>
@@ -645,12 +650,53 @@ public sealed record MissionMarkDto(int Ship, double X, double Y);
 /// <param name="Offers">Доска станции этой системы; в системе без станции пусто.</param>
 /// <param name="Done">Что сделано этим событием; null — просто обновление.</param>
 /// <param name="Mark">Куда смотреть по живому заданию (M14); null — метки нет.</param>
+/// <param name="Story">
+/// Состояние сюжетной кампании (M20a); null — сюжета в игре нет или пилот его ещё не видел.
+/// Приходит и тогда, когда предложения на доске нет, — журналу надо что-то показывать всегда.
+/// </param>
 public sealed record MissionsMsg(
     TutorialDto? Tutorial,
     ActiveMission? Active,
     IReadOnlyList<MissionOffer> Offers,
     MissionDoneDto? Done = null,
-    MissionMarkDto? Mark = null) : ServerMessage;
+    MissionMarkDto? Mark = null,
+    StoryStateDto? Story = null) : ServerMessage;
+
+/// <summary>
+/// Кампания глазами пилота (M20a): для журнала и для раздела «Сюжет» на доске.
+/// </summary>
+/// <param name="Done">Сколько миссий кампании уже пройдено.</param>
+/// <param name="Total">Сколько их всего задумано — журнал пишет «миссия 3 из 14».</param>
+/// <param name="Lines">Последние реплики кампании.</param>
+/// <param name="Offer">
+/// Сюжетная работа, доступная здесь и сейчас; null — её тут не дают: не то место, не та репутация
+/// или всё написанное уже пройдено.
+/// </param>
+/// <param name="More">В файле миссии кончились, но кампания задумана длиннее: «продолжение следует».</param>
+public sealed record StoryStateDto(
+    string Campaign,
+    string Name,
+    int Done,
+    int Total,
+    IReadOnlyList<string> Lines,
+    MissionOffer? Offer = null,
+    bool More = false);
+
+/// <summary>
+/// Карточка сюжетного диалога (M20a): портрет, имя, реплики и до двух кнопок. Портрета пока нет —
+/// клиент рисует значок кампании сам; поле под него появится, когда появится арт.
+/// </summary>
+/// <param name="Options">Кнопки выбора; пусто — карточка закрывается одним «Дальше».</param>
+public sealed record DialogMsg(
+    string Campaign,
+    string Mission,
+    string Who,
+    string Role,
+    IReadOnlyList<string> Lines,
+    IReadOnlyList<DialogOptionDto>? Options = null) : ServerMessage;
+
+/// <summary>Кнопка в карточке диалога; Flag уходит обратно в <see cref="MissionMsg"/> как Id.</summary>
+public sealed record DialogOptionDto(string Label, string Flag);
 
 /// <summary>Короткое уведомление игроку по коду; текст подставляет клиент (см. ui/feed.ts).</summary>
 /// <param name="N">Число к тексту (M15.6): сумма возврата, счёт. 0 — числа в тексте нет.</param>
@@ -852,7 +898,7 @@ public static class Protocol
     /// hpMul и speedMul — и предсказывал бы и движение, и прочность своего корабля мимо сервера.
     /// Зеркало PROTOCOL_VERSION в client/src/net/protocol.ts.
     /// </summary>
-    public const int Version = 29;
+    public const int Version = 30;
 
     public const string DroneKind = "drone";
     public const string PirateKind = "pirate";
@@ -861,6 +907,8 @@ public static class Protocol
     /// <summary>Конвой задания «сопровождение» и звено задания «патруль» (M14): у них свои корабли.</summary>
     public const string ConvoyKind = "convoy";
     public const string WingKind = "wing";
+    /// <summary>Повстанцы «Тихой войны» (M20a): дерутся как пираты, но это шахтёры, и выглядеть должны иначе.</summary>
+    public const string RebelKind = "rebel";
 
     /// <summary>Что покупают в доке (<see cref="BuyMsg.Kind"/>).</summary>
     public const string HullItem = "hull";
@@ -915,6 +963,12 @@ public static class Protocol
     public const string WrongPasswordNotice = "wrongPassword";
     /// <summary>Новый пароль не той длины, или меняет его гость, у которого аккаунта нет.</summary>
     public const string BadPasswordNotice = "badPassword";
+    /// <summary>Сюжетный предмет не продаётся, не выбрасывается и не меняется (M20a).</summary>
+    public const string StoryItemNotice = "storyItem";
+    /// <summary>Этот груз положен сюжетом другому пилоту (M20a): видно всем, берёт только хозяин.</summary>
+    public const string NotYoursNotice = "notYours";
+    /// <summary>Взята сюжетная миссия, и в трюме для её груза не хватило места (M20a).</summary>
+    public const string StoryHoldNotice = "storyHold";
 
     /// <summary>За что начислена или снята репутация (<see cref="RepChangeDto.Code"/>; M13).</summary>
     public const string RepMissionDone = "missionDone";
@@ -945,6 +999,8 @@ public static class Protocol
     public const string AbandonMission = "abandon";
     public const string CompleteMission = "complete";
     public const string SkipTutorial = "skip";
+    /// <summary>Ответ в сюжетном диалоге (M20a): в поле Id — флаг выбранного варианта.</summary>
+    public const string ChooseStory = "choose";
 
     /// <summary>Что сделано (<see cref="MissionDoneDto.Kind"/>).</summary>
     public const string TutorialDone = "tutorial";

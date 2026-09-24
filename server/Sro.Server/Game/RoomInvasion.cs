@@ -15,6 +15,10 @@ public sealed partial class Room
     /// </summary>
     private void Credit(Player killer, ShipEntity? victim)
     {
+        // Сюжетный корабль не стоит ничего и не значит ничего для мира (M20a): ни головы, ни зачёта
+        // в работу с доски, ни отношения. Проверка стоит первой, до разбора на фракции: повстанцы —
+        // пираты по механике, и без неё они платили бы награду и красили пилота в глазах Новы.
+        if (victim is Pirate { Story: true }) return;
         if (victim is not Pirate { Type.IsPirate: true } pirate)
         {
             NoteKillRep(killer, victim);
@@ -126,12 +130,17 @@ public sealed partial class Room
     /// </summary>
     /// <param name="onSite">Появиться прямо на точке, не залетая с врат: так встают засады перед конвоем.</param>
     /// <returns>Сколько пиратов прилетело.</returns>
+    /// <param name="storyName">
+    /// Имя над корпусом для кораблей сюжета (M20a); null — обычное «Тип Ур.N». Заодно помечает их
+    /// сюжетными: за таких не платят и отношение за них не меняется.
+    /// </param>
     private int SpawnWave(
         IReadOnlyList<InvasionGroup> wave,
         (double X, double Y) point,
         int invasionId,
         int missionId,
-        bool onSite = false)
+        bool onSite = false,
+        string? storyName = null)
     {
         var npc = Balance.Npc;
         var gates = onSite ? [] : Balance.SystemDef.GateList;
@@ -157,6 +166,11 @@ public sealed partial class Room
                     ExitIsGate = gate is not null,
                     PatrolTicks = long.MaxValue / 4,
                 };
+                if (storyName is not null)
+                {
+                    pirate.Story = true;
+                    pirate.Name = storyName;
+                }
                 SpawnHere(pirate);
                 if (gate is null)
                 {

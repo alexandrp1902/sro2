@@ -132,7 +132,8 @@ public sealed record BalanceSources(
     string? Reputation = null,
     string? Careers = null,
     string? Demand = null,
-    string? Trade = null);
+    string? Trade = null,
+    string? Story = null);
 
 /// <summary>
 /// Весь баланс: корпуса, пушки, правила боя, NPC, лут, метеориты, магазин станции, галактика, задания.
@@ -185,7 +186,8 @@ public sealed record Balance(
     IReadOnlyDictionary<string, MarketRules>? MarketByPlace = null,
     CareerRules? CareerSet = null,
     DemandRules? DemandSet = null,
-    TradeRules? TradeSet = null)
+    TradeRules? TradeSet = null,
+    StoryRules? StorySet = null)
 {
     public const string HullsFile = "hulls.json";
     public const string WeaponsFile = "weapons.json";
@@ -204,12 +206,14 @@ public sealed record Balance(
     public const string CareersFile = CareerRules.File;
     public const string DemandFile = DemandRules.File;
     public const string TradeFile = TradeRules.File;
+    public const string StoryFile = StoryRules.File;
 
     /// <summary>Все файлы баланса в порядке разбора.</summary>
     public static readonly string[] Files =
     [
         HullsFile, WeaponsFile, RulesFile, NpcsFile, LootFile, MeteorsFile, ShopFile, GalaxyFile, MissionsFile,
         ModulesFile, PartyFile, InvasionFile, MarketFile, ReputationFile, CareersFile, DemandFile, TradeFile,
+        StoryFile,
     ];
 
     public NpcRules Npc => Npcs ?? NpcRules.None;
@@ -240,6 +244,12 @@ public sealed record Balance(
 
     /// <summary>События спроса (M15.5); их нет — <see cref="DemandRules.Any"/> false, и рынок живёт как до M15.5.</summary>
     public DemandRules Demand => DemandSet ?? DemandRules.None;
+
+    /// <summary>
+    /// Сюжетные кампании (M20a); их нет — <see cref="StoryRules.Any"/> false, и доска показывает
+    /// только обычную работу, как до M20. Кампания общегалактическая и <see cref="ForSystem"/> её не режет.
+    /// </summary>
+    public StoryRules Story => StorySet ?? StoryRules.None;
 
     /// <summary>
     /// Места системы (M15): станция и поселения планет. Считается в <see cref="ForSystem"/>; у баланса,
@@ -611,6 +621,20 @@ public sealed record Balance(
                 return false;
             }
             parsed = parsed with { DemandSet = demand };
+        }
+        if (sources.Story is not null)
+        {
+            // Самым последним: кампания называет поимённо места, системы, предметы, типы NPC и ступени
+            // отношения — то есть почти весь остальной баланс. Опечатка в ней должна валить разбор здесь,
+            // а не на доске у пилота, который дошёл до пятой миссии.
+            if (!StoryRules.TryParse(
+                    sources.Story, npcs.TypeMap, loot.ItemMap, out var story, out error,
+                    parsed.GalaxySet, parsed.ReputationSet))
+            {
+                error = $"{StoryFile}: {error}";
+                return false;
+            }
+            parsed = parsed with { StorySet = story };
         }
         balance = parsed;
         return true;

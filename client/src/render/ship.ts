@@ -29,7 +29,7 @@ const DRAWN_FULL = 2;
 const TORCH_FULL = 1;
 
 /** Чей корабль: от этого картинка (у пиратов своя) и оттенок. */
-export type ShipLook = 'own' | 'player' | 'drone' | 'pirate' | 'trader' | 'ranger' | 'convoy' | 'wing';
+export type ShipLook = 'own' | 'player' | 'drone' | 'pirate' | 'trader' | 'ranger' | 'convoy' | 'wing' | 'rebel';
 
 export class ShipView {
   readonly view = new Container();

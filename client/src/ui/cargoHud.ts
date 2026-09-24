@@ -1,5 +1,5 @@
 import { gearIcon, spriteUrl } from '../render/sprites';
-import { lootItem, rarityColor, type LootRules } from '../sim/loot';
+import { isStory, lootItem, rarityColor, type LootRules } from '../sim/loot';
 import { formatCredits } from '../sim/shop';
 
 /** Трюм игрока, как его прислал сервер (GDD §21). */
@@ -226,9 +226,15 @@ export class CargoHud {
       icon.className = 'cargo-icon';
       icon.src = spriteUrl(gearIcon(rules, id));
       icon.alt = '';
-      line.append(dot, icon, document.createTextNode(`${lootItem(rules, id)?.name ?? id} ×${count}`));
+      const story = isStory(rules, id);
+      // Сюжетный груз (M20a) помечен прямо в строке: он занимает трюм и не продаётся, и это должно
+      // быть видно там же, где пилот считает свободное место, а не выясняться при попытке продать.
+      const label = story ? `${lootItem(rules, id)?.name ?? id} · сюжет` : `${lootItem(rules, id)?.name ?? id} ×${count}`;
+      if (story) line.classList.add('cargo-mission');
+      line.append(dot, icon, document.createTextNode(label));
       // Выбросить стопку целиком (M15.1): в полёте — освободить место, когда трюм забит не тем.
-      if (this.onJettison && !this.docked) {
+      // Сюжетный груз за борт не летит: выбросить улику — значит молча оборвать цепочку.
+      if (this.onJettison && !this.docked && !story) {
         const out = document.createElement('button');
         out.className = 'cargo-drop';
         out.type = 'button';

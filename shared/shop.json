@@ -153,6 +153,8 @@
     "pl:alphaTwo": { "title": "Лавка Купола Альфы", "remove": ["cannon"], "price": 0.9 },
     "pl:tauPrima": { "title": "Верфь Пыльной Гавани", "hulls": ["industrial", "tug"], "items": ["cargoPod", "grapple"], "price": 0.97 },
     "pl:novaGiant": { "title": "Причал Нова-Один", "items": ["cargoPod"], "price": 1.02 },
+    // Рудник Прайм (M20a): посёлок шахтёров, а не верфь — чинят и продают самое нужное.
+    "pl:novaPrime": { "title": "Склад Рудника Прайм", "items": ["cargoPod", "repair"], "price": 1.0 },
     "pl:castorOre": { "title": "Контора Рудника", "items": ["cargoPod"], "price": 0.92 },
     "pl:barnardGarden": { "title": "Лавка Оранжереи", "items": ["repair"], "price": 1.0 },
     "pl:sigmaIce": { "title": "Верфь Мороза", "hulls": ["freighter"], "items": ["cooling"], "price": 1.05 },

@@ -36,7 +36,7 @@ import { gearIcon, hasSprite, moduleSprite, shipSprite, spriteUrl, weaponSprite 
 import type { Hulls } from '../sim/hulls';
 import type { HullParams } from '../sim/movement';
 import { activeHint, activeLine, offerNote, offerTitle, timeLeft, type MissionNames } from '../sim/missions';
-import { lootItem, rarityColor, type LootRules } from '../sim/loot';
+import { isStory, lootItem, rarityColor, type LootRules } from '../sim/loot';
 import { NO_MARKET, affordable, rumourLine, stockLevel, tradeCost, trend, type MarketRules } from '../sim/market';
 import { staffOf, type StaffRole } from '../sim/staff';
 import {
@@ -796,7 +796,9 @@ export class DockScreen {
     const quotes = new Map((this.quotes?.items ?? []).map((q) => [q.id, q]));
     const free = Math.max(0, cargo.max - cargo.used);
 
-    const ids: string[] = [...Object.keys(cargo.items)];
+    // Сюжетный груз (M20a) на рынок не попадает: там ему нечего делать, а строка «здесь не торгуют»
+    // рядом с уликой из шестой миссии читалась бы как «не повезло с местом».
+    const ids: string[] = [...Object.keys(cargo.items)].filter((id) => !isStory(rules, id));
     for (const id of quotes.keys()) if (!cargo.items[id]) ids.push(id);
 
     return ids.map((id) => {
@@ -1030,18 +1032,35 @@ export class DockScreen {
       body.append(box);
     }
 
-    if (missions.offers.length === 0) {
-      if (!active) body.append(el('div', 'dock-empty sro-muted', 'Заданий на этой станции нет.'));
+    // Сюжет — над обычной работой и своей строкой (M20a): это не «ещё одно задание с доски»,
+    // а продолжение истории, и найтись оно должно первым.
+    const story = missions.story;
+    if (story?.offer) {
+      body.append(el('div', 'dock-note dock-story-note sro-warn', `${story.name} · миссия ${story.offer.story?.number ?? story.done + 1} из ${story.total}`));
+      body.append(this.missionRow(story.offer, active !== null));
+    }
+
+    // Доска и сюжет приезжают в одном списке offers: сюжетную строку из него убираем, иначе она
+    // встала бы дважды — своим разделом и рядовой работой станции.
+    const board = missions.offers.filter((offer) => !offer.story);
+    if (board.length === 0) {
+      if (!active && !story?.offer) body.append(el('div', 'dock-empty sro-muted', 'Заданий на этой станции нет.'));
       return;
     }
     body.append(el('div', 'dock-note sro-muted', active ? 'Доска станции: сначала сдайте или бросьте своё задание' : 'Доска станции'));
-    for (const offer of missions.offers) body.append(this.missionRow(offer, active !== null));
+    for (const offer of board) body.append(this.missionRow(offer, active !== null));
   }
 
   private missionRow(offer: MissionOffer, busy: boolean): HTMLElement {
     const row = el('div', 'dock-row sro-row');
     row.dataset.state = busy ? 'poor' : 'buy';
-    row.append(el('div', 'dock-name sro-row__name', offerTitle(offer, this.names)), el('div', 'dock-stats sro-row__meta', offerNote(offer, this.names)));
+    if (offer.story) row.classList.add('dock-row--story');
+    const name = el('div', 'dock-name sro-row__name', offerTitle(offer, this.names));
+    // Кто даёт работу — видно до того, как её возьмут: с этого человека и начинается сцена.
+    const note = offer.story
+      ? `${offer.story.giver} · ${offer.story.role} — ${offerNote(offer, this.names)}`
+      : offerNote(offer, this.names);
+    row.append(name, el('div', 'dock-stats sro-row__meta', note));
     const take = button(`Взять · ${formatCredits(offer.reward)}`, 'dock-buy sro-btn sro-btn--sm', () => this.handlers.onAccept(offer.id));
     take.disabled = busy;
     row.append(take);

@@ -55,7 +55,8 @@ internal sealed class LootSystem(Func<int> nextId, Random rng, ILogger log)
         double vy,
         string item,
         int count,
-        bool fromContainer = false)
+        bool fromContainer = false,
+        int owner = 0)
     {
         if (count < 1 || !loot.Knows(item)) return null;
         if (_drops.Count >= loot.MaxItems)
@@ -65,7 +66,7 @@ internal sealed class LootSystem(Func<int> nextId, Random rng, ILogger log)
         }
         // Содержимое контейнера ждёт игрока сколько угодно: оно и есть постоянная точка на карте.
         var expires = fromContainer ? long.MaxValue : tick + loot.LifetimeTicks;
-        var drop = new LootDrop(nextId(), item, count, x, y, vx, vy, expires, fromContainer);
+        var drop = new LootDrop(nextId(), item, count, x, y, vx, vy, expires, fromContainer, owner);
         _drops.Add(drop);
         return drop;
     }
@@ -179,29 +180,61 @@ internal sealed class LootSystem(Func<int> nextId, Random rng, ILogger log)
     /// </summary>
     public void Spill(Cargo hold, LootRules loot, double x, double y, double vx, double vy, long tick)
     {
+        // Сюжетный предмет гибель переживает (M20a): цепочка миссий не должна рваться на первом же
+        // респауне. Поэтому высыпается не весь трюм, а всё, кроме него, и чистится тоже выборочно.
+        var spilled = new List<(string Item, int Count)>(hold.Items.Count);
         foreach (var (item, total) in hold.Items)
         {
+            if (loot.IsStory(item)) continue;
+            spilled.Add((item, total));
             var pile = Math.Max(1, (int)Math.Floor(PileVolume / Math.Max(loot.Volume(item), 1e-9)));
             for (var left = total; left > 0; left -= pile) Scatter(loot, tick, x, y, vx, vy, item, Math.Min(pile, left));
         }
-        hold.Clear();
+        foreach (var (item, count) in spilled) hold.Remove(item, count);
     }
 
     /// <summary>
     /// Одна стопка за борт (M15.1): столько же куч, как при гибели, но остальной трюм остаётся на месте.
     /// </summary>
-    public void SpillOne(LootRules loot, string item, int count, double x, double y, double vx, double vy, long tick)
+    /// <param name="owner">Чей это груз (M20a); 0 — ничей. Сюжет кладёт ящики адресно.</param>
+    /// <param name="waits">Не протухать и ждать хозяина, как содержимое контейнера (M20a).</param>
+    public void SpillOne(
+        LootRules loot, string item, int count, double x, double y, double vx, double vy, long tick,
+        int owner = 0, bool waits = false)
     {
         var pile = Math.Max(1, (int)Math.Floor(PileVolume / Math.Max(loot.Volume(item), 1e-9)));
-        for (var left = count; left > 0; left -= pile) Scatter(loot, tick, x, y, vx, vy, item, Math.Min(pile, left));
+        for (var left = count; left > 0; left -= pile)
+            Scatter(loot, tick, x, y, vx, vy, item, Math.Min(pile, left), owner, waits);
+    }
+
+    /// <summary>
+    /// Убрать весь груз, положенный сюжетом для этого пилота (M20a): миссия кончилась или пилот ушёл,
+    /// и ящики, которые больше некому взять, незачем оставлять в системе навсегда.
+    /// </summary>
+    /// <returns>true — что-то убрали: выбор предмета у игроков мог осиротеть.</returns>
+    public bool RemoveOwned(int owner)
+    {
+        if (owner == 0) return false;
+        var removed = false;
+        for (var i = _drops.Count - 1; i >= 0; i--)
+        {
+            if (_drops[i].Owner != owner) continue;
+            _drops.RemoveAt(i);
+            removed = true;
+        }
+        return removed;
     }
 
     /// <summary>Предмет в случайной точке круга DropRadius: стопка в одной точке не разбирается тапом.</summary>
-    private void Scatter(LootRules loot, long tick, double x, double y, double vx, double vy, string item, int count)
+    private void Scatter(
+        LootRules loot, long tick, double x, double y, double vx, double vy, string item, int count,
+        int owner = 0, bool waits = false)
     {
         var radius = loot.DropRadius * Math.Sqrt(rng.NextDouble());
         var angle = rng.NextDouble() * 2 * Math.PI;
-        Spawn(loot, tick, x + radius * Math.Cos(angle), y + radius * Math.Sin(angle), vx * loot.DriftFactor, vy * loot.DriftFactor, item, count);
+        Spawn(
+            loot, tick, x + radius * Math.Cos(angle), y + radius * Math.Sin(angle),
+            vx * loot.DriftFactor, vy * loot.DriftFactor, item, count, waits, owner);
     }
 
     /// <summary>
@@ -275,6 +308,9 @@ internal sealed class LootSystem(Func<int> nextId, Random rng, ILogger log)
         Taken,
         TooFar,
         NoRoom,
+
+        /// <summary>Груз положен сюжетом другому пилоту (M20a): видно его всем, берёт только хозяин.</summary>
+        NotYours,
     }
 
     /// <summary>
@@ -283,18 +319,22 @@ internal sealed class LootSystem(Func<int> nextId, Random rng, ILogger log)
     /// </summary>
     /// <param name="capacity">Трюм корпуса с модулями: грузовой расширитель (M11) его увеличивает.</param>
     /// <param name="range">Радиус захвата: корпус и грузовые захваты его расширяют (M19).</param>
+    /// <param name="taken">Что именно подняли; null — не подняли ничего. По нему сюжет узнаёт о подборе (M20a).</param>
     public GrabResult TryGrab(
         Player player,
         int lootId,
         LootRules loot,
         double capacity,
         double range,
-        long tick)
+        long tick,
+        out LootDrop? taken)
     {
+        taken = null;
         var index = _drops.FindIndex(d => d.Id == lootId);
         if (index < 0) return GrabResult.Gone;
 
         var drop = _drops[index];
+        if (drop.Owner != 0 && drop.Owner != player.Id) return GrabResult.NotYours;
         var distance = Math.Sqrt(Sq(player.Ship.X - drop.X) + Sq(player.Ship.Y - drop.Y));
         if (distance > range) return GrabResult.TooFar;
         // Трофей едет домой в трюме и занимает место наравне с грузом: на склад он переезжает в доке.
@@ -305,6 +345,7 @@ internal sealed class LootSystem(Func<int> nextId, Random rng, ILogger log)
         if (drop.FromContainer) Release(drop.Id, tick);
         _drops.RemoveAt(index);
         _picks.Add(new PickDto(player.Id, drop.Id, drop.Item, drop.Count));
+        taken = drop;
         return GrabResult.Taken;
     }
 

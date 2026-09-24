@@ -22,6 +22,7 @@ const DATA = {
   ranger: '#6fe0c8',
   convoy: '#e8c95a',
   wing: '#6fe0c8',
+  rebel: '#e08a4a',
   party: '#b6ff6a',
 };
 
@@ -73,7 +74,7 @@ export interface MinimapShip {
   id: number;
   x: number;
   y: number;
-  kind: 'player' | 'pirate' | 'drone' | 'trader' | 'ranger' | 'party' | 'convoy' | 'wing';
+  kind: 'player' | 'pirate' | 'drone' | 'trader' | 'ranger' | 'party' | 'convoy' | 'wing' | 'rebel';
   dead: boolean;
 }
 

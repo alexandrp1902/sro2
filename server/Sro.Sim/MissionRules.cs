@@ -183,7 +183,12 @@ public sealed record MissionOffer(
     /// Ключ места назначения (M15): куда везти груз или письмо. null — задание не про доставку,
     /// и сдавать его надо там же, где взяли. В системе мест теперь несколько, и «та же система» больше не адрес.
     /// </summary>
-    string? Place = null)
+    string? Place = null,
+    /// <summary>
+    /// Сюжетная миссия кампании (M20a); null — обычная работа с доски. Хранится в профиле вместе
+    /// с заданием: пилот вышел из игры на середине сюжетной миссии и вернулся к ней же.
+    /// </summary>
+    StoryRef? Story = null)
 {
     /// <summary>
     /// Кому «спасибо» за выполнение и с кого спрос за провал — ключ места. Обычно это заказчик; письму
@@ -194,6 +199,26 @@ public sealed record MissionOffer(
     /// <summary>Где сдавать: место назначения, а если его нет — там же, где взяли.</summary>
     [JsonIgnore] public string Destination => Place ?? From;
 }
+
+/// <summary>
+/// Сюжетная нагрузка предложения (M20a): по ней клиент рисует раздел «Сюжет», строку взятой миссии
+/// и трекер цели. Тексты приходят готовыми, а не собираются из вида и числа, — иначе каждая новая
+/// миссия кампании была бы правкой клиента, а её русские строки жили бы отдельно от реплик.
+/// </summary>
+/// <param name="Number">Какая это миссия по счёту, с единицы.</param>
+/// <param name="Total">Сколько их в кампании всего.</param>
+public sealed record StoryRef(
+    string Campaign,
+    string Mission,
+    string Name,
+    string Title,
+    string Brief,
+    string Objective,
+    string Hint,
+    string Giver,
+    string Role,
+    int Number,
+    int Total);
 
 /// <summary>Взятое задание: что и сколько уже сделано. Хранится в аккаунте пилота.</summary>
 /// <param name="Progress">Kill — сколько уничтожено; у collect и deliver не растёт: их сдают на станции целиком.</param>

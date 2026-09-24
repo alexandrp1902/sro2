@@ -47,7 +47,7 @@ import { NO_LOOT, gearVolume, lootItem, lootLabel, rarityColor, type GearItem, t
 import type { MarketRules } from './sim/market';
 import { DT, ION_SLOW, directionAngle, localVelocity, slowedHull, type MoveInput } from './sim/movement';
 import { orbitSeconds, placeOrbit, toWorld, type Point } from './sim/orbits';
-import { objective, objectiveSystem, trackerLines, doneLines, type MissionNames, type Objective } from './sim/missions';
+import { objective, objectiveSystem, trackerLines, doneLines, storyLine, storyJournal, type MissionNames, type Objective } from './sim/missions';
 import { AutoTarget } from './sim/autoTarget';
 import type { NpcRules } from './sim/npcs';
 import { DEFAULT_WEAPON, Weapons } from './sim/weapons';
@@ -62,6 +62,7 @@ import { ControlsWindow } from './ui/controlsWindow';
 import { BurgerMenu, coarsePointer } from './ui/menu';
 import { PasswordForm } from './ui/passwordForm';
 import { ConfirmCard, logoutLines } from './ui/confirm';
+import { DialogCard } from './ui/dialog';
 import { TipsCard } from './ui/tips';
 import { keymap, type KeyAction } from './input/keymap';
 import { bindMouseButtons } from './input/mouseButtons';
@@ -426,6 +427,8 @@ async function main(): Promise<void> {
   const confirm = new ConfirmCard(el('confirm'));
   // «Что дальше» (M18): сама — один раз после обучения, потом — из бургера.
   const tips = new TipsCard(el('tips'));
+  // Сюжетный диалог (M20a): реплики кампании и выбор в них.
+  const dialog = new DialogCard(el('dialog'));
   // Бургер (M15.5): одно меню на док и на полёт, чтобы пункты не разъезжались.
   // Выход из меню сам показывает окно «Пилот»: кнопка в самом окне делает это за себя.
   const leave = () => {
@@ -442,6 +445,14 @@ async function main(): Promise<void> {
     if (action === 'audio') audioWindow.toggle();
     else if (action === 'controls') controlsWindow.toggle();
     else if (action === 'tips') tips.show(coarsePointer());
+    // Журнал кампании (M20a): где остановилась история и что сказали в прошлый раз.
+    else if (action === 'story') {
+      const state = missions?.story ?? null;
+      dialog.show(
+        { who: state ? storyLine(state) : 'Журнал', role: '', lines: storyJournal(state) },
+        '',
+      );
+    }
     else if (action === 'password') passwordForm.show();
     // Пункт есть только на телефоне: там строки полёта нет, а dev-панель нужна на плейтесте.
     // dev объявлен ниже — к первому клику он уже создан.
@@ -1071,10 +1082,19 @@ async function main(): Promise<void> {
       dockScreen.setMissions(message);
       // Письмо места в трюме не занимает, поэтому в cargo его нет — показываем по взятому заданию (M14).
       cargoHud.setLetter(message.active?.offer.kind === 'courier');
+      // Пункт «Кампания» появляется, только когда есть о чём рассказывать (M20a).
+      menu.story = message.story !== null && message.story !== undefined;
       if (message.done) for (const line of doneLines(message.done)) feed.add(line);
       // Последний шаг обучения (M18) — «что дальше»: сервер присылает это событие один раз.
       if (message.done?.kind === 'tutorial' && message.done.last) tips.show(coarsePointer());
       refreshGalaxyMap();
+    };
+    connection.onDialog = (message) => {
+      dialog.show(message, message.campaign === missions?.story?.campaign ? (missions?.story?.name ?? '') : '', (flag) =>
+        send({ t: 'mission', action: 'choose', id: flag }),
+      );
+      // Реплика — и в ленту: карточку закрыли, а сказанное должно остаться на экране.
+      for (const line of message.lines) feed.radio(message.who, line);
     };
     connection.onAccount = (message) => {
       if (message.key && serverUrl) account.setKey(serverUrl, message.key);

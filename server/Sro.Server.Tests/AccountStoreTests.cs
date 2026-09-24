@@ -247,6 +247,45 @@ public sealed class AccountStoreTests : IDisposable
         Assert.Equal(LoginError.WrongPassword, reopened.Login("alice", "wrong").Error);
     }
 
+    /// <summary>
+    /// Кампания в профиле (M20a): выполненное, флаги и последние реплики. Пишется списком id, а не номером
+    /// шага, — и обратно читается так же, поэтому вставленная в середину миссия никого не сбивает.
+    /// </summary>
+    [Fact]
+    public void Story_SurvivesRestart()
+    {
+        string id;
+        using (var store = Open())
+        {
+            id = store.Login("Alice", "secret").Id;
+            store.Save(id, Profile with
+            {
+                Story = new Dictionary<string, StoryProgress>
+                {
+                    ["quietWar"] = new(["quota", "cells"], ["logKept"], ["Это не приводы."]),
+                },
+            });
+            store.Flush();
+        }
+
+        using var reopened = Open();
+
+        var quiet = reopened.Profile(id)!.Story!["quietWar"];
+        Assert.Equal(["quota", "cells"], quiet.Done);
+        Assert.Equal(["logKept"], quiet.Flags);
+        Assert.Equal(["Это не приводы."], quiet.Lines);
+    }
+
+    /// <summary>Профиль старше M20 кампаний не знает — это «не начата», а не ошибка чтения.</summary>
+    [Fact]
+    public void AProfileWithoutStory_ReadsAsAFreshCampaign()
+    {
+        using var store = Open();
+        var id = store.Login("Alice", "secret").Id;
+        store.Save(id, Profile);
+        Assert.Null(store.Profile(id)!.Story);
+    }
+
     [Fact]
     public void Disk_IsWrittenOnFlush_ThroughATemporaryFile()
     {

@@ -58,6 +58,10 @@ const NOTICES: Record<string, string> = {
   passwordChanged: 'Пароль сменён — на других устройствах придётся войти заново',
   wrongPassword: 'Старый пароль не подошёл',
   badPassword: 'Пароль должен быть от 4 до 64 знаков',
+  // Сюжет (M20a): предмет кампании не продаётся и не выбрасывается, а чужой ящик не подбирается.
+  storyItem: 'Это груз сюжетного задания — его не продают и не выбрасывают',
+  notYours: 'Этот груз ждёт другого пилота',
+  storyHold: 'В трюме нет места под груз сюжетного задания',
 };
 
 /** Чем именно защита отбила попадание — по виду урона пушки (M15.6). */
@@ -108,6 +112,7 @@ const REFUSALS = new Set([
   'cargoFull', 'tooFar', 'noCredits', 'notSold', 'gateFar', 'noPower', 'badClass', 'badSlot',
   'noGoods', 'noStock', 'missionGoods', 'dockClosed', 'needRep', 'jumpCancelled', 'jumpHit', 'missionAway',
   'shipElsewhere', 'noRoute', 'wrongPassword', 'badPassword',
+  'storyItem', 'notYours', 'storyHold',
 ]);
 
 export const isRefusal = (code: string): boolean => REFUSALS.has(code);

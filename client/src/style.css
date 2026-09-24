@@ -527,6 +527,55 @@ body {
   font-weight: 600;
 }
 
+/* Сюжетный диалог (M20a): по центру, шире «Что дальше» — в нём до трёх реплик и две кнопки. */
+.dialog {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  pointer-events: auto;
+  width: min(440px, calc(100vw - 32px));
+}
+
+/* Значок и имя — одной группой по центру: карточка вся центрированная, и прижатый
+   к левому краю значок с именем посередине читался как две разные надписи. */
+.dialog-head {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+}
+
+/* Значок говорящего: портретов пока нет, поэтому монограмма в рамке. Портрет сядет сюда же. */
+.dialog-face {
+  flex: 0 0 auto;
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--panel-2, rgba(255, 255, 255, 0.04));
+  color: var(--warn);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+}
+
+.dialog-names {
+  min-width: 0;
+}
+
+.dialog-lines {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 10px 0 4px;
+}
+
+.dialog-btn {
+  flex: 1 1 0;
+}
+
 /* Выбранный предмет — на ПК внизу по центру, отдельно от карточки цели: «куда лечу» и «во что стреляю» путать нельзя. */
 .loot-card {
   position: fixed;
@@ -1429,6 +1478,16 @@ body {
 
 .dock-row:last-child {
   border-bottom: 0;
+}
+
+/* Сюжетная строка (M20a): золотая кромка слева — чтобы историю было видно среди рядовой работы. */
+.dock-row--story {
+  border-left: 2px solid var(--warn);
+  padding-left: 8px;
+}
+
+.dock-story-note {
+  font-weight: 600;
 }
 
 /* Строка с картинкой: картинка слева на обе строки, текст посередине, кнопка справа. */

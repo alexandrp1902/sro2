@@ -7,7 +7,17 @@ namespace Sro.Sim;
 /// <param name="Rarity">Редкость (GDD §23) — от неё цвет на экране.</param>
 /// <param name="Volume">Сколько места занимает одна штука в трюме.</param>
 /// <param name="Price">Сколько кредитов дают за штуку при сдаче на станции.</param>
-public sealed record LootItem(string Name, string Rarity = LootItem.Common, double Volume = 1, int Price = 0)
+/// <param name="Story">
+/// Сюжетный предмет (M20a): место в трюме занимает, но не продаётся, не покупается, не выбрасывается,
+/// не меняется между игроками и остаётся у пилота после гибели. Иначе цепочка миссий рвалась бы
+/// на первом же респауне, а «продать всё» одним нажатием стирало бы улику из шестой миссии.
+/// </param>
+public sealed record LootItem(
+    string Name,
+    string Rarity = LootItem.Common,
+    double Volume = 1,
+    int Price = 0,
+    bool Story = false)
 {
     public const string Common = "common";
 
@@ -246,6 +256,12 @@ public sealed record LootRules(
 
     /// <returns>Цена одной штуки в кредитах; 0 — предмета такого нет.</returns>
     public int Price(string item) => ItemMap.TryGetValue(item, out var found) ? found.Price : 0;
+
+    /// <summary>
+    /// Сюжетный предмет (M20a): его не продают, не выбрасывают, не меняют и не теряют вместе с кораблём.
+    /// Один вопрос — один ответ: все запреты смотрят сюда, а не перечисляют предметы поимённо.
+    /// </summary>
+    public bool IsStory(string item) => ItemMap.TryGetValue(item, out var found) && found.Story;
 
     /// <param name="stationSafeRadius">Из npcs.json: ближе этого к станции контейнеры ставить нельзя.</param>
     /// <param name="stationOrbit">Радиус орбиты станции; 0 — станция в центре.</param>

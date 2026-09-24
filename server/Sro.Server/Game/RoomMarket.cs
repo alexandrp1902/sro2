@@ -60,8 +60,12 @@ public sealed partial class Room
     /// <summary>
     /// Торгуют ли этим грузом там, где стоит пилот. Без рынка место, как и до M12, принимает всё подряд
     /// по плоской цене — на этом стоят тесты с рукописным балансом и системы, где market.json ещё не описан.
+    /// Сюжетный предмет (M20a) не торгуется нигде и никогда:
+    /// проверка стоит первой, потому что у места без записи в market.json рынка нет вовсе, и тогда
+    /// «продать всё» сбыло бы улику из шестой миссии по цене из loot.json.
     /// </summary>
-    private bool Trades(Player player, string good) => MarketOf(player) is not { } m || !m.Rules.Any || m.Rules.Trades(good);
+    private bool Trades(Player player, string good) =>
+        !Balance.Loot.IsStory(good) && (MarketOf(player) is not { } m || !m.Rules.Any || m.Rules.Trades(good));
 
     /// <summary>Снять с рынка столько штук и заплатить пилоту; склад места при этом двигается.</summary>
     private int SellToStation(Player player, string good, int count)

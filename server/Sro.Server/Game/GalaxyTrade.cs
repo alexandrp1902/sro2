@@ -72,7 +72,10 @@ public sealed partial class Galaxy
             case TradeCodes.OfferAction:
             {
                 var loot = Balance.Loot;
-                if (_trades.Set(player.Id, credits, items, loot.Knows) is { } session) SendTrade(session);
+                // Сюжетный предмет на стол не кладётся (M20a): передать улику товарищу — это либо дыра
+                // в цепочке, либо способ пронести её мимо досмотра. Отсекается там же, где мусор из сети.
+                if (_trades.Set(player.Id, credits, items, id => loot.Knows(id) && !loot.IsStory(id)) is { } session)
+                    SendTrade(session);
                 return;
             }
             case TradeCodes.ReadyAction:

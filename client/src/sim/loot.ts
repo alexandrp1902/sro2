@@ -13,6 +13,11 @@ export interface LootItem {
   volume: number;
   /** Кредитов за штуку при сдаче на станции. */
   price: number;
+  /**
+   * Сюжетный предмет (M20a): место в трюме занимает, но не продаётся, не выбрасывается, не меняется
+   * и переживает гибель. Сервер его на рынок не выпустит — клиент просто не рисует кнопок, которых нет.
+   */
+  story?: boolean;
 }
 
 export interface LootRules {
@@ -89,6 +94,11 @@ export function lootSprite(rules: LootRules, id: string): string | null {
 /** Предмет — снаряжение, а не груз: подобранное уходит на склад, но в доке, а не сразу. */
 export function isGear(rules: LootRules, id: string): boolean {
   return !rules.items?.[id] && !!rules.gear?.[id];
+}
+
+/** Сюжетный предмет (M20a): его не продают и не выбрасывают — значит, и кнопок для этого не рисуем. */
+export function isStory(rules: LootRules, id: string): boolean {
+  return rules.items?.[id]?.story === true;
 }
 
 /** Название стопки: «Металл ×5». Неизвестный предмет показываем как есть, чтобы не терять его. */

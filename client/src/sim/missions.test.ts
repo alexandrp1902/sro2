@@ -11,6 +11,8 @@ import {
   objectiveSystem,
   offerNote,
   offerTitle,
+  storyJournal,
+  storyLine,
   timeLeft,
   trackerLines,
   type MissionNames,
@@ -299,5 +301,70 @@ describe('M15 deliveries', () => {
   it('falls back to the employer when a mission has no address of its own', () => {
     expect(destination(offer({ kind: 'kill', system: 'vega' }))).toBe('st:sol');
     expect(destination(offer({ kind: 'deliver', system: 'nova', place: 'st:nova' }))).toBe('st:nova');
+  });
+});
+
+describe('M20a story missions', () => {
+  const story = (over: Partial<NonNullable<MissionOffer['story']>> = {}) => ({
+    campaign: 'quietWar',
+    mission: 'wreck',
+    name: 'Тихая война',
+    title: 'Пропавший транспорт',
+    brief: 'Его бортовой журнал всё ещё там.',
+    objective: 'Поднимите бортовой журнал',
+    hint: 'Обломки отмечены на карте',
+    giver: 'Ева Морен',
+    role: 'инженер рудника',
+    number: 6,
+    total: 14,
+    ...over,
+  });
+
+  it('shows the text the campaign wrote, not one built from the kind', () => {
+    const taken = offer({ kind: 'collect', item: 'titanium', count: 1, system: 'nova', story: story() });
+    expect(offerTitle(taken, names)).toBe('Пропавший транспорт');
+    expect(offerNote(taken, names)).toBe('Его бортовой журнал всё ещё там.');
+  });
+
+  it('counts what is collected and keeps the written hint', () => {
+    const here = withActive({ offer: offer({ kind: 'collect', item: 'titanium', count: 2, system: 'nova', story: story() }), progress: 1 });
+    expect(activeLine(here.active!, names)).toBe('Поднимите бортовой журнал: 1/2');
+    expect(activeHint(here.active!, 'nova', false, names)).toBe('Обломки отмечены на карте');
+    // В другой системе подсказка из файла молчит про дорогу — её договариваем сами.
+    expect(activeHint(here.active!, 'sol', false, names)).toBe('летите в Nova');
+  });
+
+  it('does not count a delivery: there is nothing to count', () => {
+    const run = withActive({ offer: offer({ kind: 'deliver', count: 1, system: 'nova', place: 'st:nova', story: story({ objective: 'Довезите секции' }) }), progress: 0 });
+    expect(activeLine(run.active!, names)).toBe('Довезите секции');
+  });
+
+  it('points at the scripted wreck, then at the place where it is handed in', () => {
+    const withMark = withActive(
+      { offer: offer({ kind: 'collect', item: 'titanium', count: 1, system: 'nova', story: story() }), progress: 0 },
+      null,
+      { ship: 0, x: -2600, y: 500 },
+    );
+    expect(objective(withMark, 'nova', galaxy, false)).toEqual({ kind: 'point', x: -2600, y: 500 });
+
+    // Метка погасла — сдавать надо в своё место, а не на ближайшей станции.
+    const collected = withActive({ offer: offer({ kind: 'collect', item: 'titanium', count: 1, system: 'nova', place: 'pl:novaPrime', story: story() }), progress: 1 });
+    expect(objective(collected, 'nova', galaxy, false)).toEqual({ kind: 'place', key: 'pl:novaPrime' });
+    // Из другой системы — через врата, и на карте галактики видно куда.
+    expect(objective(collected, 'sol', galaxy, false)).toEqual({ kind: 'gate', to: 'vega' });
+    expect(objectiveSystem(collected, 'sol', galaxy)).toBe('nova');
+    expect(objectiveSystem(collected, 'nova', galaxy)).toBeNull();
+  });
+
+  it('writes the journal line', () => {
+    const state = { campaign: 'quietWar', name: 'Тихая война', done: 2, total: 14, lines: ['Дошли. Хорошо.'] };
+    expect(storyLine(state)).toBe('Тихая война · миссия 3 из 14');
+    expect(storyJournal(state)).toEqual(['Дошли. Хорошо.']);
+
+    // Написанное кончилось: номер не растёт, а журнал честно говорит, что будет дальше.
+    const ended = { ...state, done: 6, more: true };
+    expect(storyLine(ended)).toBe('Тихая война · пройдено 6 из 14');
+    expect(storyJournal(ended)).toEqual(['Дошли. Хорошо.', 'Продолжение следует.']);
+    expect(storyJournal(null)).toEqual(['Сюжетных заданий пока нет.']);
   });
 });

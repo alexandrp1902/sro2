@@ -3,7 +3,7 @@
  * экран дока перерисовывается целиком после каждой покупки, и меню внутри него умирало бы на полуслове.
  */
 
-export type MenuAction = 'audio' | 'controls' | 'tips' | 'password' | 'dev' | 'logout';
+export type MenuAction = 'audio' | 'controls' | 'story' | 'tips' | 'password' | 'dev' | 'logout';
 
 export interface MenuItem {
   id: MenuAction;
@@ -17,12 +17,15 @@ export interface MenuItem {
  *   Зато нужна «Отладка»: на телефоне dev-панель открывали тапом по строке полёта, а её в космосе больше нет.
  * @param account Пилот вошёл по нику и паролю (M15.7); гостю менять нечего — у него и аккаунта нет.
  *   Ему же — «Советы» (M18): карточка «Что дальше» после обучения, которого у гостя нет.
+ * @param story Кампания уже начата или доступна здесь (M20a): журнал без истории показывать нечего.
  */
-export function menuItems(coarse: boolean, account = false): MenuItem[] {
+export function menuItems(coarse: boolean, account = false, story = false): MenuItem[] {
   // «Звук» есть в обоих режимах, и первым: на телефоне у вкладки нет отдельного ползунка в системе,
   // а приглушить игру одним движением нужно чаще, чем всё остальное в этом меню.
   const items: MenuItem[] = [{ id: 'audio', label: 'Звук' }];
   if (!coarse) items.push({ id: 'controls', label: 'Управление' });
+  // Журнал кампании (M20a): на чём остановилась история и что сказали в прошлый раз.
+  if (story) items.push({ id: 'story', label: 'Кампания' });
   // «Что дальше» после обучения (M18) — перечитать. Гостю обучения нет, и советы ему не показывали.
   if (account) items.push({ id: 'tips', label: 'Советы' });
   if (account) items.push({ id: 'password', label: 'Сменить пароль' });
@@ -39,6 +42,9 @@ export class BurgerMenu {
   private readonly card: HTMLElement;
   /** Пилот вошёл по нику и паролю — тогда в меню есть «Сменить пароль». */
   account = false;
+
+  /** Кампания начата или доступна здесь (M20a) — тогда в меню есть «Кампания». */
+  story = false;
 
   constructor(
     private readonly root: HTMLElement,
@@ -77,7 +83,7 @@ export class BurgerMenu {
   }
 
   private render(): void {
-    const items = menuItems(coarsePointer(), this.account).map((item) => {
+    const items = menuItems(coarsePointer(), this.account, this.story).map((item) => {
       const button = document.createElement('button');
       button.type = 'button';
       button.className = 'menu-item sro-menu__item';

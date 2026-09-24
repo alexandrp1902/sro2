@@ -20,6 +20,7 @@ import {
   type TradeInviteMsg,
   type TradeStateMsg,
   type PartyStateMsg,
+  type DialogMsg,
   type RepMsg,
   type SosMsg,
   type ServerMessage,
@@ -91,6 +92,8 @@ export class Connection {
   onDemand: ((message: DemandMsg) => void) | null = null;
   /** Репутация пилота (M13): полное состояние, а при изменении — ещё и его повод. */
   onRep: ((message: RepMsg) => void) | null = null;
+  /** Реплика сюжетной кампании (M20a): карточка с именем, текстом и, бывает, выбором. */
+  onDialog: ((message: DialogMsg) => void) | null = null;
   onNotice: ((message: NoticeMsg) => void) | null = null;
   onAccount: ((message: AccountMsg) => void) | null = null;
   onNameFree: ((message: NameFreeMsg) => void) | null = null;
@@ -315,6 +318,9 @@ export class Connection {
         break;
       case 'rep':
         this.onRep?.(message);
+        break;
+      case 'dialog':
+        this.onDialog?.(message);
         break;
       case 'notice':
         this.onNotice?.(message);

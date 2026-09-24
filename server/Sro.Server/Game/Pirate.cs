@@ -82,6 +82,13 @@ public sealed class Pirate : ShipEntity, IScavenger
     public int MissionId;
 
     /// <summary>
+    /// Корабль вызван сюжетом (M20a). За такого не платят награду за голову, он не идёт в счёт заданий
+    /// с доски и не двигает отношение ни в какую сторону: кампания — личная история пилота, а не источник
+    /// дохода и не способ отмыть репутацию. Имя у него своё, и горячая правка баланса его не переименовывает.
+    /// </summary>
+    public bool Story;
+
+    /// <summary>
     /// Не отступает и не считает перевес: пираты вторжения и корабли задания дерутся до конца. Звену это нужно
     /// не для злости, а чтобы его в принципе можно было выбить, — иначе подбитый рейнджер просто уйдёт из системы.
     /// </summary>
@@ -89,9 +96,10 @@ public sealed class Pirate : ShipEntity, IScavenger
 
     /// <summary>
     /// Чинится, добравшись домой. Звено задания — нет: дом у него на каждой точке маршрута, и оно лечилось бы
-    /// по дороге до полного, а «звено уничтожено» никогда бы не наступило (M14).
+    /// по дороге до полного, а «звено уничтожено» никогда бы не наступило (M14). Сюжетный корабль — тоже нет,
+    /// и ровно по той же причине.
     /// </summary>
-    public bool HealsAtHome => !IsInvader && MissionId == 0;
+    public bool HealsAtHome => !IsInvader && MissionId == 0 && !Story;
 
     /// <summary>При такой доле корпуса уходит; те, кто бьётся до конца, не уходят вовсе.</summary>
     public double RetreatHp => NeverRetreats ? 0 : Type.RetreatHp;
@@ -172,7 +180,9 @@ public sealed class Pirate : ShipEntity, IScavenger
         Type = type;
         _rules = rules;
         _weaponsFor = null;
-        Name = NpcRules.Name(type, Level);
+        // Имя сюжетного корабля правкой баланса не сбивается: иначе «Звено „Клык“» посреди плейтеста
+        // стало бы «Рейнджером Ур.3» — ровно в том случае, ради которого и живёт слежение за файлами.
+        if (!Story) Name = NpcRules.Name(type, Level);
         var hullId = NpcRules.HullOf(type, Level);
         HullId = newHulls.ContainsKey(hullId) ? hullId : SimConfig.DefaultHull;
         WeaponIds = type.WeaponList;

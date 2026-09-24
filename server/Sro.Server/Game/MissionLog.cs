@@ -32,3 +32,21 @@ public sealed class MissionLog
     /// <summary>Сид доски: меняется, когда задание взяли или сдали, — и доска обновляется.</summary>
     public int Seed;
 }
+
+/// <summary>
+/// Что пилот прошёл в сюжетных кампаниях (M20a). Прогресс — список выполненных миссий, а не номер шага:
+/// урок M18 про обучение. Миссию можно вставить в середину цепочки, и тот, кто уже в пути, не собьётся.
+/// </summary>
+public sealed class StoryLog
+{
+    /// <summary>Id выполненных миссий кампании; порядок неважен, важно только членство.</summary>
+    public readonly HashSet<string> Done = new(StringComparer.Ordinal);
+
+    /// <summary>Флаги выборов: по ним следующие миссии и реплики узнают, как пилот тогда поступил.</summary>
+    public readonly HashSet<string> Flags = new(StringComparer.Ordinal);
+
+    /// <summary>Последние реплики кампании — их показывает журнал, когда миссия уже взята или ещё не взята.</summary>
+    public List<string> Lines = [];
+
+    public bool Any => Done.Count > 0 || Flags.Count > 0 || Lines.Count > 0;
+}

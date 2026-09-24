@@ -1,6 +1,18 @@
 namespace Sro.Server.Accounts;
 
 /// <summary>
+/// Пройденное в одной сюжетной кампании (M20a). Хранится именно список выполненных id, а не номер шага:
+/// номер не переживает вставку миссии в середину цепочки — это ровно то, чему M18 научился на обучении.
+/// </summary>
+/// <param name="Done">Id выполненных миссий; id, которого больше нет в файле, просто не встретится.</param>
+/// <param name="Flags">Флаги выборов: по ним следующие миссии узнают, как пилот тогда поступил.</param>
+/// <param name="Lines">Последние реплики — их показывает журнал.</param>
+public sealed record StoryProgress(
+    IReadOnlyList<string> Done,
+    IReadOnlyList<string>? Flags = null,
+    IReadOnlyList<string>? Lines = null);
+
+/// <summary>
 /// Игровое состояние пилота, которое переживает выход из игры и перезапуск сервера (GDD §62, в объёме M9).
 /// Положение корабля не хранится: после входа пилот появляется у станции той системы, где пристыковался последний раз.
 /// </summary>
@@ -47,6 +59,10 @@ namespace Sro.Server.Accounts;
 /// Id шага обучения (M18): по id, а не по номеру, чтобы шаги можно было вставлять в середину.
 /// «done» — пройдено или пропущено; null — профиль старше M18, тогда смотрится <paramref name="Tutorial"/>.
 /// </param>
+/// <param name="Story">
+/// Сюжетные кампании (M20a): id кампании → что в ней пройдено. null — профиль старше M20 или пилот
+/// не брал ни одной сюжетной миссии; читается как «кампания не начата», и первая её миссия ждёт на доске.
+/// </param>
 public sealed record AccountProfile(
     int Credits,
     string Hull,
@@ -66,4 +82,5 @@ public sealed record AccountProfile(
     string? Career = null,
     IReadOnlyDictionary<string, string>? Ships = null,
     double? Hp = null,
-    string? TutorialStep = null);
+    string? TutorialStep = null,
+    IReadOnlyDictionary<string, StoryProgress>? Story = null);
