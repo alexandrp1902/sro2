@@ -66,7 +66,14 @@ public sealed class Player(int id, string? token, string name, string hullId, st
     /// </summary>
     public Dictionary<string, string> HullPlaces { get; } = new(StringComparer.Ordinal);
 
-    /// <summary>Что стоит на корабле (GDD §62): пушки по слотам и модули. Переходит с корпуса на корпус.</summary>
+    /// <summary>
+    /// Чем снаряжён каждый корпус ангара (M20): id корпуса → его оснащение. Активного здесь нет — он в
+    /// <see cref="Fit"/>. С M20 оснащение не переезжает на новый корабль: старый ждёт в ангаре таким,
+    /// каким его оставили, и снять с него всё можно там же, где он стоит.
+    /// </summary>
+    public Dictionary<string, ShipFit> HullFits { get; } = new(StringComparer.Ordinal);
+
+    /// <summary>Что стоит на корабле (GDD §62): пушки по слотам и модули. У каждого корпуса своё (см. <see cref="HullFits"/>).</summary>
     public ShipFit Fit { get; set; } = Fitting.Starter.With("w0", weaponId);
 
     /// <summary>Склад на станции: купленные или снятые пушки и модули, которые сейчас не стоят. id — сколько штук.</summary>

@@ -24,6 +24,29 @@ export function logoutLines(docked: boolean): ConfirmLines {
   };
 }
 
+/**
+ * Продажа модуля со склада (M20): вопрос перед тем, как вещь исчезнет. Кнопка «Продать» стоит вплотную
+ * к «Поставить», и промах пальцем на телефоне стоил бы модуля — выкупить его можно только за полную цену,
+ * а там, где его не продают, и вовсе никак.
+ *
+ * @param credits сколько дадут; 0 — здесь это не покупают, и вещь просто выбрасывают
+ */
+export function sellItemLines(name: string, credits: number, price: (value: number) => string): ConfirmLines {
+  return credits > 0
+    ? {
+        title: 'Продать?',
+        text: `${name} уйдёт со склада за ${price(credits)}. Обратно — только за полную цену.`,
+        yes: 'Продать',
+        no: 'Отмена',
+      }
+    : {
+        title: 'Выбросить?',
+        text: `${name} здесь не покупают. Выброшенное пропадёт совсем.`,
+        yes: 'Выбросить',
+        no: 'Отмена',
+      };
+}
+
 export class ConfirmCard {
   private readonly title: HTMLElement;
   private readonly text: HTMLElement;

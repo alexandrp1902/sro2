@@ -18,6 +18,8 @@
     "starterTrader": 1500,
     "scout": 2500,
     // Флот пачки J (M19): роль важнее цены — курьер, сборщик, разведчик, штурмовик, грузовики, снайпер.
+  // В региональные списки они не попадают вовсе: каждый стоит на одной-двух верфях, и за кораблём
+  // надо лететь. Где чей стапель — см. places ниже; о чужих верфях рассказывает мастер в доке.
     "needle": 4000,
     "tug": 6000,
     "surveyor": 7500,
@@ -95,7 +97,7 @@
   "regions": {
     "core": {
       "tiers": [1, 2],
-      "hulls": ["light", "scout", "medium", "industrial", "needle", "tug"],
+      "hulls": ["light", "scout", "medium", "industrial"],
       "items": [
         "pulse", "laser", "cannon", "missiles", "shotgun",
         "engineS", "engineM", "shieldS", "shieldM", "radarS", "radarM",
@@ -104,10 +106,7 @@
     },
     "frontier": {
       "tiers": [1, 2],
-      "hulls": [
-        "scout", "medium", "industrial", "interceptor", "heavy", "frigate",
-        "tug", "surveyor", "corsair", "clipper", "runner"
-      ],
+      "hulls": ["scout", "medium", "industrial", "interceptor", "heavy", "frigate"],
       "items": [
         "pulse", "laser", "cannon", "plasma", "missiles", "heavyLaser", "ion", "pointDefense",
         "shotgun", "gauss",
@@ -118,10 +117,7 @@
     },
     "rim": {
       "tiers": [2, 3],
-      "hulls": [
-        "interceptor", "heavy", "frigate", "freighter", "cruiser",
-        "runner", "lancer", "galleon"
-      ],
+      "hulls": ["interceptor", "heavy", "frigate", "freighter", "cruiser"],
       "items": [
         "plasma", "heavyLaser", "missiles", "ion", "pointDefense", "railgun", "torpedoes",
         "gauss", "salvo",
@@ -137,28 +133,28 @@
   "places": {
     // Дробовик держат в Соле: он дешёвый, бьёт в упор и попадается новичку первым (M19).
     "st:sol": { "title": "Торговый порт Сол", "items": ["shotgun"] },
-    "st:vega": { "title": "Верфь Веги", "items": ["heavyLaser"], "price": 1.05 },
-    "st:alphaCen": { "title": "Причал Альфы", "remove": ["cannon"], "price": 0.92 },
-    "st:castor": { "title": "Шахтёрский склад Кастора", "hulls": ["freighter"], "items": ["cargoPod"], "price": 0.95 },
+    "st:vega": { "title": "Верфь Веги", "hulls": ["needle", "clipper"], "items": ["heavyLaser"], "price": 1.05 },
+    "st:alphaCen": { "title": "Причал Альфы", "hulls": ["needle"], "remove": ["cannon"], "price": 0.92 },
+    "st:castor": { "title": "Шахтёрский склад Кастора", "hulls": ["freighter", "tug", "surveyor"], "items": ["cargoPod"], "price": 0.95 },
     // «Десант» в региональные списки не попадает вовсе: его продают только военные — здесь и в Эпсилоне.
     "st:nova": { "title": "Военная станция Нова", "hulls": ["dropship"], "items": ["railgun", "reactiveArmor", "armorPlate"], "price": 1.1 },
-    "st:barnard": { "title": "Пост рейнджеров Барнарда", "items": ["pointDefense", "ion", "repair", "antiMissile", "deepScanner"], "price": 1.05 },
-    "st:aldebaran": { "title": "Крепость Альдебарана", "items": ["torpedoes", "salvo"], "price": 1.12 },
-    "st:epsilon": { "title": "Вольная гавань Эпсилона", "hulls": ["cruiser", "dropship"], "price": 1.15 },
+    "st:barnard": { "title": "Пост рейнджеров Барнарда", "hulls": ["surveyor", "runner"], "items": ["pointDefense", "ion", "repair", "antiMissile", "deepScanner"], "price": 1.05 },
+    "st:aldebaran": { "title": "Крепость Альдебарана", "hulls": ["lancer"], "items": ["torpedoes", "salvo"], "price": 1.12 },
+    "st:epsilon": { "title": "Вольная гавань Эпсилона", "hulls": ["cruiser", "dropship", "corsair", "galleon"], "price": 1.15 },
 
     // Поселения (M15). На поверхности снаряжение дешевле, чем на орбите, но выбор беднее: чинят
     // везде, а корпуса продают лишь там, где верфь (см. settlement.shipyard в galaxy.json).
     "pl:terra": { "title": "Порт Новый Порт", "hulls": ["starterTrader"], "price": 0.95 },
     "pl:vegaOne": { "title": "Склад Ледяной Веги", "remove": ["heavyLaser"], "price": 0.93 },
     "pl:alphaTwo": { "title": "Лавка Купола Альфы", "remove": ["cannon"], "price": 0.9 },
-    "pl:tauPrima": { "title": "Верфь Пыльной Гавани", "hulls": ["industrial", "tug"], "items": ["cargoPod", "grapple"], "price": 0.97 },
+    "pl:tauPrima": { "title": "Верфь Пыльной Гавани", "hulls": ["industrial", "tug", "runner"], "items": ["cargoPod", "grapple"], "price": 0.97 },
     "pl:novaGiant": { "title": "Причал Нова-Один", "items": ["cargoPod"], "price": 1.02 },
     // Рудник Прайм (M20a): посёлок шахтёров, а не верфь — чинят и продают самое нужное.
     "pl:novaPrime": { "title": "Склад Рудника Прайм", "items": ["cargoPod", "repair"], "price": 1.0 },
     "pl:castorOre": { "title": "Контора Рудника", "items": ["cargoPod"], "price": 0.92 },
     "pl:barnardGarden": { "title": "Лавка Оранжереи", "items": ["repair"], "price": 1.0 },
-    "pl:sigmaIce": { "title": "Верфь Мороза", "hulls": ["freighter"], "items": ["cooling"], "price": 1.05 },
+    "pl:sigmaIce": { "title": "Верфь Мороза", "hulls": ["freighter", "clipper"], "items": ["cooling"], "price": 1.05 },
     "pl:aldPyre": { "title": "Плавильня", "items": ["railgun", "reactiveArmor"], "price": 1.08 },
-    "pl:edgeAsh": { "title": "Верфь Пепельного Приюта", "hulls": ["frigate", "galleon"], "items": ["torpedoes"], "price": 1.1 }
+    "pl:edgeAsh": { "title": "Верфь Пепельного Приюта", "hulls": ["frigate", "galleon", "lancer", "corsair"], "items": ["torpedoes"], "price": 1.1 }
   }
 }

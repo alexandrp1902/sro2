@@ -49,7 +49,6 @@
 
       <div id="party" class="party sro-pane" hidden></div>
       <div id="invite" class="invite sro-pane sro-dialog" hidden></div>
-      <div id="confirm" class="confirm sro-pane sro-dialog" hidden></div>
       <div id="tips" class="tips sro-pane sro-dialog" hidden></div>
       <!-- Сюжетный диалог (M20a): свой хост, не внутри дока — тот перерисовывается целиком. -->
       <div id="dialog" class="dialog sro-pane sro-dialog" hidden></div>
@@ -78,6 +77,12 @@
     </div>
 
     <div id="dock" class="dock" hidden></div>
+
+    <!--
+      Вопрос «точно?» — вне HUD и после дока: у HUD position: fixed, а это свой слой, и любой z-index
+      внутри него остаётся под экраном дока. А спрашивают теперь и в доке — перед продажей модуля (M20).
+    -->
+    <div id="confirm" class="confirm sro-pane sro-dialog" hidden></div>
 
     <div id="galaxy" class="galaxy" hidden></div>
     <div id="trade" class="trade" hidden></div>

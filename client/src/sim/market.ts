@@ -371,3 +371,43 @@ export function rumourLine(rumour: RumourDto, good: string, seed = ''): string {
   const closer = pick(closers, `${key}|end`).replace('{What}', capitalize(what)).replace('{what}', what);
   return `${rumour.name}. ${opener}, ${reason}. ${closer}`;
 }
+
+/** Как мастер верфи начинает разговор о чужом стапеле. */
+const YARD_OPENERS = [
+  'Слыхал, на верфи',
+  'Знакомый борт передавал: на стапеле',
+  'Говорят, в доке',
+  'Пилоты рассказывают, что у мастеров',
+  'По эфиру передавали: на верфи',
+];
+
+/** Чем он кончает — с оглядкой на то, близко ли туда и по карману ли. */
+const YARD_CLOSERS = [
+  'Дорога неблизкая, но корабль того стоит.',
+  'Кто доберётся, тот и купит.',
+  'Своими глазами не видел, но врать незачем.',
+  'Здесь такого не собирают — не наш профиль.',
+  'Захочешь — слетай, пока не разобрали.',
+];
+
+/** Оборот про расстояние: врать нельзя, а прыжки пилот и сам посчитает по карте. */
+function hopsWord(hops: number): string {
+  if (hops <= 1) return 'это соседняя система';
+  if (hops <= 3) return 'пара прыжков в сторону';
+  return 'лететь через полгалактики';
+}
+
+/**
+ * Что говорит мастер верфи (M20): где стоит корабль, которого у пилота нет. С M20 корпуса продают
+ * не в каждом доке своего региона, а на одной-двух верфях, и без наводки редкий корпус можно не найти
+ * за всю игру. Наводка — именно слух: место названо верно, а цену и дорогу пилот проверит сам.
+ *
+ * @param hull название корпуса из hulls.json — уже в кавычках, как «Улан»
+ * @param seed кто рассказывает — обычно ключ места
+ */
+export function yardLine(rumour: RumourDto, hull: string, seed = ''): string {
+  const key = `${seed}|yard|${rumour.system}|${rumour.good}`;
+  const opener = pick(YARD_OPENERS, `${key}|who`);
+  const closer = pick(YARD_CLOSERS, `${key}|end`);
+  return `${opener} — ${rumour.name} — собирают ${hull}; ${hopsWord(rumour.hops)}. ${closer}`;
+}

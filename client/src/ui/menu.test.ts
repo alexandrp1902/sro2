@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { menuItems } from './menu';
-import { logoutLines } from './confirm';
+import { logoutLines, sellItemLines } from './confirm';
 import { tipLines } from './tips';
 
 describe('menuItems', () => {
@@ -76,5 +76,25 @@ describe('logoutLines', () => {
 
   it('в доке корабль просто остаётся в доке', () => {
     expect(logoutLines(true).text).toBe('Корабль останется в доке.');
+  });
+});
+
+describe('sellItemLines', () => {
+  const money = (value: number) => `${value} кр`;
+
+  it('спрашивает перед продажей и говорит, сколько дадут', () => {
+    const lines = sellItemLines('Ускоритель Mk2', 600, money);
+    expect(lines.title).toBe('Продать?');
+    expect(lines.text).toContain('Ускоритель Mk2');
+    expect(lines.text).toContain('600 кр');
+    expect(lines.yes).toBe('Продать');
+    expect(lines.no).toBe('Отмена');
+  });
+
+  it('чего здесь не покупают, то выбрасывают — и об этом предупреждают отдельно', () => {
+    const lines = sellItemLines('Трофейная пушка', 0, money);
+    expect(lines.title).toBe('Выбросить?');
+    expect(lines.yes).toBe('Выбросить');
+    expect(lines.text).toContain('пропадёт');
   });
 });

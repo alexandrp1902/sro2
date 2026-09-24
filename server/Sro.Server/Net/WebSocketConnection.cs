@@ -237,6 +237,9 @@ public sealed class WebSocketConnection(WebSocket socket, ILogger log) : IClient
                 case FitMsg fit when joined:
                     room.Fit(this, fit.Slot, fit.Id);
                     break;
+                case FitAllMsg all when joined:
+                    room.FitAll(this, all.Mode, all.Hull);
+                    break;
                 case SellItemMsg sell when joined:
                     room.SellItem(this, sell.Id);
                     break;

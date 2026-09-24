@@ -16,6 +16,7 @@ import {
   tradeCost,
   trades,
   trend,
+  yardLine,
   type MarketRules,
 } from './market';
 
@@ -244,5 +245,31 @@ describe('слухи торговца', () => {
     const line = rumourLine({ kind: 'route', good: 'ghost', system: 'x', name: 'X', hops: 7, price: 10, scarce: true }, 'Нечто');
     expect(line).toContain('X');
     expect(line.toLowerCase()).toContain('нечто');
+  });
+});
+
+describe('слух мастера верфи', () => {
+  const lancer = { kind: 'yard', good: 'lancer', system: 'aldebaran', name: 'Крепость Альдебарана', hops: 3, price: 24000 } as const;
+
+  it('называет место и корабль', () => {
+    const line = yardLine(lancer, '«Улан»', 'st:sol');
+    expect(line).toContain('Крепость Альдебарана');
+    expect(line).toContain('«Улан»');
+  });
+
+  it('цены не называет: её пилот увидит на месте', () => {
+    expect(yardLine(lancer, '«Улан»', 'st:sol')).not.toMatch(/\d/);
+  });
+
+  it('о расстоянии говорит словами, и чем дальше, тем честнее', () => {
+    expect(yardLine({ ...lancer, hops: 1 }, '«Улан»', 'st:sol')).toContain('соседняя система');
+    expect(yardLine({ ...lancer, hops: 5 }, '«Улан»', 'st:sol')).toContain('полгалактики');
+  });
+
+  it('у разных мастеров про один корабль — разные истории, у одного — всегда одна', () => {
+    const lines = new Set<string>();
+    for (let i = 0; i < 40; i++) lines.add(yardLine(lancer, '«Улан»', `st:place${i}`));
+    expect(lines.size).toBeGreaterThan(5);
+    expect(yardLine(lancer, '«Улан»', 'st:vega')).toBe(yardLine(lancer, '«Улан»', 'st:vega'));
   });
 });

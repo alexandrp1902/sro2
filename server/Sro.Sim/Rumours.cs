@@ -37,6 +37,13 @@ public sealed record Rumour(
     int Profit = 0,
     bool Scarce = false);
 
+/// <summary>Корпус на чужой верфи и его цена там (M20).</summary>
+public readonly record struct YardHull(string Hull, int Price);
+
+/// <summary>Верфь глазами соседей: где она, как далеко и какие корпуса там на стапеле (M20).</summary>
+/// <param name="Hops">Сколько прыжков отсюда; 0 — это здешняя система.</param>
+public sealed record StationYard(string System, string Name, int Hops, IReadOnlyList<YardHull> Hulls, string? Place = null);
+
 /// <summary>
 /// О чём торговец судачит в доке (M12). Слухи берутся из настоящих цен соседних станций, а не выдумываются:
 /// иначе они были бы шумом, а подсказка, которой нельзя верить, хуже, чем никакой.
@@ -51,6 +58,12 @@ public static class Rumours
     /// <summary>Там этого навалом и дёшево — есть смысл слетать за ним.</summary>
     public const string GlutKind = "glut";
 
+    /// <summary>Там, на чужой верфи, стоит корпус, которого у пилота нет (M20). Good — id корпуса.</summary>
+    public const string YardKind = "yard";
+
+    /// <summary>Во сколько раз корпус может быть дороже кошелька, чтобы про него ещё стоило рассказывать как о близкой цели.</summary>
+    private const int DreamShare = 3;
+
     /// <summary>Запас ниже этой доли нормы — там дефицит, и об этом говорят.</summary>
     private const double ScarceShare = 0.6;
 
@@ -59,6 +72,41 @@ public static class Rumours
 
     /// <summary>Дальше этого торговцы новостей не собирают: слух про край галактики бесполезен.</summary>
     private const int MaxHops = 5;
+
+    /// <summary>
+    /// Про какую чужую верфь рассказать мастеру (M20). С M20 корпуса стоят не в каждом доке своего
+    /// региона, а на одной-двух верфях, и без наводки «Улан» можно не найти за всю игру. Но и наводка
+    /// не должна быть каталогом: называем один корабль — тот, до которого пилоту ближе всего дотянуться.
+    ///
+    /// Сначала то, на что уже хватает кредитов (из них — самое дорогое: это и есть следующий корабль),
+    /// потом то, что ещё по карману в обозримом будущем, и только потом остальное. При равном — что ближе.
+    /// </summary>
+    /// <param name="skip">
+    /// Корпуса, про которые рассказывать нечего: они уже в ангаре или стоят на здешней верфи —
+    /// советовать лететь за тем, что продают в этом же доке, мастер не станет.
+    /// </param>
+    /// <param name="credits">Кошелёк пилота.</param>
+    /// <returns>null — рассказывать не о чем: все соседние верфи торгуют тем, что уже в ангаре.</returns>
+    public static Rumour? Yard(IReadOnlyCollection<string> skip, int credits, IEnumerable<StationYard> yards)
+    {
+        Rumour? best = null;
+        var bestKey = (Reach: 0, Hops: 0, Tie: 0L, Hull: "");
+        foreach (var yard in yards)
+        {
+            if (yard.Hops <= 0 || yard.Hops > MaxHops) continue;
+            foreach (var (hull, price) in yard.Hulls)
+            {
+                if (skip.Contains(hull)) continue;
+                var reach = price <= credits ? 0 : price <= (long)credits * DreamShare ? 1 : 2;
+                // По карману — сперва дорогое (мечта ближе к делу), не по карману — сперва дешёвое.
+                var key = (reach, yard.Hops, reach == 0 ? -(long)price : price, hull);
+                if (best is not null && key.CompareTo(bestKey) >= 0) continue;
+                best = new Rumour(YardKind, hull, yard.System, yard.Name, yard.Hops, price);
+                bestKey = key;
+            }
+        }
+        return best;
+    }
 
     /// <summary>
     /// Что рассказать пилоту, который стоит на станции here. Сначала самый выгодный маршрут отсюда,

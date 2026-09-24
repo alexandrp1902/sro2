@@ -46,6 +46,9 @@ public interface IRoomHost
     /// Читается с потока тика, как и всё остальное, — комнаты живут в одном потоке.
     /// </summary>
     IReadOnlyList<StationPrices> MarketsExcept(string system);
+
+    /// <summary>Верфи остальных систем и корпуса на них (M20): по ним мастер советует, куда лететь за кораблём.</summary>
+    IReadOnlyList<StationYard> YardsExcept(string system);
 }
 
 /// <summary>
@@ -244,6 +247,21 @@ public sealed partial class Galaxy : IRoomHost
             var hops = MissionRules.Hops(galaxy, system, id);
             if (hops is not { } jumps) continue; // отрезанная система: туда и не долететь
             foreach (var place in places) list.Add(place with { Hops = jumps });
+        }
+        return list;
+    }
+
+    public IReadOnlyList<StationYard> YardsExcept(string system)
+    {
+        var galaxy = Balance.Galaxy;
+        var list = new List<StationYard>();
+        foreach (var (id, room) in _rooms)
+        {
+            if (id == system) continue;
+            var yards = room.Yards();
+            if (yards.Count == 0) continue;
+            if (MissionRules.Hops(galaxy, system, id) is not { } jumps) continue; // отрезанная система
+            foreach (var yard in yards) list.Add(yard with { Hops = jumps });
         }
         return list;
     }

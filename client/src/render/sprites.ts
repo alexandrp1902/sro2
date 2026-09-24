@@ -11,14 +11,11 @@ export type SpriteName = keyof typeof meta;
 export interface SpriteSize {
   w: number;
   h: number;
-  /** У кораблей: где кончается корпус и начинается пламя, px сверху. */
+  /** У кораблей с нарисованным пламенем: где кончается сам корпус, px сверху. По нему центр и масштаб. */
   body?: number;
 }
 
 const textures = new Map<string, Texture>();
-
-/** Корабли режутся на корпус и пламя: пламя — отдельная текстура «…-flame». */
-const FLAMES = (Object.keys(meta) as SpriteName[]).filter((name) => 'body' in meta[name]).map((name) => `${name}-flame`);
 
 /** Адрес картинки — и для DOM (иконки в доке): путь относительный, как и base сборки. */
 export function spriteUrl(name: string): string {
@@ -39,7 +36,8 @@ export function texture(name: string): Texture {
 }
 
 export async function loadSprites(): Promise<void> {
-  const names = [...Object.keys(meta), ...FLAMES];
+  // Кадры «…-flame» больше не грузим: с M20 факел рисуется по точкам сопел (render/exhaust.ts).
+  const names = Object.keys(meta);
   // Мипмапы: корабль в 256 px на мелком зуме рисуется в 30 — без них края рябят.
   const loaded = await Assets.load(names.map((name) => ({ alias: name, src: spriteUrl(name), data: { autoGenerateMipmaps: true } })));
   for (const name of names) textures.set(name, loaded[name] as Texture);
@@ -70,15 +68,6 @@ export function shipSprite(hull: string, role: ShipRole | null = null): SpriteNa
   if (role) return ROLE_SPRITES[role];
   const name = `ships-${hull}`;
   return name in meta ? (name as SpriteName) : 'ships-light';
-}
-
-/**
- * Имя текстуры пламени; null — нарисованного кадра у этого корабля нет, и факел рисует код
- * (render/flame.ts, M15.6). Кадр есть только у тех спрайтов, которые нарезка разделила на корпус
- * и пламя, то есть у трёх старых корпусов: своего арта пламени не заказано и в манифесте его нет.
- */
-export function flameSprite(sprite: SpriteName): string | null {
-  return 'body' in meta[sprite] ? `${sprite}-flame` : null;
 }
 
 /** Предметы, чья картинка на листе названа иначе: tech в loot.json — «Плазменный компонент». */

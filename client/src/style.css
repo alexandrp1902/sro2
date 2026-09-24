@@ -501,7 +501,10 @@ body {
   pointer-events: auto;
 }
 
+/* Вопрос живёт вне HUD (см. index.html) и работает поверх дока: там его задаёт продажа модуля (M20). */
 .confirm {
+  position: fixed;
+  z-index: 50;
   max-width: min(360px, calc(100vw - 32px));
 }
 
@@ -1510,7 +1513,8 @@ body {
 }
 
 .dock-row:has(> .dock-icon) > .dock-buy,
-.dock-row:has(> .dock-icon) > .dock-tag {
+.dock-row:has(> .dock-icon) > .dock-tag,
+.dock-row:has(> .dock-icon) > .dock-row-actions {
   grid-column: 3;
 }
 
@@ -1519,7 +1523,8 @@ body {
 }
 
 .dock-row > .dock-buy,
-.dock-row > .dock-tag {
+.dock-row > .dock-tag,
+.dock-row > .dock-row-actions {
   grid-column: 2;
   grid-row: 1 / span 2;
 }
@@ -1876,10 +1881,23 @@ body {
   margin-left: 0;
 }
 
-.dock-fitted > .dock-link {
+/* Кнопки оснащения пачкой (M20): «Снять» и «Снять все» под выбранным слотом, «Поставить все» — под складом. */
+.dock-fitted-actions {
   display: flex;
-  justify-content: flex-start;
+  flex-wrap: wrap;
+  gap: 6px;
   margin: 6px 0 0;
+}
+
+/*
+ * Кнопки строки: «Поставить» и «Продать» у склада, «Сесть» и «Снять всё» у корабля в ангаре.
+ * Столбцом, а не в ряд: две кнопки рядом отжимают название предмета в узкую колонку, и оно рассыпается.
+ */
+.dock-row-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 4px;
 }
 
 /* Витрина выбранного слота — обычным списком: она больше не вложена в строку слота. */

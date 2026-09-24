@@ -127,6 +127,23 @@ public sealed partial class Room
         return list;
     }
 
+    /// <summary>Верфи этой системы и корпуса на них — соседям, для слуха мастера (M20).</summary>
+    public IReadOnlyList<StationYard> Yards()
+    {
+        var list = new List<StationYard>();
+        foreach (var place in Balance.Places)
+        {
+            // Корпуса продают только там, где верфь: в лавке поселения их негде собирать (M15).
+            if (!place.Shipyard) continue;
+            var shop = Balance.ShopAt(place.Key);
+            var hulls = new List<YardHull>();
+            foreach (var id in Hulls.Keys.Order(StringComparer.Ordinal))
+                if (shop.SellsHull(id) && shop.HullPrice(id) is { } price) hulls.Add(new YardHull(id, price));
+            if (hulls.Count > 0) list.Add(new StationYard(SystemId, place.Name, 0, hulls, place.Key));
+        }
+        return list;
+    }
+
     /// <summary>
     /// О чём здесь судачат. Торговец рассказывает одну историю — ту, что выгоднее прочих: список из трёх
     /// читался как прайс-лист, а не как разговор. Считается один раз, на стыковке: слух — это то, что пилот
@@ -136,9 +153,20 @@ public sealed partial class Room
     {
         player.Rumours = [];
         if (_host is null || PlaceOf(player) is not { } place) return;
+        var talk = new List<Rumour>();
         var here = Prices().FirstOrDefault(p => p.Place == place.Key);
-        if (here is null || here.Prices.Count == 0) return;
-        player.Rumours = Rumours.Pick(here, _host.MarketsExcept(SystemId), count: 1);
+        if (here is not null && here.Prices.Count > 0) talk.AddRange(Rumours.Pick(here, _host.MarketsExcept(SystemId), count: 1));
+        // Мастер верфи говорит о своём — где стоят корабли, которых у пилота нет (M20). Его слух живёт
+        // рядом с торговым: оба услышаны на стыковке, и оба — про то, ради чего стоит лететь дальше.
+        // Про то, что стоит на здешнем же стапеле, он молчит: это не наводка, а показ пальцем на витрину.
+        if (place.Shipyard && !player.IsGuest)
+        {
+            var local = Balance.ShopAt(place.Key);
+            var known = new HashSet<string>(player.Hulls, StringComparer.Ordinal);
+            foreach (var id in Hulls.Keys) if (local.SellsHull(id)) known.Add(id);
+            if (Rumours.Yard(known, player.Credits, _host.YardsExcept(SystemId)) is { } yard) talk.Add(yard);
+        }
+        player.Rumours = talk;
     }
 
     /// <summary>Цены изменились — обновить их у всех, кто сейчас в доке. В космосе рынок не нужен.</summary>

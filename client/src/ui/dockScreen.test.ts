@@ -3,7 +3,11 @@ import type { LootRules } from '../sim/loot';
 import type { MarketRules } from '../sim/market';
 import type { HullParams } from '../sim/movement';
 import type { ReputationRules } from '../sim/reputation';
+import type { ModuleConfig, ShipFit } from '../sim/fitting';
+import type { WeaponConfig } from '../sim/combat';
 import {
+  canFillSlots,
+  canStrip,
   clampQty,
   hullSlotViews,
   maxBuyable,
@@ -238,3 +242,47 @@ describe('sceneUrl', () => {
   });
 });
 
+describe('оснащение пачкой', () => {
+  const hull = { class: 'S', weaponSlots: ['S', 'M'], utilitySlots: 1 } as HullParams;
+  const slots = hullSlotViews(hull, true);
+  const weapons = {
+    pulse: { class: 'S', power: 10 },
+    heavy: { class: 'L', power: 10 },
+  } as unknown as WeaponConfig;
+  const modules: ModuleConfig = {
+    engineS: { name: 'Двигатель S', slot: 'engine', class: 'S', power: 5 },
+    radarS: { name: 'Радар S', slot: 'radar', class: 'S', power: 5 },
+    generatorS: { name: 'Генератор S', slot: 'generator', class: 'S', output: 60 },
+    shieldS: { name: 'Щит S', slot: 'shield', class: 'S', power: 10, shield: 150 },
+    shieldL: { name: 'Щит L', slot: 'shield', class: 'L', power: 30, shield: 500 },
+    repair: { name: 'Ремкомплект', slot: 'utility', class: 'S', power: 5, repair: 2 },
+  };
+  const bare: ShipFit = { weapons: [], engine: 'engineS', radar: 'radarS', generator: 'generatorS' };
+
+  it('снимать нечего, пока на корабле только то, без чего он не летает', () => {
+    expect(canStrip(bare, slots)).toBe(false);
+    expect(canStrip({ ...bare, shield: 'shieldS' }, slots)).toBe(true);
+    expect(canStrip({ ...bare, weapons: ['pulse'] }, slots)).toBe(true);
+    expect(canStrip({ ...bare, utility: ['repair'] }, slots)).toBe(true);
+  });
+
+  it('ставить нечего, когда склад пуст или не подходит по классу', () => {
+    expect(canFillSlots(hull, bare, slots, [], weapons, modules)).toBe(false);
+    // Корпус класса S: щит L в него не встанет, а пушка L — не в его слоты.
+    expect(canFillSlots(hull, bare, slots, ['shieldL', 'heavy'], weapons, modules)).toBe(false);
+    expect(canFillSlots(hull, bare, slots, ['shieldS'], weapons, modules)).toBe(true);
+  });
+
+  it('занятые слоты не считаются: «поставить все» их не трогает', () => {
+    const full: ShipFit = { ...bare, weapons: ['pulse', 'pulse'], shield: 'shieldS', utility: ['repair'] };
+    expect(canFillSlots(hull, full, slots, ['shieldS', 'pulse'], weapons, modules)).toBe(false);
+  });
+
+  it('энергия считается как на сервере: что не влезает, то и не предлагают', () => {
+    // Генератор даёт 60: двигатель 5 + радар 5 + две пушки по 10 + щит 10 = 40, ремкомплект 5 — влезает.
+    const armed: ShipFit = { ...bare, weapons: ['pulse', 'pulse'], shield: 'shieldS' };
+    expect(canFillSlots(hull, armed, slots, ['repair'], weapons, modules)).toBe(true);
+    const hungry: ModuleConfig = { ...modules, repair: { ...modules.repair, power: 100 } };
+    expect(canFillSlots(hull, armed, slots, ['repair'], weapons, hungry)).toBe(false);
+  });
+});

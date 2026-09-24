@@ -313,6 +313,9 @@ public sealed partial class Room
             if (id == player.HullId) continue;
             var saved = profile?.Ships?.GetValueOrDefault(id);
             player.HullPlaces[id] = Balance.Galaxy.HasPlace(saved) ? saved! : player.HomePlace ?? PlaceKey.Station(SystemId);
+            // Чем снаряжён каждый корабль ангара (M20). Профиль старше M20 этого не знает: такие корабли
+            // голые, и пилот оденет их сам — то, что на них стояло, лежит на складе с прошлой пересадки.
+            if (profile?.Fits?.GetValueOrDefault(id) is { } fit) player.HullFits[id] = fit;
         }
         // Обучение — только новому пилоту (GDD §54): профиль старше M8 считается прошедшим его.
         player.Missions.Tutorial = TutorialFrom(profile, player.Career);
@@ -767,6 +770,134 @@ public sealed partial class Room
         SendHangar(player);
         Save(player);
         _log.LogInformation("Player {Id} fitted {Item} into {Slot}", player.Id, id ?? "nothing", slot);
+    }
+
+    /// <summary>
+    /// Оснащение пачкой (M20): снять с корабля всё на склад или заполнить пустые слоты тем, что на складе
+    /// лежит. Ручная развеска по одному модулю была главной работой в доке, а после покупки корпуса —
+    /// единственной: новый корабль приходит голым, и одеть его надо целиком.
+    ///
+    /// Снять можно и с корабля, который стоит в этом же доке: слазить за модулями в ангар — то же самое,
+    /// что снять их со своего, только корабль под рукой, а не под пилотом.
+    /// </summary>
+    /// <param name="mode"><see cref="Protocol.StripFit"/> или <see cref="Protocol.FillFit"/>.</param>
+    /// <param name="hullId">Корпус из ангара, стоящий здесь; null — тот, под которым пилот сидит.</param>
+    public void FitAll(IClientConnection connection, string? mode, string? hullId = null)
+    {
+        if (!_byConnection.TryGetValue(connection.Id, out var player)) return;
+        // Пачкой работают только со складом: гостю его негде держать, и снятое пропало бы.
+        if (player.IsGuest || !player.Docked) return;
+        if (hullId is not null)
+        {
+            StripParked(connection, player, mode, hullId);
+            return;
+        }
+        var changed = mode switch
+        {
+            Protocol.StripFit => Strip(player, player.Hull(Hulls), player.Fit) is var (fit, taken) && taken > 0 ? fit : null,
+            Protocol.FillFit => Fill(player, player.Hull(Hulls), player.Fit),
+            _ => null,
+        };
+        if (changed is null)
+        {
+            connection.Send(new NoticeMsg(Protocol.NothingToFitNotice));
+            return;
+        }
+        Refit(player, changed);
+        SendCargo(player);
+        SendHangar(player);
+        Save(player);
+        _log.LogInformation("Player {Id} {Mode} the whole fit", player.Id, mode);
+    }
+
+    /// <summary>Раздеть корабль из ангара: он должен стоять здесь же и на месте с верфью — двигать чужое железо негде.</summary>
+    private void StripParked(IClientConnection connection, Player player, string? mode, string hullId)
+    {
+        if (mode != Protocol.StripFit || !player.OwnsHull(hullId) || !Hulls.TryGetValue(hullId, out var hull)) return;
+        if (PlaceOf(player) is not { } here || !here.Shipyard)
+        {
+            connection.Send(new NoticeMsg(Protocol.NoShipyardNotice));
+            return;
+        }
+        if (player.HullPlaces.GetValueOrDefault(hullId) != here.Key)
+        {
+            connection.Send(new NoticeMsg(Protocol.ShipElsewhereNotice));
+            return;
+        }
+        var (fit, taken) = Strip(player, hull, player.HullFits.GetValueOrDefault(hullId, Fitting.Empty));
+        if (taken == 0)
+        {
+            connection.Send(new NoticeMsg(Protocol.NothingToFitNotice));
+            return;
+        }
+        // Приводим к корпусу тут же: пилот сядет в него когда-нибудь потом, а пустые обязательные слоты
+        // должны закрыться стартовыми модулями сразу — иначе в ангаре стоял бы корабль без двигателя.
+        player.HullFits[hullId] = Fitting.Refit(hull, fit, Balance.Weapons, Balance.Modules);
+        SendCargo(player);
+        SendHangar(player);
+        Save(player);
+        _log.LogInformation("Player {Id} stripped parked {Hull}: {Taken} items", player.Id, hullId, taken);
+    }
+
+    /// <summary>
+    /// Всё снаряжение — на склад, кроме обязательного: без двигателя, радара и генератора корабль не летает,
+    /// и «снять всё» не должно оставлять его в доке навсегда.
+    /// </summary>
+    private (ShipFit Fit, int Taken) Strip(Player player, HullParams hull, ShipFit fit)
+    {
+        var taken = 0;
+        foreach (var slot in SlotsOf(hull))
+        {
+            if (Fitting.RequiredSlots.Contains(slot) || fit.Get(slot) is not { } id) continue;
+            player.Store(id);
+            fit = fit.With(slot, null);
+            taken++;
+        }
+        return (fit, taken);
+    }
+
+    /// <summary>
+    /// Пустые слоты — тем, что лежит на складе: в каждый встаёт лучшее из подходящего, лучшее — самое дорогое
+    /// по прайсу. Занятые слоты не трогаем: то, что пилот поставил сам, кнопка «поставить всё» менять не должна.
+    /// </summary>
+    /// <returns>null — ставить было нечего.</returns>
+    private ShipFit? Fill(Player player, HullParams hull, ShipFit fit)
+    {
+        var shop = Balance.Economy;
+        var put = 0;
+        // Сперва модули, потом пушки: энергии на всё может не хватить, и щит важнее лишнего ствола —
+        // без него корабль просто мягче, а без пушки он ещё и никого не убьёт, но живым вернётся.
+        foreach (var slot in Fitting.ModuleSlots.Concat(SlotsOf(hull).Where(s => !Fitting.ModuleSlots.Contains(s))))
+        {
+            if (fit.Get(slot) is not null) continue;
+            string? best = null;
+            var bestPrice = -1;
+            foreach (var (id, count) in player.Storage)
+            {
+                if (count <= 0 || id == best) continue;
+                if (Fitting.CanInstall(hull, fit, slot, id, Balance.Weapons, Balance.Modules) is not null) continue;
+                var price = shop.ItemPrice(id) ?? 0;
+                // Равные по цене — по имени: иначе порядок зависел бы от того, как лёг словарь склада.
+                if (price > bestPrice || (price == bestPrice && string.CompareOrdinal(id, best) < 0))
+                {
+                    best = id;
+                    bestPrice = price;
+                }
+            }
+            if (best is null) continue;
+            player.Unstore(best);
+            fit = fit.With(slot, best);
+            put++;
+        }
+        return put > 0 ? fit : null;
+    }
+
+    /// <summary>Все слоты корпуса по порядку: пушки, модули, вспомогательные.</summary>
+    private static IEnumerable<string> SlotsOf(HullParams hull)
+    {
+        for (var i = 0; i < hull.Slots.Count; i++) yield return Fitting.WeaponSlot(i);
+        foreach (var slot in Fitting.ModuleSlots) yield return slot;
+        for (var i = 0; i < hull.UtilitySlots; i++) yield return Fitting.UtilitySlot(i);
     }
 
     /// <summary>Поставить пушку в первый слот одной командой — гостю любую, пилоту — со склада.</summary>
@@ -1697,8 +1828,11 @@ public sealed partial class Room
     }
 
     /// <summary>
-    /// Смена корпуса: оснащение переходит на новый, что не влезло по слотам, классу или энергии — на склад;
-    /// в меньший бак больше не влезет.
+    /// Смена корпуса. С M20 оснащение не переезжает: прежний корабль остаётся в ангаре таким, каким
+    /// его оставили, а новый берёт своё — то, что на нём стояло, когда с него сходили. У только что
+    /// купленного не стояло ничего, и <see cref="Fitting.Refit"/> добивает обязательные слоты стартовыми
+    /// модулями: новый корабль всегда может взлететь, а хорошее железо пилот переставляет сам.
+    /// Гостю оснащение по-прежнему переезжает: склада у него нет, и снятое было бы некуда положить.
     /// </summary>
     private void ChangeHull(Player player, string hullId)
     {
@@ -1708,9 +1842,15 @@ public sealed partial class Room
         if (PlaceOf(player) is { } here) player.HullPlaces[player.HullId] = here.Key;
         player.HullPlaces.Remove(hullId);
         var from = player.Effective(Balance);
+        var fit = player.Fit;
+        if (!player.IsGuest)
+        {
+            player.HullFits[player.HullId] = player.Fit;
+            fit = player.HullFits.Remove(hullId, out var saved) ? saved : Fitting.Empty;
+        }
         player.HullId = hullId;
         var removed = new List<string>();
-        player.Fit = Fitting.Refit(player.Hull(Hulls), player.Fit, Balance.Weapons, Balance.Modules, removed);
+        player.Fit = Fitting.Refit(player.Hull(Hulls), fit, Balance.Weapons, Balance.Modules, removed);
         if (!player.IsGuest) foreach (var id in removed) player.Store(id);
         player.Rescale(from, player.Effective(Balance));
     }
@@ -2394,7 +2534,8 @@ public sealed partial class Room
             Balance.Modules is null ? 0 : (int)Math.Round(Fitting.Output(player.Fit, Balance.Modules)),
             player.IsGuest,
             PlaceOf(player) is { } place ? new PlaceDto(place.Key, place.Kind, place.Name, place.Scene, place.Shipyard) : null,
-            player.HullPlaces.Count == 0 ? null : new SortedDictionary<string, string>(player.HullPlaces, StringComparer.Ordinal)));
+            player.HullPlaces.Count == 0 ? null : new SortedDictionary<string, string>(player.HullPlaces, StringComparer.Ordinal),
+            player.HullFits.Count == 0 ? null : new SortedDictionary<string, ShipFit>(player.HullFits, StringComparer.Ordinal)));
     }
 
     /// <summary>Кредиты пилоту за вторжение: сразу в аккаунт и клиенту.</summary>
@@ -2434,6 +2575,7 @@ public sealed partial class Room
             Place: player.HomePlace,
             Career: player.Career,
             Ships: player.HullPlaces.Count == 0 ? null : new SortedDictionary<string, string>(player.HullPlaces, StringComparer.Ordinal),
+            Fits: player.HullFits.Count == 0 ? null : new SortedDictionary<string, ShipFit>(player.HullFits, StringComparer.Ordinal),
             Hp: player.Hp,
             Story: SaveStory(player)));
     }

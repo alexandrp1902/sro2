@@ -274,9 +274,11 @@ export function runDemo(screen: string): void {
       sellShare: 0.5,
     };
     const screen = new DockScreen(el('dock'), hulls, weapons, modules, {
-      onSell: noop, onBuyGoods: noop, onBuy: noop, onEquip: noop, onTransport: noop, onFit: noop, onSellItem: noop, onSellGear: noop,
-      onRepair: noop, onUndock: noop, onMenu: (anchor) => menu.toggleAt(anchor), onAccept: noop, onAbandon: noop,
-      onComplete: noop, onSkipTutorial: noop,
+      onSell: noop, onBuyGoods: noop, onBuy: noop, onEquip: noop, onTransport: noop, onFit: noop, onFitAll: noop,
+      onSellItem: noop, onSellGear: noop, onRepair: noop, onUndock: noop, onMenu: (anchor) => menu.toggleAt(anchor),
+      onAccept: noop, onAbandon: noop, onComplete: noop, onSkipTutorial: noop,
+      // Витрина ничего не делает, но вопрос показать должна: на нём проверяют карточку поверх дока.
+      onConfirm: (lines, yes) => confirm.ask(lines, yes),
     }, NAMES);
     screen.setRules(loot, shop, {}, REP_RULES);
     screen.setGalaxy(GALAXY);
@@ -302,7 +304,9 @@ export function runDemo(screen: string): void {
       maxHp: 150,
       power: 7,
       powerMax: 10,
-      ships: { [hulls.ids()[1]]: 'st:vega' },
+      ships: { [hulls.ids()[1]]: 'st:sol' },
+      // Второй корабль стоит здесь же и одет (M20): в ангаре у него своя кнопка «Снять всё».
+      fits: { [hulls.ids()[1]]: { ...fit, shield: modules.ids().find((id) => modules.get(id)?.slot === 'shield') ?? null } },
       place: { key: 'st:sol', kind: 'st', name: 'Гавань Сол', scene: 'ring', shipyard: true },
     };
     const missions: MissionsMsg = {
@@ -358,7 +362,11 @@ export function runDemo(screen: string): void {
         // А это — груз здешнего задания «собрать»: запас виден, купить нельзя.
         { id: 'crystals', buy: 104, sell: 96, stock: 4, norm: 30, sells: false },
       ],
-      rumours: [{ kind: 'route', good: 'crystals', system: 'vega', name: 'Вега', hops: 1, price: 120, profit: 45 }],
+      rumours: [
+        { kind: 'route', good: 'crystals', system: 'vega', name: 'Вега', hops: 1, price: 120, profit: 45 },
+        // Слух мастера верфи (M20): его видно на вкладке «Корабли», торговец про него молчит.
+        { kind: 'yard', good: hulls.ids()[3] ?? 'lancer', system: 'aldebaran', name: 'Крепость Альдебарана', hops: 3, price: 24000 },
+      ],
       station: { produces: ['metal', 'ore'], consumes: ['crystals'] } as MarketMsg['station'],
       demand: { case: 'uprising', title: 'Восстание на Терре', goods: ['energy'], mul: 1.8, left: 30, quota: 40 },
     };

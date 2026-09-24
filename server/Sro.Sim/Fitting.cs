@@ -291,6 +291,12 @@ public static class Fitting
     public static readonly ShipFit Starter = new(
         [SimConfig.DefaultWeapon], StarterEngine, StarterShield, StarterRadar, StarterGenerator);
 
+    /// <summary>
+    /// Голый корпус (M20): на нём нет ничего. Через <see cref="Refit"/> он получает стартовые двигатель,
+    /// радар и генератор — самое дешёвое из обязательного, — и с этого начинается только что купленный корабль.
+    /// </summary>
+    public static readonly ShipFit Empty = new([]);
+
     /// <summary>Модуль, который ставится взамен, если обязательный слот опустел (модуль убрали из баланса или он не влез в корпус).</summary>
     public static string? StarterFor(string slot) => slot switch
     {

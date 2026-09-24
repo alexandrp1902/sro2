@@ -11,7 +11,7 @@ import type { ReputationRules } from '../sim/reputation';
 import type { ShopRules } from '../sim/shop';
 
 /** Версия протокола; зеркало Protocol.Version на сервере. Сервер другой версии (или старый, без поля) — не играем. */
-export const PROTOCOL_VERSION = 30;
+export const PROTOCOL_VERSION = 31;
 
 /** Состояние ИИ пирата: патруль, бой, возврат в логово (налётчик — полёт от врат к точке), уход из системы. */
 export type AiState = 'patrol' | 'attack' | 'return' | 'leave';
@@ -48,6 +48,11 @@ export type ClientMessage =
   | { t: 'weapon'; id: string }
   /** Поставить в слот пушку или модуль со склада; id = null — снять на склад. */
   | { t: 'fit'; slot: string; id: string | null }
+  /**
+   * Оснащение пачкой (M20): «снять всё» на склад и «поставить всё» со склада в пустые слоты.
+   * hull — корабль из ангара, стоящий здесь же; нет поля — тот, под которым пилот сидит (только для strip).
+   */
+  | { t: 'fitAll'; mode: 'strip' | 'fill'; hull?: string }
   /** Продать со склада пушку или модуль — за долю цены; id = null — весь склад разом (M16a). */
   | { t: 'sellItem'; id: string | null }
   | { t: 'name'; name: string }
@@ -528,6 +533,11 @@ export interface HangarMsg {
    * у гостя пусто. Имена мест и их систем клиент уже знает из карты галактики.
    */
   ships?: Record<string, string> | null;
+  /**
+   * Чем снаряжён каждый корабль ангара (M20): id корпуса → оснащение. Активного здесь нет — он в fit.
+   * По нему видно, есть ли что снимать с корабля, стоящего рядом.
+   */
+  fits?: Record<string, ShipFit> | null;
   /** Гость: склада нет, ставить можно что угодно где угодно. */
   guest?: boolean;
   /** Где корабль стоит (M15); нет — в космосе. */
@@ -589,15 +599,16 @@ export interface MarketItemDto {
 
 /** Слух торговца (M12): куда везти товар или где его дёшево взять. Текст собираем сами (sim/market.ts). */
 export interface RumourDto {
-  /** route — брать здесь и везти туда; glut — там этого навалом и дёшево. */
-  kind: 'route' | 'glut';
+  /** route — брать здесь и везти туда; glut — там этого навалом и дёшево; yard — там верфь с чужим корпусом (M20). */
+  kind: 'route' | 'glut' | 'yard';
+  /** Товар из loot.json, а у yard — id корпуса. */
   good: string;
   system: string;
   /** Название той системы: на экране дока взять его больше неоткуда. */
   name: string;
   /** Сколько туда прыжков. */
   hops: number;
-  /** Цена штуки там. */
+  /** Цена штуки там; у yard — цена корпуса на той верфи. */
   price: number;
   /** Сколько выходит с штуки при route. */
   profit?: number;

@@ -94,6 +94,8 @@ public sealed class GalaxyHost : BackgroundService
 
     public void Fit(IClientConnection connection, string? slot, string? id) => With(connection, r => r.Fit(connection, slot, id));
 
+    public void FitAll(IClientConnection connection, string? mode, string? hull) => With(connection, r => r.FitAll(connection, mode, hull));
+
     public void SellItem(IClientConnection connection, string? id) => With(connection, r => r.SellItem(connection, id));
 
     public void Repair(IClientConnection connection) => With(connection, r => r.Repair(connection));

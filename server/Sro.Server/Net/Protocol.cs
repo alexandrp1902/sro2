@@ -16,6 +16,7 @@ namespace Sro.Server.Net;
 [JsonDerivedType(typeof(TransportMsg), "transport")]
 [JsonDerivedType(typeof(WeaponMsg), "weapon")]
 [JsonDerivedType(typeof(FitMsg), "fit")]
+[JsonDerivedType(typeof(FitAllMsg), "fitAll")]
 [JsonDerivedType(typeof(SellItemMsg), "sellItem")]
 [JsonDerivedType(typeof(NameMsg), "name")]
 [JsonDerivedType(typeof(TargetMsg), "target")]
@@ -103,6 +104,17 @@ public sealed record WeaponMsg(string? Id) : ClientMessage;
 /// </summary>
 /// <param name="Slot">w0…w5 — оружейные слоты, engine, shield, radar, tank, generator — модули.</param>
 public sealed record FitMsg(string? Slot, string? Id = null) : ClientMessage;
+
+/// <summary>
+/// Оснащение пачкой (M20): «снять всё» и «поставить всё» одной кнопкой. Ручная развеска каждого
+/// модуля по очереди была главной работой в доке, а после покупки корпуса — единственной.
+/// </summary>
+/// <param name="Mode"><see cref="Protocol.StripFit"/> — снять всё на склад, <see cref="Protocol.FillFit"/> — заполнить пустые слоты со склада.</param>
+/// <param name="Hull">
+/// Чей корабль раздеть: id корпуса из ангара, стоящего здесь же. null — тот, под которым пилот сидит.
+/// Только для «снять всё»: одевают всегда свой корабль.
+/// </param>
+public sealed record FitAllMsg(string? Mode, string? Hull = null) : ClientMessage;
 
 /// <summary>Продать со склада пушку или модуль (в доке) — за долю цены. Id = null — весь склад разом (M16a).</summary>
 public sealed record SellItemMsg(string? Id) : ClientMessage;
@@ -420,6 +432,10 @@ public sealed record DeniedMsg(string Code) : ServerMessage;
 /// Где стоят остальные корпуса ангара (M15.6): id → ключ места. Активного здесь нет, у гостя пусто.
 /// Имена мест и их систем клиент уже знает из <see cref="GalaxyDto"/>, поэтому едут только ключи.
 /// </param>
+/// <param name="Fits">
+/// Чем снаряжён каждый корабль ангара (M20): id корпуса → его оснащение. Активного здесь нет — он в
+/// <paramref name="Fit"/>. По этому полю в ангаре видно, есть ли что снимать с корабля, стоящего рядом.
+/// </param>
 public sealed record HangarMsg(
     string Hull,
     ShipFit Fit,
@@ -433,7 +449,8 @@ public sealed record HangarMsg(
     int PowerMax = 0,
     bool Guest = false,
     PlaceDto? Place = null,
-    IReadOnlyDictionary<string, string>? Ships = null) : ServerMessage;
+    IReadOnlyDictionary<string, string>? Ships = null,
+    IReadOnlyDictionary<string, ShipFit>? Fits = null) : ServerMessage;
 
 /// <summary>
 /// Место, где стоит корабль (M15): станция или поселение на планете. Клиент по нему выбирает фон дока,
@@ -893,12 +910,14 @@ public static class Protocol
     /// 26 — станция продаёт всё, что на складе, продажа всех модулей одной кнопкой, M16a;
     /// 27 — группа до десяти, метки группы на миникарте, номера врат, маршрут по галактике и обмен между игроками, M16b;
     /// 28 — шаг обучения с видом, местом, системой, подсказкой для телефона и учебным буем, M18;
-    /// 29 — особенность корпуса, дробовик веером, залп ракет и модули, меняющие прочность и скорость, M19).
+    /// 29 — особенность корпуса, дробовик веером, залп ракет и модули, меняющие прочность и скорость, M19;
+    /// 30 — сюжетные кампании «Тихой войны», M20a;
+    /// 31 — снять и поставить оснащение пачкой, своё оснащение у каждого корпуса ангара, слух про чужую верфь, M20).
     /// Кадр снапшота в 29 тот же, что в 28: версия растёт потому, что старый клиент не знает про perk,
     /// hpMul и speedMul — и предсказывал бы и движение, и прочность своего корабля мимо сервера.
     /// Зеркало PROTOCOL_VERSION в client/src/net/protocol.ts.
     /// </summary>
-    public const int Version = 30;
+    public const int Version = 31;
 
     public const string DroneKind = "drone";
     public const string PirateKind = "pirate";
@@ -913,6 +932,10 @@ public static class Protocol
     /// <summary>Что покупают в доке (<see cref="BuyMsg.Kind"/>).</summary>
     public const string HullItem = "hull";
     public const string ItemKind = "item";
+
+    /// <summary>Что делать с оснащением пачкой (<see cref="FitAllMsg.Mode"/>).</summary>
+    public const string StripFit = "strip";
+    public const string FillFit = "fill";
 
     /// <summary>Коды уведомлений (<see cref="NoticeMsg"/>); текст подставляет клиент.</summary>
     public const string CargoFullNotice = "cargoFull";
@@ -932,6 +955,8 @@ public static class Protocol
     public const string JumpCancelledNotice = "jumpCancelled";
     /// <summary>Подготовку прыжка сбило попадание.</summary>
     public const string JumpHitNotice = "jumpHit";
+    /// <summary>Снять или поставить нечего: склад пуст, все слоты заняты или на корабле только обязательное (M20).</summary>
+    public const string NothingToFitNotice = "nothingToFit";
     public const string NoPowerNotice = "noPower";
     public const string BadClassNotice = "badClass";
     public const string BadSlotNotice = "badSlot";

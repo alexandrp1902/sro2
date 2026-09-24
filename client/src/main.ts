@@ -407,6 +407,8 @@ async function main(): Promise<void> {
     onEquip: (id) => send({ t: 'hull', id }),
     onTransport: (id) => send({ t: 'transport', hull: id }),
     onFit: (slot, id) => send({ t: 'fit', slot, id }),
+    // Оснащение пачкой (M20): снять всё с корабля или занять пустые слоты складом.
+    onFitAll: (mode, hull) => send({ t: 'fitAll', mode, hull }),
     onSellItem: (id) => send({ t: 'sellItem', id }),
     // Весь склад одной сделкой (M16a): что продаётся — решает сервер по своим же ценам выкупа.
     onSellGear: () => send({ t: 'sellItem', id: null }),
@@ -417,13 +419,16 @@ async function main(): Promise<void> {
     onAbandon: () => send({ t: 'mission', action: 'abandon' }),
     onComplete: () => send({ t: 'mission', action: 'complete' }),
     onSkipTutorial: () => send({ t: 'mission', action: 'skip' }),
+    // Карточка вопроса живёт вне дока (тот перерисовывается целиком) и создаётся ниже: к моменту
+    // первого вопроса она уже есть.
+    onConfirm: (lines, yes) => confirm.ask(lines, yes),
   }, names);
 
   // Карта галактики (GDD §55): M на ПК, тап по миникарте — везде.
   const galaxyMap = new GalaxyMap(el('galaxy'), (to) => setCourse(to));
   // Окно «Управление» (M10.5): шестерёнка у миникарты и в доке, только на ПК — на телефоне кнопки на экране.
   const controlsWindow = new ControlsWindow(el('controls'));
-  // Вопрос «точно?» — пока только для выхода в полёте: корабль остаётся в космосе.
+  // Вопрос «точно?»: выход в полёте (корабль остаётся в космосе) и продажа модуля со склада (M20).
   const confirm = new ConfirmCard(el('confirm'));
   // «Что дальше» (M18): сама — один раз после обучения, потом — из бургера.
   const tips = new TipsCard(el('tips'));

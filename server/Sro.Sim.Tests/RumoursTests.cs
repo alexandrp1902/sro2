@@ -149,4 +149,50 @@ public class RumoursTests
             if (r.Kind == Rumours.RouteKind) Assert.True(r.Profit > 0, $"{r.Good} → {r.System}: маршрут без выгоды");
         }
     }
+
+    private static StationYard Yard(string system, string name, int hops, params (string Hull, int Price)[] hulls) =>
+        new(system, name, hops, [.. hulls.Select(h => new YardHull(h.Hull, h.Price))], PlaceKey.Station(system));
+
+    [Fact]
+    public void YardRumour_NamesTheBestShipThePilotCanAlreadyAfford()
+    {
+        var yards = new[]
+        {
+            Yard("vega", "Вега", 1, ("needle", 4000), ("clipper", 16000)),
+            Yard("aldebaran", "Крепость Альдебарана", 3, ("lancer", 24000)),
+        };
+
+        var rumour = Rumours.Yard(["light"], credits: 20000, yards);
+
+        Assert.NotNull(rumour);
+        Assert.Equal(Rumours.YardKind, rumour.Kind);
+        // Из того, на что хватает, называют дорогое: это и есть следующий корабль, а не «Игла» за 4 000.
+        Assert.Equal("clipper", rumour.Good);
+        Assert.Equal(("vega", "Вега", 1, 16000), (rumour.System, rumour.Name, rumour.Hops, rumour.Price));
+    }
+
+    [Fact]
+    public void YardRumour_FallsBackToTheNearestDream_WhenNothingIsAffordable()
+    {
+        var yards = new[]
+        {
+            Yard("epsilon", "Вольная гавань", 4, ("galleon", 45000)),
+            Yard("vega", "Вега", 1, ("clipper", 16000)),
+        };
+
+        // Кошелёк вдесятеро меньше: обе цели — мечта, и ближняя дешёвая важнее дальней дорогой.
+        var rumour = Rumours.Yard(["light"], credits: 6000, yards);
+        Assert.Equal("clipper", rumour?.Good);
+    }
+
+    [Fact]
+    public void YardRumour_IsSilentAboutOwnShipsAndFarSystems()
+    {
+        // В список «про это молчим» попадают и свои корабли, и те, что продают на здешней верфи.
+        Assert.Null(Rumours.Yard(["light", "clipper"], 20000, [Yard("vega", "Вега", 1, ("clipper", 16000))]));
+        // Слух про край галактики бесполезен — туда не слетать между делом.
+        Assert.Null(Rumours.Yard(["light"], 20000, [Yard("edge", "Край", 9, ("galleon", 45000))]));
+        // Своя же система: про здешнюю верфь мастер не рассказывает, её видно на вкладке.
+        Assert.Null(Rumours.Yard(["light"], 20000, [Yard("sol", "Сол", 0, ("needle", 4000))]));
+    }
 }

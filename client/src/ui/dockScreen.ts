@@ -10,7 +10,7 @@ import type {
   RepChangeDto,
   RepMsg,
 } from '../net/protocol';
-import type { WeaponParams } from '../sim/combat';
+import type { WeaponConfig, WeaponParams } from '../sim/combat';
 import {
   MODULE_SLOTS,
   REQUIRED_SLOTS,
@@ -28,7 +28,9 @@ import {
   weaponIndex,
   weaponSlot,
   type FitProblem,
+  type ModuleConfig,
   type Modules,
+  type ShipFit,
 } from '../sim/fitting';
 import { keyHint, keymap } from '../input/keymap';
 import { hops, type GalaxyDto } from '../sim/galaxy';
@@ -37,7 +39,7 @@ import type { Hulls } from '../sim/hulls';
 import type { HullParams } from '../sim/movement';
 import { activeHint, activeLine, offerNote, offerTitle, timeLeft, type MissionNames } from '../sim/missions';
 import { isStory, lootItem, rarityColor, type LootRules } from '../sim/loot';
-import { NO_MARKET, affordable, rumourLine, stockLevel, tradeCost, trend, type MarketRules } from '../sim/market';
+import { NO_MARKET, affordable, rumourLine, stockLevel, tradeCost, trend, yardLine, type MarketRules } from '../sim/market';
 import { staffOf, type StaffRole } from '../sim/staff';
 import {
   NO_REP,
@@ -53,6 +55,7 @@ import {
 import { NO_SHOP, formatCredits, price, repairCost, sells, sellPrice, transportCost, type ShopRules } from '../sim/shop';
 import type { Weapons } from '../sim/weapons';
 import { color, round, type CargoState } from './cargoHud';
+import { sellItemLines, type ConfirmLines } from './confirm';
 
 /** Что можно сделать с корпусом или пушкой на витрине. */
 export type OfferState =
@@ -268,8 +271,15 @@ export interface DockHandlers {
   onTransport(id: string): void;
   /** Поставить в слот со склада; id = null — снять на склад. */
   onFit(slot: string, id: string | null): void;
+  /**
+   * Оснащение пачкой (M20): снять всё на склад или заполнить пустые слоты со склада.
+   * @param hull корабль из ангара, стоящий здесь же; без него — тот, под которым пилот сидит
+   */
+  onFitAll(mode: 'strip' | 'fill', hull?: string): void;
   /** Продать со склада пушку или модуль. */
   onSellItem(id: string): void;
+  /** Спросить «точно?» карточкой поверх дока и, если ответили да, сделать. */
+  onConfirm(lines: ConfirmLines, yes: () => void): void;
   /** Продать со склада все модули разом (M16a): кнопка на рынке. */
   onSellGear(): void;
   onRepair(): void;
@@ -742,8 +752,9 @@ export class DockScreen {
     if (scene.who) {
       const person = staffOf(this.staffSeed(), scene.who, sceneArt(this.place, this.tab, this.scene_));
       const caption = el('div', 'dock-scene-caption');
-      // Торговец вместо приветствия рассказывает, что слышал: подсказка ценнее вежливости.
-      const line = this.tab === 'cargo' ? (this.rumour() ?? person.line) : person.line;
+      // Торговец и мастер верфи вместо приветствия рассказывают, что слышали: подсказка ценнее вежливости.
+      const heard = this.tab === 'cargo' ? this.rumour() : this.tab === 'hulls' ? this.yardRumour() : null;
+      const line = heard ?? person.line;
       caption.append(el('div', 'dock-scene-who sro-label', `${person.name} · ${person.role}`), el('div', 'dock-scene-line', line));
       view.append(caption);
     }
@@ -838,9 +849,19 @@ export class DockScreen {
   /** Одна история здешнего торговца, готовой строкой; null — рассказывать нечего. */
   private rumour(): string | null {
     const rules = this.loot;
-    const first = this.quotes?.rumours?.[0];
+    const first = this.quotes?.rumours?.find((r) => r.kind !== 'yard');
     if (!rules || !first) return null;
     return rumourLine(first, lootItem(rules, first.good)?.name ?? first.good, this.staffSeed());
+  }
+
+  /**
+   * Что слышал мастер про чужую верфь (M20): где стоит корабль, которого у пилота нет. Приезжает
+   * тем же списком слухов, что и торговый, — их различает kind.
+   */
+  private yardRumour(): string | null {
+    const yard = this.quotes?.rumours?.find((r) => r.kind === 'yard');
+    if (!yard) return null;
+    return yardLine(yard, this.hulls.has(yard.good) ? this.hulls.get(yard.good).name : yard.good, this.staffSeed());
   }
 
   /** Чьи люди встречают в доке: ключ места, а пока его нет — имя станции. */
@@ -1068,7 +1089,13 @@ export class DockScreen {
   }
 
   private renderHulls(body: HTMLElement, hangar: HangarMsg, credits: number): void {
-    if (this.modules.enabled) body.append(el('div', 'dock-note sro-muted', 'Щит, радар и двигатель — модули: они переходят на новый корпус'));
+    if (this.modules.enabled) {
+      // M20: оснащение остаётся на прежнем корабле, и это надо сказать до покупки, а не после.
+      body.append(el('div', 'dock-note sro-muted', 'Новый корпус приходит пустым: модули остаются на прежнем — он ждёт в ангаре'));
+    }
+    // Та же наводка мастера, что стоит под его картинкой, — для телефона, где сцены нет совсем.
+    const yard = this.yardRumour();
+    if (yard) body.append(el('div', 'dock-rumour', `${staffOf(this.staffSeed(), 'hulls', sceneArt(this.place, 'hulls', this.scene_)).name}: ${yard}`));
     let shown = 0;
     for (const id of this.hulls.ids()) {
       const hull = this.hulls.get(id);
@@ -1117,6 +1144,12 @@ export class DockScreen {
     }
   }
 
+  /** Есть ли что снимать с корабля, стоящего в ангаре: обязательные модули не в счёт. */
+  private parkedDressed(id: string): boolean {
+    const fit = this.hangar?.fits?.[id];
+    return fit !== undefined && canStrip(fit, hullSlotViews(this.hulls.get(id), this.modules.enabled));
+  }
+
   /** «Станция Vega · система Vega» / «Поселение «Новый Порт» · система Sol». */
   private whereLine(key: string): string {
     const known = this.placeIndex().get(key);
@@ -1139,7 +1172,17 @@ export class DockScreen {
     if (where === null) return el('div', 'dock-tag sro-row__meta', 'На корабле');
     // Двигать корабли — работа верфи: где её нет, ангар можно только посмотреть.
     if (!this.shipyard) return el('div', 'dock-tag sro-row__meta', 'Нужна верфь');
-    if (where === here) return button('Сесть', 'dock-buy sro-btn sro-btn--sm', () => this.handlers.onEquip(id));
+    if (where === here) {
+      const actions = el('div', 'dock-row-actions');
+      actions.append(button('Сесть', 'dock-buy sro-btn sro-btn--sm', () => this.handlers.onEquip(id)));
+      // С M20 оснащение не переезжает на новый корпус: чтобы снять его со стоящего рядом корабля,
+      // больше не нужно в него пересаживаться — раздеть его можно прямо в ангаре.
+      const strip = button('Снять всё', 'dock-strip sro-btn sro-btn--sm sro-btn--ghost', () => this.handlers.onFitAll('strip', id));
+      strip.disabled = !this.parkedDressed(id);
+      strip.title = strip.disabled ? 'На нём только то, без чего он не полетит' : 'Снять с него всё на склад станции';
+      actions.append(strip);
+      return actions;
+    }
     const system = this.placeIndex().get(where)?.system;
     const hops_ = system !== undefined ? jumps?.get(system) : undefined;
     if (hops_ === undefined) return el('div', 'dock-tag sro-row__meta', 'Отсюда туда нет пути');
@@ -1180,7 +1223,7 @@ export class DockScreen {
       const grid = el('div', 'dock-slots');
       for (const view of slots) grid.append(this.slotCell(view, hangar, view.id === chosen.id));
       body.append(grid);
-      body.append(this.fittedBox(chosen, hangar));
+      body.append(this.fittedBox(chosen, hangar, slots));
       body.append(el('div', 'dock-note sro-muted', `Для слота «${chosen.caption}»`));
       this.offerList(body, hangar, credits, chosen.id);
     }
@@ -1192,18 +1235,49 @@ export class DockScreen {
       body.append(el('div', 'dock-empty sro-muted', 'Пусто. Снятое с корабля и купленное про запас лежит здесь.'));
       return;
     }
-    for (const [id, count] of stored) {
-      const row = el('div', 'dock-row sro-row');
-      const picture = this.picture(id);
-      if (picture) row.append(icon(picture));
-      const stock = el('div', 'dock-name sro-row__name', `${this.itemName(id)} ×${count}`);
-      const mark = tierBadge(id);
-      if (mark) stock.append(el('span', 'dock-tier', mark));
-      row.append(stock, el('div', 'dock-stats sro-row__meta', this.itemLabel(id)));
-      const cost = sellPrice(this.shop, id);
-      row.append(button(cost > 0 ? `Продать · ${formatCredits(cost)}` : 'Выбросить', 'dock-buy sro-btn sro-btn--sm', () => this.handlers.onSellItem(id)));
-      body.append(row);
+    for (const [id, count] of stored) body.append(this.storedRow(id, count, hangar, chosen));
+
+    // «Поставить все» — внизу, под складом: это про весь список сразу, и стоять она должна после него.
+    const fill = button('Поставить все', 'dock-buy dock-fit-all sro-btn sro-btn--sm', () => this.handlers.onFitAll('fill'));
+    fill.disabled = !this.canFill(hangar, slots, stored);
+    fill.title = fill.disabled ? 'Со склада в пустые слоты ничего не встаёт' : 'Занять пустые слоты лучшим, что лежит на складе';
+    const bottom = el('div', 'dock-fitted-actions');
+    bottom.append(fill);
+    body.append(bottom);
+  }
+
+  /** Строка склада: что это, сколько штук — и две кнопки, поставить в выбранный слот и продать. */
+  private storedRow(id: string, count: number, hangar: HangarMsg, chosen: SlotView | undefined): HTMLElement {
+    const row = el('div', 'dock-row sro-row');
+    const picture = this.picture(id);
+    if (picture) row.append(icon(picture));
+    const stock = el('div', 'dock-name sro-row__name', `${this.itemName(id)} ×${count}`);
+    const mark = tierBadge(id);
+    if (mark) stock.append(el('span', 'dock-tier', mark));
+    row.append(stock, el('div', 'dock-stats sro-row__meta', this.itemLabel(id)));
+
+    const actions = el('div', 'dock-row-actions');
+    if (chosen) {
+      // Ставится в выбранный слот — взамен того, что там стоит: сервер вернёт вытесненное на склад.
+      const problem = canInstall(this.hulls.get(hangar.hull), hangar.fit, chosen.id, id, this.weapons.config, this.modules.catalog);
+      const put = button(problem ? describeFitProblem(problem) : 'Поставить', 'dock-buy sro-btn sro-btn--sm', () => this.handlers.onFit(chosen.id, id));
+      put.disabled = problem !== null;
+      put.title = problem ? `В слот «${chosen.caption}» это не встаёт` : `Поставить в слот «${chosen.caption}»`;
+      actions.append(put);
     }
+    const cost = sellPrice(this.shop, id);
+    actions.append(
+      button(cost > 0 ? `Продать · ${formatCredits(cost)}` : 'Выбросить', 'dock-sell sro-btn sro-btn--sm sro-btn--ghost', () =>
+        this.handlers.onConfirm(sellItemLines(this.itemName(id), cost, formatCredits), () => this.handlers.onSellItem(id)),
+      ),
+    );
+    row.append(actions);
+    return row;
+  }
+
+  /** Есть ли чем занять пустой слот: хоть один предмет со склада должен куда-то встать. */
+  private canFill(hangar: HangarMsg, slots: SlotView[], stored: [string, number][]): boolean {
+    return canFillSlots(this.hulls.get(hangar.hull), hangar.fit, slots, stored.map(([id]) => id), this.weapons.config, this.modules.catalog);
   }
 
   /**
@@ -1240,7 +1314,7 @@ export class DockScreen {
   }
 
   /** Что стоит в выбранном слоте — словами, между сеткой и магазином. Отсюда же снимают на склад. */
-  private fittedBox(view: SlotView, hangar: HangarMsg): HTMLElement {
+  private fittedBox(view: SlotView, hangar: HangarMsg, slots: SlotView[]): HTMLElement {
     const current = fitGet(hangar.fit, view.id);
     const box = el('div', 'dock-fitted');
     const name = el('div', 'dock-fitted-name sro-row__name');
@@ -1267,10 +1341,17 @@ export class DockScreen {
         current ? this.itemLabel(current) : 'Поставьте сюда что-нибудь из списка ниже',
       ),
     );
+    const actions = el('div', 'dock-fitted-actions');
     // Двигатель, радар и генератор снять нельзя: без них корабль не летает (fitting.ts).
     if (current && !(REQUIRED_SLOTS as string[]).includes(view.id)) {
-      box.append(button('Снять на склад', 'dock-link sro-btn sro-btn--ghost sro-btn--sm', () => this.handlers.onFit(view.id, null)));
+      actions.append(button('Снять', 'dock-unfit sro-btn sro-btn--sm', () => this.handlers.onFit(view.id, null)));
     }
+    // «Снять все» — рядом: чаще всего корабль раздевают целиком, перед тем как одеть заново (M20).
+    const strip = button('Снять все', 'dock-strip sro-btn sro-btn--sm sro-btn--ghost', () => this.handlers.onFitAll('strip'));
+    strip.disabled = !canStrip(hangar.fit, slots);
+    strip.title = strip.disabled ? 'На корабле только то, без чего он не полетит' : 'Снять на склад всё, кроме двигателя, радара и генератора';
+    actions.append(strip);
+    box.append(actions);
     return box;
   }
 
@@ -1407,6 +1488,31 @@ export function hullSlotViews(hull: HullParams, modules: boolean): SlotView[] {
   for (const slot of MODULE_SLOTS) views.push({ id: slot, caption: `${SLOT_NAMES[slot]} (${cls})` });
   for (let i = 0; i < hullUtilitySlots(hull); i++) views.push({ id: utilitySlot(i), caption: `Вспом. ${i + 1} (S)` });
   return views;
+}
+
+/**
+ * Есть ли что снимать с корабля (M20): двигатель, радар и генератор не в счёт — без них он не летает,
+ * и «снять всё» не должно оставлять корабль в доке навсегда. По этому же гаснет кнопка в ангаре.
+ */
+export function canStrip(fit: ShipFit, slots: SlotView[]): boolean {
+  return slots.some((view) => !(REQUIRED_SLOTS as string[]).includes(view.id) && fitGet(fit, view.id) !== null);
+}
+
+/**
+ * Есть ли чем занять хоть один пустой слот тем, что лежит на складе (M20): занятые слоты «поставить все»
+ * не трогает, поэтому и в счёт они не идут. Правила те же, что у сервера: класс, вид слота, энергия.
+ */
+export function canFillSlots(
+  hull: HullParams,
+  fit: ShipFit,
+  slots: SlotView[],
+  stored: readonly string[],
+  weapons: WeaponConfig,
+  modules: ModuleConfig | null,
+): boolean {
+  return slots.some(
+    (view) => fitGet(fit, view.id) === null && stored.some((id) => canInstall(hull, fit, view.id, id, weapons, modules) === null),
+  );
 }
 
 /** Строка характеристик пушки на витрине: класс, урон, темп, точность (у ракетницы — самонаведение), дальность, энергия. */

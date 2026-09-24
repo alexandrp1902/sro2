@@ -221,28 +221,146 @@ public sealed class FittingRoomTests : IDisposable
     }
 
     [Fact]
-    public void AHeavierHull_TakesTheFit_AndABiggerShieldThenFits()
+    public void ABoughtHull_ComesBare_AndTheOldOneWaitsDressed()
     {
         var a = Pilot();
         var player = Docked(a);
         _room.Buy(a, Protocol.ItemKind, "shieldL");
 
+        // Новый корпус приходит голым: только самое дешёвое из обязательного, и ни щита, ни пушки.
         _room.Buy(a, Protocol.HullItem, "heavy");
+        Assert.Equal(("heavy", null, "generatorS"), (player.HullId, player.Fit.Shield, player.Fit.Generator));
+        Assert.Equal("engineS", player.Fit.Engine);
+        Assert.All(player.Fit.Weapons, id => Assert.Null(id));
+        // Прежний корабль ждёт в ангаре в своём снаряжении — на склад с него ничего не уехало.
+        Assert.Equal("shieldS", player.HullFits["light"].Shield);
+        Assert.Equal("pulse", player.HullFits["light"].Get("w0"));
+        Assert.Equal(new Dictionary<string, int> { ["shieldL"] = 1 }, player.Storage);
+
         _room.Fit(a, Fitting.GeneratorSlot, null); // генератор не снять
         _room.Buy(a, Protocol.ItemKind, "generatorL", Fitting.GeneratorSlot);
         _room.Fit(a, Fitting.ShieldSlot, "shieldL");
-
-        Assert.Equal(("heavy", "shieldL", "generatorL"), (player.HullId, player.Fit.Shield, player.Fit.Generator));
-        Assert.Equal(new Dictionary<string, int> { ["shieldS"] = 1, ["generatorS"] = 1 }, player.Storage);
+        Assert.Equal(("shieldL", "generatorL"), (player.Fit.Shield, player.Fit.Generator));
+        Assert.Equal(new Dictionary<string, int> { ["generatorS"] = 1 }, player.Storage);
         _room.Repair(a);
         Assert.Equal(500, player.Shield);
 
-        // Обратно на лёгкий: щит и генератор L не встают — на склад, взамен генератора — стартовый.
+        // Обратно на лёгкий: он такой, каким его оставили, а тяжёлый ждёт со щитом L — не на складе.
         _room.SetHull(a, "light");
-        Assert.Equal(("light", null, "generatorS"), (player.HullId, player.Fit.Shield, player.Fit.Generator));
-        Assert.Equal(1, player.Storage["shieldL"]);
+        Assert.Equal(("light", "shieldS", "generatorS"), (player.HullId, player.Fit.Shield, player.Fit.Generator));
+        Assert.Equal("pulse", player.Fit.Get("w0"));
+        Assert.Equal("shieldL", player.HullFits["heavy"].Shield);
+        Assert.False(player.Storage.ContainsKey("shieldL"));
+        Assert.Equal(150, player.MaxShield(player.Hull(Hulls)));
+    }
+
+    [Fact]
+    public void ParkedFits_SurviveTheProfile()
+    {
+        var a = Pilot();
+        var player = Docked(a);
+        _room.Buy(a, Protocol.HullItem, "heavy"); // «Пчела» осталась в ангаре с пульсаром и щитом
+        _accounts.Flush();
+
+        _room = NewRoom();
+        var back = Docked(Pilot());
+        Assert.Equal("heavy", back.HullId);
+        Assert.Equal("shieldS", back.HullFits["light"].Shield);
+        Assert.Equal("pulse", back.HullFits["light"].Get("w0"));
+        _ = player;
+    }
+
+    [Fact]
+    public void StripAll_TakesEverythingButWhatKeepsTheShipFlying()
+    {
+        var a = Pilot();
+        var player = Docked(a);
+        _room.Buy(a, Protocol.ItemKind, "plasma");
+
+        _room.FitAll(a, Protocol.StripFit);
+        // Двигатель, радар и генератор остаются: без них корабль не выпустят из дока.
+        Assert.Equal(("engineS", "radarS", "generatorS"), (player.Fit.Engine, player.Fit.Radar, player.Fit.Generator));
+        Assert.Null(player.Fit.Shield);
+        Assert.All(player.Fit.Weapons, id => Assert.Null(id));
+        Assert.Equal(1, player.Storage["pulse"]);
+        Assert.Equal(1, player.Storage["shieldS"]);
+        Assert.Equal(1, player.Storage["plasma"]);
+
+        // Снимать больше нечего — и об этом говорят, а не молчат.
+        _room.FitAll(a, Protocol.StripFit);
+        Assert.Equal(Protocol.NothingToFitNotice, a.Last<NoticeMsg>().Code);
+    }
+
+    [Fact]
+    public void FillAll_FillsEmptySlots_AndLeavesTheOccupiedAlone()
+    {
+        var a = Pilot();
+        var player = Docked(a);
+        _room.Buy(a, Protocol.ItemKind, "generatorL"); // лучше стартового, но слот генератора занят
+        _room.Buy(a, Protocol.ItemKind, "shieldL");    // класс L — на «Пчелу» не встанет вовсе
+        _room.Buy(a, Protocol.ItemKind, "pulse");      // а вот второй пульсар ждёт пустого слота
+
+        _room.FitAll(a, Protocol.FillFit);
+        Assert.Equal("pulse", player.Fit.Get("w1"));
+        // То, что пилот поставил сам, кнопка не меняет — даже когда на складе лежит лучше.
+        Assert.Equal(("generatorS", "shieldS"), (player.Fit.Generator, player.Fit.Shield));
         Assert.Equal(1, player.Storage["generatorL"]);
-        Assert.Equal(0, player.Shield);
+        Assert.Equal(1, player.Storage["shieldL"]);
+    }
+
+    [Fact]
+    public void FillAll_PutsTheBestThatFits_IntoEachSlot()
+    {
+        var a = Pilot();
+        var player = Docked(a);
+        _room.Buy(a, Protocol.HullItem, "heavy"); // слоты M и S, корпус голый
+        _room.Buy(a, Protocol.ItemKind, "generatorL", Fitting.GeneratorSlot);
+        _room.Buy(a, Protocol.ItemKind, "shieldL");
+        _room.Buy(a, Protocol.ItemKind, "plasma");
+        _room.Buy(a, Protocol.ItemKind, "pulse");
+
+        _room.FitAll(a, Protocol.FillFit);
+        Assert.Equal("shieldL", player.Fit.Shield);
+        // В слот M встают обе пушки — берём ту, что дороже; в слот S плазма не лезет по классу.
+        Assert.Equal(("plasma", "pulse"), (player.Fit.Get("w0"), player.Fit.Get("w1")));
+        Assert.Empty(player.Storage.Where(pair => pair.Value > 0 && pair.Key != "generatorS"));
+
+        _room.FitAll(a, Protocol.FillFit);
+        Assert.Equal(Protocol.NothingToFitNotice, a.Last<NoticeMsg>().Code);
+    }
+
+    [Fact]
+    public void FillAll_StopsAtThePowerTheGeneratorGives()
+    {
+        var a = Pilot();
+        var player = Docked(a);
+        for (var i = 0; i < 3; i++) _room.Buy(a, Protocol.ItemKind, "hungry"); // по 60 энергии на штуку
+        _room.FitAll(a, Protocol.StripFit);
+        _room.FitAll(a, Protocol.FillFit);
+
+        Assert.True(Fitting.Power(player.Fit, Weapons, Modules) <= Fitting.Output(player.Fit, Modules));
+        // Что не влезло по энергии — осталось лежать на складе, а не пропало.
+        Assert.True(player.Storage.GetValueOrDefault("hungry") > 0);
+    }
+
+    [Fact]
+    public void StrippingAParkedShip_WorksOnlyWhereItStands()
+    {
+        var a = Pilot();
+        var player = Docked(a);
+        _room.Buy(a, Protocol.HullItem, "heavy");
+        Assert.Equal("shieldS", player.HullFits["light"].Shield);
+
+        _room.FitAll(a, Protocol.StripFit, "light");
+        Assert.Null(player.HullFits["light"].Shield);
+        Assert.Equal("engineS", player.HullFits["light"].Engine); // летать он всё ещё может
+        Assert.Equal(1, player.Storage["shieldS"]);
+        Assert.Equal(1, player.Storage["pulse"]);
+
+        // Корабля, которого здесь нет, не раздеть.
+        player.HullPlaces["light"] = PlaceKey.Station("elsewhere");
+        _room.FitAll(a, Protocol.StripFit, "light");
+        Assert.Equal(Protocol.ShipElsewhereNotice, a.Last<NoticeMsg>().Code);
     }
 
     [Fact]

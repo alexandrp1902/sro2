@@ -59,6 +59,11 @@ public sealed record StoryProgress(
 /// Id шага обучения (M18): по id, а не по номеру, чтобы шаги можно было вставлять в середину.
 /// «done» — пройдено или пропущено; null — профиль старше M18, тогда смотрится <paramref name="Tutorial"/>.
 /// </param>
+/// <param name="Fits">
+/// Чем снаряжён каждый корабль ангара (M20): id корпуса → оснащение. Активного корпуса здесь нет —
+/// он в <paramref name="Fit"/>. null — профиль старше M20: тогда корабли ангара считаются голыми,
+/// и при посадке на любой из них обязательные слоты закроются стартовыми модулями.
+/// </param>
 /// <param name="Story">
 /// Сюжетные кампании (M20a): id кампании → что в ней пройдено. null — профиль старше M20 или пилот
 /// не брал ни одной сюжетной миссии; читается как «кампания не начата», и первая её миссия ждёт на доске.
@@ -83,4 +88,5 @@ public sealed record AccountProfile(
     IReadOnlyDictionary<string, string>? Ships = null,
     double? Hp = null,
     string? TutorialStep = null,
-    IReadOnlyDictionary<string, StoryProgress>? Story = null);
+    IReadOnlyDictionary<string, StoryProgress>? Story = null,
+    IReadOnlyDictionary<string, Sro.Sim.ShipFit>? Fits = null);
