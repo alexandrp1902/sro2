@@ -1,5 +1,6 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using Sro.Sim.Mech;
 
 namespace Sro.Sim;
 
@@ -133,7 +134,8 @@ public sealed record BalanceSources(
     string? Careers = null,
     string? Demand = null,
     string? Trade = null,
-    string? Story = null);
+    string? Story = null,
+    string? Mechs = null);
 
 /// <summary>
 /// Весь баланс: корпуса, пушки, правила боя, NPC, лут, метеориты, магазин станции, галактика, задания.
@@ -187,7 +189,8 @@ public sealed record Balance(
     CareerRules? CareerSet = null,
     DemandRules? DemandSet = null,
     TradeRules? TradeSet = null,
-    StoryRules? StorySet = null)
+    StoryRules? StorySet = null,
+    MechRules? MechSet = null)
 {
     public const string HullsFile = "hulls.json";
     public const string WeaponsFile = "weapons.json";
@@ -207,13 +210,14 @@ public sealed record Balance(
     public const string DemandFile = DemandRules.File;
     public const string TradeFile = TradeRules.File;
     public const string StoryFile = StoryRules.File;
+    public const string MechsFile = MechRules.File;
 
     /// <summary>Все файлы баланса в порядке разбора.</summary>
     public static readonly string[] Files =
     [
         HullsFile, WeaponsFile, RulesFile, NpcsFile, LootFile, MeteorsFile, ShopFile, GalaxyFile, MissionsFile,
         ModulesFile, PartyFile, InvasionFile, MarketFile, ReputationFile, CareersFile, DemandFile, TradeFile,
-        StoryFile,
+        StoryFile, MechsFile,
     ];
 
     public NpcRules Npc => Npcs ?? NpcRules.None;
@@ -250,6 +254,9 @@ public sealed record Balance(
     /// только обычную работу, как до M20. Кампания общегалактическая и <see cref="ForSystem"/> её не режет.
     /// </summary>
     public StoryRules Story => StorySet ?? StoryRules.None;
+
+    /// <summary>Наземный бой мехов (M21); файла нет — миссий нет, и ретранслятор ни к чему не ведёт.</summary>
+    public MechRules Mechs => MechSet ?? MechRules.None;
 
     /// <summary>
     /// Места системы (M15): станция и поселения планет. Считается в <see cref="ForSystem"/>; у баланса,
@@ -635,6 +642,16 @@ public sealed record Balance(
                 return false;
             }
             parsed = parsed with { StorySet = story };
+        }
+        if (sources.Mechs is not null)
+        {
+            // Мехи ни на что в космосе не ссылаются: их каталог замкнут в себе.
+            if (!MechRules.TryParse(sources.Mechs, out var mechs, out error))
+            {
+                error = $"{MechsFile}: {error}";
+                return false;
+            }
+            parsed = parsed with { MechSet = mechs };
         }
         balance = parsed;
         return true;

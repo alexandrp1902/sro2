@@ -1,0 +1,98 @@
+"""Нарезка арта мехов для боя M21: client/public/mechs/*.webp и client/src/mech/rigMeta.json.
+
+Слои меха — четыре листа P1 (art/mechs/production/sources), каждый 4×2 кадра по 8 направлениям. Прямоугольники
+кадров, масштаб, сдвиг и порядок слоёв берутся из art/mechs/production/medium-rig.json — того же рига, что проверен
+в браузере (rig-renderer.js). Кадр режется и приводится к квадрату, как делает рендерер рига: он рисует источник
+в квадрат cellSize × scale.
+
+Тайлы пустыни (art/mechs/tiles/desert-*) — стенд-ин до партии P4: 128 px, здание — 256 px на квадрат 2×2.
+
+Запуск из корня репозитория: python tools/mechs.py  (нужен Pillow с WebP).
+Перезапускать только после замены листов — результат лежит в git.
+"""
+
+import json
+from pathlib import Path
+
+from PIL import Image
+
+ROOT = Path(__file__).resolve().parent.parent
+RIG = ROOT / "art" / "mechs" / "production" / "medium-rig.json"
+TILES = ROOT / "art" / "mechs" / "tiles"
+OUT = ROOT / "client" / "public" / "mechs"
+META = ROOT / "client" / "src" / "mech" / "rigMeta.json"
+
+# Сторона кадра слоя в игре. Мех на поле — около 1.6 клетки по 72 px с зумом до ×1.5: 256 хватает с запасом.
+LAYER_SIDE = 256
+TILE_SIDE = 128
+QUALITY = 88
+
+# Короткие имена слоёв в игре — по роли, а не по файлу: рука с автопушкой завтра станет любой правой рукой.
+LAYERS = {
+    "chassis-medium-biped": "chassis",
+    "body-medium": "body",
+    "arm-autocannon-right": "right",
+    "shield-light-left": "left",
+}
+
+# Клетка поля → файл тайла. Земля и камни — сплошные, ящик, стена и здание — поверх земли.
+TILE_FILES = {
+    "ground-1": "desert-ground-1.png",
+    "ground-2": "desert-ground-2.png",
+    "rough": "desert-rough.png",
+    "crate": "desert-crate.png",
+    "wall": "desert-wall.png",
+    "building": "desert-building.png",
+}
+
+
+def save(image: Image.Image, name: str) -> None:
+    image.save(OUT / f"{name}.webp", "WEBP", quality=QUALITY, method=6)
+
+
+def main() -> None:
+    rig = json.loads(RIG.read_text(encoding="utf-8"))
+    OUT.mkdir(parents=True, exist_ok=True)
+    directions = rig["directions"]
+
+    for asset, layer in LAYERS.items():
+        spec = rig["assets"][asset]
+        sheet = Image.open(RIG.parent / spec["source"]).convert("RGBA")
+        for i, (x, y, w, h) in enumerate(spec["frames"]):
+            frame = sheet.crop((x, y, x + w, y + h)).resize((LAYER_SIDE, LAYER_SIDE), Image.LANCZOS)
+            save(frame, f"{layer}-{directions[i].lower()}")
+
+    for name, file in TILE_FILES.items():
+        side = TILE_SIDE * 2 if name == "building" else TILE_SIDE
+        tile = Image.open(TILES / file).convert("RGBA").resize((side, side), Image.LANCZOS)
+        save(tile, f"tile-{name}")
+
+    frames = {}
+    for i, direction in enumerate(directions):
+        frame = rig["frames"][direction]
+        frames[direction.lower()] = {
+            "layers": {
+                LAYERS[asset]: {
+                    "x": round(t["x"], 2),
+                    "y": round(t["y"], 2),
+                    "scale": t["scale"],
+                    "z": t["z"],
+                }
+                for asset, t in frame["transforms"].items()
+                if t.get("enabled", True)
+            },
+            "muzzle": [round(v, 2) for v in frame["anchors"]["muzzle"]],
+        }
+    meta = {
+        "cellSize": rig["cellSize"],
+        "groundPivot": rig["groundPivot"],
+        "directions": [d.lower() for d in directions],
+        "frames": frames,
+    }
+    META.parent.mkdir(parents=True, exist_ok=True)
+    META.write_text(json.dumps(meta, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    print(f"{len(LAYERS) * len(directions)} layers, {len(TILE_FILES)} tiles -> {OUT}")
+
+
+if __name__ == "__main__":
+    main()

@@ -87,17 +87,17 @@ public sealed class BalanceStore : IDisposable
     /// </summary>
     private static bool Parse(string[] texts, out Balance? balance, out string? error)
     {
-        if (texts.Length != 18)
+        if (texts.Length != 19)
         {
             balance = null;
-            error = $"BalanceStore knows 18 files, Balance.Files has {texts.Length}";
+            error = $"BalanceStore knows 19 files, Balance.Files has {texts.Length}";
             return false;
         }
         return Balance.TryParse(
             new BalanceSources(
                 texts[0], texts[1], texts[2], texts[3], texts[4], texts[5], texts[6],
                 texts[7], texts[8], texts[9], texts[10], texts[11], texts[12], texts[13], texts[14], texts[15],
-                texts[16], texts[17]),
+                texts[16], texts[17], texts[18]),
             out balance,
             out error);
     }

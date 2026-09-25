@@ -307,8 +307,15 @@ export interface DockHandlers {
   /** Сдать «собрать». */
   onComplete(): void;
   onSkipTutorial(): void;
-  /** Заглушка «Ретранслятор» (M20b): кампания пройдена, дальше — мехи. */
+  /** «Ретранслятор» (M20b): кампания пройдена — наземный бой мехов (M21). */
   onRelay(): void;
+}
+
+/** Подпись под ретранслятором: что там ждёт и пройдено ли. */
+export function relayLine(won: boolean): string {
+  return won
+    ? 'Вылазка пройдена. Прототип на связи — бой можно повторить'
+    : 'Прототип на связи. Пошаговый бой против двух налётчиков';
 }
 
 /**
@@ -1072,15 +1079,15 @@ export class DockScreen {
     // Сюжет — над обычной работой и своей строкой (M20a): это не «ещё одно задание с доски»,
     // а продолжение истории, и найтись оно должно первым.
     const story = missions.story;
-    // Кампания пройдена и пилот стоит там, где она кончилась (M20b): здесь начинается следующая часть,
-    // и пока за кнопкой только обещание — но обещание должно быть видно, а не лежать в журнале.
+    // Кампания пройдена и пилот стоит там, где она кончилась (M20b): отсюда ретранслятор ведёт в наземный
+    // бой (M21). Бой повторяемый — кнопка остаётся и после победы, меняется только подпись.
     if (story?.relay) {
       const box = el('div', 'dock-mission dock-tutorial');
       box.append(el('div', 'dock-mission-head sro-label sro-warn', `${story.name} · часть первая пройдена`));
-      box.append(el('div', 'dock-name sro-row__name', 'Ретранслятор'));
-      box.append(el('div', 'dock-stats sro-row__meta', 'Связь с машиной настраивается'));
+      box.append(el('div', 'dock-name sro-row__name', 'Ретранслятор · Первая вылазка'));
+      box.append(el('div', 'dock-stats sro-row__meta', relayLine(story.sortieWon === true)));
       const actions = el('div', 'dock-mission-actions');
-      actions.append(button('Ретранслятор', 'dock-buy sro-btn sro-btn--sm', () => this.handlers.onRelay()));
+      actions.append(button(story.sortieWon ? 'Ещё раз' : 'На связь', 'dock-buy sro-btn sro-btn--sm', () => this.handlers.onRelay()));
       box.append(actions);
       body.append(box);
     }

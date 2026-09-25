@@ -9,9 +9,10 @@ import type { HullConfig } from '../sim/movement';
 import type { NpcRules } from '../sim/npcs';
 import type { ReputationRules } from '../sim/reputation';
 import type { ShopRules } from '../sim/shop';
+import type { MechBattleView, MechPart, MechRules } from '../mech/rules';
 
 /** Версия протокола; зеркало Protocol.Version на сервере. Сервер другой версии (или старый, без поля) — не играем. */
-export const PROTOCOL_VERSION = 33;
+export const PROTOCOL_VERSION = 34;
 
 /** Состояние ИИ пирата: патруль, бой, возврат в логово (налётчик — полёт от врат к точке), уход из системы. */
 export type AiState = 'patrol' | 'attack' | 'return' | 'leave';
@@ -110,7 +111,14 @@ export type ClientMessage =
    * Сменить пароль аккаунта (M15.7). Ответ — notice: passwordChanged, wrongPassword или badPassword.
    * При успехе сервер шлёт ещё и account с новым ключом устройства: прежние ключи смена отзывает.
    */
-  | { t: 'password'; old: string; new: string };
+  | { t: 'password'; old: string; new: string }
+  /**
+   * Наземный бой мехов (M21): start — у ретранслятора (или получить идущий бой заново), move (x, y),
+   * attack (target, part — прицельный), end (dir — поворот напоследок), quit — отступить, это поражение.
+   */
+  | { t: 'mechAct'; act: MechAct; x?: number; y?: number; dir?: number; target?: string; part?: MechPart };
+
+export type MechAct = 'start' | 'move' | 'attack' | 'end' | 'quit';
 
 export type PartyAction = 'invite' | 'accept' | 'decline' | 'leave';
 
@@ -791,6 +799,8 @@ export interface StoryStateDto {
   more?: boolean;
   /** Кампания пройдена вся (M20b): на её последнем месте ждёт «Ретранслятор». */
   relay?: boolean;
+  /** Первая вылазка мехов выиграна (M21). */
+  sortieWon?: boolean;
 }
 
 /** Куда смотреть по живому заданию (M14): ship — идти за этим кораблём, 0 — к точке (x, y). */
@@ -1070,4 +1080,52 @@ export type ServerMessage =
   | ShopMsg
   | DemandMsg
   | RepMsg
-  | DialogMsg;
+  | DialogMsg
+  | MechStateMsg
+  | MechEventsMsg
+  | MechEndMsg
+  | MechRefusedMsg;
+
+/** Наземный бой целиком (M21): на старте, после каждого хода и при возвращении. rules — только на старте и возвращении. */
+export interface MechStateMsg {
+  t: 'mechState';
+  battle: MechBattleView;
+  rules?: MechRules | null;
+}
+
+/** Что случилось за ход игрока и сразу за ним противника — по порядку, для анимации. */
+export interface MechEvent {
+  kind: 'move' | 'face' | 'shot' | 'miss' | 'block' | 'hit' | 'partDown' | 'mechDown' | 'round';
+  unit: string;
+  target?: string | null;
+  path?: number[] | null;
+  part?: MechPart | null;
+  dmg: number;
+  chance: number;
+  dir: number;
+  weapon?: string | null;
+  n: number;
+}
+
+export interface MechEventsMsg {
+  t: 'mechEvents';
+  events: MechEvent[];
+}
+
+/** Бой кончен: reward — сколько заплачено (только за первую победу). */
+export interface MechEndMsg {
+  t: 'mechEnd';
+  won: boolean;
+  reward: number;
+  first: boolean;
+}
+
+export type MechRefusal =
+  | 'noRelay' | 'noBattle' | 'notYourTurn' | 'alreadyMoved' | 'unreachable' | 'noTarget' | 'outOfRange'
+  | 'noLine' | 'armDown' | 'badPart' | 'badAct' | 'over';
+
+/** Ход не принят; состояние боя не менялось. */
+export interface MechRefusedMsg {
+  t: 'mechRefused';
+  code: MechRefusal;
+}

@@ -2330,6 +2330,13 @@ public sealed partial class Room
             SendHangar(player); // клиент мог не знать, что уже там
             return;
         }
+        // Идёт наземный бой (M21): машина на связи через ретранслятор этого дока, улететь — бросить её.
+        if (!on && _host?.InMech(player) == true)
+        {
+            connection.Send(new NoticeMsg(Protocol.MechBusyNotice));
+            SendHangar(player);
+            return;
+        }
         if (on)
         {
             if (player.IsDead) return;

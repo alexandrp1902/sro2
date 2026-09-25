@@ -66,6 +66,7 @@ const NOTICES: Record<string, string> = {
   storyItem: 'Это груз сюжетного задания — его не продают и не выбрасывают',
   notYours: 'Этот груз ждёт другого пилота',
   storyHold: 'В трюме нет места под груз сюжетного задания',
+  mechBusy: 'Идёт наземный бой — вылет после него',
 };
 
 /** Чем именно защита отбила попадание — по виду урона пушки (M15.6). */
@@ -116,7 +117,7 @@ const REFUSALS = new Set([
   'cargoFull', 'tooFar', 'noCredits', 'notSold', 'gateFar', 'noPower', 'badClass', 'badSlot',
   'noGoods', 'noStock', 'missionGoods', 'dockClosed', 'needRep', 'jumpCancelled', 'jumpHit', 'missionAway',
   'shipElsewhere', 'noRoute', 'wrongPassword', 'badPassword', 'noShipyard', 'nothingToFit', 'starterHull',
-  'storyItem', 'notYours', 'storyHold',
+  'storyItem', 'notYours', 'storyHold', 'mechBusy',
 ]);
 
 export const isRefusal = (code: string): boolean => REFUSALS.has(code);

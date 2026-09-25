@@ -553,8 +553,10 @@ body {
 }
 
 /* Сюжетный диалог (M20a): по центру, шире «Что дальше» — в нём до трёх реплик и две кнопки. */
+/* Вне HUD (см. index.html): поверх дока и наземного боя (40), но под вопросом «точно?» (50). */
 .dialog {
-  position: absolute;
+  position: fixed;
+  z-index: 45;
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
@@ -2570,4 +2572,361 @@ body {
   gap: var(--space-2);
   padding: 10px 16px;
   border-top: 1px solid var(--line-soft);
+}
+
+
+/* ---------- Наземный бой мехов (M21) ---------- */
+
+/*
+ * Поверх дока (он под ним и остаётся: бой идёт из дока через ретранслятор). Слои: поле — холст на весь экран,
+ * поверх — шапка, свой мех слева, цель справа, внизу поворот и «Завершить ход». Раскладка — принятый концепт
+ * art/mechs/concepts/mech-tactical-gameplay-concept-2026-09-23.
+ */
+.mech {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  overflow: hidden;
+  background: var(--bg-space);
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.mech-canvas {
+  position: absolute;
+  inset: 0;
+}
+
+.mech-canvas canvas {
+  display: block;
+}
+
+.mech-head {
+  position: absolute;
+  top: calc(env(safe-area-inset-top) + 10px);
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  max-width: calc(100vw - 20px);
+  box-sizing: border-box;
+}
+
+.mech-head-title {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.mech-head-title strong {
+  font-size: 15px;
+  white-space: nowrap;
+}
+
+.mech-chip {
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.mech-goal {
+  color: var(--warn);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.mech-head-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.mech-own,
+.mech-target {
+  position: absolute;
+  top: calc(env(safe-area-inset-top) + 78px);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  box-sizing: border-box;
+}
+
+.mech-own {
+  left: calc(env(safe-area-inset-left) + 12px);
+  width: 230px;
+}
+
+.mech-target {
+  right: calc(env(safe-area-inset-right) + 12px);
+  width: 270px;
+}
+
+.mech-panel-head {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+}
+
+.mech-panel-head strong {
+  font-size: 14px;
+}
+
+.mech-close {
+  margin-left: auto;
+}
+
+.mech-bars {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.mech-bar[data-down='true'] {
+  opacity: 0.45;
+}
+
+/* Выбранная для прицельного выстрела часть — янтарём, как рамка цели на поле. */
+.mech-bar[data-chosen='true'] .sro-bar-row {
+  color: var(--warn);
+}
+
+.mech-bar[data-chosen='true'] .sro-bar__fill {
+  background: var(--warn);
+}
+
+.mech-gear {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 12px;
+}
+
+.mech-gear-row,
+.mech-stat {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-2);
+  font-size: 12px;
+}
+
+.mech-move {
+  font-size: 12px;
+  color: var(--steel);
+}
+
+.mech-mode,
+.mech-parts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+}
+
+.mech-mode > .mech-seg {
+  flex: 1 1 0;
+}
+
+.mech-seg[data-active='true'] {
+  background: var(--steel-tint);
+  border-color: var(--steel-line);
+  color: var(--text-strong);
+}
+
+.mech-stats {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding-top: var(--space-1);
+  border-top: 1px solid var(--line-soft);
+}
+
+.mech-stat strong {
+  font-size: 14px;
+}
+
+.mech-blocker {
+  font-size: 12px;
+}
+
+.mech-actions {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.mech-actions > .sro-btn--primary {
+  flex: 1 1 auto;
+}
+
+.mech-tray {
+  position: absolute;
+  left: 50%;
+  bottom: calc(env(safe-area-inset-bottom) + 12px);
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  max-width: calc(100vw - 20px);
+  box-sizing: border-box;
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  background: var(--bg-pane);
+  backdrop-filter: blur(var(--blur-pane));
+  -webkit-backdrop-filter: blur(var(--blur-pane));
+}
+
+.mech-hint {
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.mech-tray-buttons {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.mech-toast {
+  position: absolute;
+  top: calc(env(safe-area-inset-top) + 78px);
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 13px;
+  font-weight: 600;
+  pointer-events: none;
+  white-space: nowrap;
+}
+
+.mech-end {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: min(380px, calc(100vw - 32px));
+  box-sizing: border-box;
+}
+
+.mech-end[data-won='false'] .sro-dialog__title {
+  color: var(--danger-text);
+}
+
+/*
+ * Телефон: поле во весь экран. Шапка — полосой сверху, свой мех — строкой под ней (полоски частей 2×2),
+ * цель — нижним листом над подносом, поднос — во всю ширину. Боковых колонок на 390 px нет места.
+ */
+@media (max-width: 720px) {
+  .mech-head {
+    top: 0;
+    left: 0;
+    right: 0;
+    transform: none;
+    max-width: none;
+    flex-wrap: wrap;
+    gap: 4px var(--space-2);
+    padding: calc(env(safe-area-inset-top) + 6px) calc(env(safe-area-inset-right) + 8px) 6px calc(env(safe-area-inset-left) + 8px);
+    border-width: 0 0 1px;
+    border-radius: 0;
+  }
+
+  /* Одной строкой: раунд и кнопки. Название миссии и цель на 390 px не помещаются рядом с ними. */
+  .mech-head {
+    flex-wrap: nowrap;
+  }
+
+  .mech-head-title,
+  .mech-goal {
+    display: none;
+  }
+
+  .mech-head-actions {
+    margin-left: auto;
+  }
+
+  .mech-own {
+    top: calc(env(safe-area-inset-top) + 58px);
+    left: calc(env(safe-area-inset-left) + 8px);
+    right: calc(env(safe-area-inset-right) + 8px);
+    width: auto;
+    gap: 4px;
+    padding: 6px 10px;
+  }
+
+  .mech-own .mech-bars {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 2px 12px;
+  }
+
+  .mech-own .mech-gear {
+    display: none;
+  }
+
+  .mech-own .mech-panel-head strong {
+    font-size: 13px;
+  }
+
+  .mech-target {
+    top: auto;
+    left: 0;
+    right: 0;
+    bottom: calc(env(safe-area-inset-bottom) + 64px);
+    width: auto;
+    max-height: 56vh;
+    overflow-y: auto;
+    border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+    padding: var(--space-2) calc(env(safe-area-inset-right) + 12px) var(--space-2) calc(env(safe-area-inset-left) + 12px);
+  }
+
+  .mech-target .mech-bars {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 2px 12px;
+  }
+
+  /* Лист и так закрывает пол-экрана: «Отмена» дублирует крестик в его шапке. */
+  .mech-actions > .sro-btn--ghost {
+    display: none;
+  }
+
+  .mech-stats {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 2px 12px;
+  }
+
+  .mech-tray {
+    left: 0;
+    right: 0;
+    bottom: 0;
+    transform: none;
+    max-width: none;
+    justify-content: space-between;
+    padding: var(--space-2) calc(env(safe-area-inset-right) + 10px) calc(env(safe-area-inset-bottom) + 8px) calc(env(safe-area-inset-left) + 10px);
+    border-width: 1px 0 0;
+    border-radius: 0;
+  }
+
+  .mech-hint {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    min-width: 0;
+  }
+
+  .mech-toast {
+    top: calc(env(safe-area-inset-top) + 124px);
+    white-space: normal;
+    text-align: center;
+    max-width: calc(100vw - 32px);
+  }
+}
+
+@media (pointer: coarse) {
+  .mech .sro-btn--xs,
+  .mech .sro-btn--sm {
+    min-height: var(--touch);
+  }
+
+  .mech-end-turn {
+    min-height: var(--touch);
+  }
 }

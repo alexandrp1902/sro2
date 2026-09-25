@@ -2,7 +2,8 @@ import '@fontsource-variable/manrope';
 import './design/tokens.css';
 import './design/components.css';
 import './style.css';
-import { Application, Container } from 'pixi.js';
+import { Container } from 'pixi.js';
+import { createApp } from './render/app';
 import { SPAWN, STATION } from './game/layout';
 import { FixedLoop } from './game/loop';
 import { LOOT_MOUSE_RADIUS_PX, METEOR_MOUSE_RADIUS_PX, cycle, nearest, nearestLoot, pickArrow, pickAt, pickNearest } from './game/targeting';
@@ -65,6 +66,8 @@ import { BurgerMenu, coarsePointer } from './ui/menu';
 import { PasswordForm } from './ui/passwordForm';
 import { ConfirmCard, logoutLines } from './ui/confirm';
 import { DialogCard } from './ui/dialog';
+import { MechScreen, type MechSound } from './mech/screen';
+import type { WeaponParams } from './sim/combat';
 import { TipsCard } from './ui/tips';
 import { keymap, type KeyAction } from './input/keymap';
 import { bindMouseButtons } from './input/mouseButtons';
@@ -229,6 +232,7 @@ async function main(): Promise<void> {
     if (serverUrl) account.forget(serverUrl);
     menu.account = false;
     passwordForm.hide();
+    if (mech.open) mech.close();
     connection?.logout();
   };
   const pilotForm = new PilotForm(el('connect'), {
@@ -432,20 +436,9 @@ async function main(): Promise<void> {
     onAbandon: () => send({ t: 'mission', action: 'abandon' }),
     onComplete: () => send({ t: 'mission', action: 'complete' }),
     onSkipTutorial: () => send({ t: 'mission', action: 'skip' }),
-    // Ретранслятор (M20b): сервер за этой кнопкой пока ничего не делает — вся заглушка в одной
-    // карточке. Когда за ней появится бой мехов (M21), сюда встанет сообщение, а не текст.
-    onRelay: () =>
-      dialog.show(
-        {
-          who: 'Ева Морен',
-          role: 'инженер рудника',
-          lines: [
-            'Ретранслятор собран, связь с машиной держится по десять минут.',
-            'Мы почти готовы. Возвращайтесь — будет первая вылазка.',
-          ],
-        },
-        missions?.story?.name ?? '',
-      ),
+    // Ретранслятор (M21): наземный бой. Экран откроется, когда сервер пришлёт поле, — а не по нажатию:
+    // бой мог уже идти (вернулись после обрыва связи), и тогда сервер пришлёт его, а не новый.
+    onRelay: () => send({ t: 'mechAct', act: 'start' }),
     // Карточка вопроса живёт вне дока (тот перерисовывается целиком) и создаётся ниже: к моменту
     // первого вопроса она уже есть.
     onConfirm: (lines, yes) => confirm.ask(lines, yes),
@@ -461,6 +454,28 @@ async function main(): Promise<void> {
   const tips = new TipsCard(el('tips'));
   // Сюжетный диалог (M20a): реплики кампании и выбор в них.
   const dialog = new DialogCard(el('dialog'));
+  // Наземный бой мехов (M21): поверх дока. Решает всё сервер; экран показывает поле, прогноз и ход.
+  // Звук идёт через тот же фасад, что в космосе: из дока его не слышно, поэтому бой — «не в доке», а по центру.
+  const MECH_EAR = { x: 0, y: 0 };
+  const mechSound = (sound: MechSound) => {
+    const now = performance.now();
+    const me = ownId();
+    if (sound.kind === 'down') {
+      audio.kill(MECH_EAR, 40, sound.mine, now);
+      return;
+    }
+    const weapon = { kind: sound.sound, class: 'L' } as unknown as WeaponParams;
+    const shot = {
+      from: sound.mine ? me : -1, to: sound.atMe ? me : -1, w: 'mech',
+      hit: sound.hit || sound.block, dmg: sound.hit ? 1 : 0, sh: 0, ch: 0, blk: sound.block,
+    };
+    audio.shot(shot, weapon, MECH_EAR, MECH_EAR, me, now, true);
+  };
+  const mech = new MechScreen(el('mech'), {
+    send: (message) => send(message),
+    confirm: (lines, yes) => confirm.ask(lines, yes),
+    sound: mechSound,
+  });
   // Бургер (M15.5): одно меню на док и на полёт, чтобы пункты не разъезжались.
   // Выход из меню сам показывает окно «Пилот»: кнопка в самом окне делает это за себя.
   const leave = () => {
@@ -1121,6 +1136,7 @@ async function main(): Promise<void> {
       if (message.done?.kind === 'tutorial' && message.done.last) tips.show(coarsePointer());
       refreshGalaxyMap();
     };
+    connection.onMech = (message) => mech.apply(message);
     connection.onDialog = (message) => {
       dialog.show(message, message.campaign === missions?.story?.campaign ? (missions?.story?.name ?? '') : '', (flag) =>
         send({ t: 'mission', action: 'choose', id: flag }),
@@ -1396,18 +1412,26 @@ async function main(): Promise<void> {
     camera.follow(state.x, state.y, zoom.value).apply(world, app.screen.width, app.screen.height);
     // Звук слышит оттуда же, откуда смотрит камера. Здесь же решается, что играть: бой начинают
     // выстрелы и наведённые на меня пушки, а кончает семь секунд тишины (audio/mood.ts).
-    audio.frame({
-      now,
-      camera,
-      threats: attackers,
-      incoming,
-      docked,
-      dead,
-      ships: [...remote.visible()],
-      me: { id: me, x: state.x, y: state.y },
-      myHp: ownDto && online ? ownDto.hp / Math.max(1, hull.hp) : 1,
-      throttle: online && !docked && !dead ? input.throttle : 0,
-    });
+    // Наземный бой (M21) слышен из дока: для звука это «не в доке», слушатель в центре, угроза — сам бой.
+    const inMech = mech.open;
+    app.stage.visible = !inMech;
+    audio.frame(inMech
+      ? {
+        now, camera: { ...MECH_EAR, zoom: 1 }, threats: mech.inCombat ? 1 : 0, incoming: 0, docked: false, dead: false,
+        ships: [], me: { id: me, ...MECH_EAR }, myHp: 1, throttle: 0,
+      }
+      : {
+        now,
+        camera,
+        threats: attackers,
+        incoming,
+        docked,
+        dead,
+        ships: [...remote.visible()],
+        me: { id: me, x: state.x, y: state.y },
+        myHp: ownDto && online ? ownDto.hp / Math.max(1, hull.hp) : 1,
+        throttle: online && !docked && !dead ? input.throttle : 0,
+      });
     starfield.update(camera.x, camera.y, camera.zoom, app.screen.width, app.screen.height);
     nebula.update(now);
     weaponArc.update(state.x, state.y, state.rot, target && !dead && !docked ? weapon : null, aim?.state === 'ready');
@@ -1576,38 +1600,6 @@ async function main(): Promise<void> {
 /** Угол в градусах по компасу экрана: 0 — вверх, 90 — вправо. */
 function toCompass(angle: number): number {
   return ((angle * 180) / Math.PI + 360) % 360;
-}
-
-/**
- * Холст игры. Chrome на части Android-телефонов отдаёт WebGL в проверке, но не создаёт контекст (GPU в чёрном
- * списке, контекст потерян) — тогда Pixi бросает исключение, и игра не запускалась вовсе. Пробуем по очереди:
- * WebGL со сглаживанием, без него, WebGPU, Canvas 2D.
- */
-async function createApp(): Promise<Application> {
-  const base = {
-    resizeTo: window,
-    background: '#08090b',
-    resolution: Math.min(window.devicePixelRatio || 1, 2),
-    autoDensity: true,
-  };
-  const attempts = [
-    { preference: 'webgl', antialias: true },
-    { preference: 'webgl', antialias: false },
-    { preference: 'webgpu', antialias: false },
-    { preference: 'canvas', antialias: false },
-  ] as const;
-  let error: unknown;
-  for (const attempt of attempts) {
-    const app = new Application();
-    try {
-      await app.init({ ...base, ...attempt, preference: [attempt.preference] });
-      return app;
-    } catch (e) {
-      error = e;
-      console.warn(`renderer ${attempt.preference} failed`, e);
-    }
-  }
-  throw error;
 }
 
 /** Игра не запустилась: вместо мёртвой формы входа — понятная причина на экране. */

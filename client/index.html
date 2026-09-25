@@ -50,8 +50,6 @@
       <div id="party" class="party sro-pane" hidden></div>
       <div id="invite" class="invite sro-pane sro-dialog" hidden></div>
       <div id="tips" class="tips sro-pane sro-dialog" hidden></div>
-      <!-- Сюжетный диалог (M20a): свой хост, не внутри дока — тот перерисовывается целиком. -->
-      <div id="dialog" class="dialog sro-pane sro-dialog" hidden></div>
       <div id="death" class="death sro-pane sro-pane--alert" hidden></div>
     </div>
 
@@ -90,11 +88,19 @@
 
     <div id="dock" class="dock" hidden></div>
 
+    <!-- Наземный бой мехов (M21): поверх дока, своё поле и свои панели. -->
+    <div id="mech" class="mech" hidden></div>
+
     <!--
       Вопрос «точно?» — вне HUD и после дока: у HUD position: fixed, а это свой слой, и любой z-index
       внутри него остаётся под экраном дока. А спрашивают теперь и в доке — перед продажей модуля (M20).
     -->
     <div id="confirm" class="confirm sro-pane sro-dialog" hidden></div>
+    <!--
+      Сюжетный диалог (M20a): по той же причине вне HUD — реплики звучат и в доке (сдача миссии, ретранслятор),
+      и поверх наземного боя (M21). Внутри HUD карточка оставалась под экраном дока.
+    -->
+    <div id="dialog" class="dialog sro-pane sro-dialog" hidden></div>
 
     <div id="galaxy" class="galaxy" hidden></div>
     <div id="trade" class="trade" hidden></div>

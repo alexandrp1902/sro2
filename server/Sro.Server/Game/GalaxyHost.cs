@@ -31,6 +31,13 @@ public sealed class GalaxyHost : BackgroundService
     {
         _log = log;
         _galaxy = new Galaxy(balance.Balance, roomLog, accounts);
+        // Отладка M21: проставить кампанию целиком каждому входящему, чтобы попасть к ретранслятору без
+        // четырнадцати миссий. Только явной переменной окружения, и громко: на проде её быть не должно.
+        if (Environment.GetEnvironmentVariable("SRO_STORY_SKIP") is { Length: > 0 } skip)
+        {
+            _galaxy.StorySkip = skip;
+            log.LogWarning("SRO_STORY_SKIP={Campaign}: every account that joins gets the whole campaign marked done", skip);
+        }
         _roomMs = new double[_galaxy.Rooms.Count];
         balance.Changed += b => _commands.Enqueue(() => _galaxy.ApplyBalance(b));
     }
@@ -114,6 +121,10 @@ public sealed class GalaxyHost : BackgroundService
     /// <summary>Обмен, как и группа, живёт поверх комнат: сессию держит галактика (M16b).</summary>
     public void Trade(IClientConnection connection, TradeMsg trade) =>
         _commands.Enqueue(() => _galaxy.Trade(connection, trade.Action, trade.Id, trade.Credits, trade.Items, trade.Rev));
+
+    /// <summary>Наземный бой (M21) — галактике: сессия переживает комнату, которая забыла бы пилота без связи.</summary>
+    public void Mech(IClientConnection connection, MechActMsg message) =>
+        _commands.Enqueue(() => _galaxy.Mech(connection, message));
 
     /// <summary>Комната выбирается в потоке тика: к моменту выполнения корабль мог уже перелететь в другую систему.</summary>
     private void With(IClientConnection connection, Action<Room> command) =>

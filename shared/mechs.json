@@ -1,0 +1,94 @@
+{
+  "bodies": {
+    "medium": { "name": "Средний корпус", "hp": 2200, "armor": 25 }
+  },
+  "chassis": {
+    "mediumBiped": { "name": "Среднее двуногое шасси", "hp": 1100, "armor": 20, "move": 4 }
+  },
+  "weapons": {
+    "autocannon": {
+      "name": "Автопушка", "damage": 240, "accuracy": 82,
+      "minRange": 2, "optimalMin": 3, "optimalMax": 5, "maxRange": 7,
+      "hp": 600, "armor": 15, "sound": "bolt"
+    },
+    "shotgun": {
+      "name": "Дробовик", "damage": 330, "accuracy": 85,
+      "minRange": 1, "optimalMin": 1, "optimalMax": 2, "maxRange": 4,
+      "hp": 700, "armor": 20, "sound": "flak"
+    }
+  },
+  "shields": {
+    "light": { "name": "Лёгкий щит", "hp": 1100, "armor": 25, "block": 30 }
+  },
+  "units": {
+    "prototype": { "name": "Прототип", "body": "medium", "chassis": "mediumBiped", "left": "light", "right": "autocannon" },
+    "raider": { "name": "Налётчик", "body": "medium", "chassis": "mediumBiped", "left": "light", "right": "autocannon" },
+    "raiderShotgun": { "name": "Налётчик с дробовиком", "body": "medium", "chassis": "mediumBiped", "left": "light", "right": "shotgun" }
+  },
+  "combat": {
+    "rangeStep": 5, "rangeFloor": 25,
+    "stillBonus": 10, "farMovePenalty": 10,
+    "flankBonus": 10, "rearBonus": 15,
+    "aimedPenalty": 25,
+    "hitMin": 20, "hitMax": 95,
+    "rollMin": 0.9, "rollMax": 1.1,
+    "partsFront": [45, 20, 20, 15],
+    "partsLeft": [35, 35, 10, 20],
+    "partsRear": [55, 15, 15, 15],
+    "shieldSame": 15, "shieldOpposite": -25,
+    "blockMax": 85
+  },
+  "missions": {
+    "firstSortie": {
+      "name": "Первая вылазка",
+      "goal": "Уничтожить противников",
+      "map": [
+        "......,.....",
+        "..c.....r...",
+        "....ww......",
+        ".bb.....,.c.",
+        ".bb..r......",
+        ".......ww...",
+        "..,.c.......",
+        "......bb..r.",
+        "..r...bb....",
+        ".ww.....c...",
+        "......,.....",
+        "..,........."
+      ],
+      "player": [
+        { "unit": "prototype", "x": 1, "y": 10, "dir": 1 }
+      ],
+      "enemy": [
+        { "unit": "raider", "x": 10, "y": 1, "dir": 5 },
+        { "unit": "raiderShotgun", "x": 9, "y": 2, "dir": 5 }
+      ],
+      "reward": 1500,
+      "intro": {
+        "who": "Ева Морен",
+        "role": "инженер рудника",
+        "lines": [
+          "Связь держится. Машина на окраине, у старых складов.",
+          "Двое налётчиков корпорации прочёсывают квартал. Один с дробовиком — к нему близко не подходите.",
+          "Щит у прототипа слева. Держите его к врагу, а спину — к стене."
+        ]
+      },
+      "win": {
+        "who": "Ева Морен",
+        "role": "инженер рудника",
+        "lines": [
+          "Обе машины лежат. Первый бой — и мы его выиграли.",
+          "Корпорация теперь знает, что у нас есть мех. Дальше будет труднее — Дан уже чертит план."
+        ]
+      },
+      "lose": {
+        "who": "Ева Морен",
+        "role": "инженер рудника",
+        "lines": [
+          "Ретранслятор потерял связь. Машину вытащили, чиним.",
+          "Попробуем ещё раз, когда будете готовы."
+        ]
+      }
+    }
+  }
+}

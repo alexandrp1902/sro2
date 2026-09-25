@@ -11,6 +11,10 @@ import {
   type DeniedCode,
   type HangarMsg,
   type InvasionMsg,
+  type MechEndMsg,
+  type MechEventsMsg,
+  type MechRefusedMsg,
+  type MechStateMsg,
   type MissionsMsg,
   type NameFreeMsg,
   type NoticeMsg,
@@ -31,6 +35,8 @@ import { Roster, type RosterEvent } from './roster';
 import { SnapshotDecoder } from './snapshotCodec';
 
 export type ConnectionState = 'connecting' | 'online' | 'offline';
+
+export type MechMessage = MechStateMsg | MechEventsMsg | MechEndMsg | MechRefusedMsg;
 
 /** Вход по нику и паролю (свободный ник заводит аккаунт) или по ключу устройства. */
 /** career — путь (M15.5): сервер применит его, только если этим входом заводится аккаунт. */
@@ -106,6 +112,8 @@ export class Connection {
   onTrade: ((message: TradeInviteMsg | TradeStateMsg | TradeEventMsg) => void) | null = null;
   onBounty: ((message: BountyMsg) => void) | null = null;
   onInvasion: ((message: InvasionMsg) => void) | null = null;
+  /** Наземный бой мехов (M21): поле, события хода, итог и отказы. */
+  onMech: ((message: MechMessage) => void) | null = null;
 
   private ws: WebSocket | null = null;
   private credentials: Credentials | null = null;
@@ -349,6 +357,12 @@ export class Connection {
         break;
       case 'invasion':
         this.onInvasion?.(message);
+        break;
+      case 'mechState':
+      case 'mechEvents':
+      case 'mechEnd':
+      case 'mechRefused':
+        this.onMech?.(message);
         break;
     }
   }

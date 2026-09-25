@@ -1,6 +1,7 @@
 using Sro.Server.Accounts;
 using Sro.Server.Net;
 using Sro.Sim;
+using Sro.Sim.Mech;
 
 namespace Sro.Server.Game;
 
@@ -121,11 +122,8 @@ public sealed partial class Room
                 log?.Lines ?? [],
                 offer,
                 offer is null && player.Missions.Active?.Offer.Story is null && campaign.Next(passed) is null,
-                // Ретранслятор (M20b): кампания пройдена целиком, и пилот стоит там, где она кончилась.
-                // Место берём из последней миссии, а не строкой в коде: вторая кампания кончится
-                // в другом доке, и искать её финал по имени места никто не должен.
-                campaign.MissionList.Count > 0 && campaign.Next(passed) is null
-                    && player.Docked && player.DockedPlace == campaign.MissionList[^1].Place);
+                RelayOpen(player, campaign, passed),
+                log?.Flags.Contains(Protocol.SortieWonFlag) == true);
         }
     }
 
@@ -530,11 +528,70 @@ public sealed partial class Room
     /// Сказать пилоту карточкой и запомнить сказанное в журнале: вернувшись через день, он должен
     /// понимать, на чём остановился, а не гадать, куда его вели.
     /// </summary>
-    private void Say(Player player, StoryRef story, IReadOnlyList<string>? lines, string who, string role)
+    private void Say(Player player, StoryRef story, IReadOnlyList<string>? lines, string who, string role) =>
+        Say(player, story.Campaign, story.Mission, lines, who, role);
+
+    private static void Say(Player player, string campaign, string mission, IReadOnlyList<string>? lines, string who, string role)
     {
         if (lines is null || lines.Count == 0) return;
-        var log = player.StoryOf(story.Campaign);
+        var log = player.StoryOf(campaign);
         log.Lines = [.. lines];
-        player.Connection?.Send(new DialogMsg(story.Campaign, story.Mission, who, role, lines));
+        player.Connection?.Send(new DialogMsg(campaign, mission, who, role, lines));
+    }
+
+    // ------------------------------------------------------------------ ретранслятор и мехи (M21)
+
+    /// <summary>
+    /// Ретранслятор (M20b): кампания пройдена целиком, и пилот стоит там, где она кончилась. Место берём
+    /// из последней миссии, а не строкой в коде: вторая кампания кончится в другом доке, и искать её
+    /// финал по имени места никто не должен.
+    /// </summary>
+    private static bool RelayOpen(Player player, StoryCampaign campaign, IReadOnlyCollection<string> passed) =>
+        campaign.MissionList.Count > 0 && campaign.Next(passed) is null
+            && player.Docked && player.DockedPlace == campaign.MissionList[^1].Place;
+
+    /// <summary>Кампания, чей ретранслятор открыт пилоту здесь и сейчас; null — такой нет.</summary>
+    public string? RelayHere(Player player)
+    {
+        foreach (var (id, campaign) in Balance.Story.CampaignMap)
+        {
+            if (RelayOpen(player, campaign, player.Story.GetValueOrDefault(id)?.Done ?? [])) return id;
+        }
+        return null;
+    }
+
+    /// <summary>Отладка (SRO_STORY_SKIP): отметить все миссии кампании пройденными.</summary>
+    public void SkipStory(Player player, string campaign)
+    {
+        if (Balance.Story.Campaign(campaign) is not { } rules) return;
+        var log = player.StoryOf(campaign);
+        var added = false;
+        foreach (var mission in rules.MissionList) added |= log.Done.Add(mission.Id);
+        if (!added) return;
+        Save(player);
+        SendMissions(player);
+        _log.LogWarning("Player {Id}: campaign {Campaign} marked done by SRO_STORY_SKIP", player.Id, campaign);
+    }
+
+    /// <summary>Реплики наземной миссии — той же карточкой и в тот же журнал, что сюжет.</summary>
+    public void MechSay(Player player, string campaign, string mission, MechLines? lines)
+    {
+        if (lines is not null) Say(player, campaign, mission, lines.Lines, lines.Who, lines.Role);
+        Save(player);
+    }
+
+    /// <summary>
+    /// Победа в наземной миссии. Платим только за первую: бой повторяемый, и фармить его незачем.
+    /// true — это была первая.
+    /// </summary>
+    public bool MechWon(Player player, string campaign, string mission, MechMission rules)
+    {
+        var log = player.StoryOf(campaign);
+        var first = log.Flags.Add(Protocol.SortieWonFlag);
+        if (first && rules.Reward > 0) Pay(player, rules.Reward);
+        MechSay(player, campaign, mission, first ? rules.Win : null);
+        SendMissions(player);
+        _log.LogInformation("Player {Id} won the mech mission {Mission} (first: {First})", player.Id, mission, first);
+        return first;
     }
 }

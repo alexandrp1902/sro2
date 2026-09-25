@@ -2,8 +2,11 @@
  * Витрина интерфейса без сервера: `?demo=<экран>` собирает настоящие построители HUD, дока и окон
  * на фиксированных данных. Нужна проходам по дизайну (скриншоты headless-браузером на ПК и телефоне)
  * и ничего не шлёт. Экраны: flight, dock-missions, dock-cargo, dock-hulls, dock-ships, dock-fitting,
- * galaxy, controls, audio, radio, confirm, menu, password, death, login, login-new, login-over, party10, trade.
+ * galaxy, controls, audio, radio, confirm, menu, password, death, login, login-new, login-over, party10, trade,
+ * relay (ретранслятор в доке), mech и mech-end (наземный бой, M21).
  */
+import { MechScreen } from '../mech/screen';
+import { DEFAULT_RULES } from '../mech/rules';
 import type { Connection } from '../net/connection';
 import type { CareerDto, GalaxyDto, HangarMsg, MarketMsg, MissionsMsg, RepMsg } from '../net/protocol';
 import { Modules } from '../sim/fitting';
@@ -267,7 +270,7 @@ export function runDemo(screen: string): void {
     }
   };
 
-  const dock = (tab: Tab): void => {
+  const dock = (tab: Tab, relay = false): void => {
     const shop: ShopRules = {
       startCredits: 1000,
       repairPrice: 0.25,
@@ -324,7 +327,15 @@ export function runDemo(screen: string): void {
         { id: 'o2', kind: 'collect', item: 'ore', count: 6, reward: 180, from: 'sol' },
       ],
       // Кампания (M20a): на доске у неё свой раздел над работой станции.
-      story: {
+      story: relay ? {
+        // Кампания пройдена (M21): на её последнем месте — ретранслятор в наземный бой.
+        campaign: 'quietWar',
+        name: 'Тихая война',
+        done: 14,
+        total: 14,
+        lines: ['Машину мы собрали. Пилота — нет.'],
+        relay: true,
+      } : {
         campaign: 'quietWar',
         name: 'Тихая война',
         done: 2,
@@ -508,8 +519,53 @@ export function runDemo(screen: string): void {
       flightHud();
       pilotForm.show({ url: 'sro.example.com', name: 'Новичок', loggedIn: true });
       break;
+    case 'relay':
+      dock('missions', true);
+      break;
+    case 'mech':
+    case 'mech-end':
+      mechDemo(screen === 'mech-end', confirm);
+      break;
     default:
       if (screen.startsWith('dock-')) dock(screen.slice(5) as Tab);
       else flightHud();
   }
+}
+
+/**
+ * Наземный бой (M21) на фиксированном поле: прототип подошёл и держит налётчика в прицеле — открыт прогноз.
+ * mech-end — то же поле с карточкой итога. Своё Pixi-приложение экран бой создаёт сам.
+ */
+function mechDemo(end: boolean, confirm: ConfirmCard): void {
+  const mission = DEFAULT_RULES.missions?.firstSortie;
+  if (!mission) return;
+  const unit = (id: string, side: 'player' | 'enemy', kind: string, x: number, y: number, dir: number, hp: number[]) => ({
+    id, side, unit: kind, name: DEFAULT_RULES.units?.[kind]?.name ?? kind, x, y, dir, hp,
+    max: [2200, 1100, kind === 'raiderShotgun' ? 700 : 600, 1100], activated: false,
+  });
+  const screen = new MechScreen(el('mech'), { send: noop, confirm: (lines, yes) => confirm.ask(lines, yes) });
+  screen.apply({
+    t: 'mechState',
+    rules: DEFAULT_RULES,
+    battle: {
+      mission: 'firstSortie',
+      map: mission.map,
+      round: 3,
+      turn: 'player',
+      current: 'p1',
+      moved: false,
+      steps: 0,
+      moveRange: 4,
+      units: [
+        unit('p1', 'player', 'prototype', 3, 7, 1, [1840, 820, 600, 1100]),
+        unit('e1', 'enemy', 'raider', 7, 4, 5, [1500, 0, 600, 700]),
+        unit('e2', 'enemy', 'raiderShotgun', 9, 2, 5, [2200, 1100, 700, 1100]),
+      ],
+    },
+  });
+  // Прогноз открывается, когда поле уже построено: очередь экрана асинхронная.
+  window.setTimeout(() => {
+    screen.select('e1');
+    if (end) screen.apply({ t: 'mechEnd', won: true, reward: 1500, first: true });
+  }, 600);
 }

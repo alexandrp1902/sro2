@@ -1,6 +1,7 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Sro.Sim;
+using Sro.Sim.Mech;
 
 namespace Sro.Server.Net;
 
@@ -36,6 +37,7 @@ namespace Sro.Server.Net;
 [JsonDerivedType(typeof(TradeMsg), "trade")]
 [JsonDerivedType(typeof(PvpMsg), "pvp")]
 [JsonDerivedType(typeof(PasswordMsg), "password")]
+[JsonDerivedType(typeof(MechActMsg), "mechAct")]
 public abstract record ClientMessage;
 
 /// <summary>
@@ -228,6 +230,18 @@ public sealed record TradeMsg(
 /// </summary>
 public sealed record PvpMsg(bool On) : ClientMessage;
 
+/// <summary>
+/// Наземный бой мехов (M21) — одно сообщение на все действия: бой пошаговый, и каждое действие — это
+/// «запрос — проверка — результат», а не поток ввода.
+/// </summary>
+/// <param name="Act">
+/// <see cref="Protocol.MechStart"/> — начать бой у ретранслятора (или получить идущий заново);
+/// move (X, Y), attack (Target, Part — прицельный выстрел), end (Dir — поворот напоследок) — ход;
+/// <see cref="Protocol.MechQuit"/> — отступить, это поражение.
+/// </param>
+public sealed record MechActMsg(
+    string? Act, int X = 0, int Y = 0, int? Dir = null, string? Target = null, string? Part = null) : ClientMessage;
+
 // Сервер → клиент
 [JsonPolymorphic(TypeDiscriminatorPropertyName = "t")]
 [JsonDerivedType(typeof(WelcomeMsg), "welcome")]
@@ -256,7 +270,27 @@ public sealed record PvpMsg(bool On) : ClientMessage;
 [JsonDerivedType(typeof(ShopMsg), "shop")]
 [JsonDerivedType(typeof(RepMsg), "rep")]
 [JsonDerivedType(typeof(DialogMsg), "dialog")]
+[JsonDerivedType(typeof(MechStateMsg), "mechState")]
+[JsonDerivedType(typeof(MechEventsMsg), "mechEvents")]
+[JsonDerivedType(typeof(MechEndMsg), "mechEnd")]
+[JsonDerivedType(typeof(MechRefusedMsg), "mechRefused")]
 public abstract record ServerMessage;
+
+/// <summary>
+/// Наземный бой целиком (M21): поле маленькое, и проще прислать его всё, чем склеивать приращения.
+/// Приходит на старте, после каждого хода и при возвращении после обрыва связи.
+/// </summary>
+/// <param name="Rules">Каталог мехов для прогноза на клиенте — только на старте и при возвращении.</param>
+public sealed record MechStateMsg(MechBattleView Battle, MechRules? Rules = null) : ServerMessage;
+
+/// <summary>Что случилось за ход — игрока и сразу за ним противника, по порядку, для анимации.</summary>
+public sealed record MechEventsMsg(IReadOnlyList<MechEvent> Events) : ServerMessage;
+
+/// <summary>Бой кончен. Reward — сколько заплачено (только за первую победу), First — это была первая.</summary>
+public sealed record MechEndMsg(bool Won, int Reward, bool First) : ServerMessage;
+
+/// <summary>Ход не принят: код из <see cref="MechCodes"/>. Состояние боя не менялось.</summary>
+public sealed record MechRefusedMsg(string Code) : ServerMessage;
 
 /// <param name="Id">Id своего корабля в снапшотах.</param>
 /// <param name="Version">Версия протокола (<see cref="Protocol.Version"/>): клиент другой версии играть не будет.</param>
@@ -704,6 +738,7 @@ public sealed record MissionsMsg(
 /// начинается M21. Отдельный флаг, а не <paramref name="More"/>: тот говорит «дальше ещё напишут»,
 /// этот — «дальше уже есть куда нажать».
 /// </param>
+/// <param name="SortieWon">Первая вылазка мехов выиграна (M21): карточка ретранслятора пишет «пройдено».</param>
 public sealed record StoryStateDto(
     string Campaign,
     string Name,
@@ -712,7 +747,8 @@ public sealed record StoryStateDto(
     IReadOnlyList<string> Lines,
     MissionOffer? Offer = null,
     bool More = false,
-    bool Relay = false);
+    bool Relay = false,
+    bool SortieWon = false);
 
 /// <summary>
 /// Карточка сюжетного диалога (M20a): портрет, имя, реплики и до двух кнопок. Портрета пока нет —
@@ -929,12 +965,13 @@ public static class Protocol
     /// 30 — сюжетные кампании «Тихой войны», M20a;
     /// 31 — снять и поставить оснащение пачкой, своё оснащение у каждого корпуса ангара, слух про чужую верфь, M20;
     /// 32 — вторая половина «Тихой войны»: корабли корпорации своими силуэтами и «Ретранслятор» на Руднике Прайм, M20b;
-    /// 33 — продажа корабля из ангара вместе с оснащением, M20c).
+    /// 33 — продажа корабля из ангара вместе с оснащением, M20c;
+    /// 34 — наземный бой мехов у ретранслятора: mechAct, mechState, mechEvents, mechEnd, mechRefused, M21).
     /// Кадр снапшота в 29 тот же, что в 28: версия растёт потому, что старый клиент не знает про perk,
     /// hpMul и speedMul — и предсказывал бы и движение, и прочность своего корабля мимо сервера.
     /// Зеркало PROTOCOL_VERSION в client/src/net/protocol.ts.
     /// </summary>
-    public const int Version = 33;
+    public const int Version = 34;
 
     public const string DroneKind = "drone";
     public const string PirateKind = "pirate";
@@ -1020,6 +1057,15 @@ public static class Protocol
     public const string NotYoursNotice = "notYours";
     /// <summary>Взята сюжетная миссия, и в трюме для её груза не хватило места (M20a).</summary>
     public const string StoryHoldNotice = "storyHold";
+    /// <summary>Идёт наземный бой (M21): вылететь нельзя, пока он не кончен или не брошен.</summary>
+    public const string MechBusyNotice = "mechBusy";
+
+    /// <summary>Действия наземного боя (<see cref="MechActMsg.Act"/>), кроме ходов — те в <see cref="MechCommand"/>.</summary>
+    public const string MechStart = "start";
+    public const string MechQuit = "quit";
+
+    /// <summary>Флаг кампании: первая вылазка выиграна, награда выплачена.</summary>
+    public const string SortieWonFlag = "firstSortie";
 
     /// <summary>За что начислена или снята репутация (<see cref="RepChangeDto.Code"/>; M13).</summary>
     public const string RepMissionDone = "missionDone";

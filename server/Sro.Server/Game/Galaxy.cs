@@ -49,6 +49,9 @@ public interface IRoomHost
 
     /// <summary>Верфи остальных систем и корпуса на них (M20): по ним мастер советует, куда лететь за кораблём.</summary>
     IReadOnlyList<StationYard> YardsExcept(string system);
+
+    /// <summary>У пилота идёт наземный бой (M21): из дока его не выпускают.</summary>
+    bool InMech(Player player);
 }
 
 /// <summary>
@@ -96,6 +99,7 @@ public sealed partial class Galaxy : IRoomHost
         _stepMs = new double[_rooms.Count];
         _invasion = new InvasionDirector(log, random?.Invoke(seed++));
         _demand = new DemandDirector(log, random?.Invoke(seed++));
+        _mechSeeds = random?.Invoke(seed++) ?? new Random();
     }
 
     /// <summary>Группы галактики.</summary>
@@ -148,8 +152,12 @@ public sealed partial class Galaxy : IRoomHost
         var room = _rooms.Values.FirstOrDefault(r => r.HasToken(accountId)) ?? Home(start);
         room.JoinAccount(connection, accountId, name, career);
         _byConnection[connection.Id] = room;
+        if (StorySkip is { } campaign && room.PlayerOf(connection) is { } player) room.SkipStory(player, campaign);
         Joined(room, connection);
     }
+
+    /// <summary>Отладка (SRO_STORY_SKIP): кампания, которую каждый вошедший аккаунт получает пройденной.</summary>
+    public string? StorySkip { get; set; }
 
     /// <summary>Вошедшему (или вернувшемуся) — идущее вторжение и своя группа сразу, не дожидаясь рассылки.</summary>
     private void Joined(Room room, IClientConnection connection)
@@ -158,11 +166,14 @@ public sealed partial class Galaxy : IRoomHost
         _invasion.SendTo(player, this);
         _demand.SendTo(player, this);
         if (_parties.PartyOf(player.Id) is { } party) SendParty(party);
+        MechResume(player);
     }
 
     public void Disconnect(IClientConnection connection)
     {
-        if (_byConnection.Remove(connection.Id, out var room)) room.Disconnect(connection);
+        if (!_byConnection.Remove(connection.Id, out var room)) return;
+        if (room.PlayerOf(connection) is { } player) MechLost(player);
+        room.Disconnect(connection);
     }
 
     /// <summary>Команда игрока — в комнату, где сейчас его корабль.</summary>
@@ -186,6 +197,7 @@ public sealed partial class Galaxy : IRoomHost
         _demand.Step(this, Tick);
         StepParties();
         StepTrades();
+        StepMech();
 
         // «Онлайн» в статусе — по всей галактике: вошли в одной системе — узнают и в остальных.
         var total = OnlineTotal;
