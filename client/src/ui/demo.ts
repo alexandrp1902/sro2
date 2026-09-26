@@ -391,7 +391,7 @@ export function runDemo(screen: string): void {
         { kind: 'yard', good: hulls.ids()[3] ?? 'lancer', system: 'aldebaran', name: 'Крепость Альдебарана', hops: 3, price: 24000 },
       ],
       station: { produces: ['metal', 'ore'], consumes: ['crystals'] } as MarketMsg['station'],
-      demand: { case: 'uprising', title: 'Восстание на Терре', goods: ['energy'], mul: 1.8, left: 30, quota: 40 },
+      demand: { case: 'uprising', title: 'Восстание на Терре', goods: ['energy'], mul: 2.8, left: 80, quota: 100, here: true, start: 3, end: 2, placeName: 'Новый Порт' },
     };
     const rep: RepMsg = {
       t: 'rep',

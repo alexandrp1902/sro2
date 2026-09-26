@@ -1,7 +1,6 @@
 // Сквозная проверка события спроса (M15.5) без браузера. На время проверки shared/demand.json подменяется
 // коротким (анонс 3 с, квота 6, срок 40 с) — сервер подхватывает его сам, — а в конце возвращается как был.
-// Ждёт анонс и открытие приёмки, проверяет, что цена там пробивает обычный потолок, сдаёт квоту целиком
-// и ждёт «спрос закрыт».
+// Ждёт анонс и открытие приёмки, проверяет множитель и ждёт, пока событие погаснет.
 // Нужен запущенный сервер (с горячей перезагрузкой shared/) и Node 24. Идёт ~40 секунд.
 //   node tools/smoke-demand.mjs [ws://localhost:5000/ws]
 
@@ -18,9 +17,8 @@ const short = {
   announceSeconds: 3,
   durationSeconds: 40,
   quota: 6,
-  mul: 4,
+  mul: 3,
   mulEnd: 2,
-  crashShare: 0.15,
   perPilot: 0,
   cases: [{ id: 'plague', title: 'Эпидемия', goods: ['medicine'] }],
 };
@@ -83,7 +81,7 @@ async function main() {
 
     await until(() => since().some((m) => m.state === 'open'), 15000, 'the doors to open');
     const open = since().find((m) => m.state === 'open');
-    check(`the price jumped ×${open.mul} while the doors are open`, open.mul > 2);
+    check(`the price jumped ×${open.mul} while the doors are open`, open.mul === 3);
 
     // Событие всегда в красной зоне: там гружёный корабль могут отнять, и в этом весь смысл.
     const map = client.welcome.galaxy?.systems ?? [];

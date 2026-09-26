@@ -3,8 +3,8 @@ using Sro.Sim;
 namespace Sro.Sim.Tests;
 
 /// <summary>
-/// События спроса (M15.5): множитель тает вместе с квотой, а потолок цены поднимается вместе с ним —
-/// иначе зажим MaxFactor съел бы весь смысл события.
+/// События спроса (M15.5): множитель тает вместе с квотой, цена события считается от обычной цены товара,
+/// а не от здешнего склада (плейтест 2026-09-26), и в системе события товар не купить.
 /// </summary>
 public class DemandRulesTests
 {
@@ -15,7 +15,7 @@ public class DemandRulesTests
     };
 
     private static DemandRules Rules(params DemandCase[] cases) =>
-        new(Quota: 180, Mul: 4.5, MulEnd: 2, Cases: cases);
+        new(Quota: 100, Mul: 3, MulEnd: 2, Cases: cases);
 
     private static readonly DemandCase Plague = new("plague", "Эпидемия", ["medicine", "food"]);
 
@@ -23,9 +23,9 @@ public class DemandRulesTests
     public void TheMultiplierFallsFromMulToMulEndAsTheQuotaFills()
     {
         var rules = Rules(Plague);
-        Assert.Equal(4.5, rules.Multiplier(180, 180), 6); // ещё ничего не привезли
-        Assert.Equal(3.25, rules.Multiplier(90, 180), 6); // половина квоты
-        Assert.Equal(2, rules.Multiplier(0, 180), 6); // всё довезли
+        Assert.Equal(3, rules.Multiplier(100, 100), 6); // ещё ничего не привезли
+        Assert.Equal(2.5, rules.Multiplier(50, 100), 6); // половина квоты
+        Assert.Equal(2, rules.Multiplier(0, 100), 6); // всё довезли
     }
 
     [Fact]
@@ -33,7 +33,7 @@ public class DemandRulesTests
     {
         // Если множитель уходил бы в единицу, последний трюм везти было бы незачем,
         // квота не выбиралась бы никогда, и «спрос закрыт» перестал бы случаться.
-        Assert.True(Rules(Plague).Multiplier(1, 180) > 1.5);
+        Assert.True(Rules(Plague).Multiplier(1, 100) > 1.5);
     }
 
     [Theory]
@@ -69,33 +69,73 @@ public class DemandRulesTests
         Assert.Null(DemandRules.None.Validate(Items)); // выключённый файл — не ошибка
     }
 
-    [Fact]
-    public void DemandLiftsThePriceAboveMaxFactor()
+    private static readonly MarketRules Market = new(
+        Goods: new Dictionary<string, MarketGood> { ["medicine"] = new(100), ["food"] = new(100) },
+        Station: new MarketStation(Produces: ["medicine"], Consumes: ["food"]));
+
+    private static MarketDemand Demand(int left = 100, bool here = true) => new(["medicine"], 3, 2, left, 100, here);
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(250)]
+    [InlineData(750)]
+    public void TheEventPaysTheBasePriceTimesTheMultiplier_WhateverTheStock(double stock)
     {
-        // Главная ловушка этапа: Mid зажимает цену в MaxFactor, и без подъёма потолка
-        // множитель ×4.5 превратился бы в ×2.2, а событие — в обычный рейс.
-        var market = new MarketRules(
-            Goods: new Dictionary<string, MarketGood> { ["medicine"] = new(100) },
-            Station: new MarketStation(Consumes: ["medicine"]));
-        var norm = market.Norm("medicine");
+        // Плейтест 2026-09-26: «×2.4» поверх цены затоваренного склада платило меньше, чем товар стоил
+        // в соседней системе. Теперь табло не врёт: ×3 от обычной цены при любом запасе.
+        var boosted = Market.With(Demand());
+        Assert.Equal((int)Math.Floor(60 * 3 * (1 - Market.Spread / 2)), boosted.SellPrice("medicine", 60, stock));
+        Assert.Equal(3, boosted.Demand!.Mul, 6);
+    }
 
-        var plain = market.Mid("medicine", 60, norm);
-        var boosted = market.With(new MarketDemand(["medicine"], 4.5)).Mid("medicine", 60, norm);
+    [Fact]
+    public void EveryUnitTapersTheMultiplier_AndTheEventUnitsDoNotPileUpInStock()
+    {
+        var boosted = Market.With(Demand(left: 100));
+        var (credits, stock) = boosted.Trade("medicine", 60, 250, 100, buying: false);
 
-        Assert.True(plain <= 60 * market.MaxFactor + 1e-9, "без события цена упирается в обычный потолок");
-        Assert.True(boosted > 60 * market.MaxFactor, $"с событием цена {boosted} должна пробивать обычный потолок");
-        Assert.Equal(plain * 4.5, boosted, 6);
+        var expected = 0;
+        for (var i = 0; i < 100; i++) expected += (int)Math.Floor(60 * DemandRules.Taper(3, 2, 100 - i, 100) * (1 - Market.Spread / 2) + 1e-9);
+        Assert.Equal(expected, credits);
+        // Сотню лекарств забрала нужда: склад места их не видел, и завала после события не будет.
+        Assert.Equal(250, stock, 6);
+        // Даже последняя штука вдвое дороже обычной: её стоит везти.
+        Assert.True(boosted.SellPrice("medicine", 60, 250, 99) >= (int)Math.Floor(60 * 2 * (1 - Market.Spread / 2)));
+    }
+
+    [Fact]
+    public void OverTheQuotaTheStationPaysThePlainPrice()
+    {
+        var boosted = Market.With(Demand(left: 10));
+        var (credits, stock) = boosted.Trade("medicine", 60, 250, 20, buying: false);
+
+        var (plain, plainStock) = Market.Trade("medicine", 60, 250, 10, buying: false);
+        var eventPart = 0;
+        for (var i = 0; i < 10; i++) eventPart += boosted.SellPrice("medicine", 60, 250, i);
+        Assert.Equal(eventPart + plain, credits);
+        Assert.Equal(plainStock, stock, 6);
+    }
+
+    [Fact]
+    public void TheWholeSystemIsShort_AndOnlyTheEventPlaceBuysDear()
+    {
+        var there = Market.With(Demand());
+        var nextDoor = Market.With(Demand(here: false));
+
+        // Купить нельзя нигде в системе: иначе медикаменты брались бы у соседки и сдавались за углом.
+        Assert.False(there.Sells("medicine"));
+        Assert.False(nextDoor.Sells("medicine"));
+        Assert.True(nextDoor.Sells("food"));
+        // Втридорога берут только на месте события; соседка платит как обычно.
+        Assert.Equal(Market.SellPrice("medicine", 60, 250), nextDoor.SellPrice("medicine", 60, 250));
+        Assert.True(there.SellPrice("medicine", 60, 250) > 2 * nextDoor.SellPrice("medicine", 60, 250));
     }
 
     [Fact]
     public void DemandTouchesOnlyTheGoodsItAsksFor()
     {
-        var market = new MarketRules(
-            Goods: new Dictionary<string, MarketGood> { ["medicine"] = new(100), ["food"] = new(100) },
-            Station: new MarketStation(Consumes: ["medicine", "food"]));
-        var boosted = market.With(new MarketDemand(["medicine"], 4.5));
-
-        Assert.Equal(market.Mid("food", 30, 50), boosted.Mid("food", 30, 50), 6);
-        Assert.NotEqual(market.Mid("medicine", 60, 50), boosted.Mid("medicine", 60, 50), 6);
+        var boosted = Market.With(Demand());
+        Assert.Equal(Market.SellPrice("food", 30, 50), boosted.SellPrice("food", 30, 50));
+        Assert.Equal(Market.BuyPrice("food", 30, 50), boosted.BuyPrice("food", 30, 50));
     }
 }

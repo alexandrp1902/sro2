@@ -8,7 +8,7 @@ namespace Sro.Server.Tests;
 /// <summary>
 /// События спроса (M15.5): вспыхивают только в красной зоне, поднимают цену на просимые товары,
 /// убывают вместе с квотой и кончаются — досрочно, если довезли, и молча, если не успели.
-/// У станции-соседки по системе цена при этом не шелохнётся.
+/// Просимое пропадает с прилавков всей системы: его везут из других систем (плейтест 2026-09-26).
 /// </summary>
 public sealed class DemandTests
 {
@@ -54,9 +54,8 @@ public sealed class DemandTests
         AnnounceSeconds: 1,
         DurationSeconds: 60,
         Quota: 10,
-        Mul: 4,
+        Mul: 3,
         MulEnd: 2,
-        CrashShare: 0.15,
         Cases: [new DemandCase("plague", "Эпидемия", [Medicine])]);
 
     private readonly Galaxy _galaxy;
@@ -141,8 +140,12 @@ public sealed class DemandTests
         Assert.True(announce.SecondsLeft >= 0);
     }
 
+    /// <summary>Цена штуки события на месте: обычная цена товара × множитель, минус половина спреда.</summary>
+    private static int EventUnit(int left) =>
+        (int)Math.Floor(60 * DemandRules.Taper(3, 2, left, 10) * (1 - Market.Spread / 2) + 1e-9);
+
     [Fact]
-    public void OpeningCrashesTheStockAndLiftsThePrice()
+    public void OpeningPaysThreefold_AndTakesTheGoodOffTheShelf()
     {
         var a = Guest();
         var open = StepUntil(a, Protocol.DemandOpen);
@@ -151,8 +154,9 @@ public sealed class DemandTests
 
         var here = Quote(b, Medicine);
         var elsewhere = Quote(b, Ore);
-        Assert.True(here.Sell > 60 * 2.2, $"цена {here.Sell} должна пробивать обычный потолок");
-        Assert.True(here.Stock < here.Norm, "склад просимого товара обрушен");
+        // Табло «×3» платит втрое от обычной цены — при любом складе места.
+        Assert.Equal(EventUnit(10), here.Sell);
+        Assert.False(here.Sells, "просимое на месте события не купить");
         Assert.True(elsewhere.Sell < 60, "остальных товаров событие не касается");
     }
 
@@ -178,35 +182,52 @@ public sealed class DemandTests
     }
 
     [Fact]
-    public void FillingTheQuotaEndsTheEventEarly()
+    public void FillingTheQuotaEndsTheEventEarly_AndTheRestGoesAtThePlainPrice()
     {
         var a = Guest();
         var open = StepUntil(a, Protocol.DemandOpen);
         var b = Guest("Buyer");
         var player = Dock(b, open.Place);
         player.Cargo.Add(Medicine, 20);
+        var credits = player.Credits;
 
         _galaxy.With(b, r => r.Sell(b, Medicine, 20));
         Steps(2);
 
+        // Десять штук — по цене события, тающей со штукой; остальные десять — как в обычный день.
+        var local = Market.Local(open.Place, null);
+        var expected = local.Trade(Medicine, 60, local.Norm(Medicine), 10, buying: false).Credits;
+        for (var left = 10; left > 0; left--) expected += EventUnit(left);
+        Assert.Equal(credits + expected, player.Credits);
+
         var filled = a.Messages.OfType<DemandMsg>().Last();
         Assert.Equal(Protocol.DemandFilled, filled.State);
-        // Цена возвращается к обычной: событие кончилось, и склад теперь сам тянется к норме.
-        Assert.True(Quote(b, Medicine).Sell < 60 * 2.2 + 1);
+        Assert.True(Quote(b, Medicine).Sells, "событие кончилось — товар снова в продаже");
     }
 
     [Fact]
-    public void TheStationNextDoorNeverFeelsIt()
+    public void TheWholeSystemIsShort_ButOnlyTheEventPlacePaysDear()
     {
         var a = Guest();
         var open = StepUntil(a, Protocol.DemandOpen);
         var other = open.Place == "pl:ash" ? "st:free" : "pl:ash";
         var b = Guest("Buyer");
-        Dock(b, other);
+        var player = Dock(b, other);
 
-        // Событие живёт по ключу места: у соседа по системе цена обычная.
-        Assert.True(Quote(b, Medicine).Sell <= 60 * 2.2 + 1);
-        Assert.Null(b.Last<MarketMsg>().Demand);
+        // Купить у соседки и сдать за углом нельзя: просимое пропало со всех прилавков системы.
+        var quote = Quote(b, Medicine);
+        Assert.False(quote.Sells);
+        Assert.True(quote.Sell <= 60 * 2.2 + 1, "соседка платит обычную цену");
+        var demand = b.Last<MarketMsg>().Demand;
+        Assert.NotNull(demand);
+        Assert.False(demand!.Here);
+        Assert.False(string.IsNullOrEmpty(demand.PlaceName));
+
+        var credits = player.Credits;
+        _galaxy.With(b, r => r.BuyGoods(b, Medicine, 1));
+        Assert.Equal(Protocol.ShortageNotice, b.Last<NoticeMsg>().Code);
+        Assert.Equal(credits, player.Credits);
+        Assert.Equal(0, player.Cargo.Count(Medicine));
     }
 
     [Fact]
@@ -222,9 +243,9 @@ public sealed class DemandTests
         Assert.NotNull(market.Demand);
         Assert.Equal(Medicine, Assert.Single(market.Demand!.Goods));
         Assert.Equal(10, market.Demand.Quota);
-        // Просимый товар место на срок события скупает, а не продаёт: привезти его можно только издалека.
-        Assert.Contains(Medicine, market.Station!.ConsumeList);
-        Assert.DoesNotContain(Medicine, market.Station.ProduceList);
+        // Клиент считает кнопку той же формулой: ему нужны оба конца множителя.
+        Assert.True(market.Demand.Here);
+        Assert.Equal((3.0, 2.0), (market.Demand.Start, market.Demand.End));
     }
 
     [Fact]

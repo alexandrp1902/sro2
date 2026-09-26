@@ -12,7 +12,7 @@ import type { ShopRules } from '../sim/shop';
 import type { MechBattleView, MechPart, MechRules } from '../mech/rules';
 
 /** Версия протокола; зеркало Protocol.Version на сервере. Сервер другой версии (или старый, без поля) — не играем. */
-export const PROTOCOL_VERSION = 35;
+export const PROTOCOL_VERSION = 36;
 
 /** Состояние ИИ пирата: патруль, бой, возврат в логово (налётчик — полёт от врат к точке), уход из системы. */
 export type AiState = 'patrol' | 'attack' | 'return' | 'leave';
@@ -657,14 +657,22 @@ export interface ShopMsg {
   shop: ShopRules;
 }
 
-/** Спрос события на этом месте (M15.5): что просят, во сколько раз дороже и сколько ещё примут. */
+/** Спрос события в этой системе (M15.5): что просят, почём берут на месте события и сколько ещё примут. */
 export interface DemandQuoteDto {
   case: string;
   title: string;
   goods: string[];
+  /** Множитель следующей принятой штуки — его показывает табло. */
   mul: number;
   left: number;
   quota: number;
+  /** Пилот на самом месте события; false — на соседнем, где товар в дефиците. */
+  here?: boolean;
+  /** Множитель в начале и в конце квоты: кнопка считает цену каждой штуки той же формулой, что сервер. */
+  start?: number;
+  end?: number;
+  /** Где событие: соседке по системе надо сказать, куда везти. */
+  placeName?: string;
 }
 
 /** Событие спроса (M15.5) — на всю галактику, как вторжение. */

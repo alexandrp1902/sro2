@@ -40,7 +40,7 @@ import { DEFAULT_HULL, type Hulls } from '../sim/hulls';
 import type { HullParams } from '../sim/movement';
 import { activeHint, activeLine, offerNote, offerTitle, timeLeft, type MissionNames } from '../sim/missions';
 import { isStory, lootItem, rarityColor, type LootRules } from '../sim/loot';
-import { NO_MARKET, affordable, rumourLine, stockLevel, tradeCost, trend, yardLine, type MarketRules } from '../sim/market';
+import { NO_MARKET, affordable, isShort, rumourLine, stockLevel, tradeCost, trend, yardLine, type MarketRules } from '../sim/market';
 import { buildRoster, staffOf, type StaffMember, type StaffRole, type StaffRoster, type StaffSlot } from '../sim/staff';
 import {
   NO_REP,
@@ -273,7 +273,13 @@ export function demandLine(
   if (!demand || demand.goods.length === 0) return null;
   const goods = demand.goods.map(name).join(' и ');
   const mul = demand.mul >= 10 ? Math.round(demand.mul) : Math.round(demand.mul * 10) / 10;
-  return `${demand.title}: берут ${goods} по ×${mul} — осталось ${demand.left} из ${demand.quota}`;
+  const left = `осталось ${demand.left} из ${demand.quota}`;
+  // Соседка по системе: просимого здесь нет в продаже — надо сказать почему и куда его везут.
+  if (demand.here === false) {
+    const where = demand.placeName ? ` на ${demand.placeName}` : '';
+    return `${demand.title}: ${goods} в дефиците по всей системе — берут${where} по ×${mul}, ${left}`;
+  }
+  return `${demand.title}: берут ${goods} по ×${mul} — ${left}`;
 }
 
 export function maxBuyable(
@@ -563,7 +569,16 @@ export class DockScreen {
     return {
       ...this.market,
       station: quotes.station ?? this.market.station,
-      demand: quotes.demand ? { goods: quotes.demand.goods, mul: quotes.demand.mul } : null,
+      demand: quotes.demand
+        ? {
+            goods: quotes.demand.goods,
+            start: quotes.demand.start ?? quotes.demand.mul,
+            end: quotes.demand.end ?? quotes.demand.mul,
+            left: quotes.demand.left,
+            quota: quotes.demand.quota,
+            here: quotes.demand.here ?? true,
+          }
+        : null,
     };
   }
 
@@ -1048,8 +1063,11 @@ export class DockScreen {
     } else if (row.sells) {
       // Продают, но прямо сейчас нельзя: пусто на складе, нет места или не хватает кредитов.
       actions.append(el('div', 'dock-tag sro-row__meta', row.quote.stock <= 0 ? 'Склад пуст' : 'Не по карману'));
+    } else if (isShort(this.local, row.id)) {
+      // Событие спроса: во всей системе этого нет в продаже, везут из других систем.
+      actions.append(el('div', 'dock-tag sro-row__meta', 'Дефицит — везите из других систем'));
     } else {
-      // Единственная причина отказа с M16a: это и есть груз здешнего задания «собрать».
+      // Иначе отказ один: это и есть груз здешнего задания «собрать» (M16a).
       actions.append(el('div', 'dock-tag sro-row__meta', 'Груз задания: его надо привезти'));
     }
     if (row.maxSell > 0) {

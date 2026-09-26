@@ -22,20 +22,40 @@ public sealed record MarketStation(IReadOnlyList<string>? Produces = null, IRead
 }
 
 /// <summary>
-/// Спрос события (M15.5): во сколько раз здесь и сейчас дороже названные товары.
+/// Спрос события (M15.5) на месте и в его системе.
 ///
-/// Множитель — уже посчитанный скаляр на момент запроса, и внутри одной сделки он не меняется:
-/// иначе клиент, считающий цену кнопками той же формулой, никогда не сошёлся бы с сервером.
-/// По мере наполнения квоты он тает, и следующая рассылка рынка привезёт новый.
+/// На месте события просимый товар берут по обычной цене из loot.json, умноженной на множитель, — без поправки
+/// на склад: иначе «×2.4» на табло платило бы меньше, чем товар стоил в соседней системе (плейтест 2026-09-26).
+/// Множитель тает с каждой принятой штукой, и больше квоты по нему не берут: сверх неё цена обычная.
+/// Во всей системе события товар в дефиците — купить его здесь нельзя, везти приходится из других систем.
 /// </summary>
 /// <param name="Goods">Что просят; остальных товаров событие не касается.</param>
-/// <param name="Mul">Во сколько раз дороже обычного — и цена, и потолок.</param>
-public sealed record MarketDemand(IReadOnlyList<string>? Goods = null, double Mul = 1)
+/// <param name="Start">Множитель, когда квота ещё не тронута…</param>
+/// <param name="End">…и когда она почти выбрана.</param>
+/// <param name="Left">Сколько штук ещё примут по цене события.</param>
+/// <param name="Quota">Сколько всего просили.</param>
+/// <param name="Here">Это само место события; false — соседнее место той же системы, где товара просто нет.</param>
+public sealed record MarketDemand(
+    IReadOnlyList<string>? Goods = null,
+    double Start = 1,
+    double End = 1,
+    int Left = 0,
+    int Quota = 0,
+    bool Here = true)
 {
     [JsonIgnore] public IReadOnlyList<string> GoodList => Goods ?? [];
 
-    /// <summary>Этот товар просят.</summary>
-    public bool Wants(string good) => Mul > 1 && GoodList.Contains(good);
+    /// <summary>Множитель следующей принятой штуки — его и показывает табло.</summary>
+    [JsonIgnore] public double Mul => UnitMul(0);
+
+    /// <summary>Множитель штуки, которая уйдёт в этой сделке sold-й по счёту (с нуля).</summary>
+    public double UnitMul(int sold) => DemandRules.Taper(Start, End, Left - sold, Quota);
+
+    /// <summary>Этот товар здесь берут по цене события.</summary>
+    public bool Wants(string good) => Here && Left > 0 && GoodList.Contains(good);
+
+    /// <summary>Товар в дефиците по всей системе: здесь его не купить.</summary>
+    public bool Short(string good) => GoodList.Contains(good);
 }
 
 /// <summary>Роль товара на этой станции — от неё и уровень цены, и размер склада.</summary>
@@ -121,8 +141,9 @@ public sealed record MarketRules(
     /// До этого продавали только собственную продукцию, и склад с нулевой кнопкой был первой жалобой
     /// плейтеста: запас на экране есть, а купить нечего. Сколько отдадут — решает сам запас
     /// (<see cref="Market.Available"/>), а цена и так растёт по мере того, как склад пустеет.
+    /// Исключение — дефицит события спроса: его во всей системе не продаёт никто.
     /// </summary>
-    public bool Sells(string good) => Trades(good);
+    public bool Sells(string good) => Trades(good) && Demand?.Short(good) != true;
 
     /// <summary>
     /// Делает ли станция этот товар сама. Этим живут слухи («бери там, где делают») и доска заданий:
@@ -174,24 +195,33 @@ public sealed record MarketRules(
         var norm = Norm(good);
         if (!(norm > 0) || !(basePrice > 0)) return basePrice;
         var floor = Math.Max(stock, StockFloor * norm);
-        // Событие спроса (M15.5) поднимает и цену, и потолок: без второго зажим в MaxFactor
-        // съел бы весь множитель — ×4.5 превратилось бы в ×2.2, и событие потеряло бы смысл.
-        var boost = Demand?.Wants(good) == true ? Demand.Mul : 1;
-        var mid = basePrice * Level(good) * Math.Pow(norm / floor, Elasticity) * boost;
-        return Math.Clamp(mid, basePrice * MinFactor, basePrice * MaxFactor * boost);
+        var mid = basePrice * Level(good) * Math.Pow(norm / floor, Elasticity);
+        return Math.Clamp(mid, basePrice * MinFactor, basePrice * MaxFactor);
     }
 
     /// <summary>Сколько пилот платит станции за штуку.</summary>
     public int BuyPrice(string good, double basePrice, double stock)
     {
-        var sell = SellPrice(good, basePrice, stock);
+        var sell = PlainSell(good, basePrice, stock);
         var buy = (int)Math.Ceiling(Mid(good, basePrice, stock) * (1 + Spread / 2) - 1e-9);
         // Купить и тут же продать всегда в убыток: иначе станция сама себя обкрадывает.
         return Math.Max(buy, sell + 1);
     }
 
     /// <summary>Сколько пилот получает от станции за штуку.</summary>
-    public int SellPrice(string good, double basePrice, double stock)
+    /// <param name="sold">Сколько штук этого товара уже ушло в этой же сделке: от этого тает цена события.</param>
+    public int SellPrice(string good, double basePrice, double stock, int sold = 0)
+    {
+        if (Demand is { } demand && demand.Wants(good) && sold < demand.Left)
+        {
+            // Цена события — от обычной цены товара, а не от здешнего склада: табло «×3» и платит втрое.
+            var boosted = (int)Math.Floor(basePrice * demand.UnitMul(sold) * (1 - Spread / 2) + 1e-9);
+            return Math.Max(boosted, basePrice > 0 ? 1 : 0);
+        }
+        return PlainSell(good, basePrice, stock);
+    }
+
+    private int PlainSell(string good, double basePrice, double stock)
     {
         var sell = (int)Math.Floor(Mid(good, basePrice, stock) * (1 - Spread / 2) + 1e-9);
         return Math.Max(sell, basePrice > 0 ? 1 : 0);
@@ -209,7 +239,14 @@ public sealed record MarketRules(
         var credits = 0;
         for (var i = 0; i < count; i++)
         {
-            credits += buying ? BuyPrice(good, basePrice, stock) : SellPrice(good, basePrice, stock);
+            // Штуку по цене события забирает нужда, а не склад: запас от неё не растёт, и после события
+            // на месте не остаётся завала из сотни привезённых лекарств.
+            if (!buying && Demand is { } demand && demand.Wants(good) && i < demand.Left)
+            {
+                credits += SellPrice(good, basePrice, stock, i);
+                continue;
+            }
+            credits += buying ? BuyPrice(good, basePrice, stock) : PlainSell(good, basePrice, stock);
             stock = Math.Max(0, stock + (buying ? -1 : 1));
         }
         return (credits, Clamp(good, stock));

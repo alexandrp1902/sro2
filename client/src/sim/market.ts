@@ -40,14 +40,24 @@ export interface MarketRules {
   station?: MarketStation | null;
   /** Регион этой системы: по нему видно, что тут вне закона. */
   region?: string | null;
-  /** Спрос события (M15.5): что здесь просят и во сколько раз дороже. */
+  /** Спрос события (M15.5): что в этой системе просят и почём берут на месте события. */
   demand?: MarketDemand | null;
 }
 
-/** Спрос события на этом месте (M15.5). */
+/**
+ * Спрос события в этой системе (M15.5) — зеркало Sro.Sim/MarketDemand. На месте события товар берут
+ * от обычной цены × множитель, который тает от start к end с каждой принятой штукой; сверх квоты — обычная
+ * цена. Во всей системе товар в дефиците: купить его здесь нельзя.
+ */
 export interface MarketDemand {
   goods: string[];
-  mul: number;
+  start: number;
+  end: number;
+  /** Сколько штук ещё примут по цене события. */
+  left: number;
+  quota: number;
+  /** Это само место события; false — соседка по системе. */
+  here: boolean;
 }
 
 /** Рынка нет: до welcome и на серверах без market.json. */
@@ -92,9 +102,14 @@ export function trades(rules: MarketRules, good: string): boolean {
   return hasMarket(rules) && !!rules.goods?.[good] && !isIllegal(rules, good);
 }
 
-/** Продаёт ли станция этот товар: продаёт она только то, что делает сама. */
+/** Продаёт ли место этот товар (M16a): всё, чем торгует, кроме дефицита события спроса. */
 export function sells(rules: MarketRules, good: string): boolean {
-  return trades(rules, good) && role(rules, good) === 'produces';
+  return trades(rules, good) && !isShort(rules, good);
+}
+
+/** Товар события спроса в дефиците по всей системе. */
+export function isShort(rules: MarketRules, good: string): boolean {
+  return !!rules.demand?.goods.includes(good);
 }
 
 /** Равновесный запас товара здесь, штук. */
@@ -118,24 +133,46 @@ export function mid(rules: MarketRules, good: string, basePrice: number, stock: 
   const n = norm(rules, good);
   if (!(n > 0) || !(basePrice > 0)) return basePrice;
   const floor = Math.max(stock, (rules.stockFloor ?? STOCK_FLOOR) * n);
-  // Зеркало Sro.Sim/MarketRules.Mid: событие спроса (M15.5) поднимает и цену, и потолок.
-  // Разойтись тут нельзя — кнопка «Купить N · X кр» считается этой же формулой.
-  const boost = demandMul(rules, good);
-  const value = basePrice * level(rules, good) * Math.pow(n / floor, rules.elasticity ?? ELASTICITY) * boost;
+  const value = basePrice * level(rules, good) * Math.pow(n / floor, rules.elasticity ?? ELASTICITY);
   const min = basePrice * (rules.minFactor ?? MIN_FACTOR);
-  const max = basePrice * (rules.maxFactor ?? MAX_FACTOR) * boost;
+  const max = basePrice * (rules.maxFactor ?? MAX_FACTOR);
   return Math.min(Math.max(value, min), max);
 }
 
-/** Во сколько раз событие подняло цену этого товара; 1 — событие не про него или его нет. */
-export function demandMul(rules: MarketRules, good: string): number {
-  const demand = rules.demand;
-  if (!demand || !(demand.mul > 1) || !demand.goods.includes(good)) return 1;
-  return demand.mul;
+/** Линейно: start при нетронутой квоте, end — когда она выбрана (зеркало DemandRules.Taper). */
+export function taper(start: number, end: number, left: number, quota: number): number {
+  if (quota <= 0) return 1;
+  return end + (start - end) * Math.min(Math.max(left / quota, 0), 1);
 }
 
-/** Сколько пилот получает за штуку. */
-export function sellPrice(rules: MarketRules, good: string, basePrice: number, stock: number): number {
+/** Берут ли здесь этот товар по цене события. */
+function wanted(rules: MarketRules, good: string): MarketDemand | null {
+  const demand = rules.demand;
+  return demand && demand.here && demand.left > 0 && demand.goods.includes(good) ? demand : null;
+}
+
+/** Множитель следующей принятой штуки; 1 — событие не про этот товар или не на этом месте. */
+export function demandMul(rules: MarketRules, good: string): number {
+  const demand = wanted(rules, good);
+  return demand ? taper(demand.start, demand.end, demand.left, demand.quota) : 1;
+}
+
+/**
+ * Сколько пилот получает за штуку.
+ * @param sold сколько штук этого товара уже ушло в этой же сделке: от этого тает цена события
+ */
+export function sellPrice(rules: MarketRules, good: string, basePrice: number, stock: number, sold = 0): number {
+  const spread = rules.spread ?? SPREAD;
+  const demand = wanted(rules, good);
+  if (demand && sold < demand.left) {
+    // Зеркало Sro.Sim/MarketRules.SellPrice: цена события — от обычной цены товара, а не от склада.
+    const boosted = Math.floor(basePrice * taper(demand.start, demand.end, demand.left - sold, demand.quota) * (1 - spread / 2) + 1e-9);
+    return Math.max(boosted, basePrice > 0 ? 1 : 0);
+  }
+  return plainSell(rules, good, basePrice, stock);
+}
+
+function plainSell(rules: MarketRules, good: string, basePrice: number, stock: number): number {
   const spread = rules.spread ?? SPREAD;
   const price = Math.floor(mid(rules, good, basePrice, stock) * (1 - spread / 2) + 1e-9);
   return Math.max(price, basePrice > 0 ? 1 : 0);
@@ -145,7 +182,7 @@ export function sellPrice(rules: MarketRules, good: string, basePrice: number, s
 export function buyPrice(rules: MarketRules, good: string, basePrice: number, stock: number): number {
   const spread = rules.spread ?? SPREAD;
   const price = Math.ceil(mid(rules, good, basePrice, stock) * (1 + spread / 2) - 1e-9);
-  return Math.max(price, sellPrice(rules, good, basePrice, stock) + 1);
+  return Math.max(price, plainSell(rules, good, basePrice, stock) + 1);
 }
 
 /** Вся сделка: цена шагает по единицам, поэтому крупная пачка идёт по другой цене, чем первая штука. */
@@ -159,8 +196,14 @@ export function tradeCost(
 ): number {
   let credits = 0;
   let left = stock;
+  const demand = buying ? null : wanted(rules, good);
   for (let i = 0; i < count; i++) {
-    credits += buying ? buyPrice(rules, good, basePrice, left) : sellPrice(rules, good, basePrice, left);
+    // Штуку по цене события забирает нужда, а не склад: запас от неё не растёт (как на сервере).
+    if (demand && i < demand.left) {
+      credits += sellPrice(rules, good, basePrice, left, i);
+      continue;
+    }
+    credits += buying ? buyPrice(rules, good, basePrice, left) : plainSell(rules, good, basePrice, left);
     left = Math.max(0, left + (buying ? -1 : 1));
   }
   return credits;

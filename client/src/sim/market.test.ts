@@ -11,7 +11,9 @@ import {
   NO_MARKET,
   sellPrice,
   sells,
+  isShort,
   rumourLine,
+  taper,
   stockLevel,
   tradeCost,
   trades,
@@ -45,10 +47,10 @@ describe('рынок станции', () => {
     expect(sells(NO_MARKET, FOOD)).toBe(false);
   });
 
-  it('продаёт только то, что производит, а скупает всё', () => {
+  it('продаёт всё, чем торгует (M16a)', () => {
     const r = rules();
     expect(sells(r, FOOD)).toBe(true);
-    expect(sells(r, ORE)).toBe(false); // руду тут скупают, но не перепродают
+    expect(sells(r, ORE)).toBe(true);
     expect(trades(r, ORE)).toBe(true);
   });
 
@@ -271,5 +273,36 @@ describe('слух мастера верфи', () => {
     for (let i = 0; i < 40; i++) lines.add(yardLine(lancer, '«Улан»', `st:place${i}`));
     expect(lines.size).toBeGreaterThan(5);
     expect(yardLine(lancer, '«Улан»', 'st:vega')).toBe(yardLine(lancer, '«Улан»', 'st:vega'));
+  });
+});
+
+describe('событие спроса (зеркало Sro.Sim.DemandRulesTests)', () => {
+  const MED = 'medicine';
+  const market: MarketRules = {
+    goods: { [MED]: { baseline: 100 }, [FOOD]: { baseline: 100 } },
+    station: { produces: [MED], consumes: [FOOD] },
+  };
+  const demand = (left = 100, here = true): MarketRules => ({
+    ...market,
+    demand: { goods: [MED], start: 3, end: 2, left, quota: 100, here },
+  });
+
+  it('платит обычную цену × множитель при любом складе', () => {
+    for (const stock of [0, 250, 750]) expect(sellPrice(demand(), MED, 60, stock)).toBe(Math.floor(60 * 3 * 0.91));
+  });
+
+  it('множитель тает со штукой, а сверх квоты — обычная цена', () => {
+    let expected = 0;
+    for (let i = 0; i < 10; i++) expected += Math.floor(60 * taper(3, 2, 10 - i, 100) * 0.91 + 1e-9);
+    expected += tradeCost(market, MED, 60, 250, 10, false);
+    expect(tradeCost(demand(10), MED, 60, 250, 20, false)).toBe(expected);
+  });
+
+  it('в системе события товар не купить, а соседка платит обычную цену', () => {
+    expect(isShort(demand(), MED)).toBe(true);
+    expect(sells(demand(), MED)).toBe(false);
+    expect(sells(demand(100, false), MED)).toBe(false);
+    expect(sells(demand(), FOOD)).toBe(true);
+    expect(sellPrice(demand(100, false), MED, 60, 250)).toBe(sellPrice(market, MED, 60, 250));
   });
 });

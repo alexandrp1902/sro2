@@ -24,7 +24,7 @@ public sealed partial class Room
     {
         if (key is null || !_markets.TryGetValue(key, out var stock)) return null;
         var rules = Balance.MarketAt(key);
-        // Событие спроса (M15.5) живёт по ключу места: у станции-соседки по системе цена не шелохнётся.
+        // Событие спроса (M15.5): на его месте товар берут втридорога, у соседок по системе его нет в продаже.
         return (_demand?.Apply(key, rules) ?? rules, stock);
     }
 
@@ -72,8 +72,8 @@ public sealed partial class Room
     {
         if (MarketOf(player) is not { } m || !m.Rules.Any) return Balance.Loot.Price(good) * count;
         var credits = m.Stock.Sell(m.Rules, Balance.Loot, good, count);
-        // Квота события убывает после сделки, а не внутри неё: множитель заморожен на сделку,
-        // иначе клиент, считающий цену той же формулой, не сошёлся бы с сервером.
+        // Квота события убывает после сделки: цену каждой штуки внутри неё правила уже посчитали
+        // по тому остатку, что был до сделки, — той же формулой, что и кнопка на клиенте.
         if (CountDemand(player, good, count)) _host?.DemandFilled(this);
         return credits;
     }
@@ -121,7 +121,7 @@ public sealed partial class Room
             if (MarketAt(place.Key) is not { } m || !m.Rules.Any) continue;
             var prices = new List<MarketPrice>();
             foreach (var q in m.Stock.Quotes(m.Rules, loot))
-                prices.Add(new MarketPrice(q.Id, q.Buy, q.Sell, q.Stock, q.Norm, m.Rules.Makes(q.Id)));
+                prices.Add(new MarketPrice(q.Id, q.Buy, q.Sell, q.Stock, q.Norm, m.Rules.Makes(q.Id) && m.Rules.Sells(q.Id)));
             if (prices.Count > 0) list.Add(new StationPrices(SystemId, place.Name, 0, prices, place.Key));
         }
         return list;
@@ -205,7 +205,7 @@ public sealed partial class Room
         {
             var locked = MissionGood(player);
             foreach (var q in m.Stock.Quotes(m.Rules, Balance.Loot))
-                items.Add(new MarketItemDto(q.Id, q.Buy, q.Sell, q.Stock, q.Norm, q.Id != locked));
+                items.Add(new MarketItemDto(q.Id, q.Buy, q.Sell, q.Stock, q.Norm, q.Id != locked && m.Rules.Sells(q.Id)));
         }
         var rumours = new List<RumourDto>(player.Rumours.Count);
         foreach (var r in player.Rumours)
@@ -219,8 +219,12 @@ public sealed partial class Room
             items,
             rumours,
             local?.Station,
-            _demand is { } demand && demand.PlaceKey == place
-                ? new DemandQuoteDto(demand.Cause.Id, demand.Cause.Title, [.. demand.Cause.GoodList], Math.Round(demand.Mul, 3), demand.Left, demand.Quota)
+            // Спрос едет на любое место системы: на месте события — чтобы кнопка считала цену, у соседок —
+            // чтобы док объяснил, почему товар не купить и где его берут.
+            _demand is { } demand && place is not null && local?.Demand is { } quote
+                ? new DemandQuoteDto(
+                    demand.Cause.Id, demand.Cause.Title, [.. quote.GoodList], Math.Round(demand.Mul, 3), demand.Left, demand.Quota,
+                    quote.Here, quote.Start, quote.End, Balance.Place(demand.PlaceKey)?.Name ?? demand.PlaceKey)
                 : null));
     }
 
@@ -233,7 +237,8 @@ public sealed partial class Room
     {
         if (MarketAt(TraderPlace) is not { } m || !m.Rules.Any || m.Rules.Station is not { } profile || m.Rules.TraderUnits <= 0) return;
         var list = fromStation ? profile.ProduceList : profile.ConsumeList;
-        var goods = list.Where(m.Rules.Trades).ToList();
+        // Дефицит события торговцы не возят: его в системе нет, а привезённое нужде не в счёт.
+        var goods = list.Where(g => m.Rules.Trades(g) && m.Rules.Sells(g)).ToList();
         if (goods.Count == 0) return;
 
         trader.Good = goods[_ai.Next(goods.Count)];
@@ -267,9 +272,14 @@ public sealed partial class Room
         }
         var loot = Balance.Loot;
         // Купить можно всё, чем место торгует: что на складе есть, то и продаётся (M16a).
-        if (MarketOf(player) is not { } m || !loot.StationUnload || !m.Rules.Any || !m.Rules.Sells(item) || !loot.ItemMap.ContainsKey(item))
+        if (MarketOf(player) is not { } m || !loot.StationUnload || !m.Rules.Any || !m.Rules.Trades(item) || !loot.ItemMap.ContainsKey(item))
         {
             connection.Send(new NoticeMsg(Protocol.NoGoodsNotice));
+            return;
+        }
+        if (!m.Rules.Sells(item))
+        {
+            connection.Send(new NoticeMsg(Protocol.ShortageNotice));
             return;
         }
         if (MissionGood(player) == item)

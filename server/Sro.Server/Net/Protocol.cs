@@ -586,17 +586,25 @@ public sealed record MarketMsg(
 public sealed record ShopMsg(string Place, ShopRules Shop) : ServerMessage;
 
 /// <summary>
-/// Спрос события на этом месте (M15.5). Множитель — уже посчитанный скаляр: клиент считает цену той же
-/// формулой, что и сервер, и внутри сделки он не меняется. Квота убывает — следующая рассылка привезёт новый.
+/// Спрос события в этой системе (M15.5). Цену клиент считает той же формулой, что и сервер
+/// (<see cref="Sro.Sim.MarketDemand"/>): от обычной цены товара, с множителем, который тает от
+/// <paramref name="Start"/> к <paramref name="End"/> с каждой принятой штукой.
 /// </summary>
+/// <param name="Mul">Множитель следующей принятой штуки — его показывает табло.</param>
 /// <param name="Left">Сколько единиц ещё примут.</param>
+/// <param name="Here">Пилот стоит на самом месте события; false — на соседнем, где товар в дефиците.</param>
+/// <param name="PlaceName">Где событие: соседке по системе надо сказать, куда везти.</param>
 public sealed record DemandQuoteDto(
     string Case,
     string Title,
     IReadOnlyList<string> Goods,
     double Mul,
     int Left,
-    int Quota);
+    int Quota,
+    bool Here = true,
+    double Start = 1,
+    double End = 1,
+    string PlaceName = "");
 
 /// <summary>
 /// Событие спроса (M15.5) — на всю галактику, как вторжение: объявлено, открыто, закрыто или погасло.
@@ -979,7 +987,7 @@ public static class Protocol
     /// hpMul и speedMul — и предсказывал бы и движение, и прочность своего корабля мимо сервера.
     /// Зеркало PROTOCOL_VERSION в client/src/net/protocol.ts.
     /// </summary>
-    public const int Version = 35;
+    public const int Version = 36;
 
     public const string DroneKind = "drone";
     public const string PirateKind = "pirate";
@@ -1035,6 +1043,8 @@ public static class Protocol
     public const string NoGoodsNotice = "noGoods";
     /// <summary>На складе станции столько нет (M12).</summary>
     public const string NoStockNotice = "noStock";
+    /// <summary>Товар события спроса в дефиците по всей системе: его везут из других систем.</summary>
+    public const string ShortageNotice = "shortage";
     /// <summary>Это и есть груз твоего задания «собрать», взятого здесь: его надо привезти, а не купить на месте (M16a).</summary>
     public const string MissionGoodsNotice = "missionGoods";
     /// <summary>Док закрыт: в этой системе пилота считают врагом (M13).</summary>

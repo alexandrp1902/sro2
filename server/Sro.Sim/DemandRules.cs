@@ -32,9 +32,8 @@ public sealed record DemandCase(string Id = "", string Title = "", IReadOnlyList
 /// <param name="AnnounceSeconds">Объявлено на всю галактику, но приёмка ещё не открыта: время долететь.</param>
 /// <param name="DurationSeconds">Сколько идёт приёмка.</param>
 /// <param name="Quota">Сколько единиц всего примут; дальше событие кончается досрочно.</param>
-/// <param name="Mul">Во сколько раз дороже обычного в начале…</param>
+/// <param name="Mul">Во сколько раз дороже обычной цены товара (loot.json) в начале…</param>
 /// <param name="MulEnd">…и когда квота почти выбрана. Не единица: иначе последний трюм везти незачем.</param>
-/// <param name="CrashShare">До какой доли нормы обрушивается запас на старте: нужда должна быть видна сразу.</param>
 /// <param name="PerPilot">Потолок зачёта на одного пилота, единиц; 0 — без потолка.</param>
 /// <param name="Cases">Поводы; пусто — событий нет.</param>
 public sealed record DemandRules(
@@ -43,10 +42,9 @@ public sealed record DemandRules(
     double IntervalMinutes = 40,
     double AnnounceSeconds = 90,
     double DurationSeconds = 1200,
-    int Quota = 180,
-    double Mul = 4.5,
+    int Quota = 100,
+    double Mul = 3,
     double MulEnd = 2,
-    double CrashShare = 0.15,
     int PerPilot = 0,
     IReadOnlyList<DemandCase>? Cases = null)
 {
@@ -71,8 +69,11 @@ public sealed record DemandRules(
     /// Множитель цены при таком остатке квоты: от <see cref="Mul"/> в начале к <see cref="MulEnd"/> к концу.
     /// Это и есть «первые довёзшие снимают сливки»: чем больше уже привезли, тем меньше платят.
     /// </summary>
-    public double Multiplier(int left, int quota) =>
-        quota <= 0 ? 1 : MulEnd + (Mul - MulEnd) * Math.Clamp(left / (double)quota, 0, 1);
+    public double Multiplier(int left, int quota) => Taper(Mul, MulEnd, left, quota);
+
+    /// <summary>Линейно: start при нетронутой квоте, end — когда она выбрана.</summary>
+    public static double Taper(double start, double end, int left, int quota) =>
+        quota <= 0 ? 1 : end + (start - end) * Math.Clamp(left / (double)quota, 0, 1);
 
     /// <param name="items">Груз из loot.json: каждый просимый товар должен быть там.</param>
     public string? Validate(IReadOnlyDictionary<string, LootItem>? items)
@@ -83,7 +84,6 @@ public sealed record DemandRules(
         if (Quota < 0) return "quota must not be negative";
         if (!(MulEnd >= 1)) return "mulEnd must be at least 1";
         if (!(Mul >= MulEnd)) return "mul must not be below mulEnd";
-        if (!(CrashShare is >= 0 and <= 1)) return "crashShare must be within 0..1";
         if (PerPilot < 0) return "perPilot must not be negative";
         if (Enabled && CaseList.Count == 0) return "no cases";
 

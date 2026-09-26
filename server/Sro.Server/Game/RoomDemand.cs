@@ -12,7 +12,7 @@ internal sealed class DemandEvent(int id, string placeKey, DemandCase cause, Dem
 {
     public int Id { get; } = id;
 
-    /// <summary>Место события: «pl:edgeAsh». Остальных мест системы событие не касается вовсе.</summary>
+    /// <summary>Место события: «pl:edgeAsh». Берут товар только здесь, а в дефиците он во всей системе.</summary>
     public string PlaceKey { get; } = placeKey;
 
     public DemandCase Cause { get; } = cause;
@@ -30,29 +30,18 @@ internal sealed class DemandEvent(int id, string placeKey, DemandCase cause, Dem
     /// <summary>Квота выбрана — событие кончилось досрочно, и это успех, а не срок.</summary>
     public bool Filled => Left <= 0;
 
-    /// <summary>Спрос для правил рынка; null — это не то место.</summary>
-    public MarketDemand? DemandAt(string key) =>
-        key == PlaceKey ? new MarketDemand(Cause.GoodList, Mul) : null;
-
     /// <summary>
-    /// Правила места со спросом события. Просимые товары переводятся в «скупает»: у места падает норма
-    /// запаса и растёт уровень цены, а продавать их оно перестаёт — привезти их можно только издалека.
-    /// Поэтому любой повод ложится на любое место, и таблица совместимости не нужна.
+    /// Правила места системы со спросом события. Профиль места не меняется: цену события считает
+    /// <see cref="MarketDemand"/> от обычной цены товара, а не от склада. Событие живёт в комнате,
+    /// то есть в одной системе, поэтому любое место здесь — место этой системы: на месте события товар
+    /// берут, на остальных его просто нет в продаже. Везти приходится из других систем.
     /// </summary>
     public MarketRules Apply(string key, MarketRules market)
     {
-        if (key != PlaceKey || !market.Any) return market;
-        var goods = Cause.GoodList;
-        var station = market.Station!;
-        var wanted = goods.Where(market.Trades).ToList();
+        if (!market.Any) return market;
+        var wanted = Cause.GoodList.Where(market.Trades).ToList();
         if (wanted.Count == 0) return market;
-        return market with
-        {
-            Station = new MarketStation(
-                [.. station.ProduceList.Where(g => !wanted.Contains(g))],
-                [.. station.ConsumeList.Concat(wanted.Where(g => !station.ConsumeList.Contains(g)))]),
-            Demand = new MarketDemand(wanted, Mul),
-        };
+        return market with { Demand = new MarketDemand(wanted, rules.Mul, rules.MulEnd, Left, Quota, Here: key == PlaceKey) };
     }
 
     /// <summary>Пилот сдал сюда count штук; сколько из них пошло в счёт квоты.</summary>
@@ -88,18 +77,12 @@ public sealed partial class Room
     public IReadOnlyList<PlaceDef> TradingPlaces => [.. Balance.Places.Where(p => MarketAt(p.Key) is { Rules.Any: true })];
 
     /// <summary>
-    /// Открыть приёмку: склад просимых товаров обрушивается, и нужда сразу видна в ценах.
-    /// Цены в доке тут же уезжают всем, кто стоит на этом месте.
+    /// Открыть приёмку: просимое тут же пропадает с прилавков всей системы, а на месте события его
+    /// начинают брать втридорога. Цены в доке сразу уезжают всем, кто стоит в этой системе.
     /// </summary>
     internal void StartDemand(int id, PlaceDef place, DemandCase cause, DemandRules rules)
     {
         _demand = new DemandEvent(id, place.Key, cause, rules, Tick + rules.DurationTicks);
-        if (MarketAt(place.Key) is { } m)
-        {
-            var local = _demand.Apply(place.Key, m.Rules);
-            foreach (var good in cause.GoodList)
-                if (local.Trades(good)) m.Stock.Crash(local, good, rules.CrashShare);
-        }
         BroadcastMarket();
         _log.LogInformation("Demand {Id} opened at {Place}: {Case}, quota {Quota}", id, place.Key, cause.Id, rules.Quota);
     }

@@ -83,6 +83,13 @@ describe('demandLine', () => {
     );
   });
 
+  it('соседке по системе строка объясняет дефицит и говорит, куда везти', () => {
+    const quote = { case: 'plague', title: 'Эпидемия', goods: ['medicine'], mul: 2.5, left: 50, quota: 100, here: false, placeName: 'Пепельный Приют' };
+    expect(demandLine(quote, name)).toBe(
+      'Эпидемия: Медикаменты в дефиците по всей системе — берут на Пепельный Приют по ×2.5, осталось 50 из 100',
+    );
+  });
+
   it('события нет — строки нет', () => {
     expect(demandLine(null, name)).toBeNull();
     expect(demandLine(undefined, name)).toBeNull();
