@@ -1,11 +1,13 @@
-import { Container, Graphics } from 'pixi.js';
+import { Container, Graphics, type Sprite } from 'pixi.js';
 import type { MissileDto, SnapshotMsg } from '../net/protocol';
+import { neonExhaust } from './exhaust';
 import { DT } from '../sim/movement';
 import type { Weapons } from '../sim/weapons';
 
-/** Длина ракеты в мире; торпеда (M11) заметно больше. */
+/** Длина ракеты в мире; торпеда (M11) заметно больше, ракета залпа (M19) — меньше. */
 const LENGTH = 16;
 const TORPEDO_LENGTH = 30;
+const ROCKET_LENGTH = 11;
 /** Хвост — столько последних точек пути. */
 const TRAIL_POINTS = 14;
 /** Ракета, которая летит в меня, — красная; остальные — цвета своей ракетницы. */
@@ -24,7 +26,10 @@ interface Flying {
   dto: MissileDto;
   samples: Sample[];
   trail: { x: number; y: number }[];
-  body: Graphics;
+  body: Container;
+  casing: Graphics;
+  exhaust: Sprite;
+  style: string;
   tail: Graphics;
   /** Последний тик, в котором ракета была в снапшоте. */
   lastTick: number;
@@ -63,7 +68,12 @@ export class MissileField {
     for (const dto of message.missiles ?? []) {
       let m = this.flying.get(dto.id);
       if (!m) {
-        m = { dto, samples: [], trail: [], body: new Graphics(), tail: new Graphics(), lastTick: message.tick };
+        const casing = new Graphics();
+        const exhaust = neonExhaust(14, 24);
+        const body = new Container();
+        body.addChild(exhaust, casing);
+        m = { dto, samples: [], trail: [], body, casing, exhaust, style: '', tail: new Graphics(), lastTick: message.tick };
+        m.tail.blendMode = 'add';
         this.view.addChild(m.tail, m.body);
         this.flying.set(dto.id, m);
         this.onLaunch?.(dto);
@@ -116,28 +126,47 @@ export class MissileField {
       const incoming = m.dto.t === ownId;
       const weapon = this.weapons.get(m.dto.w);
       const color = incoming ? INCOMING_COLOR : colorOf(weapon.color);
-      const torpedo = weapon.missile?.sprite === 'torpedo';
-      const length = torpedo ? TORPEDO_LENGTH : LENGTH;
-      const halfWidth = torpedo ? 7 : 4;
-      m.body.clear();
-      // Корпус ракеты носом вверх и огонёк двигателя; у торпеды корпус толще и огонь крупнее.
-      m.body
-        .poly([0, -length / 2, halfWidth, length / 2, -halfWidth, length / 2])
-        .fill({ color })
-        .circle(0, length / 2 + 2, torpedo ? 5 : 3)
-        .fill({ color: 0xffe0a0, alpha: 0.9 });
+      // Три размера вместо двух (M19): у залпа ракеты мелкие — четыре штуки в кадре не должны
+      // выглядеть четырьмя торпедами.
+      const kind = weapon.missile?.sprite ?? '';
+      const torpedo = kind === 'torpedo';
+      const rocket = kind === 'rocket';
+      const length = torpedo ? TORPEDO_LENGTH : rocket ? ROCKET_LENGTH : LENGTH;
+      const halfWidth = torpedo ? 7 : rocket ? 3 : 4;
+      const style = `${kind}:${color}`;
+      if (style !== m.style) {
+        m.style = style;
+        const g = m.casing.clear();
+        const w = halfWidth * 0.6;
+        // Separate fins, shaded casing, nose cap and faction stripe.
+        g.poly([-w, 1, -halfWidth * 1.35, length * 0.48, halfWidth * 1.35, length * 0.48, w, 1])
+          .fill(0x405d78).stroke({ color: 0x8bb8d2, width: 0.7 });
+        g.poly([0, -length / 2, w, -length * 0.24, w, length * 0.42, -w, length * 0.42, -w, -length * 0.24])
+          .fill(0x90b0c8).stroke({ color: 0x25384d, width: 0.8 });
+        g.poly([0, -length / 2, w * 0.7, -length * 0.2, -w * 0.7, -length * 0.2]).fill(color);
+        g.rect(-w * 0.65, -length * 0.12, w * 0.6, length * 0.42).fill(0xe1f5ff);
+        g.rect(-w, length * 0.22, w * 2, torpedo ? 3 : 2).fill(color);
+        g.roundRect(-w, length * 0.4, w * 2, 3, 1).fill(0x162a42);
+        m.exhaust.position.set(0, length * 0.48);
+        m.exhaust.width = torpedo ? 23 : rocket ? 10 : 14;
+        m.exhaust.height = torpedo ? 38 : rocket ? 17 : 24;
+      }
+      m.exhaust.alpha = 0.86 + 0.12 * Math.sin(tick * 1.7 + id);
       m.body.position.set(at.x, at.y);
       m.body.rotation = at.r;
 
       m.body.scale.set(1);
       const last = m.trail[m.trail.length - 1];
-      if (!last || Math.hypot(last.x - at.x, last.y - at.y) > 4) m.trail.push({ x: at.x, y: at.y });
+      const nozzle = { x: at.x - Math.sin(at.r) * length / 2, y: at.y + Math.cos(at.r) * length / 2 };
+      if (!last || Math.hypot(last.x - nozzle.x, last.y - nozzle.y) > 4) m.trail.push(nozzle);
       if (m.trail.length > TRAIL_POINTS) m.trail.shift();
       m.tail.clear();
       for (let i = 1; i < m.trail.length; i++) {
         const a = m.trail[i - 1];
         const b = m.trail[i];
-        m.tail.moveTo(a.x, a.y).lineTo(b.x, b.y).stroke({ width: 3, color, alpha: (i / m.trail.length) * 0.5, cap: 'round' });
+        const alpha = (i / m.trail.length) ** 2;
+        m.tail.moveTo(a.x, a.y).lineTo(b.x, b.y).stroke({ width: torpedo ? 8 : rocket ? 3 : 5, color: 0x188fff, alpha: alpha * 0.12, cap: 'round' });
+        m.tail.moveTo(a.x, a.y).lineTo(b.x, b.y).stroke({ width: torpedo ? 2 : 1, color: 0x86eaff, alpha: alpha * 0.48, cap: 'round' });
       }
       this.drawn.push({ id, x: at.x, y: at.y, owner: m.dto.o, target: m.dto.t });
     }
@@ -162,7 +191,7 @@ export class MissileField {
   }
 
   private destroy(m: Flying): void {
-    m.body.destroy();
+    m.body.destroy({ children: true });
     m.tail.destroy();
   }
 }
