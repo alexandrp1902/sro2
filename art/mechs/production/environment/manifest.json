@@ -1,0 +1,1306 @@
+{
+  "version": 1,
+  "created": "2026-09-23",
+  "runtimeReady": false,
+  "frameCount": 135,
+  "directions": [],
+  "task": "TASK.md",
+  "entries": [
+    {
+      "id": "desert-building",
+      "biome": "desert",
+      "family": "building",
+      "status": "needs-review",
+      "source": "sources/desert-building-4dir-v2.png",
+      "frames": 4,
+      "variants": [
+        "N",
+        "E",
+        "S",
+        "W"
+      ],
+      "layout": {
+        "columns": 2,
+        "rows": 2
+      },
+      "connectionMasks": null,
+      "footprint": [
+        2,
+        2
+      ],
+      "measurements": null,
+      "notes": [
+        "Source visually inspected; pixel ports, geometry consistency and assembled map still require validation."
+      ]
+    },
+    {
+      "id": "desert-wall-straight",
+      "biome": "desert",
+      "family": "wall-straight",
+      "status": "needs-review",
+      "source": "sources/desert-wall-straight-2dir-v1.png",
+      "frames": 2,
+      "variants": [
+        "EW",
+        "NS"
+      ],
+      "layout": {
+        "columns": 2,
+        "rows": 1
+      },
+      "connectionMasks": [
+        10,
+        5
+      ],
+      "footprint": [
+        1,
+        1
+      ],
+      "measurements": null,
+      "notes": [
+        "Source visually inspected; pixel ports, geometry consistency and assembled map still require validation."
+      ]
+    },
+    {
+      "id": "desert-wall-corner",
+      "biome": "desert",
+      "family": "wall-corner",
+      "status": "needs-review",
+      "source": "sources/desert-wall-corner-4dir-v1.png",
+      "frames": 4,
+      "variants": [
+        "NE",
+        "ES",
+        "SW",
+        "WN"
+      ],
+      "layout": {
+        "columns": 2,
+        "rows": 2
+      },
+      "connectionMasks": [
+        3,
+        6,
+        12,
+        9
+      ],
+      "footprint": [
+        1,
+        1
+      ],
+      "measurements": null,
+      "notes": [
+        "Source visually inspected; pixel ports, geometry consistency and assembled map still require validation."
+      ]
+    },
+    {
+      "id": "desert-wall-end",
+      "biome": "desert",
+      "family": "wall-end",
+      "status": "planned",
+      "source": null,
+      "frames": 4,
+      "variants": [
+        "N",
+        "E",
+        "S",
+        "W"
+      ],
+      "layout": {
+        "columns": 2,
+        "rows": 2
+      },
+      "connectionMasks": [
+        1,
+        2,
+        4,
+        8
+      ],
+      "footprint": [
+        1,
+        1
+      ],
+      "measurements": null,
+      "notes": []
+    },
+    {
+      "id": "desert-wall-tee",
+      "biome": "desert",
+      "family": "wall-tee",
+      "status": "planned",
+      "source": null,
+      "frames": 4,
+      "variants": [
+        "NES",
+        "ESW",
+        "NSW",
+        "NEW"
+      ],
+      "layout": {
+        "columns": 2,
+        "rows": 2
+      },
+      "connectionMasks": [
+        7,
+        14,
+        13,
+        11
+      ],
+      "footprint": [
+        1,
+        1
+      ],
+      "measurements": null,
+      "notes": []
+    },
+    {
+      "id": "desert-wall-cross",
+      "biome": "desert",
+      "family": "wall-cross",
+      "status": "planned",
+      "source": null,
+      "frames": 1,
+      "variants": [
+        "NESW"
+      ],
+      "layout": {
+        "columns": 1,
+        "rows": 1
+      },
+      "connectionMasks": [
+        15
+      ],
+      "footprint": [
+        1,
+        1
+      ],
+      "measurements": null,
+      "notes": []
+    },
+    {
+      "id": "desert-wall-post",
+      "biome": "desert",
+      "family": "wall-post",
+      "status": "planned",
+      "source": null,
+      "frames": 1,
+      "variants": [
+        "isolated"
+      ],
+      "layout": {
+        "columns": 1,
+        "rows": 1
+      },
+      "connectionMasks": [
+        0
+      ],
+      "footprint": [
+        1,
+        1
+      ],
+      "measurements": null,
+      "notes": []
+    },
+    {
+      "id": "desert-gate",
+      "biome": "desert",
+      "family": "gate",
+      "status": "planned",
+      "source": null,
+      "frames": 4,
+      "variants": [
+        "EW-closed",
+        "EW-open",
+        "NS-closed",
+        "NS-open"
+      ],
+      "layout": {
+        "columns": 2,
+        "rows": 2
+      },
+      "connectionMasks": null,
+      "footprint": null,
+      "measurements": null,
+      "notes": [
+        "EW footprint 3x1, NS 1x3; passage one cell."
+      ]
+    },
+    {
+      "id": "desert-wall-broken",
+      "biome": "desert",
+      "family": "wall-broken",
+      "status": "planned",
+      "source": null,
+      "frames": 2,
+      "variants": [
+        "EW",
+        "NS"
+      ],
+      "layout": {
+        "columns": 2,
+        "rows": 1
+      },
+      "connectionMasks": null,
+      "footprint": [
+        1,
+        1
+      ],
+      "measurements": null,
+      "notes": []
+    },
+    {
+      "id": "desert-rubble",
+      "biome": "desert",
+      "family": "rubble",
+      "status": "planned",
+      "source": null,
+      "frames": 1,
+      "variants": [
+        "single"
+      ],
+      "layout": {
+        "columns": 1,
+        "rows": 1
+      },
+      "connectionMasks": null,
+      "footprint": [
+        1,
+        1
+      ],
+      "measurements": null,
+      "notes": []
+    },
+    {
+      "id": "ice-building",
+      "biome": "ice",
+      "family": "building",
+      "status": "planned",
+      "source": null,
+      "frames": 4,
+      "variants": [
+        "N",
+        "E",
+        "S",
+        "W"
+      ],
+      "layout": {
+        "columns": 2,
+        "rows": 2
+      },
+      "connectionMasks": null,
+      "footprint": [
+        2,
+        2
+      ],
+      "measurements": null,
+      "notes": []
+    },
+    {
+      "id": "ice-wall-straight",
+      "biome": "ice",
+      "family": "wall-straight",
+      "status": "planned",
+      "source": null,
+      "frames": 2,
+      "variants": [
+        "EW",
+        "NS"
+      ],
+      "layout": {
+        "columns": 2,
+        "rows": 1
+      },
+      "connectionMasks": [
+        10,
+        5
+      ],
+      "footprint": [
+        1,
+        1
+      ],
+      "measurements": null,
+      "notes": []
+    },
+    {
+      "id": "ice-wall-corner",
+      "biome": "ice",
+      "family": "wall-corner",
+      "status": "planned",
+      "source": null,
+      "frames": 4,
+      "variants": [
+        "NE",
+        "ES",
+        "SW",
+        "WN"
+      ],
+      "layout": {
+        "columns": 2,
+        "rows": 2
+      },
+      "connectionMasks": [
+        3,
+        6,
+        12,
+        9
+      ],
+      "footprint": [
+        1,
+        1
+      ],
+      "measurements": null,
+      "notes": []
+    },
+    {
+      "id": "ice-wall-end",
+      "biome": "ice",
+      "family": "wall-end",
+      "status": "planned",
+      "source": null,
+      "frames": 4,
+      "variants": [
+        "N",
+        "E",
+        "S",
+        "W"
+      ],
+      "layout": {
+        "columns": 2,
+        "rows": 2
+      },
+      "connectionMasks": [
+        1,
+        2,
+        4,
+        8
+      ],
+      "footprint": [
+        1,
+        1
+      ],
+      "measurements": null,
+      "notes": []
+    },
+    {
+      "id": "ice-wall-tee",
+      "biome": "ice",
+      "family": "wall-tee",
+      "status": "planned",
+      "source": null,
+      "frames": 4,
+      "variants": [
+        "NES",
+        "ESW",
+        "NSW",
+        "NEW"
+      ],
+      "layout": {
+        "columns": 2,
+        "rows": 2
+      },
+      "connectionMasks": [
+        7,
+        14,
+        13,
+        11
+      ],
+      "footprint": [
+        1,
+        1
+      ],
+      "measurements": null,
+      "notes": []
+    },
+    {
+      "id": "ice-wall-cross",
+      "biome": "ice",
+      "family": "wall-cross",
+      "status": "planned",
+      "source": null,
+      "frames": 1,
+      "variants": [
+        "NESW"
+      ],
+      "layout": {
+        "columns": 1,
+        "rows": 1
+      },
+      "connectionMasks": [
+        15
+      ],
+      "footprint": [
+        1,
+        1
+      ],
+      "measurements": null,
+      "notes": []
+    },
+    {
+      "id": "ice-wall-post",
+      "biome": "ice",
+      "family": "wall-post",
+      "status": "planned",
+      "source": null,
+      "frames": 1,
+      "variants": [
+        "isolated"
+      ],
+      "layout": {
+        "columns": 1,
+        "rows": 1
+      },
+      "connectionMasks": [
+        0
+      ],
+      "footprint": [
+        1,
+        1
+      ],
+      "measurements": null,
+      "notes": []
+    },
+    {
+      "id": "ice-gate",
+      "biome": "ice",
+      "family": "gate",
+      "status": "planned",
+      "source": null,
+      "frames": 4,
+      "variants": [
+        "EW-closed",
+        "EW-open",
+        "NS-closed",
+        "NS-open"
+      ],
+      "layout": {
+        "columns": 2,
+        "rows": 2
+      },
+      "connectionMasks": null,
+      "footprint": null,
+      "measurements": null,
+      "notes": [
+        "EW footprint 3x1, NS 1x3; passage one cell."
+      ]
+    },
+    {
+      "id": "ice-wall-broken",
+      "biome": "ice",
+      "family": "wall-broken",
+      "status": "planned",
+      "source": null,
+      "frames": 2,
+      "variants": [
+        "EW",
+        "NS"
+      ],
+      "layout": {
+        "columns": 2,
+        "rows": 1
+      },
+      "connectionMasks": null,
+      "footprint": [
+        1,
+        1
+      ],
+      "measurements": null,
+      "notes": []
+    },
+    {
+      "id": "ice-rubble",
+      "biome": "ice",
+      "family": "rubble",
+      "status": "planned",
+      "source": null,
+      "frames": 1,
+      "variants": [
+        "single"
+      ],
+      "layout": {
+        "columns": 1,
+        "rows": 1
+      },
+      "connectionMasks": null,
+      "footprint": [
+        1,
+        1
+      ],
+      "measurements": null,
+      "notes": []
+    },
+    {
+      "id": "jungle-building",
+      "biome": "jungle",
+      "family": "building",
+      "status": "planned",
+      "source": null,
+      "frames": 4,
+      "variants": [
+        "N",
+        "E",
+        "S",
+        "W"
+      ],
+      "layout": {
+        "columns": 2,
+        "rows": 2
+      },
+      "connectionMasks": null,
+      "footprint": [
+        2,
+        2
+      ],
+      "measurements": null,
+      "notes": []
+    },
+    {
+      "id": "jungle-wall-straight",
+      "biome": "jungle",
+      "family": "wall-straight",
+      "status": "planned",
+      "source": null,
+      "frames": 2,
+      "variants": [
+        "EW",
+        "NS"
+      ],
+      "layout": {
+        "columns": 2,
+        "rows": 1
+      },
+      "connectionMasks": [
+        10,
+        5
+      ],
+      "footprint": [
+        1,
+        1
+      ],
+      "measurements": null,
+      "notes": []
+    },
+    {
+      "id": "jungle-wall-corner",
+      "biome": "jungle",
+      "family": "wall-corner",
+      "status": "planned",
+      "source": null,
+      "frames": 4,
+      "variants": [
+        "NE",
+        "ES",
+        "SW",
+        "WN"
+      ],
+      "layout": {
+        "columns": 2,
+        "rows": 2
+      },
+      "connectionMasks": [
+        3,
+        6,
+        12,
+        9
+      ],
+      "footprint": [
+        1,
+        1
+      ],
+      "measurements": null,
+      "notes": []
+    },
+    {
+      "id": "jungle-wall-end",
+      "biome": "jungle",
+      "family": "wall-end",
+      "status": "planned",
+      "source": null,
+      "frames": 4,
+      "variants": [
+        "N",
+        "E",
+        "S",
+        "W"
+      ],
+      "layout": {
+        "columns": 2,
+        "rows": 2
+      },
+      "connectionMasks": [
+        1,
+        2,
+        4,
+        8
+      ],
+      "footprint": [
+        1,
+        1
+      ],
+      "measurements": null,
+      "notes": []
+    },
+    {
+      "id": "jungle-wall-tee",
+      "biome": "jungle",
+      "family": "wall-tee",
+      "status": "planned",
+      "source": null,
+      "frames": 4,
+      "variants": [
+        "NES",
+        "ESW",
+        "NSW",
+        "NEW"
+      ],
+      "layout": {
+        "columns": 2,
+        "rows": 2
+      },
+      "connectionMasks": [
+        7,
+        14,
+        13,
+        11
+      ],
+      "footprint": [
+        1,
+        1
+      ],
+      "measurements": null,
+      "notes": []
+    },
+    {
+      "id": "jungle-wall-cross",
+      "biome": "jungle",
+      "family": "wall-cross",
+      "status": "planned",
+      "source": null,
+      "frames": 1,
+      "variants": [
+        "NESW"
+      ],
+      "layout": {
+        "columns": 1,
+        "rows": 1
+      },
+      "connectionMasks": [
+        15
+      ],
+      "footprint": [
+        1,
+        1
+      ],
+      "measurements": null,
+      "notes": []
+    },
+    {
+      "id": "jungle-wall-post",
+      "biome": "jungle",
+      "family": "wall-post",
+      "status": "planned",
+      "source": null,
+      "frames": 1,
+      "variants": [
+        "isolated"
+      ],
+      "layout": {
+        "columns": 1,
+        "rows": 1
+      },
+      "connectionMasks": [
+        0
+      ],
+      "footprint": [
+        1,
+        1
+      ],
+      "measurements": null,
+      "notes": []
+    },
+    {
+      "id": "jungle-gate",
+      "biome": "jungle",
+      "family": "gate",
+      "status": "planned",
+      "source": null,
+      "frames": 4,
+      "variants": [
+        "EW-closed",
+        "EW-open",
+        "NS-closed",
+        "NS-open"
+      ],
+      "layout": {
+        "columns": 2,
+        "rows": 2
+      },
+      "connectionMasks": null,
+      "footprint": null,
+      "measurements": null,
+      "notes": [
+        "EW footprint 3x1, NS 1x3; passage one cell."
+      ]
+    },
+    {
+      "id": "jungle-wall-broken",
+      "biome": "jungle",
+      "family": "wall-broken",
+      "status": "planned",
+      "source": null,
+      "frames": 2,
+      "variants": [
+        "EW",
+        "NS"
+      ],
+      "layout": {
+        "columns": 2,
+        "rows": 1
+      },
+      "connectionMasks": null,
+      "footprint": [
+        1,
+        1
+      ],
+      "measurements": null,
+      "notes": []
+    },
+    {
+      "id": "jungle-rubble",
+      "biome": "jungle",
+      "family": "rubble",
+      "status": "planned",
+      "source": null,
+      "frames": 1,
+      "variants": [
+        "single"
+      ],
+      "layout": {
+        "columns": 1,
+        "rows": 1
+      },
+      "connectionMasks": null,
+      "footprint": [
+        1,
+        1
+      ],
+      "measurements": null,
+      "notes": []
+    },
+    {
+      "id": "barren-building",
+      "biome": "barren",
+      "family": "building",
+      "status": "planned",
+      "source": null,
+      "frames": 4,
+      "variants": [
+        "N",
+        "E",
+        "S",
+        "W"
+      ],
+      "layout": {
+        "columns": 2,
+        "rows": 2
+      },
+      "connectionMasks": null,
+      "footprint": [
+        2,
+        2
+      ],
+      "measurements": null,
+      "notes": []
+    },
+    {
+      "id": "barren-wall-straight",
+      "biome": "barren",
+      "family": "wall-straight",
+      "status": "planned",
+      "source": null,
+      "frames": 2,
+      "variants": [
+        "EW",
+        "NS"
+      ],
+      "layout": {
+        "columns": 2,
+        "rows": 1
+      },
+      "connectionMasks": [
+        10,
+        5
+      ],
+      "footprint": [
+        1,
+        1
+      ],
+      "measurements": null,
+      "notes": []
+    },
+    {
+      "id": "barren-wall-corner",
+      "biome": "barren",
+      "family": "wall-corner",
+      "status": "planned",
+      "source": null,
+      "frames": 4,
+      "variants": [
+        "NE",
+        "ES",
+        "SW",
+        "WN"
+      ],
+      "layout": {
+        "columns": 2,
+        "rows": 2
+      },
+      "connectionMasks": [
+        3,
+        6,
+        12,
+        9
+      ],
+      "footprint": [
+        1,
+        1
+      ],
+      "measurements": null,
+      "notes": []
+    },
+    {
+      "id": "barren-wall-end",
+      "biome": "barren",
+      "family": "wall-end",
+      "status": "planned",
+      "source": null,
+      "frames": 4,
+      "variants": [
+        "N",
+        "E",
+        "S",
+        "W"
+      ],
+      "layout": {
+        "columns": 2,
+        "rows": 2
+      },
+      "connectionMasks": [
+        1,
+        2,
+        4,
+        8
+      ],
+      "footprint": [
+        1,
+        1
+      ],
+      "measurements": null,
+      "notes": []
+    },
+    {
+      "id": "barren-wall-tee",
+      "biome": "barren",
+      "family": "wall-tee",
+      "status": "planned",
+      "source": null,
+      "frames": 4,
+      "variants": [
+        "NES",
+        "ESW",
+        "NSW",
+        "NEW"
+      ],
+      "layout": {
+        "columns": 2,
+        "rows": 2
+      },
+      "connectionMasks": [
+        7,
+        14,
+        13,
+        11
+      ],
+      "footprint": [
+        1,
+        1
+      ],
+      "measurements": null,
+      "notes": []
+    },
+    {
+      "id": "barren-wall-cross",
+      "biome": "barren",
+      "family": "wall-cross",
+      "status": "planned",
+      "source": null,
+      "frames": 1,
+      "variants": [
+        "NESW"
+      ],
+      "layout": {
+        "columns": 1,
+        "rows": 1
+      },
+      "connectionMasks": [
+        15
+      ],
+      "footprint": [
+        1,
+        1
+      ],
+      "measurements": null,
+      "notes": []
+    },
+    {
+      "id": "barren-wall-post",
+      "biome": "barren",
+      "family": "wall-post",
+      "status": "planned",
+      "source": null,
+      "frames": 1,
+      "variants": [
+        "isolated"
+      ],
+      "layout": {
+        "columns": 1,
+        "rows": 1
+      },
+      "connectionMasks": [
+        0
+      ],
+      "footprint": [
+        1,
+        1
+      ],
+      "measurements": null,
+      "notes": []
+    },
+    {
+      "id": "barren-gate",
+      "biome": "barren",
+      "family": "gate",
+      "status": "planned",
+      "source": null,
+      "frames": 4,
+      "variants": [
+        "EW-closed",
+        "EW-open",
+        "NS-closed",
+        "NS-open"
+      ],
+      "layout": {
+        "columns": 2,
+        "rows": 2
+      },
+      "connectionMasks": null,
+      "footprint": null,
+      "measurements": null,
+      "notes": [
+        "EW footprint 3x1, NS 1x3; passage one cell."
+      ]
+    },
+    {
+      "id": "barren-wall-broken",
+      "biome": "barren",
+      "family": "wall-broken",
+      "status": "planned",
+      "source": null,
+      "frames": 2,
+      "variants": [
+        "EW",
+        "NS"
+      ],
+      "layout": {
+        "columns": 2,
+        "rows": 1
+      },
+      "connectionMasks": null,
+      "footprint": [
+        1,
+        1
+      ],
+      "measurements": null,
+      "notes": []
+    },
+    {
+      "id": "barren-rubble",
+      "biome": "barren",
+      "family": "rubble",
+      "status": "planned",
+      "source": null,
+      "frames": 1,
+      "variants": [
+        "single"
+      ],
+      "layout": {
+        "columns": 1,
+        "rows": 1
+      },
+      "connectionMasks": null,
+      "footprint": [
+        1,
+        1
+      ],
+      "measurements": null,
+      "notes": []
+    },
+    {
+      "id": "station-interior-building",
+      "biome": "station-interior",
+      "family": "building",
+      "status": "planned",
+      "source": null,
+      "frames": 4,
+      "variants": [
+        "N",
+        "E",
+        "S",
+        "W"
+      ],
+      "layout": {
+        "columns": 2,
+        "rows": 2
+      },
+      "connectionMasks": null,
+      "footprint": [
+        2,
+        2
+      ],
+      "measurements": null,
+      "notes": []
+    },
+    {
+      "id": "station-interior-wall-straight",
+      "biome": "station-interior",
+      "family": "wall-straight",
+      "status": "planned",
+      "source": null,
+      "frames": 2,
+      "variants": [
+        "EW",
+        "NS"
+      ],
+      "layout": {
+        "columns": 2,
+        "rows": 1
+      },
+      "connectionMasks": [
+        10,
+        5
+      ],
+      "footprint": [
+        1,
+        1
+      ],
+      "measurements": null,
+      "notes": []
+    },
+    {
+      "id": "station-interior-wall-corner",
+      "biome": "station-interior",
+      "family": "wall-corner",
+      "status": "planned",
+      "source": null,
+      "frames": 4,
+      "variants": [
+        "NE",
+        "ES",
+        "SW",
+        "WN"
+      ],
+      "layout": {
+        "columns": 2,
+        "rows": 2
+      },
+      "connectionMasks": [
+        3,
+        6,
+        12,
+        9
+      ],
+      "footprint": [
+        1,
+        1
+      ],
+      "measurements": null,
+      "notes": []
+    },
+    {
+      "id": "station-interior-wall-end",
+      "biome": "station-interior",
+      "family": "wall-end",
+      "status": "planned",
+      "source": null,
+      "frames": 4,
+      "variants": [
+        "N",
+        "E",
+        "S",
+        "W"
+      ],
+      "layout": {
+        "columns": 2,
+        "rows": 2
+      },
+      "connectionMasks": [
+        1,
+        2,
+        4,
+        8
+      ],
+      "footprint": [
+        1,
+        1
+      ],
+      "measurements": null,
+      "notes": []
+    },
+    {
+      "id": "station-interior-wall-tee",
+      "biome": "station-interior",
+      "family": "wall-tee",
+      "status": "planned",
+      "source": null,
+      "frames": 4,
+      "variants": [
+        "NES",
+        "ESW",
+        "NSW",
+        "NEW"
+      ],
+      "layout": {
+        "columns": 2,
+        "rows": 2
+      },
+      "connectionMasks": [
+        7,
+        14,
+        13,
+        11
+      ],
+      "footprint": [
+        1,
+        1
+      ],
+      "measurements": null,
+      "notes": []
+    },
+    {
+      "id": "station-interior-wall-cross",
+      "biome": "station-interior",
+      "family": "wall-cross",
+      "status": "planned",
+      "source": null,
+      "frames": 1,
+      "variants": [
+        "NESW"
+      ],
+      "layout": {
+        "columns": 1,
+        "rows": 1
+      },
+      "connectionMasks": [
+        15
+      ],
+      "footprint": [
+        1,
+        1
+      ],
+      "measurements": null,
+      "notes": []
+    },
+    {
+      "id": "station-interior-wall-post",
+      "biome": "station-interior",
+      "family": "wall-post",
+      "status": "planned",
+      "source": null,
+      "frames": 1,
+      "variants": [
+        "isolated"
+      ],
+      "layout": {
+        "columns": 1,
+        "rows": 1
+      },
+      "connectionMasks": [
+        0
+      ],
+      "footprint": [
+        1,
+        1
+      ],
+      "measurements": null,
+      "notes": []
+    },
+    {
+      "id": "station-interior-gate",
+      "biome": "station-interior",
+      "family": "gate",
+      "status": "planned",
+      "source": null,
+      "frames": 4,
+      "variants": [
+        "EW-closed",
+        "EW-open",
+        "NS-closed",
+        "NS-open"
+      ],
+      "layout": {
+        "columns": 2,
+        "rows": 2
+      },
+      "connectionMasks": null,
+      "footprint": null,
+      "measurements": null,
+      "notes": [
+        "EW footprint 3x1, NS 1x3; passage one cell."
+      ]
+    },
+    {
+      "id": "station-interior-wall-broken",
+      "biome": "station-interior",
+      "family": "wall-broken",
+      "status": "planned",
+      "source": null,
+      "frames": 2,
+      "variants": [
+        "EW",
+        "NS"
+      ],
+      "layout": {
+        "columns": 2,
+        "rows": 1
+      },
+      "connectionMasks": null,
+      "footprint": [
+        1,
+        1
+      ],
+      "measurements": null,
+      "notes": []
+    },
+    {
+      "id": "station-interior-rubble",
+      "biome": "station-interior",
+      "family": "rubble",
+      "status": "planned",
+      "source": null,
+      "frames": 1,
+      "variants": [
+        "single"
+      ],
+      "layout": {
+        "columns": 1,
+        "rows": 1
+      },
+      "connectionMasks": null,
+      "footprint": [
+        1,
+        1
+      ],
+      "measurements": null,
+      "notes": []
+    }
+  ]
+}

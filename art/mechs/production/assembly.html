@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="ru"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>SRO — калибровка модульного меха</title>
+<style>
+body{margin:24px;background:#10151b;color:#e4e6ea;font:15px system-ui}h1{font-size:24px}p{max-width:1000px;line-height:1.5}a{color:#b4d6ee}select,button,input{padding:8px;background:#25313e;border:1px solid #657282;color:inherit;border-radius:5px}label{display:inline-block;margin:8px}input[type=number]{width:75px}main{align-items:flex-start;display:flex;gap:20px;flex-wrap:wrap}canvas{background:repeating-conic-gradient(#46515e 0% 25%,#323c48 0% 50%) 50%/24px 24px;max-width:95vw}.warn{color:#e4c592}.small{display:flex;gap:20px;align-items:center;flex-wrap:wrap}fieldset{max-width:600px;border:1px solid #4b5868}#error{color:#ffaaa0}
+</style>
+<h1>Сборка эталонного меха</h1>
+<p class="warn">Начальные настройки — откалиброванная сборка среднего меха для восьми направлений. Изменения сохраняются в этом браузере; экспорт создаёт отдельный кандидат настроек.</p>
+<p><a href="rig-review.html">Все направления</a> · <a href="PLAN.md">План</a> · <a href="STATUS.md">Статус</a></p>
+<label>Направление <select id="direction"></select></label><label><input id="ghost" type="checkbox">Эталон поверх сборки</label>
+<label><input id="guides" type="checkbox" checked>Ось и точка опоры</label><p id="error"></p>
+<main><section><canvas id="assembly" width="512" height="512" aria-label="Сборка компонентов"></canvas><p>Сборка слева; исходный эталон справа.</p></section><canvas id="reference" width="512" height="512" aria-label="Исходный эталон"></canvas></main>
+<fieldset><legend>Настройки слоя для выбранного направления</legend>
+<label>Слой <select id="layer"></select></label><label><input id="enabled" type="checkbox" checked>Видим</label>
+<label>X <input id="x" type="number" min="-512" max="512" step="1" value="0"></label><label>Y <input id="y" type="number" min="-512" max="512" step="1" value="0"></label>
+<label>Масштаб <input id="scale" type="number" min="0.05" max="3" step="0.01" value="1"></label><label>Порядок <input id="z" type="number" min="-10" max="10" step="1" value="0"></label>
+<p>Смещения в координатах контрольной ячейки 512×512. Масштабирование относительно центра ячейки. «Видим» позволяет проверить уничтоженную руку.</p>
+<button id="reset">Сбросить это направление</button> <button id="export">Экспорт настроек JSON</button>
+</fieldset><h2>Игровой размер</h2><div class="small"><div>64 px<br><canvas class="mini" width="64" height="64"></canvas></div><div>96 px<br><canvas class="mini" width="96" height="96"></canvas></div><div>128 px<br><canvas class="mini" width="128" height="128"></canvas></div></div>
+<script src="review-data.js"></script><script src="rig-data.js"></script><script src="assembly.js"></script></html>

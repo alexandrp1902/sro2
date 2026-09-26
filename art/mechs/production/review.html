@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="ru"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>SRO — проверка спрайтов мехов</title>
+<style>
+body{margin:24px;background:#10151b;color:#e4e6ea;font:15px system-ui}h1{font-size:24px}p{max-width:1000px;line-height:1.5}a{color:#b4d6ee}label{margin-right:16px}select,button{padding:8px;background:#25313e;border:1px solid #657282;color:inherit;border-radius:5px}header{position:sticky;top:0;padding:12px 0;background:#10151bee;z-index:2}.grid{display:grid;grid-template-columns:repeat(4,minmax(160px,1fr));gap:14px}.frame{background:#1b2530;padding:12px;border-radius:8px;overflow:hidden}.view{height:220px;display:flex;align-items:center;justify-content:center;background:repeating-conic-gradient(#46515e 0% 25%,#323c48 0% 50%) 50%/20px 20px}.dark .view{background:#08090b}canvas{max-width:100%;object-fit:contain}.warn{color:#e4c592}#source{max-width:100%;max-height:700px}small{display:block;margin:8px 0;color:#a4afbc}#error{color:#ffaaa0}@media(max-width:750px){.grid{grid-template-columns:repeat(2,minmax(120px,1fr))}}
+</style>
+<h1>SRO — проверка направлений и масштаба</h1>
+<p>Рабочая серия по принятому дизайну. Метки направлений обозначают требуемую ориентацию ячейки; они не доказывают, что генератор нарисовал её правильно. <a href="PLAN.md">План</a> · <a href="manifest.json">Манифест</a> · <a href="STATUS.md">Статус</a> · <a href="assembly.html">Проверка сборки</a>.</p>
+<header><label>Набор <select id="asset"></select></label><label>Размер <select id="size"><option>64</option><option selected>96</option><option>128</option><option>192</option></select> px</label><button id="background">Сменить подложку</button></header>
+<p id="status" class="warn"></p><p id="error"></p><div id="frames" class="grid"></div>
+<details><summary>Исходный лист</summary><img id="source" alt="Исходный направленный лист"></details>
+<script src="review-data.js"></script><script>
+const all=window.MECH_REVIEW?.results??[],entries=all.filter(x=>!x.error),asset=document.querySelector('#asset'),size=document.querySelector('#size'),container=document.querySelector('#frames');
+for(const entry of entries){const option=document.createElement('option');option.value=entry.id;option.textContent=entry.id;asset.append(option);}
+if(!entries.length)document.querySelector('#error').textContent='Нет проверенных источников. Запустите node art/mechs/production/audit.mjs.';
+let request=0;
+async function show(){
+ const current=++request,entry=entries.find(x=>x.id===asset.value);if(!entry)return;
+ document.querySelector('#status').textContent=entry.status+' · '+entry.width+'×'+entry.height+' · '+entry.notes.join(' ');
+ document.querySelector('#source').src=entry.source;document.querySelector('#error').textContent='';
+ const img=new Image();img.src=entry.source;
+ try{await img.decode();}catch{document.querySelector('#error').textContent='Не удалось прочитать '+entry.source;return;}
+ if(current!==request)return;container.replaceChildren();
+ for(const frame of entry.frames){
+   const card=document.createElement('section');card.className='frame';const title=document.createElement('strong');title.textContent=frame.direction;
+   const view=document.createElement('div');view.className='view';const canvas=document.createElement('canvas');const n=Number(size.value),dpr=window.devicePixelRatio||1;canvas.width=n*dpr;canvas.height=n*dpr;canvas.style.width=n+'px';canvas.style.height=n+'px';const ctx=canvas.getContext('2d');ctx.imageSmoothingEnabled=true;ctx.imageSmoothingQuality='high';ctx.drawImage(img,...frame.rect,0,0,canvas.width,canvas.height);view.append(canvas);
+   const info=document.createElement('small');info.textContent='Поле до края: '+frame.minMargin+' px · альфа: '+frame.transparentPixels+' пустых пикс.';
+   card.append(title,view,info);container.append(card);
+ }
+}
+asset.onchange=show;size.onchange=show;document.querySelector('#background').onclick=()=>document.body.classList.toggle('dark');show();
+</script></html>

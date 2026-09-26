@@ -1,0 +1,2085 @@
+{
+    "version":  1,
+    "created":  "2026-09-23",
+    "acceptedDesign":  "../concepts/mech-tactical-gameplay-concept-2026-09-23.png",
+    "directions":  [
+                       "N",
+                       "NE",
+                       "E",
+                       "SE",
+                       "S",
+                       "SW",
+                       "W",
+                       "NW"
+                   ],
+    "runtimeReady":  false,
+    "entries":  [
+                    {
+                        "id":  "reference-medium",
+                        "stage":  "P0",
+                        "group":  "reference",
+                        "status":  "needs-review",
+                        "frames":  8,
+                        "layout":  {
+                                       "columns":  4,
+                                       "rows":  2
+                                   },
+                        "source":  "sources/reference-medium-8dir-v2.png",
+                        "anchors":  null,
+                        "notes":  [
+                                      "Original visual guide. The calibrated assembly in medium-rig.json supersedes this image as the static production reference; its corrected rear chassis is in chassis-medium-biped-8dir-v2.png."
+                                  ]
+                    },
+                    {
+                        "id":  "body-light",
+                        "stage":  "P2",
+                        "group":  "body",
+                        "status":  "planned",
+                        "frames":  8,
+                        "layout":  {
+                                       "columns":  4,
+                                       "rows":  2
+                                   },
+                        "source":  null,
+                        "anchors":  null
+                    },
+                    {
+                        "id":  "body-medium",
+                        "stage":  "P1",
+                        "group":  "body",
+                        "status":  "accepted",
+                        "frames":  8,
+                        "layout":  {
+                                       "columns":  4,
+                                       "rows":  2
+                                   },
+                        "runtimeReady":  true,
+                        "source":  "sources/body-medium-8dir-v1.png",
+                        "anchors":  {
+                                        "rig":  "medium-rig.json",
+                                        "component":  "body-medium",
+                                        "scope":  "static-medium-prototype",
+                                        "directions":  [
+                                                           "N",
+                                                           "NE",
+                                                           "E",
+                                                           "SE",
+                                                           "S",
+                                                           "SW",
+                                                           "W",
+                                                           "NW"
+                                                       ]
+                                    },
+                        "notes":  [
+                                      "Validated in the assembled medium rig for all eight directions. Per-direction transforms and attachment coordinates are in medium-rig.json. Acceptance covers this static prototype only; animation and compatibility with other bodies remain pending."
+                                  ]
+                    },
+                    {
+                        "id":  "body-heavy",
+                        "stage":  "P2",
+                        "group":  "body",
+                        "status":  "planned",
+                        "frames":  8,
+                        "layout":  {
+                                       "columns":  4,
+                                       "rows":  2
+                                   },
+                        "source":  null,
+                        "anchors":  null
+                    },
+                    {
+                        "id":  "body-sniper",
+                        "stage":  "P2",
+                        "group":  "body",
+                        "status":  "planned",
+                        "frames":  8,
+                        "layout":  {
+                                       "columns":  4,
+                                       "rows":  2
+                                   },
+                        "source":  null,
+                        "anchors":  null
+                    },
+                    {
+                        "id":  "body-bandit",
+                        "stage":  "P2",
+                        "group":  "body",
+                        "status":  "planned",
+                        "frames":  8,
+                        "layout":  {
+                                       "columns":  4,
+                                       "rows":  2
+                                   },
+                        "source":  null,
+                        "anchors":  null
+                    },
+                    {
+                        "id":  "body-militia",
+                        "stage":  "P2",
+                        "group":  "body",
+                        "status":  "planned",
+                        "frames":  8,
+                        "layout":  {
+                                       "columns":  4,
+                                       "rows":  2
+                                   },
+                        "source":  null,
+                        "anchors":  null
+                    },
+                    {
+                        "id":  "body-enemy-heavy",
+                        "stage":  "P2",
+                        "group":  "body",
+                        "status":  "planned",
+                        "frames":  8,
+                        "layout":  {
+                                       "columns":  4,
+                                       "rows":  2
+                                   },
+                        "source":  null,
+                        "anchors":  null
+                    },
+                    {
+                        "id":  "chassis-light-biped",
+                        "stage":  "P2",
+                        "group":  "chassis",
+                        "status":  "planned",
+                        "frames":  8,
+                        "layout":  {
+                                       "columns":  4,
+                                       "rows":  2
+                                   },
+                        "source":  null,
+                        "anchors":  null
+                    },
+                    {
+                        "id":  "chassis-medium-biped",
+                        "stage":  "P1",
+                        "group":  "chassis",
+                        "status":  "accepted",
+                        "frames":  8,
+                        "layout":  {
+                                       "columns":  4,
+                                       "rows":  2
+                                   },
+                        "runtimeReady":  true,
+                        "source":  "sources/chassis-medium-biped-8dir-v2.png",
+                        "anchors":  {
+                                        "rig":  "medium-rig.json",
+                                        "component":  "chassis-medium-biped",
+                                        "scope":  "static-medium-prototype",
+                                        "directions":  [
+                                                           "N",
+                                                           "NE",
+                                                           "E",
+                                                           "SE",
+                                                           "S",
+                                                           "SW",
+                                                           "W",
+                                                           "NW"
+                                                       ]
+                                    },
+                        "notes":  [
+                                      "Validated in the assembled medium rig for all eight directions. Per-direction transforms and attachment coordinates are in medium-rig.json. Acceptance covers this static prototype only; animation and compatibility with other bodies remain pending."
+                                  ]
+                    },
+                    {
+                        "id":  "chassis-heavy-biped",
+                        "stage":  "P2",
+                        "group":  "chassis",
+                        "status":  "planned",
+                        "frames":  8,
+                        "layout":  {
+                                       "columns":  4,
+                                       "rows":  2
+                                   },
+                        "source":  null,
+                        "anchors":  null
+                    },
+                    {
+                        "id":  "chassis-tracks",
+                        "stage":  "P2",
+                        "group":  "chassis",
+                        "status":  "planned",
+                        "frames":  8,
+                        "layout":  {
+                                       "columns":  4,
+                                       "rows":  2
+                                   },
+                        "source":  null,
+                        "anchors":  null
+                    },
+                    {
+                        "id":  "arm-pistol-cannon-left",
+                        "stage":  "P2",
+                        "group":  "arm",
+                        "status":  "planned",
+                        "frames":  8,
+                        "layout":  {
+                                       "columns":  4,
+                                       "rows":  2
+                                   },
+                        "source":  null,
+                        "anchors":  null,
+                        "side":  "left"
+                    },
+                    {
+                        "id":  "arm-pistol-cannon-right",
+                        "stage":  "P2",
+                        "group":  "arm",
+                        "status":  "planned",
+                        "frames":  8,
+                        "layout":  {
+                                       "columns":  4,
+                                       "rows":  2
+                                   },
+                        "source":  null,
+                        "anchors":  null,
+                        "side":  "right"
+                    },
+                    {
+                        "id":  "arm-autocannon-left",
+                        "stage":  "P2",
+                        "group":  "arm",
+                        "status":  "planned",
+                        "frames":  8,
+                        "layout":  {
+                                       "columns":  4,
+                                       "rows":  2
+                                   },
+                        "source":  null,
+                        "anchors":  null,
+                        "side":  "left"
+                    },
+                    {
+                        "id":  "arm-autocannon-right",
+                        "stage":  "P1",
+                        "group":  "arm",
+                        "status":  "accepted",
+                        "frames":  8,
+                        "layout":  {
+                                       "columns":  4,
+                                       "rows":  2
+                                   },
+                        "runtimeReady":  true,
+                        "source":  "sources/arm-autocannon-right-8dir-v1.png",
+                        "anchors":  {
+                                        "rig":  "medium-rig.json",
+                                        "component":  "arm-autocannon-right",
+                                        "scope":  "static-medium-prototype",
+                                        "directions":  [
+                                                           "N",
+                                                           "NE",
+                                                           "E",
+                                                           "SE",
+                                                           "S",
+                                                           "SW",
+                                                           "W",
+                                                           "NW"
+                                                       ]
+                                    },
+                        "side":  "right",
+                        "notes":  [
+                                      "Validated in the assembled medium rig for all eight directions. Per-direction transforms and attachment coordinates are in medium-rig.json. Acceptance covers this static prototype only; animation and compatibility with other bodies remain pending."
+                                  ]
+                    },
+                    {
+                        "id":  "arm-heavy-cannon-left",
+                        "stage":  "P2",
+                        "group":  "arm",
+                        "status":  "planned",
+                        "frames":  8,
+                        "layout":  {
+                                       "columns":  4,
+                                       "rows":  2
+                                   },
+                        "source":  null,
+                        "anchors":  null,
+                        "side":  "left"
+                    },
+                    {
+                        "id":  "arm-heavy-cannon-right",
+                        "stage":  "P2",
+                        "group":  "arm",
+                        "status":  "planned",
+                        "frames":  8,
+                        "layout":  {
+                                       "columns":  4,
+                                       "rows":  2
+                                   },
+                        "source":  null,
+                        "anchors":  null,
+                        "side":  "right"
+                    },
+                    {
+                        "id":  "arm-shotgun-left",
+                        "stage":  "P2",
+                        "group":  "arm",
+                        "status":  "planned",
+                        "frames":  8,
+                        "layout":  {
+                                       "columns":  4,
+                                       "rows":  2
+                                   },
+                        "source":  null,
+                        "anchors":  null,
+                        "side":  "left"
+                    },
+                    {
+                        "id":  "arm-shotgun-right",
+                        "stage":  "P2",
+                        "group":  "arm",
+                        "status":  "planned",
+                        "frames":  8,
+                        "layout":  {
+                                       "columns":  4,
+                                       "rows":  2
+                                   },
+                        "source":  null,
+                        "anchors":  null,
+                        "side":  "right"
+                    },
+                    {
+                        "id":  "arm-sniper-left",
+                        "stage":  "P2",
+                        "group":  "arm",
+                        "status":  "planned",
+                        "frames":  8,
+                        "layout":  {
+                                       "columns":  4,
+                                       "rows":  2
+                                   },
+                        "source":  null,
+                        "anchors":  null,
+                        "side":  "left"
+                    },
+                    {
+                        "id":  "arm-sniper-right",
+                        "stage":  "P2",
+                        "group":  "arm",
+                        "status":  "planned",
+                        "frames":  8,
+                        "layout":  {
+                                       "columns":  4,
+                                       "rows":  2
+                                   },
+                        "source":  null,
+                        "anchors":  null,
+                        "side":  "right"
+                    },
+                    {
+                        "id":  "arm-rockets-left",
+                        "stage":  "P2",
+                        "group":  "arm",
+                        "status":  "planned",
+                        "frames":  8,
+                        "layout":  {
+                                       "columns":  4,
+                                       "rows":  2
+                                   },
+                        "source":  null,
+                        "anchors":  null,
+                        "side":  "left"
+                    },
+                    {
+                        "id":  "arm-rockets-right",
+                        "stage":  "P2",
+                        "group":  "arm",
+                        "status":  "planned",
+                        "frames":  8,
+                        "layout":  {
+                                       "columns":  4,
+                                       "rows":  2
+                                   },
+                        "source":  null,
+                        "anchors":  null,
+                        "side":  "right"
+                    },
+                    {
+                        "id":  "arm-energy-left",
+                        "stage":  "P2",
+                        "group":  "arm",
+                        "status":  "planned",
+                        "frames":  8,
+                        "layout":  {
+                                       "columns":  4,
+                                       "rows":  2
+                                   },
+                        "source":  null,
+                        "anchors":  null,
+                        "side":  "left"
+                    },
+                    {
+                        "id":  "arm-energy-right",
+                        "stage":  "P2",
+                        "group":  "arm",
+                        "status":  "planned",
+                        "frames":  8,
+                        "layout":  {
+                                       "columns":  4,
+                                       "rows":  2
+                                   },
+                        "source":  null,
+                        "anchors":  null,
+                        "side":  "right"
+                    },
+                    {
+                        "id":  "arm-sword-left",
+                        "stage":  "P2",
+                        "group":  "arm",
+                        "status":  "planned",
+                        "frames":  8,
+                        "layout":  {
+                                       "columns":  4,
+                                       "rows":  2
+                                   },
+                        "source":  null,
+                        "anchors":  null,
+                        "side":  "left"
+                    },
+                    {
+                        "id":  "arm-sword-right",
+                        "stage":  "P2",
+                        "group":  "arm",
+                        "status":  "planned",
+                        "frames":  8,
+                        "layout":  {
+                                       "columns":  4,
+                                       "rows":  2
+                                   },
+                        "source":  null,
+                        "anchors":  null,
+                        "side":  "right"
+                    },
+                    {
+                        "id":  "arm-mg-left",
+                        "stage":  "P2",
+                        "group":  "arm",
+                        "status":  "planned",
+                        "frames":  8,
+                        "layout":  {
+                                       "columns":  4,
+                                       "rows":  2
+                                   },
+                        "source":  null,
+                        "anchors":  null,
+                        "side":  "left"
+                    },
+                    {
+                        "id":  "arm-mg-right",
+                        "stage":  "P2",
+                        "group":  "arm",
+                        "status":  "planned",
+                        "frames":  8,
+                        "layout":  {
+                                       "columns":  4,
+                                       "rows":  2
+                                   },
+                        "source":  null,
+                        "anchors":  null,
+                        "side":  "right"
+                    },
+                    {
+                        "id":  "arm-experimental-left",
+                        "stage":  "P2",
+                        "group":  "arm",
+                        "status":  "planned",
+                        "frames":  8,
+                        "layout":  {
+                                       "columns":  4,
+                                       "rows":  2
+                                   },
+                        "source":  null,
+                        "anchors":  null,
+                        "side":  "left"
+                    },
+                    {
+                        "id":  "arm-experimental-right",
+                        "stage":  "P2",
+                        "group":  "arm",
+                        "status":  "planned",
+                        "frames":  8,
+                        "layout":  {
+                                       "columns":  4,
+                                       "rows":  2
+                                   },
+                        "source":  null,
+                        "anchors":  null,
+                        "side":  "right"
+                    },
+                    {
+                        "id":  "shield-light-left",
+                        "stage":  "P1",
+                        "group":  "shield",
+                        "status":  "accepted",
+                        "frames":  8,
+                        "layout":  {
+                                       "columns":  4,
+                                       "rows":  2
+                                   },
+                        "runtimeReady":  true,
+                        "source":  "sources/shield-light-left-8dir-v2.png",
+                        "anchors":  {
+                                        "rig":  "medium-rig.json",
+                                        "component":  "shield-light-left",
+                                        "scope":  "static-medium-prototype",
+                                        "directions":  [
+                                                           "N",
+                                                           "NE",
+                                                           "E",
+                                                           "SE",
+                                                           "S",
+                                                           "SW",
+                                                           "W",
+                                                           "NW"
+                                                       ]
+                                    },
+                        "side":  "left",
+                        "notes":  [
+                                      "Validated in the assembled medium rig for all eight directions. Per-direction transforms and attachment coordinates are in medium-rig.json. Acceptance covers this static prototype only; animation and compatibility with other bodies remain pending."
+                                  ]
+                    },
+                    {
+                        "id":  "shield-light-right",
+                        "stage":  "P2",
+                        "group":  "shield",
+                        "status":  "planned",
+                        "frames":  8,
+                        "layout":  {
+                                       "columns":  4,
+                                       "rows":  2
+                                   },
+                        "source":  null,
+                        "anchors":  null,
+                        "side":  "right"
+                    },
+                    {
+                        "id":  "shield-heavy-left",
+                        "stage":  "P2",
+                        "group":  "shield",
+                        "status":  "planned",
+                        "frames":  8,
+                        "layout":  {
+                                       "columns":  4,
+                                       "rows":  2
+                                   },
+                        "source":  null,
+                        "anchors":  null,
+                        "side":  "left"
+                    },
+                    {
+                        "id":  "shield-heavy-right",
+                        "stage":  "P2",
+                        "group":  "shield",
+                        "status":  "planned",
+                        "frames":  8,
+                        "layout":  {
+                                       "columns":  4,
+                                       "rows":  2
+                                   },
+                        "source":  null,
+                        "anchors":  null,
+                        "side":  "right"
+                    },
+                    {
+                        "id":  "pack-accuracy",
+                        "stage":  "P2",
+                        "group":  "pack",
+                        "status":  "planned",
+                        "frames":  8,
+                        "layout":  {
+                                       "columns":  4,
+                                       "rows":  2
+                                   },
+                        "source":  null,
+                        "anchors":  null
+                    },
+                    {
+                        "id":  "pack-armor",
+                        "stage":  "P2",
+                        "group":  "pack",
+                        "status":  "planned",
+                        "frames":  8,
+                        "layout":  {
+                                       "columns":  4,
+                                       "rows":  2
+                                   },
+                        "source":  null,
+                        "anchors":  null
+                    },
+                    {
+                        "id":  "pack-damage",
+                        "stage":  "P2",
+                        "group":  "pack",
+                        "status":  "planned",
+                        "frames":  8,
+                        "layout":  {
+                                       "columns":  4,
+                                       "rows":  2
+                                   },
+                        "source":  null,
+                        "anchors":  null
+                    },
+                    {
+                        "id":  "pack-mobility",
+                        "stage":  "P2",
+                        "group":  "pack",
+                        "status":  "planned",
+                        "frames":  8,
+                        "layout":  {
+                                       "columns":  4,
+                                       "rows":  2
+                                   },
+                        "source":  null,
+                        "anchors":  null
+                    },
+                    {
+                        "id":  "pack-repair",
+                        "stage":  "P2",
+                        "group":  "pack",
+                        "status":  "planned",
+                        "frames":  8,
+                        "layout":  {
+                                       "columns":  4,
+                                       "rows":  2
+                                   },
+                        "source":  null,
+                        "anchors":  null
+                    },
+                    {
+                        "id":  "walk-light-biped",
+                        "stage":  "P3",
+                        "group":  "walk",
+                        "status":  "planned",
+                        "frames":  32,
+                        "layout":  {
+                                       "columns":  4,
+                                       "rows":  8
+                                   },
+                        "source":  null,
+                        "anchors":  null,
+                        "order":  "rows=N,NE,E,SE,S,SW,W,NW; columns=walk phases"
+                    },
+                    {
+                        "id":  "disabled-light-biped",
+                        "stage":  "P3",
+                        "group":  "disabled",
+                        "status":  "planned",
+                        "frames":  8,
+                        "layout":  {
+                                       "columns":  4,
+                                       "rows":  2
+                                   },
+                        "source":  null,
+                        "anchors":  null
+                    },
+                    {
+                        "id":  "walk-medium-biped",
+                        "stage":  "P3",
+                        "group":  "walk",
+                        "status":  "planned",
+                        "frames":  32,
+                        "layout":  {
+                                       "columns":  4,
+                                       "rows":  8
+                                   },
+                        "source":  null,
+                        "anchors":  null,
+                        "order":  "rows=N,NE,E,SE,S,SW,W,NW; columns=walk phases"
+                    },
+                    {
+                        "id":  "disabled-medium-biped",
+                        "stage":  "P3",
+                        "group":  "disabled",
+                        "status":  "planned",
+                        "frames":  8,
+                        "layout":  {
+                                       "columns":  4,
+                                       "rows":  2
+                                   },
+                        "source":  null,
+                        "anchors":  null
+                    },
+                    {
+                        "id":  "walk-heavy-biped",
+                        "stage":  "P3",
+                        "group":  "walk",
+                        "status":  "planned",
+                        "frames":  32,
+                        "layout":  {
+                                       "columns":  4,
+                                       "rows":  8
+                                   },
+                        "source":  null,
+                        "anchors":  null,
+                        "order":  "rows=N,NE,E,SE,S,SW,W,NW; columns=walk phases"
+                    },
+                    {
+                        "id":  "disabled-heavy-biped",
+                        "stage":  "P3",
+                        "group":  "disabled",
+                        "status":  "planned",
+                        "frames":  8,
+                        "layout":  {
+                                       "columns":  4,
+                                       "rows":  2
+                                   },
+                        "source":  null,
+                        "anchors":  null
+                    },
+                    {
+                        "id":  "walk-tracks",
+                        "stage":  "P3",
+                        "group":  "walk",
+                        "status":  "planned",
+                        "frames":  32,
+                        "layout":  {
+                                       "columns":  4,
+                                       "rows":  8
+                                   },
+                        "source":  null,
+                        "anchors":  null,
+                        "order":  "rows=N,NE,E,SE,S,SW,W,NW; columns=walk phases"
+                    },
+                    {
+                        "id":  "disabled-tracks",
+                        "stage":  "P3",
+                        "group":  "disabled",
+                        "status":  "planned",
+                        "frames":  8,
+                        "layout":  {
+                                       "columns":  4,
+                                       "rows":  2
+                                   },
+                        "source":  null,
+                        "anchors":  null
+                    },
+                    {
+                        "id":  "broken-socket-left",
+                        "stage":  "P3",
+                        "group":  "damage",
+                        "status":  "planned",
+                        "frames":  8,
+                        "layout":  {
+                                       "columns":  4,
+                                       "rows":  2
+                                   },
+                        "source":  null,
+                        "anchors":  null,
+                        "side":  "left"
+                    },
+                    {
+                        "id":  "broken-socket-right",
+                        "stage":  "P3",
+                        "group":  "damage",
+                        "status":  "planned",
+                        "frames":  8,
+                        "layout":  {
+                                       "columns":  4,
+                                       "rows":  2
+                                   },
+                        "source":  null,
+                        "anchors":  null,
+                        "side":  "right"
+                    },
+                    {
+                        "id":  "wreck-light",
+                        "stage":  "P3",
+                        "group":  "wreck",
+                        "status":  "planned",
+                        "frames":  1,
+                        "layout":  null,
+                        "source":  null,
+                        "anchors":  null
+                    },
+                    {
+                        "id":  "wreck-medium",
+                        "stage":  "P3",
+                        "group":  "wreck",
+                        "status":  "planned",
+                        "frames":  1,
+                        "layout":  null,
+                        "source":  null,
+                        "anchors":  null
+                    },
+                    {
+                        "id":  "wreck-heavy",
+                        "stage":  "P3",
+                        "group":  "wreck",
+                        "status":  "planned",
+                        "frames":  1,
+                        "layout":  null,
+                        "source":  null,
+                        "anchors":  null
+                    },
+                    {
+                        "id":  "wreck-sniper",
+                        "stage":  "P3",
+                        "group":  "wreck",
+                        "status":  "planned",
+                        "frames":  1,
+                        "layout":  null,
+                        "source":  null,
+                        "anchors":  null
+                    },
+                    {
+                        "id":  "wreck-bandit",
+                        "stage":  "P3",
+                        "group":  "wreck",
+                        "status":  "planned",
+                        "frames":  1,
+                        "layout":  null,
+                        "source":  null,
+                        "anchors":  null
+                    },
+                    {
+                        "id":  "wreck-militia",
+                        "stage":  "P3",
+                        "group":  "wreck",
+                        "status":  "planned",
+                        "frames":  1,
+                        "layout":  null,
+                        "source":  null,
+                        "anchors":  null
+                    },
+                    {
+                        "id":  "wreck-enemy-heavy",
+                        "stage":  "P3",
+                        "group":  "wreck",
+                        "status":  "planned",
+                        "frames":  1,
+                        "layout":  null,
+                        "source":  null,
+                        "anchors":  null
+                    },
+                    {
+                        "id":  "desert-ground-1",
+                        "stage":  "P4",
+                        "group":  "terrain-audit",
+                        "status":  "needs-review",
+                        "frames":  1,
+                        "layout":  null,
+                        "source":  "../tiles/desert-ground-1.png",
+                        "anchors":  null,
+                        "operation":  "inspect-existing-and-replace-with-v2-only-if-needed"
+                    },
+                    {
+                        "id":  "desert-ground-2",
+                        "stage":  "P4",
+                        "group":  "terrain-audit",
+                        "status":  "needs-review",
+                        "frames":  1,
+                        "layout":  null,
+                        "source":  "../tiles/desert-ground-2.png",
+                        "anchors":  null,
+                        "operation":  "inspect-existing-and-replace-with-v2-only-if-needed"
+                    },
+                    {
+                        "id":  "desert-rough",
+                        "stage":  "P4",
+                        "group":  "terrain-audit",
+                        "status":  "needs-review",
+                        "frames":  1,
+                        "layout":  null,
+                        "source":  "../tiles/desert-rough.png",
+                        "anchors":  null,
+                        "operation":  "inspect-existing-and-replace-with-v2-only-if-needed"
+                    },
+                    {
+                        "id":  "desert-wall",
+                        "stage":  "P4",
+                        "group":  "terrain-audit",
+                        "status":  "needs-review",
+                        "frames":  1,
+                        "layout":  null,
+                        "source":  "../tiles/desert-wall.png",
+                        "anchors":  null,
+                        "operation":  "inspect-existing-and-replace-with-v2-only-if-needed"
+                    },
+                    {
+                        "id":  "desert-building",
+                        "stage":  "P4",
+                        "group":  "terrain-audit",
+                        "status":  "needs-review",
+                        "frames":  1,
+                        "layout":  null,
+                        "source":  "../tiles/desert-building.png",
+                        "anchors":  null,
+                        "operation":  "inspect-existing-and-replace-with-v2-only-if-needed"
+                    },
+                    {
+                        "id":  "desert-crate",
+                        "stage":  "P4",
+                        "group":  "terrain-audit",
+                        "status":  "needs-review",
+                        "frames":  1,
+                        "layout":  null,
+                        "source":  "../tiles/desert-crate.png",
+                        "anchors":  null,
+                        "operation":  "inspect-existing-and-replace-with-v2-only-if-needed"
+                    },
+                    {
+                        "id":  "desert-high-ground",
+                        "stage":  "P4",
+                        "group":  "terrain-audit",
+                        "status":  "needs-review",
+                        "frames":  1,
+                        "layout":  null,
+                        "source":  "../tiles/desert-high-ground.png",
+                        "anchors":  null,
+                        "operation":  "inspect-existing-and-replace-with-v2-only-if-needed"
+                    },
+                    {
+                        "id":  "desert-wall-corner",
+                        "stage":  "P4",
+                        "group":  "terrain-new",
+                        "status":  "planned",
+                        "frames":  4,
+                        "layout":  {
+                                       "columns":  2,
+                                       "rows":  2
+                                   },
+                        "source":  null,
+                        "anchors":  null,
+                        "directions":  [
+                                           "N",
+                                           "E",
+                                           "S",
+                                           "W"
+                                       ]
+                    },
+                    {
+                        "id":  "desert-wall-end",
+                        "stage":  "P4",
+                        "group":  "terrain-new",
+                        "status":  "planned",
+                        "frames":  4,
+                        "layout":  {
+                                       "columns":  2,
+                                       "rows":  2
+                                   },
+                        "source":  null,
+                        "anchors":  null,
+                        "directions":  [
+                                           "N",
+                                           "E",
+                                           "S",
+                                           "W"
+                                       ]
+                    },
+                    {
+                        "id":  "desert-gate",
+                        "stage":  "P4",
+                        "group":  "terrain-new",
+                        "status":  "planned",
+                        "frames":  4,
+                        "layout":  {
+                                       "columns":  2,
+                                       "rows":  2
+                                   },
+                        "source":  null,
+                        "anchors":  null,
+                        "directions":  [
+                                           "N",
+                                           "E",
+                                           "S",
+                                           "W"
+                                       ]
+                    },
+                    {
+                        "id":  "desert-wall-broken",
+                        "stage":  "P4",
+                        "group":  "terrain-new",
+                        "status":  "planned",
+                        "frames":  4,
+                        "layout":  {
+                                       "columns":  2,
+                                       "rows":  2
+                                   },
+                        "source":  null,
+                        "anchors":  null,
+                        "directions":  [
+                                           "N",
+                                           "E",
+                                           "S",
+                                           "W"
+                                       ]
+                    },
+                    {
+                        "id":  "desert-pipe-straight",
+                        "stage":  "P4",
+                        "group":  "terrain-new",
+                        "status":  "planned",
+                        "frames":  4,
+                        "layout":  {
+                                       "columns":  2,
+                                       "rows":  2
+                                   },
+                        "source":  null,
+                        "anchors":  null,
+                        "directions":  [
+                                           "N",
+                                           "E",
+                                           "S",
+                                           "W"
+                                       ]
+                    },
+                    {
+                        "id":  "desert-pipe-corner",
+                        "stage":  "P4",
+                        "group":  "terrain-new",
+                        "status":  "planned",
+                        "frames":  4,
+                        "layout":  {
+                                       "columns":  2,
+                                       "rows":  2
+                                   },
+                        "source":  null,
+                        "anchors":  null,
+                        "directions":  [
+                                           "N",
+                                           "E",
+                                           "S",
+                                           "W"
+                                       ]
+                    },
+                    {
+                        "id":  "desert-pipe-t",
+                        "stage":  "P4",
+                        "group":  "terrain-new",
+                        "status":  "planned",
+                        "frames":  4,
+                        "layout":  {
+                                       "columns":  2,
+                                       "rows":  2
+                                   },
+                        "source":  null,
+                        "anchors":  null,
+                        "directions":  [
+                                           "N",
+                                           "E",
+                                           "S",
+                                           "W"
+                                       ]
+                    },
+                    {
+                        "id":  "desert-debris",
+                        "stage":  "P4",
+                        "group":  "terrain-new",
+                        "status":  "planned",
+                        "frames":  1,
+                        "layout":  null,
+                        "source":  null,
+                        "anchors":  null,
+                        "directions":  null
+                    },
+                    {
+                        "id":  "ice-ground-1",
+                        "stage":  "P4",
+                        "group":  "terrain-audit",
+                        "status":  "needs-review",
+                        "frames":  1,
+                        "layout":  null,
+                        "source":  "../tiles/ice-ground-1.png",
+                        "anchors":  null,
+                        "operation":  "inspect-existing-and-replace-with-v2-only-if-needed"
+                    },
+                    {
+                        "id":  "ice-ground-2",
+                        "stage":  "P4",
+                        "group":  "terrain-audit",
+                        "status":  "needs-review",
+                        "frames":  1,
+                        "layout":  null,
+                        "source":  "../tiles/ice-ground-2.png",
+                        "anchors":  null,
+                        "operation":  "inspect-existing-and-replace-with-v2-only-if-needed"
+                    },
+                    {
+                        "id":  "ice-rough",
+                        "stage":  "P4",
+                        "group":  "terrain-audit",
+                        "status":  "needs-review",
+                        "frames":  1,
+                        "layout":  null,
+                        "source":  "../tiles/ice-rough.png",
+                        "anchors":  null,
+                        "operation":  "inspect-existing-and-replace-with-v2-only-if-needed"
+                    },
+                    {
+                        "id":  "ice-wall",
+                        "stage":  "P4",
+                        "group":  "terrain-audit",
+                        "status":  "needs-review",
+                        "frames":  1,
+                        "layout":  null,
+                        "source":  "../tiles/ice-wall.png",
+                        "anchors":  null,
+                        "operation":  "inspect-existing-and-replace-with-v2-only-if-needed"
+                    },
+                    {
+                        "id":  "ice-building",
+                        "stage":  "P4",
+                        "group":  "terrain-audit",
+                        "status":  "needs-review",
+                        "frames":  1,
+                        "layout":  null,
+                        "source":  "../tiles/ice-building.png",
+                        "anchors":  null,
+                        "operation":  "inspect-existing-and-replace-with-v2-only-if-needed"
+                    },
+                    {
+                        "id":  "ice-crate",
+                        "stage":  "P4",
+                        "group":  "terrain-audit",
+                        "status":  "needs-review",
+                        "frames":  1,
+                        "layout":  null,
+                        "source":  "../tiles/ice-crate.png",
+                        "anchors":  null,
+                        "operation":  "inspect-existing-and-replace-with-v2-only-if-needed"
+                    },
+                    {
+                        "id":  "ice-high-ground",
+                        "stage":  "P4",
+                        "group":  "terrain-audit",
+                        "status":  "needs-review",
+                        "frames":  1,
+                        "layout":  null,
+                        "source":  "../tiles/ice-high-ground.png",
+                        "anchors":  null,
+                        "operation":  "inspect-existing-and-replace-with-v2-only-if-needed"
+                    },
+                    {
+                        "id":  "ice-wall-corner",
+                        "stage":  "P4",
+                        "group":  "terrain-new",
+                        "status":  "planned",
+                        "frames":  4,
+                        "layout":  {
+                                       "columns":  2,
+                                       "rows":  2
+                                   },
+                        "source":  null,
+                        "anchors":  null,
+                        "directions":  [
+                                           "N",
+                                           "E",
+                                           "S",
+                                           "W"
+                                       ]
+                    },
+                    {
+                        "id":  "ice-wall-end",
+                        "stage":  "P4",
+                        "group":  "terrain-new",
+                        "status":  "planned",
+                        "frames":  4,
+                        "layout":  {
+                                       "columns":  2,
+                                       "rows":  2
+                                   },
+                        "source":  null,
+                        "anchors":  null,
+                        "directions":  [
+                                           "N",
+                                           "E",
+                                           "S",
+                                           "W"
+                                       ]
+                    },
+                    {
+                        "id":  "ice-gate",
+                        "stage":  "P4",
+                        "group":  "terrain-new",
+                        "status":  "planned",
+                        "frames":  4,
+                        "layout":  {
+                                       "columns":  2,
+                                       "rows":  2
+                                   },
+                        "source":  null,
+                        "anchors":  null,
+                        "directions":  [
+                                           "N",
+                                           "E",
+                                           "S",
+                                           "W"
+                                       ]
+                    },
+                    {
+                        "id":  "ice-wall-broken",
+                        "stage":  "P4",
+                        "group":  "terrain-new",
+                        "status":  "planned",
+                        "frames":  4,
+                        "layout":  {
+                                       "columns":  2,
+                                       "rows":  2
+                                   },
+                        "source":  null,
+                        "anchors":  null,
+                        "directions":  [
+                                           "N",
+                                           "E",
+                                           "S",
+                                           "W"
+                                       ]
+                    },
+                    {
+                        "id":  "ice-pipe-straight",
+                        "stage":  "P4",
+                        "group":  "terrain-new",
+                        "status":  "planned",
+                        "frames":  4,
+                        "layout":  {
+                                       "columns":  2,
+                                       "rows":  2
+                                   },
+                        "source":  null,
+                        "anchors":  null,
+                        "directions":  [
+                                           "N",
+                                           "E",
+                                           "S",
+                                           "W"
+                                       ]
+                    },
+                    {
+                        "id":  "ice-pipe-corner",
+                        "stage":  "P4",
+                        "group":  "terrain-new",
+                        "status":  "planned",
+                        "frames":  4,
+                        "layout":  {
+                                       "columns":  2,
+                                       "rows":  2
+                                   },
+                        "source":  null,
+                        "anchors":  null,
+                        "directions":  [
+                                           "N",
+                                           "E",
+                                           "S",
+                                           "W"
+                                       ]
+                    },
+                    {
+                        "id":  "ice-pipe-t",
+                        "stage":  "P4",
+                        "group":  "terrain-new",
+                        "status":  "planned",
+                        "frames":  4,
+                        "layout":  {
+                                       "columns":  2,
+                                       "rows":  2
+                                   },
+                        "source":  null,
+                        "anchors":  null,
+                        "directions":  [
+                                           "N",
+                                           "E",
+                                           "S",
+                                           "W"
+                                       ]
+                    },
+                    {
+                        "id":  "ice-debris",
+                        "stage":  "P4",
+                        "group":  "terrain-new",
+                        "status":  "planned",
+                        "frames":  1,
+                        "layout":  null,
+                        "source":  null,
+                        "anchors":  null,
+                        "directions":  null
+                    },
+                    {
+                        "id":  "jungle-ground-1",
+                        "stage":  "P4",
+                        "group":  "terrain-audit",
+                        "status":  "needs-review",
+                        "frames":  1,
+                        "layout":  null,
+                        "source":  "../tiles/jungle-ground-1.png",
+                        "anchors":  null,
+                        "operation":  "inspect-existing-and-replace-with-v2-only-if-needed"
+                    },
+                    {
+                        "id":  "jungle-ground-2",
+                        "stage":  "P4",
+                        "group":  "terrain-audit",
+                        "status":  "needs-review",
+                        "frames":  1,
+                        "layout":  null,
+                        "source":  "../tiles/jungle-ground-2.png",
+                        "anchors":  null,
+                        "operation":  "inspect-existing-and-replace-with-v2-only-if-needed"
+                    },
+                    {
+                        "id":  "jungle-rough",
+                        "stage":  "P4",
+                        "group":  "terrain-audit",
+                        "status":  "needs-review",
+                        "frames":  1,
+                        "layout":  null,
+                        "source":  "../tiles/jungle-rough.png",
+                        "anchors":  null,
+                        "operation":  "inspect-existing-and-replace-with-v2-only-if-needed"
+                    },
+                    {
+                        "id":  "jungle-wall",
+                        "stage":  "P4",
+                        "group":  "terrain-audit",
+                        "status":  "needs-review",
+                        "frames":  1,
+                        "layout":  null,
+                        "source":  "../tiles/jungle-wall.png",
+                        "anchors":  null,
+                        "operation":  "inspect-existing-and-replace-with-v2-only-if-needed"
+                    },
+                    {
+                        "id":  "jungle-building",
+                        "stage":  "P4",
+                        "group":  "terrain-audit",
+                        "status":  "needs-review",
+                        "frames":  1,
+                        "layout":  null,
+                        "source":  "../tiles/jungle-building.png",
+                        "anchors":  null,
+                        "operation":  "inspect-existing-and-replace-with-v2-only-if-needed"
+                    },
+                    {
+                        "id":  "jungle-crate",
+                        "stage":  "P4",
+                        "group":  "terrain-audit",
+                        "status":  "needs-review",
+                        "frames":  1,
+                        "layout":  null,
+                        "source":  "../tiles/jungle-crate.png",
+                        "anchors":  null,
+                        "operation":  "inspect-existing-and-replace-with-v2-only-if-needed"
+                    },
+                    {
+                        "id":  "jungle-high-ground",
+                        "stage":  "P4",
+                        "group":  "terrain-audit",
+                        "status":  "needs-review",
+                        "frames":  1,
+                        "layout":  null,
+                        "source":  "../tiles/jungle-high-ground.png",
+                        "anchors":  null,
+                        "operation":  "inspect-existing-and-replace-with-v2-only-if-needed"
+                    },
+                    {
+                        "id":  "jungle-wall-corner",
+                        "stage":  "P4",
+                        "group":  "terrain-new",
+                        "status":  "planned",
+                        "frames":  4,
+                        "layout":  {
+                                       "columns":  2,
+                                       "rows":  2
+                                   },
+                        "source":  null,
+                        "anchors":  null,
+                        "directions":  [
+                                           "N",
+                                           "E",
+                                           "S",
+                                           "W"
+                                       ]
+                    },
+                    {
+                        "id":  "jungle-wall-end",
+                        "stage":  "P4",
+                        "group":  "terrain-new",
+                        "status":  "planned",
+                        "frames":  4,
+                        "layout":  {
+                                       "columns":  2,
+                                       "rows":  2
+                                   },
+                        "source":  null,
+                        "anchors":  null,
+                        "directions":  [
+                                           "N",
+                                           "E",
+                                           "S",
+                                           "W"
+                                       ]
+                    },
+                    {
+                        "id":  "jungle-gate",
+                        "stage":  "P4",
+                        "group":  "terrain-new",
+                        "status":  "planned",
+                        "frames":  4,
+                        "layout":  {
+                                       "columns":  2,
+                                       "rows":  2
+                                   },
+                        "source":  null,
+                        "anchors":  null,
+                        "directions":  [
+                                           "N",
+                                           "E",
+                                           "S",
+                                           "W"
+                                       ]
+                    },
+                    {
+                        "id":  "jungle-wall-broken",
+                        "stage":  "P4",
+                        "group":  "terrain-new",
+                        "status":  "planned",
+                        "frames":  4,
+                        "layout":  {
+                                       "columns":  2,
+                                       "rows":  2
+                                   },
+                        "source":  null,
+                        "anchors":  null,
+                        "directions":  [
+                                           "N",
+                                           "E",
+                                           "S",
+                                           "W"
+                                       ]
+                    },
+                    {
+                        "id":  "jungle-pipe-straight",
+                        "stage":  "P4",
+                        "group":  "terrain-new",
+                        "status":  "planned",
+                        "frames":  4,
+                        "layout":  {
+                                       "columns":  2,
+                                       "rows":  2
+                                   },
+                        "source":  null,
+                        "anchors":  null,
+                        "directions":  [
+                                           "N",
+                                           "E",
+                                           "S",
+                                           "W"
+                                       ]
+                    },
+                    {
+                        "id":  "jungle-pipe-corner",
+                        "stage":  "P4",
+                        "group":  "terrain-new",
+                        "status":  "planned",
+                        "frames":  4,
+                        "layout":  {
+                                       "columns":  2,
+                                       "rows":  2
+                                   },
+                        "source":  null,
+                        "anchors":  null,
+                        "directions":  [
+                                           "N",
+                                           "E",
+                                           "S",
+                                           "W"
+                                       ]
+                    },
+                    {
+                        "id":  "jungle-pipe-t",
+                        "stage":  "P4",
+                        "group":  "terrain-new",
+                        "status":  "planned",
+                        "frames":  4,
+                        "layout":  {
+                                       "columns":  2,
+                                       "rows":  2
+                                   },
+                        "source":  null,
+                        "anchors":  null,
+                        "directions":  [
+                                           "N",
+                                           "E",
+                                           "S",
+                                           "W"
+                                       ]
+                    },
+                    {
+                        "id":  "jungle-debris",
+                        "stage":  "P4",
+                        "group":  "terrain-new",
+                        "status":  "planned",
+                        "frames":  1,
+                        "layout":  null,
+                        "source":  null,
+                        "anchors":  null,
+                        "directions":  null
+                    },
+                    {
+                        "id":  "barren-ground-1",
+                        "stage":  "P4",
+                        "group":  "terrain-audit",
+                        "status":  "needs-review",
+                        "frames":  1,
+                        "layout":  null,
+                        "source":  "../tiles/barren-ground-1.png",
+                        "anchors":  null,
+                        "operation":  "inspect-existing-and-replace-with-v2-only-if-needed"
+                    },
+                    {
+                        "id":  "barren-ground-2",
+                        "stage":  "P4",
+                        "group":  "terrain-audit",
+                        "status":  "needs-review",
+                        "frames":  1,
+                        "layout":  null,
+                        "source":  "../tiles/barren-ground-2.png",
+                        "anchors":  null,
+                        "operation":  "inspect-existing-and-replace-with-v2-only-if-needed"
+                    },
+                    {
+                        "id":  "barren-rough",
+                        "stage":  "P4",
+                        "group":  "terrain-audit",
+                        "status":  "needs-review",
+                        "frames":  1,
+                        "layout":  null,
+                        "source":  "../tiles/barren-rough.png",
+                        "anchors":  null,
+                        "operation":  "inspect-existing-and-replace-with-v2-only-if-needed"
+                    },
+                    {
+                        "id":  "barren-wall",
+                        "stage":  "P4",
+                        "group":  "terrain-audit",
+                        "status":  "needs-review",
+                        "frames":  1,
+                        "layout":  null,
+                        "source":  "../tiles/barren-wall.png",
+                        "anchors":  null,
+                        "operation":  "inspect-existing-and-replace-with-v2-only-if-needed"
+                    },
+                    {
+                        "id":  "barren-building",
+                        "stage":  "P4",
+                        "group":  "terrain-audit",
+                        "status":  "needs-review",
+                        "frames":  1,
+                        "layout":  null,
+                        "source":  "../tiles/barren-building.png",
+                        "anchors":  null,
+                        "operation":  "inspect-existing-and-replace-with-v2-only-if-needed"
+                    },
+                    {
+                        "id":  "barren-crate",
+                        "stage":  "P4",
+                        "group":  "terrain-audit",
+                        "status":  "needs-review",
+                        "frames":  1,
+                        "layout":  null,
+                        "source":  "../tiles/barren-crate.png",
+                        "anchors":  null,
+                        "operation":  "inspect-existing-and-replace-with-v2-only-if-needed"
+                    },
+                    {
+                        "id":  "barren-high-ground",
+                        "stage":  "P4",
+                        "group":  "terrain-audit",
+                        "status":  "needs-review",
+                        "frames":  1,
+                        "layout":  null,
+                        "source":  "../tiles/barren-high-ground.png",
+                        "anchors":  null,
+                        "operation":  "inspect-existing-and-replace-with-v2-only-if-needed"
+                    },
+                    {
+                        "id":  "barren-wall-corner",
+                        "stage":  "P4",
+                        "group":  "terrain-new",
+                        "status":  "planned",
+                        "frames":  4,
+                        "layout":  {
+                                       "columns":  2,
+                                       "rows":  2
+                                   },
+                        "source":  null,
+                        "anchors":  null,
+                        "directions":  [
+                                           "N",
+                                           "E",
+                                           "S",
+                                           "W"
+                                       ]
+                    },
+                    {
+                        "id":  "barren-wall-end",
+                        "stage":  "P4",
+                        "group":  "terrain-new",
+                        "status":  "planned",
+                        "frames":  4,
+                        "layout":  {
+                                       "columns":  2,
+                                       "rows":  2
+                                   },
+                        "source":  null,
+                        "anchors":  null,
+                        "directions":  [
+                                           "N",
+                                           "E",
+                                           "S",
+                                           "W"
+                                       ]
+                    },
+                    {
+                        "id":  "barren-gate",
+                        "stage":  "P4",
+                        "group":  "terrain-new",
+                        "status":  "planned",
+                        "frames":  4,
+                        "layout":  {
+                                       "columns":  2,
+                                       "rows":  2
+                                   },
+                        "source":  null,
+                        "anchors":  null,
+                        "directions":  [
+                                           "N",
+                                           "E",
+                                           "S",
+                                           "W"
+                                       ]
+                    },
+                    {
+                        "id":  "barren-wall-broken",
+                        "stage":  "P4",
+                        "group":  "terrain-new",
+                        "status":  "planned",
+                        "frames":  4,
+                        "layout":  {
+                                       "columns":  2,
+                                       "rows":  2
+                                   },
+                        "source":  null,
+                        "anchors":  null,
+                        "directions":  [
+                                           "N",
+                                           "E",
+                                           "S",
+                                           "W"
+                                       ]
+                    },
+                    {
+                        "id":  "barren-pipe-straight",
+                        "stage":  "P4",
+                        "group":  "terrain-new",
+                        "status":  "planned",
+                        "frames":  4,
+                        "layout":  {
+                                       "columns":  2,
+                                       "rows":  2
+                                   },
+                        "source":  null,
+                        "anchors":  null,
+                        "directions":  [
+                                           "N",
+                                           "E",
+                                           "S",
+                                           "W"
+                                       ]
+                    },
+                    {
+                        "id":  "barren-pipe-corner",
+                        "stage":  "P4",
+                        "group":  "terrain-new",
+                        "status":  "planned",
+                        "frames":  4,
+                        "layout":  {
+                                       "columns":  2,
+                                       "rows":  2
+                                   },
+                        "source":  null,
+                        "anchors":  null,
+                        "directions":  [
+                                           "N",
+                                           "E",
+                                           "S",
+                                           "W"
+                                       ]
+                    },
+                    {
+                        "id":  "barren-pipe-t",
+                        "stage":  "P4",
+                        "group":  "terrain-new",
+                        "status":  "planned",
+                        "frames":  4,
+                        "layout":  {
+                                       "columns":  2,
+                                       "rows":  2
+                                   },
+                        "source":  null,
+                        "anchors":  null,
+                        "directions":  [
+                                           "N",
+                                           "E",
+                                           "S",
+                                           "W"
+                                       ]
+                    },
+                    {
+                        "id":  "barren-debris",
+                        "stage":  "P4",
+                        "group":  "terrain-new",
+                        "status":  "planned",
+                        "frames":  1,
+                        "layout":  null,
+                        "source":  null,
+                        "anchors":  null,
+                        "directions":  null
+                    },
+                    {
+                        "id":  "station-interior-ground-1",
+                        "stage":  "P4",
+                        "group":  "terrain-audit",
+                        "status":  "needs-review",
+                        "frames":  1,
+                        "layout":  null,
+                        "source":  "../tiles/station-interior-ground-1.png",
+                        "anchors":  null,
+                        "operation":  "inspect-existing-and-replace-with-v2-only-if-needed"
+                    },
+                    {
+                        "id":  "station-interior-ground-2",
+                        "stage":  "P4",
+                        "group":  "terrain-audit",
+                        "status":  "needs-review",
+                        "frames":  1,
+                        "layout":  null,
+                        "source":  "../tiles/station-interior-ground-2.png",
+                        "anchors":  null,
+                        "operation":  "inspect-existing-and-replace-with-v2-only-if-needed"
+                    },
+                    {
+                        "id":  "station-interior-rough",
+                        "stage":  "P4",
+                        "group":  "terrain-audit",
+                        "status":  "needs-review",
+                        "frames":  1,
+                        "layout":  null,
+                        "source":  "../tiles/station-interior-rough.png",
+                        "anchors":  null,
+                        "operation":  "inspect-existing-and-replace-with-v2-only-if-needed"
+                    },
+                    {
+                        "id":  "station-interior-wall",
+                        "stage":  "P4",
+                        "group":  "terrain-audit",
+                        "status":  "needs-review",
+                        "frames":  1,
+                        "layout":  null,
+                        "source":  "../tiles/station-interior-wall.png",
+                        "anchors":  null,
+                        "operation":  "inspect-existing-and-replace-with-v2-only-if-needed"
+                    },
+                    {
+                        "id":  "station-interior-building",
+                        "stage":  "P4",
+                        "group":  "terrain-audit",
+                        "status":  "needs-review",
+                        "frames":  1,
+                        "layout":  null,
+                        "source":  "../tiles/station-interior-building.png",
+                        "anchors":  null,
+                        "operation":  "inspect-existing-and-replace-with-v2-only-if-needed"
+                    },
+                    {
+                        "id":  "station-interior-crate",
+                        "stage":  "P4",
+                        "group":  "terrain-audit",
+                        "status":  "needs-review",
+                        "frames":  1,
+                        "layout":  null,
+                        "source":  "../tiles/station-interior-crate.png",
+                        "anchors":  null,
+                        "operation":  "inspect-existing-and-replace-with-v2-only-if-needed"
+                    },
+                    {
+                        "id":  "station-interior-high-ground",
+                        "stage":  "P4",
+                        "group":  "terrain-audit",
+                        "status":  "needs-review",
+                        "frames":  1,
+                        "layout":  null,
+                        "source":  "../tiles/station-interior-high-ground.png",
+                        "anchors":  null,
+                        "operation":  "inspect-existing-and-replace-with-v2-only-if-needed"
+                    },
+                    {
+                        "id":  "station-interior-wall-corner",
+                        "stage":  "P4",
+                        "group":  "terrain-new",
+                        "status":  "planned",
+                        "frames":  4,
+                        "layout":  {
+                                       "columns":  2,
+                                       "rows":  2
+                                   },
+                        "source":  null,
+                        "anchors":  null,
+                        "directions":  [
+                                           "N",
+                                           "E",
+                                           "S",
+                                           "W"
+                                       ]
+                    },
+                    {
+                        "id":  "station-interior-wall-end",
+                        "stage":  "P4",
+                        "group":  "terrain-new",
+                        "status":  "planned",
+                        "frames":  4,
+                        "layout":  {
+                                       "columns":  2,
+                                       "rows":  2
+                                   },
+                        "source":  null,
+                        "anchors":  null,
+                        "directions":  [
+                                           "N",
+                                           "E",
+                                           "S",
+                                           "W"
+                                       ]
+                    },
+                    {
+                        "id":  "station-interior-gate",
+                        "stage":  "P4",
+                        "group":  "terrain-new",
+                        "status":  "planned",
+                        "frames":  4,
+                        "layout":  {
+                                       "columns":  2,
+                                       "rows":  2
+                                   },
+                        "source":  null,
+                        "anchors":  null,
+                        "directions":  [
+                                           "N",
+                                           "E",
+                                           "S",
+                                           "W"
+                                       ]
+                    },
+                    {
+                        "id":  "station-interior-wall-broken",
+                        "stage":  "P4",
+                        "group":  "terrain-new",
+                        "status":  "planned",
+                        "frames":  4,
+                        "layout":  {
+                                       "columns":  2,
+                                       "rows":  2
+                                   },
+                        "source":  null,
+                        "anchors":  null,
+                        "directions":  [
+                                           "N",
+                                           "E",
+                                           "S",
+                                           "W"
+                                       ]
+                    },
+                    {
+                        "id":  "station-interior-pipe-straight",
+                        "stage":  "P4",
+                        "group":  "terrain-new",
+                        "status":  "planned",
+                        "frames":  4,
+                        "layout":  {
+                                       "columns":  2,
+                                       "rows":  2
+                                   },
+                        "source":  null,
+                        "anchors":  null,
+                        "directions":  [
+                                           "N",
+                                           "E",
+                                           "S",
+                                           "W"
+                                       ]
+                    },
+                    {
+                        "id":  "station-interior-pipe-corner",
+                        "stage":  "P4",
+                        "group":  "terrain-new",
+                        "status":  "planned",
+                        "frames":  4,
+                        "layout":  {
+                                       "columns":  2,
+                                       "rows":  2
+                                   },
+                        "source":  null,
+                        "anchors":  null,
+                        "directions":  [
+                                           "N",
+                                           "E",
+                                           "S",
+                                           "W"
+                                       ]
+                    },
+                    {
+                        "id":  "station-interior-pipe-t",
+                        "stage":  "P4",
+                        "group":  "terrain-new",
+                        "status":  "planned",
+                        "frames":  4,
+                        "layout":  {
+                                       "columns":  2,
+                                       "rows":  2
+                                   },
+                        "source":  null,
+                        "anchors":  null,
+                        "directions":  [
+                                           "N",
+                                           "E",
+                                           "S",
+                                           "W"
+                                       ]
+                    },
+                    {
+                        "id":  "station-interior-debris",
+                        "stage":  "P4",
+                        "group":  "terrain-new",
+                        "status":  "planned",
+                        "frames":  1,
+                        "layout":  null,
+                        "source":  null,
+                        "anchors":  null,
+                        "directions":  null
+                    },
+                    {
+                        "id":  "terminal-on",
+                        "stage":  "P5",
+                        "group":  "mission",
+                        "status":  "planned",
+                        "frames":  1,
+                        "layout":  null,
+                        "source":  null,
+                        "anchors":  null
+                    },
+                    {
+                        "id":  "terminal-off",
+                        "stage":  "P5",
+                        "group":  "mission",
+                        "status":  "planned",
+                        "frames":  1,
+                        "layout":  null,
+                        "source":  null,
+                        "anchors":  null
+                    },
+                    {
+                        "id":  "generator-intact",
+                        "stage":  "P5",
+                        "group":  "mission",
+                        "status":  "planned",
+                        "frames":  1,
+                        "layout":  null,
+                        "source":  null,
+                        "anchors":  null
+                    },
+                    {
+                        "id":  "generator-destroyed",
+                        "stage":  "P5",
+                        "group":  "mission",
+                        "status":  "planned",
+                        "frames":  1,
+                        "layout":  null,
+                        "source":  null,
+                        "anchors":  null
+                    },
+                    {
+                        "id":  "relay-intact",
+                        "stage":  "P5",
+                        "group":  "mission",
+                        "status":  "planned",
+                        "frames":  1,
+                        "layout":  null,
+                        "source":  null,
+                        "anchors":  null
+                    },
+                    {
+                        "id":  "relay-destroyed",
+                        "stage":  "P5",
+                        "group":  "mission",
+                        "status":  "planned",
+                        "frames":  1,
+                        "layout":  null,
+                        "source":  null,
+                        "anchors":  null
+                    },
+                    {
+                        "id":  "rescue-pod-closed",
+                        "stage":  "P5",
+                        "group":  "mission",
+                        "status":  "planned",
+                        "frames":  1,
+                        "layout":  null,
+                        "source":  null,
+                        "anchors":  null
+                    },
+                    {
+                        "id":  "rescue-pod-open",
+                        "stage":  "P5",
+                        "group":  "mission",
+                        "status":  "planned",
+                        "frames":  1,
+                        "layout":  null,
+                        "source":  null,
+                        "anchors":  null
+                    },
+                    {
+                        "id":  "mech-fx-hit",
+                        "stage":  "P5",
+                        "group":  "effects-audit",
+                        "status":  "needs-review",
+                        "frames":  6,
+                        "layout":  {
+                                       "columns":  3,
+                                       "rows":  2
+                                   },
+                        "source":  "../effects/mech-fx-hit.png",
+                        "anchors":  null,
+                        "operation":  "inspect-and-adapt"
+                    },
+                    {
+                        "id":  "mech-fx-explosion",
+                        "stage":  "P5",
+                        "group":  "effects-audit",
+                        "status":  "needs-review",
+                        "frames":  6,
+                        "layout":  {
+                                       "columns":  3,
+                                       "rows":  2
+                                   },
+                        "source":  "../effects/mech-fx-explosion.png",
+                        "anchors":  null,
+                        "operation":  "inspect-and-adapt"
+                    },
+                    {
+                        "id":  "mech-fx-shield-block",
+                        "stage":  "P5",
+                        "group":  "effects-audit",
+                        "status":  "needs-review",
+                        "frames":  6,
+                        "layout":  {
+                                       "columns":  3,
+                                       "rows":  2
+                                   },
+                        "source":  "../effects/mech-fx-shield-block.png",
+                        "anchors":  null,
+                        "operation":  "inspect-and-adapt"
+                    }
+                ],
+    "architectureCatalog":  "environment/manifest.json",
+    "architectureCatalogScope":  "Authoritative expanded P4 catalog for building, wall topology, gates, broken walls and rubble; supersedes corresponding coarse entries in this manifest."
+}
