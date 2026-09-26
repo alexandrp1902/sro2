@@ -596,7 +596,7 @@
           "size": 150,
           "orbit": { "radius": 2000, "periodMinutes": 110, "phase": 330 },
           "id": "novaPrime",
-          "settlement": { "name": "Рудник Прайм", "scene": "desert" }
+          "settlement": { "name": "Рудник Прайм", "scene": "desert-prime" }
         },
         {
           "name": "Нова-Гигант",
@@ -733,7 +733,7 @@
           "size": 160,
           "orbit": { "radius": 1700, "periodMinutes": 60, "phase": 100 },
           "id": "castorOre",
-          "settlement": { "name": "Рудник Кастора", "scene": "barren" }
+          "settlement": { "name": "Рудник Кастора", "scene": "barren-mine" }
         },
         {
           "name": "Кастор-Туман",
@@ -970,7 +970,7 @@
           "size": 140,
           "orbit": { "radius": 2200, "periodMinutes": 100, "phase": 150 },
           "id": "sigmaIce",
-          "settlement": { "name": "Станция Мороз", "scene": "ice", "shipyard": true }
+          "settlement": { "name": "Станция Мороз", "scene": "ice-frost", "shipyard": true }
         },
         {
           "name": "Сигма-Пустошь",
@@ -1312,7 +1312,7 @@
           "size": 180,
           "orbit": { "radius": 2100, "periodMinutes": 120, "phase": 250 },
           "id": "edgeAsh",
-          "settlement": { "name": "Пепельный Приют", "scene": "lava", "shipyard": true }
+          "settlement": { "name": "Пепельный Приют", "scene": "lava-ash", "shipyard": true }
         },
         {
           "name": "Край-Кольцо",

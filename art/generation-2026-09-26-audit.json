@@ -1,0 +1,845 @@
+{
+  "sourceImagesUnmodified": true,
+  "results": [
+    {
+      "name": "barren-mine-office",
+      "file": "art/dock/twins/barren-mine-office.png",
+      "size": [
+        1448,
+        1086
+      ],
+      "requestedSize": [
+        1600,
+        1200
+      ],
+      "mode": "RGB",
+      "alphaRequired": false,
+      "transparentPixels": 0,
+      "visiblePixels": 1572528,
+      "bounds": [
+        0,
+        0,
+        1448,
+        1086
+      ],
+      "margins": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "nonWhiteVisiblePixels": 1572512,
+      "allCornersTransparent": false
+    },
+    {
+      "name": "barren-mine-trader",
+      "file": "art/dock/twins/barren-mine-trader.png",
+      "size": [
+        1448,
+        1086
+      ],
+      "requestedSize": [
+        1600,
+        1200
+      ],
+      "mode": "RGB",
+      "alphaRequired": false,
+      "transparentPixels": 0,
+      "visiblePixels": 1572528,
+      "bounds": [
+        0,
+        0,
+        1448,
+        1086
+      ],
+      "margins": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "nonWhiteVisiblePixels": 1572125,
+      "allCornersTransparent": false
+    },
+    {
+      "name": "ice-frost-office",
+      "file": "art/dock/twins/ice-frost-office.png",
+      "size": [
+        1448,
+        1086
+      ],
+      "requestedSize": [
+        1600,
+        1200
+      ],
+      "mode": "RGB",
+      "alphaRequired": false,
+      "transparentPixels": 0,
+      "visiblePixels": 1572528,
+      "bounds": [
+        0,
+        0,
+        1448,
+        1086
+      ],
+      "margins": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "nonWhiteVisiblePixels": 1572410,
+      "allCornersTransparent": false
+    },
+    {
+      "name": "ice-frost-trader",
+      "file": "art/dock/twins/ice-frost-trader.png",
+      "size": [
+        1448,
+        1086
+      ],
+      "requestedSize": [
+        1600,
+        1200
+      ],
+      "mode": "RGB",
+      "alphaRequired": false,
+      "transparentPixels": 0,
+      "visiblePixels": 1572528,
+      "bounds": [
+        0,
+        0,
+        1448,
+        1086
+      ],
+      "margins": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "nonWhiteVisiblePixels": 1572524,
+      "allCornersTransparent": false
+    },
+    {
+      "name": "lava-ash-office",
+      "file": "art/dock/twins/lava-ash-office.png",
+      "size": [
+        1448,
+        1086
+      ],
+      "requestedSize": [
+        1600,
+        1200
+      ],
+      "mode": "RGB",
+      "alphaRequired": false,
+      "transparentPixels": 0,
+      "visiblePixels": 1572528,
+      "bounds": [
+        0,
+        0,
+        1448,
+        1086
+      ],
+      "margins": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "nonWhiteVisiblePixels": 1572485,
+      "allCornersTransparent": false
+    },
+    {
+      "name": "lava-ash-trader",
+      "file": "art/dock/twins/lava-ash-trader.png",
+      "size": [
+        1448,
+        1086
+      ],
+      "requestedSize": [
+        1600,
+        1200
+      ],
+      "mode": "RGB",
+      "alphaRequired": false,
+      "transparentPixels": 0,
+      "visiblePixels": 1572528,
+      "bounds": [
+        0,
+        0,
+        1448,
+        1086
+      ],
+      "margins": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "nonWhiteVisiblePixels": 1572480,
+      "allCornersTransparent": false
+    },
+    {
+      "name": "desert-prime-office",
+      "file": "art/dock/twins/desert-prime-office.png",
+      "size": [
+        1448,
+        1086
+      ],
+      "requestedSize": [
+        1600,
+        1200
+      ],
+      "mode": "RGB",
+      "alphaRequired": false,
+      "transparentPixels": 0,
+      "visiblePixels": 1572528,
+      "bounds": [
+        0,
+        0,
+        1448,
+        1086
+      ],
+      "margins": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "nonWhiteVisiblePixels": 1572394,
+      "allCornersTransparent": false
+    },
+    {
+      "name": "desert-prime-trader",
+      "file": "art/dock/twins/desert-prime-trader.png",
+      "size": [
+        1448,
+        1086
+      ],
+      "requestedSize": [
+        1600,
+        1200
+      ],
+      "mode": "RGB",
+      "alphaRequired": false,
+      "transparentPixels": 0,
+      "visiblePixels": 1572528,
+      "bounds": [
+        0,
+        0,
+        1448,
+        1086
+      ],
+      "margins": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "nonWhiteVisiblePixels": 1572523,
+      "allCornersTransparent": false
+    },
+    {
+      "name": "ships-rebel",
+      "file": "art/space/story-ships/ships-rebel.png",
+      "size": [
+        1254,
+        1254
+      ],
+      "requestedSize": [
+        1024,
+        1024
+      ],
+      "mode": "RGBA",
+      "alphaRequired": true,
+      "transparentPixels": 1059434,
+      "visiblePixels": 500747,
+      "bounds": [
+        240,
+        118,
+        1013,
+        1128
+      ],
+      "margins": [
+        240,
+        118,
+        241,
+        126
+      ],
+      "nonWhiteVisiblePixels": 500738,
+      "allCornersTransparent": true
+    },
+    {
+      "name": "ships-corp-guard",
+      "file": "art/space/story-ships/ships-corp-guard.png",
+      "size": [
+        1254,
+        1254
+      ],
+      "requestedSize": [
+        1024,
+        1024
+      ],
+      "mode": "RGBA",
+      "alphaRequired": true,
+      "transparentPixels": 1166107,
+      "visiblePixels": 389981,
+      "bounds": [
+        279,
+        97,
+        976,
+        1127
+      ],
+      "margins": [
+        279,
+        97,
+        278,
+        127
+      ],
+      "nonWhiteVisiblePixels": 389947,
+      "allCornersTransparent": true
+    },
+    {
+      "name": "ships-corp-courier",
+      "file": "art/space/story-ships/ships-corp-courier.png",
+      "size": [
+        1254,
+        1254
+      ],
+      "requestedSize": [
+        1024,
+        1024
+      ],
+      "mode": "RGBA",
+      "alphaRequired": true,
+      "transparentPixels": 1361449,
+      "visiblePixels": 201487,
+      "bounds": [
+        433,
+        97,
+        820,
+        1137
+      ],
+      "margins": [
+        433,
+        97,
+        434,
+        117
+      ],
+      "nonWhiteVisiblePixels": 201451,
+      "allCornersTransparent": true
+    },
+    {
+      "name": "ships-corp-transport",
+      "file": "art/space/story-ships/ships-corp-transport.png",
+      "size": [
+        1254,
+        1254
+      ],
+      "requestedSize": [
+        1024,
+        1024
+      ],
+      "mode": "RGBA",
+      "alphaRequired": true,
+      "transparentPixels": 1182692,
+      "visiblePixels": 375667,
+      "bounds": [
+        401,
+        56,
+        853,
+        1160
+      ],
+      "margins": [
+        401,
+        56,
+        401,
+        94
+      ],
+      "nonWhiteVisiblePixels": 375539,
+      "allCornersTransparent": true
+    },
+    {
+      "name": "portrait-gor",
+      "file": "art/story/quiet-war/sources/portrait-gor.png",
+      "size": [
+        1254,
+        1254
+      ],
+      "requestedSize": [
+        1024,
+        1024
+      ],
+      "mode": "RGB",
+      "alphaRequired": false,
+      "transparentPixels": 0,
+      "visiblePixels": 1572516,
+      "bounds": [
+        0,
+        0,
+        1254,
+        1254
+      ],
+      "margins": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "nonWhiteVisiblePixels": 1572506,
+      "allCornersTransparent": false
+    },
+    {
+      "name": "portrait-reed",
+      "file": "art/story/quiet-war/sources/portrait-reed.png",
+      "size": [
+        1254,
+        1254
+      ],
+      "requestedSize": [
+        1024,
+        1024
+      ],
+      "mode": "RGB",
+      "alphaRequired": false,
+      "transparentPixels": 0,
+      "visiblePixels": 1572516,
+      "bounds": [
+        0,
+        0,
+        1254,
+        1254
+      ],
+      "margins": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "nonWhiteVisiblePixels": 1572480,
+      "allCornersTransparent": false
+    },
+    {
+      "name": "portrait-costa",
+      "file": "art/story/quiet-war/sources/portrait-costa.png",
+      "size": [
+        1254,
+        1254
+      ],
+      "requestedSize": [
+        1024,
+        1024
+      ],
+      "mode": "RGB",
+      "alphaRequired": false,
+      "transparentPixels": 0,
+      "visiblePixels": 1572516,
+      "bounds": [
+        0,
+        0,
+        1254,
+        1254
+      ],
+      "margins": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "nonWhiteVisiblePixels": 1572514,
+      "allCornersTransparent": false
+    },
+    {
+      "name": "portrait-platform-dispatcher",
+      "file": "art/story/quiet-war/sources/portrait-platform-dispatcher.png",
+      "size": [
+        1254,
+        1254
+      ],
+      "requestedSize": [
+        1024,
+        1024
+      ],
+      "mode": "RGB",
+      "alphaRequired": false,
+      "transparentPixels": 0,
+      "visiblePixels": 1572516,
+      "bounds": [
+        0,
+        0,
+        1254,
+        1254
+      ],
+      "margins": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "nonWhiteVisiblePixels": 1572516,
+      "allCornersTransparent": false
+    },
+    {
+      "name": "portrait-fang-lead",
+      "file": "art/story/quiet-war/sources/portrait-fang-lead.png",
+      "size": [
+        1254,
+        1254
+      ],
+      "requestedSize": [
+        1024,
+        1024
+      ],
+      "mode": "RGB",
+      "alphaRequired": false,
+      "transparentPixels": 0,
+      "visiblePixels": 1572516,
+      "bounds": [
+        0,
+        0,
+        1254,
+        1254
+      ],
+      "margins": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "nonWhiteVisiblePixels": 1572379,
+      "allCornersTransparent": false
+    },
+    {
+      "name": "item-power-core",
+      "file": "art/space/story-items/item-power-core.png",
+      "size": [
+        1254,
+        1254
+      ],
+      "requestedSize": [
+        1024,
+        1024
+      ],
+      "mode": "RGBA",
+      "alphaRequired": true,
+      "transparentPixels": 751901,
+      "visiblePixels": 810571,
+      "bounds": [
+        25,
+        157,
+        1239,
+        1096
+      ],
+      "margins": [
+        25,
+        157,
+        15,
+        158
+      ],
+      "nonWhiteVisiblePixels": 809400,
+      "allCornersTransparent": true
+    },
+    {
+      "name": "item-armor-sections",
+      "file": "art/space/story-items/item-armor-sections.png",
+      "size": [
+        1254,
+        1254
+      ],
+      "requestedSize": [
+        1024,
+        1024
+      ],
+      "mode": "RGBA",
+      "alphaRequired": true,
+      "transparentPixels": 748639,
+      "visiblePixels": 807170,
+      "bounds": [
+        27,
+        137,
+        1230,
+        1201
+      ],
+      "margins": [
+        27,
+        137,
+        24,
+        53
+      ],
+      "nonWhiteVisiblePixels": 805819,
+      "allCornersTransparent": true
+    },
+    {
+      "name": "item-ship-log",
+      "file": "art/space/story-items/item-ship-log.png",
+      "size": [
+        1254,
+        1254
+      ],
+      "requestedSize": [
+        1024,
+        1024
+      ],
+      "mode": "RGBA",
+      "alphaRequired": true,
+      "transparentPixels": 613035,
+      "visiblePixels": 948685,
+      "bounds": [
+        40,
+        57,
+        1231,
+        1204
+      ],
+      "margins": [
+        40,
+        57,
+        23,
+        50
+      ],
+      "nonWhiteVisiblePixels": 948088,
+      "allCornersTransparent": true
+    },
+    {
+      "name": "item-blueprint",
+      "file": "art/space/story-items/item-blueprint.png",
+      "size": [
+        1254,
+        1254
+      ],
+      "requestedSize": [
+        1024,
+        1024
+      ],
+      "mode": "RGBA",
+      "alphaRequired": true,
+      "transparentPixels": 765217,
+      "visiblePixels": 797360,
+      "bounds": [
+        52,
+        130,
+        1241,
+        1085
+      ],
+      "margins": [
+        52,
+        130,
+        13,
+        169
+      ],
+      "nonWhiteVisiblePixels": 796997,
+      "allCornersTransparent": true
+    },
+    {
+      "name": "item-reactor",
+      "file": "art/space/story-items/item-reactor.png",
+      "size": [
+        1254,
+        1254
+      ],
+      "requestedSize": [
+        1024,
+        1024
+      ],
+      "mode": "RGBA",
+      "alphaRequired": true,
+      "transparentPixels": 533605,
+      "visiblePixels": 1020482,
+      "bounds": [
+        38,
+        36,
+        1216,
+        1223
+      ],
+      "margins": [
+        38,
+        36,
+        38,
+        31
+      ],
+      "nonWhiteVisiblePixels": 1019734,
+      "allCornersTransparent": false
+    },
+    {
+      "name": "item-neuro-link",
+      "file": "art/space/story-items/item-neuro-link.png",
+      "size": [
+        1254,
+        1254
+      ],
+      "requestedSize": [
+        1024,
+        1024
+      ],
+      "mode": "RGBA",
+      "alphaRequired": true,
+      "transparentPixels": 714375,
+      "visiblePixels": 850640,
+      "bounds": [
+        58,
+        99,
+        1195,
+        1134
+      ],
+      "margins": [
+        58,
+        99,
+        59,
+        120
+      ],
+      "nonWhiteVisiblePixels": 849796,
+      "allCornersTransparent": true
+    },
+    {
+      "name": "mission-kill",
+      "file": "art/space/mission-reputation/mission-kill.png",
+      "size": [
+        256,
+        256
+      ],
+      "requestedSize": [
+        256,
+        256
+      ],
+      "mode": "RGBA",
+      "alphaRequired": true,
+      "transparentPixels": 40296,
+      "visiblePixels": 24008,
+      "bounds": [
+        35,
+        31,
+        220,
+        225
+      ],
+      "margins": [
+        35,
+        31,
+        36,
+        31
+      ],
+      "nonWhiteVisiblePixels": 0,
+      "allCornersTransparent": true
+    },
+    {
+      "name": "mission-collect",
+      "file": "art/space/mission-reputation/mission-collect.png",
+      "size": [
+        256,
+        256
+      ],
+      "requestedSize": [
+        256,
+        256
+      ],
+      "mode": "RGBA",
+      "alphaRequired": true,
+      "transparentPixels": 48071,
+      "visiblePixels": 15995,
+      "bounds": [
+        33,
+        31,
+        222,
+        225
+      ],
+      "margins": [
+        33,
+        31,
+        34,
+        31
+      ],
+      "nonWhiteVisiblePixels": 0,
+      "allCornersTransparent": true
+    },
+    {
+      "name": "mission-deliver",
+      "file": "art/space/mission-reputation/mission-deliver.png",
+      "size": [
+        256,
+        256
+      ],
+      "requestedSize": [
+        256,
+        256
+      ],
+      "mode": "RGBA",
+      "alphaRequired": true,
+      "transparentPixels": 46260,
+      "visiblePixels": 17512,
+      "bounds": [
+        31,
+        38,
+        225,
+        218
+      ],
+      "margins": [
+        31,
+        38,
+        31,
+        38
+      ],
+      "nonWhiteVisiblePixels": 0,
+      "allCornersTransparent": true
+    },
+    {
+      "name": "mission-defend",
+      "file": "art/space/mission-reputation/mission-defend.png",
+      "size": [
+        256,
+        256
+      ],
+      "requestedSize": [
+        256,
+        256
+      ],
+      "mode": "RGBA",
+      "alphaRequired": true,
+      "transparentPixels": 50636,
+      "visiblePixels": 13401,
+      "bounds": [
+        46,
+        31,
+        210,
+        225
+      ],
+      "margins": [
+        46,
+        31,
+        46,
+        31
+      ],
+      "nonWhiteVisiblePixels": 0,
+      "allCornersTransparent": true
+    },
+    {
+      "name": "campaign-quiet-war",
+      "file": "art/space/mission-reputation/campaign-quiet-war.png",
+      "size": [
+        256,
+        256
+      ],
+      "requestedSize": [
+        256,
+        256
+      ],
+      "mode": "RGBA",
+      "alphaRequired": true,
+      "transparentPixels": 46684,
+      "visiblePixels": 17041,
+      "bounds": [
+        31,
+        51,
+        225,
+        205
+      ],
+      "margins": [
+        31,
+        51,
+        31,
+        51
+      ],
+      "nonWhiteVisiblePixels": 0,
+      "allCornersTransparent": true
+    }
+  ]
+}

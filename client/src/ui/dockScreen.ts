@@ -164,6 +164,19 @@ const SCENE_SETS: Record<string, readonly string[]> = {
   lava: ['office', 'trader', 'shipyard', 'hangar'],
   barren: ['office', 'trader', 'shipyard', 'hangar'],
   'orbital-platform': ['office', 'trader', 'shipyard', 'hangar'],
+  // Двойники (пачка L): у четырёх поселений свои диспетчер и торговец в комнатах соседа по биому.
+  'barren-mine': ['office', 'trader'],
+  'ice-frost': ['office', 'trader'],
+  'lava-ash': ['office', 'trader'],
+  'desert-prime': ['office', 'trader'],
+};
+
+/** Чего у двойника нет (верфь и ангар — площадки без людей), то он берёт у набора, с которого нарисован. */
+const SCENE_BASE: Readonly<Record<string, string>> = {
+  'barren-mine': 'barren',
+  'ice-frost': 'ice',
+  'lava-ash': 'lava',
+  'desert-prime': 'desert',
 };
 
 /**
@@ -172,7 +185,10 @@ const SCENE_SETS: Record<string, readonly string[]> = {
  */
 export function sceneArt(place: Place, tab: Tab, set?: string | null): string {
   const art = SCENES[tab].art;
-  return set && SCENE_SETS[set]?.includes(art) ? `${set}-${art}` : `${place}-${art}`;
+  for (const kit of set ? [set, SCENE_BASE[set]] : []) {
+    if (kit && SCENE_SETS[kit]?.includes(art)) return `${kit}-${art}`;
+  }
+  return `${place}-${art}`;
 }
 
 /**
@@ -380,7 +396,16 @@ export function repChip(rules: ReputationRules, value: number): { text: string; 
 /** Значок вида задания перед его названием — маской, цветом текста строки; null — значка нет. */
 function missionIcon(kind: string): HTMLElement | null {
   const name = missionSprite(kind);
-  if (!name) return null;
+  return name ? maskIcon(name) : null;
+}
+
+/** Значок кампании (пачка R) перед её названием; null — кампании его не рисовали. */
+function campaignIcon(campaign: string): HTMLElement | null {
+  const name = `campaign-${campaign}`;
+  return hasSprite(name) ? maskIcon(name) : null;
+}
+
+function maskIcon(name: string): HTMLElement {
   const mark = el('span', 'mission-icon');
   mark.style.setProperty('--mission-icon', `url("${new URL(spriteUrl(name), document.baseURI).href}")`);
   mark.setAttribute('aria-hidden', 'true');
@@ -1118,7 +1143,10 @@ export class DockScreen {
     // бой (M21). Бой повторяемый — кнопка остаётся и после победы, меняется только подпись.
     if (story?.relay) {
       const box = el('div', 'dock-mission dock-tutorial');
-      box.append(el('div', 'dock-mission-head sro-label sro-warn', `${story.name} · часть первая пройдена`));
+      const head = el('div', 'dock-mission-head sro-label sro-warn', `${story.name} · часть первая пройдена`);
+      const mark = campaignIcon(story.campaign);
+      if (mark) head.prepend(mark);
+      box.append(head);
       const relay = el('div', 'dock-name sro-row__name', 'Ретранслятор · Первая вылазка');
       const ground = missionIcon('ground');
       if (ground) relay.prepend(ground);
@@ -1130,7 +1158,10 @@ export class DockScreen {
       body.append(box);
     }
     if (story?.offer) {
-      body.append(el('div', 'dock-note dock-story-note sro-warn', story.name));
+      const title = el('div', 'dock-note dock-story-note sro-warn', story.name);
+      const mark = campaignIcon(story.campaign);
+      if (mark) title.prepend(mark);
+      body.append(title);
       body.append(this.missionRow(story.offer, active !== null));
     }
 

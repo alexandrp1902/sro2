@@ -35,6 +35,27 @@ describe('sprite names', () => {
     expect(itemSprite('weaponModule')).toBe('resources-mech-weapon');
   });
 
+  it('draws the story items with their own icons (batch Q)', () => {
+    for (const id of ['powerCore', 'armorSections', 'shipLog', 'blueprint', 'reactor', 'neuroLink']) {
+      expect(itemSprite(id), id).toBe(`resources-${id}`);
+    }
+  });
+
+  it('flies the Quiet War ships as their own hulls (batch N)', () => {
+    expect(shipSprite('tug', 'rebel')).toBe('ships-rebel');
+    expect(shipSprite('frigate', 'corp')).toBe('ships-corp-guard');
+    expect(shipSprite('needle', 'corp')).toBe('ships-corp-courier');
+    expect(shipSprite('galleon', 'corp')).toBe('ships-corp-transport');
+    // Тягач Дана — вид corp ради корпуса: его буксир — та же канонерка шахтёров.
+    expect(shipSprite('tug', 'corp')).toBe('ships-rebel');
+    // Корпус без своей картинки корпорации рисуется как у пилота.
+    expect(shipSprite('lancer', 'corp')).toBe('ships-lancer');
+  });
+
+  it('has a mark for the Quiet War campaign', () => {
+    expect(hasSprite('campaign-quietWar')).toBe(true);
+  });
+
   it('falls back to the slot, and to nothing for a slot without a picture', () => {
     expect(moduleSprite('engine', 'engineL')).toBe('modules-engine');
     // У вспомогательного слота картинки по слоту нет нарочно: иначе её надел бы каждый новый модуль.

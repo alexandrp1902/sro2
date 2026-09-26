@@ -109,9 +109,19 @@ SINGLES = [
       ["enemy", "distrust", "neutral", "friend", "hero"]],
     # Виды заданий: белый силуэт, цвет накладывает CSS-маска, как у ступеней. Доска и трекер ставят их
     # по виду (missionSprite в render/sprites.ts); ground — наземный бой мехов у ретранслятора (M21).
-    # Пять — пачка C, четыре (collect, kill, deliver, defend) дорисованы кодом: tools/mission_icons.py.
+    # Пять — пачка C, четыре (collect, kill, deliver, defend) — пачка R: раньше их рисовал код.
     *[(f"mission-reputation/mission-{n}", f"mission-{n}", 128) for n in
       ["escort", "patrol", "courier", "meteor", "ground", "collect", "kill", "deliver", "defend"]],
+    # Значок кампании (пачка R) — та же маска. Имя — campaign-<id кампании в story.json>.
+    ("mission-reputation/campaign-quiet-war", "campaign-quietWar", 128),
+    # Корабли «Тихой войны» (пачка N): канонерка бастующих шахтёров и три корабля корпорации.
+    # Ключи ищут ROLE_SPRITES и CORP_SPRITES в render/sprites.ts.
+    *[(f"story-ships/ships-{n}", f"ships-{n}", 256) for n in
+      ["rebel", "corp-guard", "corp-courier", "corp-transport"]],
+    # Сюжетные предметы (пачка Q): имя — resources-<id в loot.json>, как у товаров, без таблицы подмен.
+    *[(f"story-items/item-{f}", f"resources-{n}", 128) for f, n in
+      [("power-core", "powerCore"), ("armor-sections", "armorSections"), ("ship-log", "shipLog"),
+       ("blueprint", "blueprint"), ("reactor", "reactor"), ("neuro-link", "neuroLink")]],
     # Детали меха (пачка E) — вместо подмен у деталей прототипа (M20b): каркас, приводы, оружейный модуль.
     # Имя — resources-<что в ITEM_SPRITES>, как у товаров. Остальные детали ждут инвентаря мехов.
     ("../mechs/parts/mech-body-medium", "resources-mech-frame", 128),

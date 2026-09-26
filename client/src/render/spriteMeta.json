@@ -596,20 +596,64 @@
     "h": 128
   },
   "mission-collect": {
-    "w": 118,
+    "w": 125,
     "h": 128
   },
   "mission-kill": {
-    "w": 112,
+    "w": 122,
     "h": 128
   },
   "mission-deliver": {
     "w": 128,
-    "h": 75
+    "h": 119
   },
   "mission-defend": {
-    "w": 112,
+    "w": 108,
     "h": 128
+  },
+  "campaign-quietWar": {
+    "w": 128,
+    "h": 102
+  },
+  "ships-rebel": {
+    "w": 196,
+    "h": 256
+  },
+  "ships-corp-guard": {
+    "w": 173,
+    "h": 256
+  },
+  "ships-corp-courier": {
+    "w": 95,
+    "h": 256
+  },
+  "ships-corp-transport": {
+    "w": 105,
+    "h": 256
+  },
+  "resources-powerCore": {
+    "w": 128,
+    "h": 99
+  },
+  "resources-armorSections": {
+    "w": 128,
+    "h": 113
+  },
+  "resources-shipLog": {
+    "w": 128,
+    "h": 123
+  },
+  "resources-blueprint": {
+    "w": 128,
+    "h": 103
+  },
+  "resources-reactor": {
+    "w": 127,
+    "h": 128
+  },
+  "resources-neuroLink": {
+    "w": 128,
+    "h": 117
   },
   "resources-mech-frame": {
     "w": 128,

@@ -20,6 +20,12 @@ PORTRAITS = [
     ("story/quiet-war/sources/portrait-eva", "eva"),
     ("story/quiet-war/sources/portrait-holt", "holt"),
     ("story/quiet-war/sources/portrait-dan", "dan"),
+    # Вторая половина кампании (пачка O).
+    ("story/quiet-war/sources/portrait-gor", "gor"),
+    ("story/quiet-war/sources/portrait-reed", "reed"),
+    ("story/quiet-war/sources/portrait-costa", "costa"),
+    ("story/quiet-war/sources/portrait-platform-dispatcher", "platform-dispatcher"),
+    ("story/quiet-war/sources/portrait-fang-lead", "fang-lead"),
     # Контакт на станции пока нигде не говорит: портрет готов, подключится вместе с его репликами.
     ("story/quiet-war/sources/portrait-contact", "contact"),
 ]

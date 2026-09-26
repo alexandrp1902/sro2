@@ -77,6 +77,11 @@ SCENES = [
     ("planet-settlements/orbital-platform-trader", "orbital-platform-trader"),
     ("planet-settlements/orbital-platform-shipyard", "orbital-platform-shipyard"),
     ("planet-settlements/orbital-platform-hangar", "orbital-platform-hangar"),
+
+    # Двойники (пачка L): четыре поселения делили сцены с соседом того же биома и встречали пилота
+    # одним и тем же лицом. Комната та же, человек свой; верфь и ангар двойник берёт у исходного набора.
+    *[(f"twins/{twin}-{scene}", f"{twin}-{scene}") for twin in ["barren-mine", "ice-frost", "lava-ash", "desert-prime"]
+      for scene in ["office", "trader"]],
 ]
 
 

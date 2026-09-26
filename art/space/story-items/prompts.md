@@ -1,0 +1,29 @@
+# Фактические промпты — 2026-09-26
+
+Встроенный image_gen, одна генерация на изображение. Исходники сохранены без изменения размера. Задание: `art/next-art-requests.md`.
+
+## item-power-core.png
+
+Use case: stylized-concept. ONE isolated spaceship equipment inventory icon for a semi-realistic space RPG. 1024x1024 square, genuinely transparent alpha background, no painted checkerboard. Detailed industrial game asset, worn pale steel armor panels, blue-gray gunmetal structure, dark recesses, exposed bolts and hoses, restrained luminous accent. Elevated three-quarter product view showing top, front and side, crisp chunky readable silhouette at small sizes, soft studio illumination from upper left, no cast shadow outside object. Center entire item with clear padding, no cropped parts. No text, labels, letters, numbers, watermark, UI border, people, ship, room, floor or extra separate objects. This is a story mission item, not a weapon or a trade crate. Compact industrial power drive unit: armored cylinder with cooling fins and a glowing cyan core window, heavy connector sockets.
+
+## item-armor-sections.png
+
+Use case: stylized-concept. ONE isolated spaceship equipment inventory icon for a semi-realistic space RPG. 1024x1024 square, genuinely transparent alpha background, no painted checkerboard. Detailed industrial game asset, worn pale steel armor panels, blue-gray gunmetal structure, dark recesses, exposed bolts and hoses, restrained luminous accent. Elevated three-quarter product view showing top, front and side, crisp chunky readable silhouette at small sizes, soft studio illumination from upper left, no cast shadow outside object. Center entire item with clear padding, no cropped parts. No text, labels, letters, numbers, watermark, UI border, people, ship, room, floor or extra separate objects. This is a story mission item, not a weapon or a trade crate. A strapped stack of three thick curved ship armor plates with bolt holes and scorched edges. Exactly THREE distinct armor plates, bound together as one item, entire object fits within central 80% square with clear margin.
+
+## item-ship-log.png
+
+Use case: stylized-concept. ONE isolated spaceship equipment inventory icon for a semi-realistic space RPG. 1024x1024 square, genuinely transparent alpha background, no painted checkerboard. Detailed industrial game asset, worn pale steel armor panels, blue-gray gunmetal structure, dark recesses, exposed bolts and hoses, restrained luminous accent. Elevated three-quarter product view showing top, front and side, crisp chunky readable silhouette at small sizes, soft studio illumination from upper left, no cast shadow outside object. Center entire item with clear padding, no cropped parts. No text, labels, letters, numbers, watermark, UI border, people, ship, room, floor or extra separate objects. This is a story mission item, not a weapon or a trade crate. Black-box flight recorder: rugged orange-and-black armored box with a handle, a dented corner and one small blinking amber light.
+
+## item-blueprint.png
+
+Use case: stylized-concept. ONE isolated spaceship equipment inventory icon for a semi-realistic space RPG. 1024x1024 square, genuinely transparent alpha background, no painted checkerboard. Detailed industrial game asset, worn pale steel armor panels, blue-gray gunmetal structure, dark recesses, exposed bolts and hoses, restrained luminous accent. Elevated three-quarter product view showing top, front and side, crisp chunky readable silhouette at small sizes, soft studio illumination from upper left, no cast shadow outside object. Center entire item with clear padding, no cropped parts. No text, labels, letters, numbers, watermark, UI border, people, ship, room, floor or extra separate objects. This is a story mission item, not a weapon or a trade crate. Incomplete technical blueprint: a battered data slate projecting a partial cyan wireframe of a mech, part of the hologram missing.
+
+## item-reactor.png
+
+Use case: stylized-concept. ONE isolated spaceship equipment inventory icon for a semi-realistic space RPG. 1024x1024 square, genuinely transparent alpha background, no painted checkerboard. Detailed industrial game asset, worn pale steel armor panels, blue-gray gunmetal structure, dark recesses, exposed bolts and hoses, restrained luminous accent. Elevated three-quarter product view showing top, front and side, crisp chunky readable silhouette at small sizes, soft studio illumination from upper left, no cast shadow outside object. Center entire item with clear padding, no cropped parts. No text, labels, letters, numbers, watermark, UI border, people, ship, room, floor or extra separate objects. This is a story mission item, not a weapon or a trade crate. Small portable fusion reactor: squat armored sphere in a carrying frame, radiation warning chevrons (symbols only), warm amber glow through vents. Use one clearly recognizable radiation trefoil symbol, no letters. Entire carrying frame visible with transparent space around it.
+
+## item-neuro-link.png
+
+Use case: stylized-concept. ONE isolated spaceship equipment inventory icon for a semi-realistic space RPG. 1024x1024 square, genuinely transparent alpha background, no painted checkerboard. Detailed industrial game asset, worn pale steel armor panels, blue-gray gunmetal structure, dark recesses, exposed bolts and hoses, restrained luminous accent. Elevated three-quarter product view showing top, front and side, crisp chunky readable silhouette at small sizes, soft studio illumination from upper left, no cast shadow outside object. Center entire item with clear padding, no cropped parts. No text, labels, letters, numbers, watermark, UI border, people, ship, room, floor or extra separate objects. This is a story mission item, not a weapon or a trade crate. Neural interface module the size of a fist: sleek dark casing with a cluster of fine connector pins and a soft cyan light strip.
+
+

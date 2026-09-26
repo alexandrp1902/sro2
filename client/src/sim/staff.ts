@@ -6,9 +6,9 @@
  * Имя обязано совпадать с картинкой (public/dock/*-office|trader.webp): там нарисованы конкретные
  * люди, и полинезийца с татуировками нельзя звать Олегом Громовым. Поэтому у каждой картинки в
  * APPEARANCE прописаны пол и происхождение — оттуда пул имён, а само имя своё у каждого места.
- * Пока несколько доков делят один портрет (пачка L в art/next-art-requests.md заказывает каждому
- * свой), там живут разные люди одного типа: две скандинавки в парках, но с разными именами. Когда
- * у места появится своя картинка, у него сменится ключ сцены — и имя пересчитается под неё.
+ * Доки, что делили одну сцену, получили каждый своего человека (пачка L: наборы-двойники вроде
+ * barren-mine). Если место снова окажется на чужой картинке, там будут разные люди одного типа:
+ * имя своё, пул — по портрету.
  * Верфь и ангар нарисованы сверху, без людей, — там имя свободное. Торговец джунглей — ящер:
  * у него одно имя, фамилий у его народа не водится.
  *
@@ -175,6 +175,15 @@ const APPEARANCE: Record<string, { sex: 'm' | 'f'; origin: Origin } | { alien: t
   'barren-trader': { sex: 'f', origin: 'west' },
   'orbital-platform-office': { sex: 'f', origin: 'latin' },
   'orbital-platform-trader': { sex: 'f', origin: 'latin' },
+  // Двойники (пачка L): та же комната, другой человек.
+  'barren-mine-office': { sex: 'f', origin: 'steppe' },
+  'barren-mine-trader': { sex: 'm', origin: 'african' },
+  'ice-frost-office': { sex: 'm', origin: 'nordic' },
+  'ice-frost-trader': { sex: 'f', origin: 'slavic' },
+  'lava-ash-office': { sex: 'f', origin: 'middleEast' },
+  'lava-ash-trader': { sex: 'm', origin: 'latin' },
+  'desert-prime-office': { sex: 'm', origin: 'slavic' },
+  'desert-prime-trader': { sex: 'f', origin: 'eastAsian' },
 };
 
 /** Имена ящеров: шипят, но выговорить можно. */

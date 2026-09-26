@@ -35,6 +35,11 @@ export const SHIP_NOZZLES: Record<ShipSprite, readonly Nozzle[]> = {
   'ships-lancer': [[121, 202, 22]],
   'ships-dropship': [[21, 240, 24], [128, 246, 34], [231, 240, 24]],
   'ships-galleon': [[15, 244, 14], [40, 250, 24], [81, 250, 24], [105, 244, 14]],
+  // «Тихая война», пачка N: канонерка шахтёров и корабли корпорации.
+  'ships-rebel': [[56, 250, 30], [138, 250, 30]],
+  'ships-corp-guard': [[60, 250, 21], [112, 250, 21]],
+  'ships-corp-courier': [[27, 247, 13], [67, 247, 12]],
+  'ships-corp-transport': [[23, 250, 20], [52, 250, 20], [81, 250, 20]],
 };
 
 export function shipNozzles(sprite: SpriteName): readonly Nozzle[] {
