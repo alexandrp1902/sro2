@@ -1,6 +1,6 @@
 {
   "engine": "edge",
-  "revision": "0436aad509aa5be1",
+  "revision": "8fa3809e30f41a15",
   "lines": {
     "traderHail-1": {
       "ms": 3313,
@@ -31,7 +31,7 @@
       "category": "traderHail"
     },
     "traderHail-8": {
-      "ms": 3587,
+      "ms": 3888,
       "category": "traderHail"
     },
     "traderHail-9": {
@@ -47,7 +47,7 @@
       "category": "traderHail"
     },
     "traderHail-12": {
-      "ms": 3796,
+      "ms": 4003,
       "category": "traderHail"
     },
     "traderHail-13": {
@@ -115,11 +115,11 @@
       "category": "traderIdle"
     },
     "traderIdle-11": {
-      "ms": 3932,
+      "ms": 4628,
       "category": "traderIdle"
     },
     "traderIdle-12": {
-      "ms": 2378,
+      "ms": 3871,
       "category": "traderIdle"
     },
     "traderIdle-13": {
@@ -147,7 +147,7 @@
       "category": "traderIdle"
     },
     "traderIdle-19": {
-      "ms": 3364,
+      "ms": 3231,
       "category": "traderIdle"
     },
     "traderIdle-20": {
@@ -299,7 +299,7 @@
       "category": "convoyIdle"
     },
     "convoyIdle-3": {
-      "ms": 3136,
+      "ms": 3730,
       "category": "convoyIdle"
     },
     "convoyIdle-4": {
@@ -343,7 +343,7 @@
       "category": "convoyIdle"
     },
     "convoyIdle-14": {
-      "ms": 4116,
+      "ms": 3438,
       "category": "convoyIdle"
     },
     "convoyIdle-15": {
@@ -423,7 +423,7 @@
       "category": "pirateTaunt"
     },
     "pirateTaunt-3": {
-      "ms": 3654,
+      "ms": 3666,
       "category": "pirateTaunt"
     },
     "pirateTaunt-4": {
@@ -431,7 +431,7 @@
       "category": "pirateTaunt"
     },
     "pirateTaunt-5": {
-      "ms": 2374,
+      "ms": 2507,
       "category": "pirateTaunt"
     },
     "pirateTaunt-6": {
@@ -503,7 +503,7 @@
       "category": "beg"
     },
     "beg-9": {
-      "ms": 3058,
+      "ms": 3244,
       "category": "beg"
     },
     "beg-10": {
@@ -515,7 +515,7 @@
       "category": "beg"
     },
     "beg-12": {
-      "ms": 3360,
+      "ms": 3443,
       "category": "beg"
     },
     "beg-13": {
@@ -571,7 +571,7 @@
       "category": "lastWords"
     },
     "sos-1": {
-      "ms": 3304,
+      "ms": 3204,
       "category": "sos"
     },
     "sos-2": {
@@ -607,7 +607,7 @@
       "category": "thanks"
     },
     "thanks-2": {
-      "ms": 3964,
+      "ms": 3767,
       "category": "thanks"
     },
     "thanks-3": {
