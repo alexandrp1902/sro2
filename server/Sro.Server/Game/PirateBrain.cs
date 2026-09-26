@@ -86,6 +86,16 @@ internal static class PirateBrain
             }
             else pirate.Avenge = foe.Id;
         }
+        // Налётчик в пути не бросает своих: товарищ по волне сцепился с пилотом — разворачивается к нему на помощь.
+        // Без этого волна обороны летела к цели гуськом, и в бою с пилотом каждый оставался один.
+        else if (pirate.State == PirateState.Return && pirate.IsRaider && pirate.PatrolUntilTick == 0 && pirate.LeaveAtTick == 0 &&
+                 pirate.Hp > pirate.MaxHp(hull) * pirate.RetreatHp &&
+                 Assist(pirate, ships, pirates, npc, shelter, tick, onTheWay: true) is { } mate)
+        {
+            pirate.State = PirateState.Attack;
+            pirate.TargetId = mate.Id;
+            log.LogInformation("{Pirate} joins the fight with {Target} on its way", pirate, mate.Name);
+        }
 
         if (pirate.State == PirateState.Leave)
         {
@@ -353,13 +363,32 @@ internal static class PirateBrain
             nearestDistance = distance;
         }
         if (nearest is not null) return nearest;
+        return Assist(pirate, ships, pirates, npc, shelter, tick, onTheWay: false);
+    }
 
+    /// <summary>
+    /// Цель собрата по фракции, который рядом в бою. Налётчик в пути (<paramref name="onTheWay"/>) ради торговца
+    /// с курса не сходит: его дело — точка налёта, а грабёж подождёт.
+    /// </summary>
+    private static ShipEntity? Assist(
+        Pirate pirate,
+        IReadOnlyDictionary<int, ShipEntity> ships,
+        IReadOnlyList<Pirate> pirates,
+        NpcRules npc,
+        Shelter shelter,
+        long tick,
+        bool onTheWay)
+    {
         foreach (var other in pirates)
         {
             if (other == pirate || other.IsDead || other.State != PirateState.Attack || Distance(pirate, other) > npc.AssistRange) continue;
             if (other.Type.IsRanger != pirate.Type.IsRanger) continue; // помогают только своим
-            if (ships.GetValueOrDefault(other.TargetId) is { } target && IsCandidate(pirate, target, tick, shelter) && Distance(pirate, target) <= npc.DropRange)
-                return target;
+            if (ships.GetValueOrDefault(other.TargetId) is not { } target || !IsCandidate(pirate, target, tick, shelter) ||
+                Distance(pirate, target) > npc.DropRange) continue;
+            if (onTheWay && target is Trader) continue;
+            // Вызванный за одним пилотом и помогает только против него (M20b).
+            if (pirate.OwnerId != 0 && target.Id != pirate.OwnerId) continue;
+            return target;
         }
         return null;
     }
