@@ -28,6 +28,9 @@ public sealed class MissionRun(int id, int playerId, string kind)
     /// <summary>Сопровождение: сколько засад уже выпущено.</summary>
     public int Wave;
 
+    /// <summary>Сопровождение: тик последней засады; 0 — засад ещё не было.</summary>
+    public long WaveTick;
+
     /// <summary>Сопровождение: с какого тика пилот вне радиуса; 0 — он рядом.</summary>
     public long AwaySince;
 

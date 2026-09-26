@@ -475,7 +475,7 @@ public sealed partial class Room
             var sent = SpawnWave(
                 [new InvasionGroup(spawn.Npc, spawn.Level, spawn.Count)],
                 point, invasionId: 0, missionId: runId, onSite: spawn.Gate is null || spawn.Flee,
-                storyName: spawn.Name, touch: npc => Tune(npc, player, spawn));
+                storyName: spawn.Name, touch: npc => Tune(npc, player, spawn), fixedLevel: true);
             if (sent > 0) player.Connection?.Send(new NoticeMsg(Protocol.AmbushNotice));
             _log.LogInformation(
                 "Story {Mission} sent {Count} × {Npc} to player {Id} on {Trigger}",

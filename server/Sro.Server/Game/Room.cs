@@ -1200,6 +1200,8 @@ public sealed partial class Room
                 Scavenge(trader, trader.ToStation ? station : (trader.DestX, trader.DestY));
                 TraderBrain.Think(
                     trader, traders, Tick, Balance.Galaxy.JumpTicks, station, Balance.Loot.StationRange, heat, _ships, Balance.Npc.DropRange);
+                // Конвой в засаде ложится в дрейф (RoomMissions.StepEscort): стрелять и поворачиваться — сколько угодно.
+                if (trader.HoldUntilTick > Tick) trader.LastInput = trader.LastInput with { Throttle = 0 };
                 if (trader.Gone) _goneTraders.Add(trader);
                 else Movement.Step(ref trader.Ship, trader.LastInput, trader.MoveHull(trader.Hull(Hulls), Tick), SimConfig.Dt);
             }

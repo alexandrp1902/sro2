@@ -55,6 +55,8 @@ public sealed class Trader(int id, string typeId, NpcType type, NpcRules rules)
     public long LeaveAtTick;
     /// <summary>Под огнём: дальше до цели — на полной тяге.</summary>
     public bool Fleeing;
+    /// <summary>Конвой задания ждёт, пока его засаду не отобьют: до этого тика тяга — ноль, руль прежний.</summary>
+    public long HoldUntilTick;
     /// <summary>Кто напал последним — ему торговец отвечает огнём; 0 — никто.</summary>
     public int Attacker;
     /// <summary>Ушёл из системы: комната уберёт его после шага.</summary>

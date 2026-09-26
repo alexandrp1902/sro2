@@ -146,7 +146,8 @@ public sealed partial class Room
         int missionId,
         bool onSite = false,
         string? storyName = null,
-        Action<Pirate>? touch = null)
+        Action<Pirate>? touch = null,
+        bool fixedLevel = false)
     {
         var npc = Balance.Npc;
         var gates = onSite ? [] : Balance.SystemDef.GateList;
@@ -156,7 +157,10 @@ public sealed partial class Room
         foreach (var group in wave)
         {
             if (!npc.TypeMap.TryGetValue(group.Type, out var type)) continue;
-            var level = group.LevelIn(danger);
+            // Сюжет пишет уровень как есть (fixedLevel): миссию ставят под определённый корабль, и надбавка
+            // за опасность системы превращала повстанцев второго уровня в Нове в пятый. Вторжения и доска
+            // по-прежнему злее в опасных системах.
+            var level = fixedLevel ? Math.Clamp(group.Level, 1, NpcSpawn.MaxLevel) : group.LevelIn(danger);
             var spot = new NpcSpawn(group.Type, level, point.X, point.Y, group.Count);
             var gate = gates.Count > 0 ? gates[_ai.Next(gates.Count)] : null;
             var raidId = ++_raidCount;

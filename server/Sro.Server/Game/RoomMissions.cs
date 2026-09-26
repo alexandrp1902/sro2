@@ -28,6 +28,16 @@ public sealed partial class Room
     /// <summary>Конвой, идущий к месту (M20a), считается дошедшим на таком расстоянии от него.</summary>
     private const double ConvoyArrive = 420;
 
+    /// <summary>
+    /// Засада на конвой: он ложится в дрейф, пока её не отобьют, но не дольше этого — иначе пилот, который не
+    /// может её одолеть, стоял бы с конвоем вечно. На коротком пути (Нова → Платформа) засады раньше выходили
+    /// одна за другой: конвой их не ждал, а доли пути пролетали за секунды.
+    /// </summary>
+    private const double EscortHoldSeconds = 45;
+
+    /// <summary>Между засадами хотя бы столько — перевести дух и собрать то, что выпало.</summary>
+    private const double EscortGapSeconds = 8;
+
     /// <summary>Точки маршрута патруля не ближе этого друг к другу: иначе маршрут вырождается в одно место.</summary>
     private const double PatrolLeg = 1800;
 
@@ -271,8 +281,15 @@ public sealed partial class Room
                 return;
             }
         }
+        // Пока засада жива, конвой ждёт в дрейфе (см. EscortHoldSeconds), а следующая не выходит.
+        var ambush = _pirates.Count(p => p.MissionId == run.Id && !p.IsDead && !p.Gone);
+        var sinceWave = run.WaveTick == 0 ? long.MaxValue : Tick - run.WaveTick;
+        var holding = ambush > 0 && sinceWave < Combat.SecondsToTicks(EscortHoldSeconds);
+        if (holding) trader.HoldUntilTick = Tick + 2;
+        var ready = !holding && sinceWave >= Combat.SecondsToTicks(EscortGapSeconds);
+
         // Засады идут по долям пути: при трёх волнах — на четверти, половине и трёх четвертях.
-        if (run.Wave < offer.Count && run.Route > 1)
+        if (ready && run.Wave < offer.Count && run.Route > 1)
         {
             var left = Math.Sqrt(
                 (trader.DestX - trader.Ship.X) * (trader.DestX - trader.Ship.X) +
@@ -282,6 +299,7 @@ public sealed partial class Room
             {
                 SpawnAmbush(run, trader, offer);
                 run.Wave++;
+                run.WaveTick = Tick;
                 player.Missions.Active = active with { Progress = run.Wave };
                 player.Connection?.Send(new NoticeMsg(Protocol.AmbushNotice));
                 BroadcastPlayers();
@@ -421,7 +439,7 @@ public sealed partial class Room
         // Чем дальше волна, тем злее: как у засад на конвой. Последняя волна — самая тяжёлая.
         var wave = story is not null ? story.Wave(run.Wave) : Balance.Missions.Wave(run.Wave);
         if (wave.Count == 0) return 0;
-        var sent = SpawnWave(wave, spot, invasionId: 0, missionId: run.Id);
+        var sent = SpawnWave(wave, spot, invasionId: 0, missionId: run.Id, fixedLevel: story is not null);
         if (sent > 0) run.Wave++;
         return sent;
     }
@@ -592,7 +610,7 @@ public sealed partial class Room
         var story = StoryMissionOf(offer.Story);
         var wave = story is not null ? story.Wave(run.Wave) : Balance.Missions.Wave(run.Wave);
         if (wave.Count == 0) return;
-        SpawnWave(wave, AmbushPoint(trader), invasionId: 0, missionId: run.Id, onSite: true);
+        SpawnWave(wave, AmbushPoint(trader), invasionId: 0, missionId: run.Id, onSite: true, fixedLevel: story is not null);
     }
 
     /// <summary>Точка засады: впереди конвоя по курсу и вбок, подальше от звезды и от укрытия станции.</summary>

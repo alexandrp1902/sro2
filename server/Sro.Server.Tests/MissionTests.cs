@@ -82,6 +82,13 @@ public sealed class MissionTests : IDisposable
         Escort: [new EscortTemplate(1, 1, 300, 200, Radius: 900, AwaySeconds: 2)],
         Ambush: [[new InvasionGroup("pirate", 1, 1)]]);
 
+    /// <summary>Две засады на одном конвое: видно, что вторая не выходит, пока жива первая.</summary>
+    private static readonly MissionRules EscortTwice = new(
+        DangerBonus: 0,
+        Tutorial: Tutorial,
+        Escort: [new EscortTemplate(2, 2, 300, 200, Radius: 900, AwaySeconds: 30)],
+        Ambush: [[new InvasionGroup("pirate", 1, 1)], [new InvasionGroup("pirate", 1, 1)]]);
+
     /// <summary>Патруль из двух точек без засад: правило «звено ждёт» проверяется и без боя.</summary>
     private static readonly MissionRules PatrolOnly = new(
         DangerBonus: 0,
@@ -896,6 +903,36 @@ public sealed class MissionTests : IDisposable
         Assert.Null(Missions(a).Active);
         Assert.Equal(Protocol.MissionDone, Missions(a).Done?.Kind);
         Assert.Equal(credits + 500, Credits(a));
+    }
+
+    [Fact]
+    public void Escort_ConvoyWaitsOutTheAmbush_AndWavesDoNotPileUp()
+    {
+        _galaxy = New(EscortTwice);
+        var a = Veteran();
+        Launch(a, MissionRules.EscortKind);
+        var convoy = Convoy(a)!;
+
+        // Короткий путь, как Нова → Платформа: конвой сразу за обеими долями пути, где выходят засады.
+        var (x, y) = (convoy.Ship.X + (convoy.DestX - convoy.Ship.X) * 0.8, convoy.Ship.Y + (convoy.DestY - convoy.Ship.Y) * 0.8);
+        convoy.Ship = new ShipState { X = x, Y = y };
+        Place(a, x, y + 200);
+        Steps(SimConfig.TickRate);
+        Assert.Equal(1, Missions(a).Active!.Progress);
+        Assert.Single(Ambush(a));
+
+        // Пока засада жива, вторая не выходит, а конвой лёг в дрейф и ждёт.
+        Steps(4 * SimConfig.TickRate);
+        Assert.Equal(1, Missions(a).Active!.Progress);
+        Assert.True(Math.Sqrt(convoy.Ship.Vx * convoy.Ship.Vx + convoy.Ship.Vy * convoy.Ship.Vy) < 5, "конвой не встал");
+
+        // Засаду выбили — после передышки выходит следующая.
+        foreach (var raider in Ambush(a)) raider.Hp = 0;
+        Steps(2);
+        Assert.Equal(1, Missions(a).Active!.Progress);
+        Steps(8 * SimConfig.TickRate);
+        Assert.Equal(2, Missions(a).Active!.Progress);
+        Assert.Single(Ambush(a));
     }
 
     [Fact]
