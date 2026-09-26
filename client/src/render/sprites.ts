@@ -95,15 +95,18 @@ const ITEM_SPRITES: Record<string, string> = {
 };
 
 /**
- * Значки видов заданий на доске (пачка C). Нарисовано пять: «собрать» и охота на камни делят метеорит,
- * у убийства, доставки и обороны значка нет — строка обходится без него, а не с чужим.
+ * Значки видов заданий — у каждого свой: пять из пачки C, четыре дорисованы кодом (tools/mission_icons.py).
+ * Охота на камни — метеорит в прицеле, «собрать» — кирка над самородком: это разная работа.
  */
 const MISSION_SPRITES: Record<string, string> = {
-  collect: 'mission-meteor',
-  hunt: 'mission-meteor',
+  kill: 'mission-kill',
+  collect: 'mission-collect',
+  deliver: 'mission-deliver',
   escort: 'mission-escort',
   patrol: 'mission-patrol',
   courier: 'mission-courier',
+  hunt: 'mission-meteor',
+  defend: 'mission-defend',
 };
 
 /** Значок вида задания; null — его не рисовали. «ground» — наземный бой мехов у ретранслятора (M21). */

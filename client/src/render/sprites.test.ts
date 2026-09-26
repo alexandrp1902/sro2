@@ -19,14 +19,14 @@ describe('sprite names', () => {
     expect(moduleSprite('utility', 'thrusters_mk2')).toBe(moduleSprite('utility', 'thrusters'));
   });
 
-  it('marks board missions with the drawn kind icons, and leaves the rest bare', () => {
-    expect(missionSprite('collect')).toBe('mission-meteor');
+  it('marks every mission kind with its own icon', () => {
+    const kinds = ['kill', 'collect', 'deliver', 'escort', 'patrol', 'courier', 'hunt', 'defend', 'ground'];
+    const icons = kinds.map((kind) => missionSprite(kind));
+    for (const [i, icon] of icons.entries()) expect(icon, kinds[i]).not.toBeNull();
+    // Каждому виду — свой значок: «собрать» и охота на камни больше не делят метеорит.
+    expect(new Set(icons).size).toBe(kinds.length);
     expect(missionSprite('hunt')).toBe('mission-meteor');
-    expect(missionSprite('escort')).toBe('mission-escort');
-    expect(missionSprite('patrol')).toBe('mission-patrol');
-    expect(missionSprite('courier')).toBe('mission-courier');
-    expect(missionSprite('ground')).toBe('mission-ground');
-    for (const kind of ['kill', 'deliver', 'defend']) expect(missionSprite(kind), kind).toBeNull();
+    expect(missionSprite('unknownKind')).toBeNull();
   });
 
   it('draws the prototype parts as mech parts, not as stand-in goods', () => {

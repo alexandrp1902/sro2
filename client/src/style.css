@@ -356,6 +356,11 @@ body {
   gap: 6px;
 }
 
+/* Значок вида задания в трекере стоит на месте точки: отступ уже даёт gap строки. */
+.objective-icon {
+  margin-right: 0;
+}
+
 .objective-hint {
   margin-top: 2px;
   font-size: 12px;
@@ -876,6 +881,11 @@ body.ui-hidden #ability {
   .objective[data-collapsed='true'] > .objective-head,
   .objective[data-collapsed='true'] > .objective-hint {
     display: none;
+  }
+
+  /* Задание сменилось, пока плашка свёрнута: кружок пару раз вспыхивает (objectiveHud.ts). */
+  .objective[data-collapsed='true'].objective--new {
+    animation: objective-new 0.7s ease-out 3;
   }
 
   .objective[data-collapsed='true'] > .objective-badge {
@@ -1755,13 +1765,14 @@ body.ui-hidden #ability {
   mask: var(--rep-icon) center / contain no-repeat;
 }
 
-/* Значок вида задания перед названием на доске (пачка C): белый силуэт, окрашенный цветом строки. */
+/* Значок вида задания перед названием (доска, трекер): белый силуэт, окрашенный цветом строки. */
 .mission-icon {
+  flex-shrink: 0;
   display: inline-block;
-  width: 16px;
-  height: 16px;
+  width: 18px;
+  height: 18px;
   margin-right: 6px;
-  vertical-align: -3px;
+  vertical-align: -4px;
   background: currentColor;
   -webkit-mask: var(--mission-icon) center / contain no-repeat;
   mask: var(--mission-icon) center / contain no-repeat;
@@ -2537,6 +2548,15 @@ body.ui-hidden #ability {
   animation: landing-pass var(--landing-ms, 3000ms) ease-out forwards;
 }
 
+@keyframes objective-new {
+  0% {
+    box-shadow: 0 0 0 0 var(--warn);
+  }
+  100% {
+    box-shadow: 0 0 0 12px transparent;
+  }
+}
+
 @keyframes landing-pass {
   0% {
     opacity: 0;
@@ -2562,6 +2582,11 @@ body.ui-hidden #ability {
   /* Заставка входа появляется уже готовой, без проявления. */
   .connect--start::before {
     transition: none;
+  }
+
+  /* Новое задание в свёрнутом кружке — одна вспышка вместо трёх. */
+  .objective[data-collapsed='true'].objective--new {
+    animation-iteration-count: 1;
   }
 
   .landing-run {

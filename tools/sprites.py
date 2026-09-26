@@ -107,10 +107,11 @@ SINGLES = [
     # Имя = rep-<id ступени в reputation.json>, поэтому таблица соответствий коду не нужна.
     *[(f"mission-reputation/rep-{n}", f"rep-{n}", 128) for n in
       ["enemy", "distrust", "neutral", "friend", "hero"]],
-    # Виды заданий (пачка C): белый силуэт, цвет накладывает CSS-маска, как у ступеней. Доска ставит их
+    # Виды заданий: белый силуэт, цвет накладывает CSS-маска, как у ступеней. Доска и трекер ставят их
     # по виду (missionSprite в render/sprites.ts); ground — наземный бой мехов у ретранслятора (M21).
+    # Пять — пачка C, четыре (collect, kill, deliver, defend) дорисованы кодом: tools/mission_icons.py.
     *[(f"mission-reputation/mission-{n}", f"mission-{n}", 128) for n in
-      ["escort", "patrol", "courier", "meteor", "ground"]],
+      ["escort", "patrol", "courier", "meteor", "ground", "collect", "kill", "deliver", "defend"]],
     # Детали меха (пачка E) — вместо подмен у деталей прототипа (M20b): каркас, приводы, оружейный модуль.
     # Имя — resources-<что в ITEM_SPRITES>, как у товаров. Остальные детали ждут инвентаря мехов.
     ("../mechs/parts/mech-body-medium", "resources-mech-frame", 128),

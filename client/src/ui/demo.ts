@@ -240,7 +240,7 @@ export function runDemo(screen: string): void {
     cargoHud.setRules(loot);
     cargoHud.setCargo(cargo);
     cargoHud.update({ kind: 'station', distance: 340, inRange: false });
-    objectiveHud.update({ title: 'Доставить Металл ×5 на Вегу', hint: 'Откройте карту — M, прыгайте через врата' });
+    objectiveHud.update({ title: 'Доставить Металл ×5 на Вегу', hint: 'Откройте карту — M, прыгайте через врата', kind: 'deliver' });
     invasionHud.update({ title: 'Вторжение пиратов', hint: 'волна 2 из 3 · 01:20', alert: true });
     partyPanel.update(
       [
@@ -328,6 +328,13 @@ export function runDemo(screen: string): void {
       offers: [
         { id: 'o1', kind: 'kill', system: 'rigel', npc: 'raider', count: 3, reward: 600, from: 'sol' },
         { id: 'o2', kind: 'collect', item: 'ore', count: 6, reward: 180, from: 'sol' },
+        // Остальные виды — чтобы значки всей доски были видны на одном снимке.
+        { id: 'o3', kind: 'hunt', system: 'vega', count: 4, reward: 320, from: 'sol' },
+        { id: 'o4', kind: 'escort', system: 'vega', count: 2, reward: 700, from: 'sol' },
+        { id: 'o5', kind: 'patrol', system: 'sol', count: 3, reward: 450, from: 'sol' },
+        { id: 'o6', kind: 'courier', count: 1, reward: 380, from: 'sol', place: 'st:vega' },
+        { id: 'o7', kind: 'defend', count: 3, reward: 900, from: 'sol', place: 'pl:terra' },
+        { id: 'o8', kind: 'deliver', system: 'vega', count: 5, reward: 420, from: 'sol', place: 'st:vega' },
       ],
       // Кампания (M20a): на доске у неё свой раздел над работой станции.
       story: relay ? {

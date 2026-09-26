@@ -595,6 +595,22 @@
     "w": 126,
     "h": 128
   },
+  "mission-collect": {
+    "w": 118,
+    "h": 128
+  },
+  "mission-kill": {
+    "w": 112,
+    "h": 128
+  },
+  "mission-deliver": {
+    "w": 128,
+    "h": 75
+  },
+  "mission-defend": {
+    "w": 112,
+    "h": 128
+  },
   "resources-mech-frame": {
     "w": 128,
     "h": 128

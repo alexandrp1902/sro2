@@ -2218,6 +2218,7 @@ public sealed partial class Room
 
         player.Credits += credits;
         player.CargoFullUntilTick = 0;
+        GatheredLeft(player);
         connection.Send(new NoticeMsg(Protocol.UnloadedNotice));
         SendCargo(player);
         BroadcastMarket();
@@ -2256,6 +2257,7 @@ public sealed partial class Room
         // Выброшенное — из трюма, а трюм мог быть куплен: подобрав его обратно, «собрать» не закрыть.
         _loot.SpillOne(Balance.Loot, item, count, player.Ship.X, player.Ship.Y, player.Ship.Vx, player.Ship.Vy, Tick, fromHold: true);
         player.CargoFullUntilTick = 0;
+        GatheredLeft(player);
         connection.Send(new NoticeMsg(Protocol.JettisonedNotice));
         SendCargo(player);
         SendCollect(player); // «собрать» считает по трюму: выбросил — счёт упал
@@ -2286,6 +2288,7 @@ public sealed partial class Room
         foreach (var player in new[] { a, b })
         {
             player.CargoFullUntilTick = 0;
+            GatheredLeft(player);
             SendCargo(player);
             SendCollect(player); // «собрать» считает по трюму: отдал груз — счёт упал, принял — вырос
             Save(player);
@@ -2900,6 +2903,18 @@ public sealed partial class Room
         if (player.Missions.Active is not { Offer: { Kind: MissionRules.CollectKind, Story: null } offer } active) return;
         if (offer.Item != taken.Item) return;
         player.Missions.Active = active with { Gathered = Math.Min(offer.Count, active.Gathered + taken.Count) };
+    }
+
+    /// <summary>
+    /// Добытое ушло из трюма — продано, выброшено или отдано: столько же и из счёта. Иначе руду добыли бы,
+    /// продали и купили обратно, и сдали купленную. Гибель счёт не трогает: там груз не продан, а потерян,
+    /// и подобрав свои обломки, пилот честно вернёт своё.
+    /// </summary>
+    private static void GatheredLeft(Player player)
+    {
+        if (player.Missions.Active is not { Offer: { Kind: MissionRules.CollectKind, Story: null, Item: { } item } } active) return;
+        var held = player.Cargo.Count(item);
+        if (active.Gathered > held) player.Missions.Active = active with { Gathered = held };
     }
 
     /// <summary>У «собрать» прогресс — сколько такого в трюме: трюм изменился — клиенту новый счёт.</summary>

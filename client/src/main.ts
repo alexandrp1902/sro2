@@ -266,11 +266,9 @@ async function main(): Promise<void> {
   // Кнопка активного модуля — пока заглушка (M20c): активируемых модулей в игре нет, и она это говорит.
   const ability = new AbilityButton(el('ability'));
   let abilityHintAt = 0;
-  // «Скрыть» внизу телефона: весь интерфейс полёта прочь — и стик с огнём отпущены, чтобы корабль не ушёл сам.
-  let uiHidden = false;
+  // «Скрыть» внизу телефона: кнопки и панели прочь, а стрелки к целям и выделение в мире остаются — так
+  // можно тапнуть цель, которую закрывали кнопки. Стик и огонь отпускаются, чтобы корабль не ушёл сам.
   const uiToggle = new UiToggle(el('ui-toggle') as HTMLButtonElement, coarsePointer(), (hidden) => {
-    uiHidden = hidden;
-    overlay.view.visible = !hidden;
     if (!hidden) return;
     stick.reset();
     controls.release();
@@ -1446,7 +1444,7 @@ async function main(): Promise<void> {
       });
     starfield.update(camera.x, camera.y, camera.zoom, app.screen.width, app.screen.height);
     nebula.update(now);
-    weaponArc.update(state.x, state.y, state.rot, target && !dead && !docked && !uiHidden ? weapon : null, aim?.state === 'ready');
+    weaponArc.update(state.x, state.y, state.rot, target && !dead && !docked ? weapon : null, aim?.state === 'ready');
     overlay.update({
       ships: remote.visible(),
       meteors: meteors.visible(),

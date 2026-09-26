@@ -701,6 +701,12 @@ public sealed class MissionTests : IDisposable
         Dock(a);
         Do(a, r => r.Sell(a, "metal", 4));
         Assert.Equal(1, Missions(a).Active!.Progress);
+
+        // И купленное взамен проданного добытым не становится: счёт упал вместе с трюмом.
+        PlayerOf(a).Cargo.Add("metal", 4);
+        Assert.Equal(1, Missions(a).Active!.Gathered);
+        Do(a, r => r.Mission(a, Protocol.CompleteMission, null));
+        Assert.Equal(Protocol.NotGatheredNotice, a.Last<NoticeMsg>().Code);
     }
 
     [Fact]

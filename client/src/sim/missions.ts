@@ -308,7 +308,7 @@ export function trackerLines(
   docked: boolean,
   names: MissionNames,
   touch = false,
-): { title: string; hint: string } | null {
+): { title: string; hint: string; kind?: string } | null {
   if (!missions) return null;
   const tutorial = missions.tutorial;
   if (tutorial) {
@@ -316,7 +316,12 @@ export function trackerLines(
     return { title: `Обучение ${tutorial.step + 1}/${tutorial.total}: ${tutorial.title}`, hint };
   }
   if (!missions.active) return null;
-  return { title: activeLine(missions.active, names), hint: activeHint(missions.active, here, docked, names) };
+  // Вид — для значка в трекере: тот же, что у строки на доске.
+  return {
+    title: activeLine(missions.active, names),
+    hint: activeHint(missions.active, here, docked, names),
+    kind: missions.active.offer.kind,
+  };
 }
 
 /**
