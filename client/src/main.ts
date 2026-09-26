@@ -267,13 +267,9 @@ async function main(): Promise<void> {
   const ability = new AbilityButton(el('ability'));
   let abilityHintAt = 0;
   // «Скрыть» внизу телефона: кнопки и панели прочь, а стрелки к целям и выделение в мире остаются — так
-  // можно тапнуть цель, которую закрывали кнопки. Стик и огонь отпускаются, чтобы корабль не ушёл сам.
-  const uiToggle = new UiToggle(el('ui-toggle') as HTMLButtonElement, coarsePointer(), (hidden) => {
-    if (!hidden) return;
-    stick.reset();
-    controls.release();
-    fire.release();
-  });
+  // можно тапнуть цель, которую закрывали кнопки. Стик и огонь не отпускаются: корабль летит и стреляет
+  // как летел, а спрятанный стик продолжает слушаться пальца, который его держит.
+  const uiToggle = new UiToggle(el('ui-toggle') as HTMLButtonElement, coarsePointer(), () => {});
   ability.onPress = () => {
     const now = Date.now();
     if (now - abilityHintAt < 10_000) return; // жмут её часто, а сказать нечего — не засоряем ленту

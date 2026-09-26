@@ -833,12 +833,20 @@ body {
 }
 
 /* Интерфейс скрыт (uiToggle.ts): остаётся только сама кнопка — по ней его и возвращают. */
-body.ui-hidden #hud,
+body.ui-hidden #hud {
+  display: none;
+}
+
+/*
+ * Стик и кнопки боя — невидимы, но не убраны: палец, который держит стик, продолжает им рулить (захват
+ * касания у display: none браузер мог бы оборвать), а новые тапы проходят сквозь них в мир — к цели,
+ * которую кнопки закрывали.
+ */
 body.ui-hidden #stick,
 body.ui-hidden #combat-pad,
 body.ui-hidden #stop,
 body.ui-hidden #ability {
-  display: none;
+  visibility: hidden;
 }
 
 /* ---------- Телефон: узкий вертикальный экран ---------- */
