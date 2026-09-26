@@ -1130,7 +1130,7 @@ export class DockScreen {
       body.append(box);
     }
     if (story?.offer) {
-      body.append(el('div', 'dock-note dock-story-note sro-warn', `${story.name} · миссия ${story.offer.story?.number ?? story.done + 1} из ${story.total}`));
+      body.append(el('div', 'dock-note dock-story-note sro-warn', story.name));
       body.append(this.missionRow(story.offer, active !== null));
     }
 

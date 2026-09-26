@@ -320,15 +320,11 @@ export function trackerLines(
 }
 
 /**
- * Строка журнала кампании: «Тихая война · миссия 3 из 14». Пока миссия не взята, номер — следующей;
- * когда написанное кончилось, номер не растёт, а место него говорится, что продолжение будет.
+ * Строка журнала кампании: просто её имя, а пройденная — с пометкой. Счёт «миссия 3 из 14» убран
+ * после плейтеста 2026-09-26: история читается как история, а не как полоска прогресса.
  */
 export function storyLine(state: StoryStateDto): string {
-  // Кампания пройдена вся (M20b): «миссия 15 из 14» журнал писать не должен.
-  if (state.done >= state.total) return `${state.name} · пройдена`;
-  if (state.more) return `${state.name} · пройдено ${state.done} из ${state.total}`;
-  const number = Math.min(state.done + 1, state.total);
-  return `${state.name} · миссия ${number} из ${state.total}`;
+  return state.done >= state.total ? `${state.name} · пройдена` : state.name;
 }
 
 /** Что показывает журнал под этой строкой: последние реплики, а без них — одна пояснительная. */

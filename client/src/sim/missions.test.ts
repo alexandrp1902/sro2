@@ -358,12 +358,14 @@ describe('M20a story missions', () => {
 
   it('writes the journal line', () => {
     const state = { campaign: 'quietWar', name: 'Тихая война', done: 2, total: 14, lines: ['Дошли. Хорошо.'] };
-    expect(storyLine(state)).toBe('Тихая война · миссия 3 из 14');
+    // Без счёта миссий: только имя кампании (плейтест 2026-09-26).
+    expect(storyLine(state)).toBe('Тихая война');
     expect(storyJournal(state)).toEqual(['Дошли. Хорошо.']);
 
     // Написанное кончилось: номер не растёт, а журнал честно говорит, что будет дальше.
     const ended = { ...state, done: 6, more: true };
-    expect(storyLine(ended)).toBe('Тихая война · пройдено 6 из 14');
+    expect(storyLine(ended)).toBe('Тихая война');
+    expect(storyLine({ ...state, done: 14 })).toBe('Тихая война · пройдена');
     expect(storyJournal(ended)).toEqual(['Дошли. Хорошо.', 'Продолжение следует.']);
     expect(storyJournal(null)).toEqual(['Сюжетных заданий пока нет.']);
   });
