@@ -362,6 +362,11 @@ body {
   line-height: 16px;
 }
 
+/* Кружок свёрнутой плашки: виден только на телефоне и только свёрнутым (см. мобильный блок ниже). */
+.objective-badge {
+  display: none;
+}
+
 /* Табло вторжения пиратов (GDD §38): красное (sro-pane--alert), пока вторжение объявлено или идёт. */
 .event {
   font-size: 13px;
@@ -573,7 +578,7 @@ body {
   gap: 10px;
 }
 
-/* Значок говорящего: портретов пока нет, поэтому монограмма в рамке. Портрет сядет сюда же. */
+/* Значок говорящего: портрет, а у кого его нет — монограмма в рамке (dialog.ts). */
 .dialog-face {
   flex: 0 0 auto;
   width: 44px;
@@ -586,6 +591,21 @@ body {
   color: var(--warn);
   font-weight: 600;
   letter-spacing: 0.04em;
+}
+
+/* С портретом значок крупнее: лицо в 44 пикселях не узнать. */
+.dialog-face[data-portrait='true'] {
+  width: 72px;
+  height: 72px;
+  overflow: hidden;
+  border-color: var(--warn-line);
+}
+
+.dialog-face img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 
 .dialog-names {
@@ -791,6 +811,31 @@ body {
   pointer-events: none;
 }
 
+/*
+ * «Скрыть» / «показать» (телефон): внизу по центру, ниже кнопок боя — там, где между стиком и падом пусто.
+ * Маленькая и полупрозрачная: её жмут изредка, а поле боя она не должна закрывать.
+ */
+.ui-toggle {
+  position: fixed;
+  left: 50%;
+  bottom: calc(env(safe-area-inset-bottom) + 4px);
+  transform: translateX(-50%);
+  min-height: 28px;
+  padding: 0 12px;
+  font-size: 12px;
+  opacity: 0.8;
+  touch-action: manipulation;
+}
+
+/* Интерфейс скрыт (uiToggle.ts): остаётся только сама кнопка — по ней его и возвращают. */
+body.ui-hidden #hud,
+body.ui-hidden #stick,
+body.ui-hidden #combat-pad,
+body.ui-hidden #stop,
+body.ui-hidden #ability {
+  display: none;
+}
+
 /* ---------- Телефон: узкий вертикальный экран ---------- */
 
 @media (max-width: 520px) {
@@ -811,6 +856,34 @@ body {
   .event {
     font-size: 12px;
     line-height: 16px;
+  }
+
+  /*
+   * Плашка задания на телефоне сворачивается тапом в жёлтый кружок с «!» (objectiveHud.ts, data-collapsed),
+   * тап по кружку разворачивает её обратно. Жёлтый — цвет задания и маркера цели в мире.
+   */
+  .objective[data-collapsed='true'] {
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    display: grid;
+    place-items: center;
+    border-radius: 50%;
+    border-color: var(--warn);
+    background: var(--warn);
+  }
+
+  .objective[data-collapsed='true'] > .objective-head,
+  .objective[data-collapsed='true'] > .objective-hint {
+    display: none;
+  }
+
+  .objective[data-collapsed='true'] > .objective-badge {
+    display: block;
+    font-size: 20px;
+    font-weight: 700;
+    line-height: 1;
+    color: var(--bg-space);
   }
 
   /*
@@ -1680,6 +1753,18 @@ body {
   background: currentColor;
   -webkit-mask: var(--rep-icon) center / contain no-repeat;
   mask: var(--rep-icon) center / contain no-repeat;
+}
+
+/* Значок вида задания перед названием на доске (пачка C): белый силуэт, окрашенный цветом строки. */
+.mission-icon {
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  margin-right: 6px;
+  vertical-align: -3px;
+  background: currentColor;
+  -webkit-mask: var(--mission-icon) center / contain no-repeat;
+  mask: var(--mission-icon) center / contain no-repeat;
 }
 
 /* Строка отношения в карточке системы: значок и подпись идут одним цветом ступени. */

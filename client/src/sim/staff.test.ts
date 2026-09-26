@@ -56,7 +56,7 @@ describe('люди дока', () => {
       ['barren', ['pl:alphaTwo', 'pl:castorOre']],
       ['ice', ['pl:vegaOne', 'pl:sigmaIce']],
       ['lava', ['pl:aldPyre', 'pl:edgeAsh']],
-      ['station', ['st:tau', 'st:sigma', 'st:edge']],
+      ['desert', ['pl:tauPrima', 'pl:novaPrime']],
     ];
     for (const [set, places] of groups) {
       for (const art of [`${set}-office`, `${set}-trader`] as const) {

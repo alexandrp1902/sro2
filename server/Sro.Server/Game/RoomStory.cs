@@ -241,12 +241,16 @@ public sealed partial class Room
     private static IReadOnlyList<string>? LinesOf(
         Player player, string campaign, StoryMission mission, Func<StoryLines, IReadOnlyList<string>?> part)
     {
-        if (mission.Alt is { Lines: { } alt } fork
-            && player.Story.GetValueOrDefault(campaign)?.Flags.Contains(fork.Flag) == true
-            && part(alt) is { Count: > 0 } theirs)
+        if (AltOf(player, campaign, mission) is { Lines: { } alt } && part(alt) is { Count: > 0 } theirs)
             return theirs;
         return mission.Lines is null ? null : part(mission.Lines);
     }
+
+    /// <summary>Вариант миссии, который слышит этот пилот; null — у него нет флага альтернативы.</summary>
+    private static StoryAlt? AltOf(Player player, string campaign, StoryMission mission) =>
+        mission.Alt is { } fork && player.Story.GetValueOrDefault(campaign)?.Flags.Contains(fork.Flag) == true
+            ? fork
+            : null;
 
     /// <summary>Задать вопрос миссии, если он задаётся на этом событии.</summary>
     private void Ask(Player player, StoryRef story, StoryMission mission, string trigger)
@@ -282,9 +286,12 @@ public sealed partial class Room
                 && Balance.Loot.IsStory(collected))
                 player.Cargo.Remove(collected, player.Cargo.Count(collected));
             GiveHull(player, log, mission);
+            // В варианте на сдаче может говорить другой: «Иглу» Дан отдаёт сам (M20b, «Прототип»).
+            var alt = AltOf(player, story.Campaign, mission);
             Say(
                 player, story, LinesOf(player, story.Campaign, mission, l => l.Done),
-                mission.DoneBy ?? mission.Giver, mission.DoneRole ?? mission.Role);
+                alt?.DoneBy ?? mission.DoneBy ?? mission.Giver,
+                (alt?.DoneBy is null ? null : alt.DoneRole) ?? mission.DoneRole ?? mission.Role);
             // Отношение — одному месту, тому, ради которого работали. Системной половины у сюжета нет:
             // благодарить властей Новы за шестую миссию точно не за что.
             if (mission.RepReward != 0)

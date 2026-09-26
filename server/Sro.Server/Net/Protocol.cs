@@ -392,7 +392,14 @@ public sealed record GalaxySystemDto(
     IReadOnlyList<string>? Gates = null);
 
 /// <summary>Имя места для карты и текста заданий (M15).</summary>
-public sealed record PlaceNameDto(string Key, string Name);
+/// <param name="Scene">
+/// Набор фонов дока; нет — общий по виду места. По нему клиент знает, кто нарисован в каждом доке галактики,
+/// и раздаёт персоналу имена разом, без тёзок.
+/// </param>
+public sealed record PlaceNameDto(
+    string Key,
+    string Name,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? Scene = null);
 
 /// <summary>Регион галактики на карте (M11).</summary>
 public sealed record RegionDto(string Id, string Name, string Color);
@@ -966,12 +973,13 @@ public static class Protocol
     /// 31 — снять и поставить оснащение пачкой, своё оснащение у каждого корпуса ангара, слух про чужую верфь, M20;
     /// 32 — вторая половина «Тихой войны»: корабли корпорации своими силуэтами и «Ретранслятор» на Руднике Прайм, M20b;
     /// 33 — продажа корабля из ангара вместе с оснащением, M20c;
-    /// 34 — наземный бой мехов у ретранслятора: mechAct, mechState, mechEvents, mechEnd, mechRefused, M21).
+    /// 34 — наземный бой мехов у ретранслятора: mechAct, mechState, mechEvents, mechEnd, mechRefused, M21;
+    /// 35 — «собрать» считает только добытое в космосе: gathered у задания и отказ notGathered).
     /// Кадр снапшота в 29 тот же, что в 28: версия растёт потому, что старый клиент не знает про perk,
     /// hpMul и speedMul — и предсказывал бы и движение, и прочность своего корабля мимо сервера.
     /// Зеркало PROTOCOL_VERSION в client/src/net/protocol.ts.
     /// </summary>
-    public const int Version = 34;
+    public const int Version = 35;
 
     public const string DroneKind = "drone";
     public const string PirateKind = "pirate";
@@ -1059,6 +1067,8 @@ public static class Protocol
     public const string StoryHoldNotice = "storyHold";
     /// <summary>Идёт наземный бой (M21): вылететь нельзя, пока он не кончен или не брошен.</summary>
     public const string MechBusyNotice = "mechBusy";
+    /// <summary>«Собрать» сдают тем, что добыто в космосе после взятия: купленное и выброшенное из трюма не в счёт.</summary>
+    public const string NotGatheredNotice = "notGathered";
 
     /// <summary>Действия наземного боя (<see cref="MechActMsg.Act"/>), кроме ходов — те в <see cref="MechCommand"/>.</summary>
     public const string MechStart = "start";

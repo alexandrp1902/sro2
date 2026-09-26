@@ -84,15 +84,33 @@ const ITEM_SPRITES: Record<string, string> = {
   powerCore: 'energy',
   armorSections: 'metal',
   shipLog: 'electronics',
-  // Детали прототипа (M20b) — та же подмена по смыслу: чертёж как электроника, каркас как титан,
-  // приводы как машины, реактор как плазма, нейроинтерфейс как кристалл, ствол как оружие.
+  // Детали прототипа (M20b): каркас, приводы и оружейный модуль — детали меха из пачки E. У остальных
+  // та же подмена по смыслу: чертёж как электроника, реактор как плазма, нейроинтерфейс как кристалл.
   blueprint: 'electronics',
-  mechFrame: 'titanium',
-  driveBlock: 'machinery',
+  mechFrame: 'mech-frame',
+  driveBlock: 'mech-drive',
   reactor: 'plasma',
   neuroLink: 'crystals',
-  weaponModule: 'arms',
+  weaponModule: 'mech-weapon',
 };
+
+/**
+ * Значки видов заданий на доске (пачка C). Нарисовано пять: «собрать» и охота на камни делят метеорит,
+ * у убийства, доставки и обороны значка нет — строка обходится без него, а не с чужим.
+ */
+const MISSION_SPRITES: Record<string, string> = {
+  collect: 'mission-meteor',
+  hunt: 'mission-meteor',
+  escort: 'mission-escort',
+  patrol: 'mission-patrol',
+  courier: 'mission-courier',
+};
+
+/** Значок вида задания; null — его не рисовали. «ground» — наземный бой мехов у ретранслятора (M21). */
+export function missionSprite(kind: string): SpriteName | null {
+  const name = kind === 'ground' ? 'mission-ground' : MISSION_SPRITES[kind];
+  return name && name in meta ? (name as SpriteName) : null;
+}
 
 /** Иконка предмета груза; неизвестный — металл. */
 export function itemSprite(item: string): SpriteName {

@@ -226,6 +226,26 @@ public sealed class MissionTests : IDisposable
         Assert.True(connection.Last<HangarMsg>().Docked);
     }
 
+    /// <summary>Вылетает, находит в космосе count штук item (будто обломки метеорита) и подбирает их.</summary>
+    private void Gather(FakeConnection connection, string item, int count)
+    {
+        if (PlayerOf(connection).Docked) Do(connection, r => r.Dock(connection, false));
+        RoomOf(connection).SpillAt(item, count, -900, 900);
+        Steps(1);
+        GrabAll(connection, item);
+    }
+
+    /// <summary>Подбирает все стопки item, какие видно в снапшоте.</summary>
+    private void GrabAll(FakeConnection connection, string item)
+    {
+        foreach (var drop in connection.Last<SnapshotMsg>().Loot!.Where(d => d.I == item).ToList())
+        {
+            Place(connection, drop.X, drop.Y);
+            Do(connection, r => r.SetLootTarget(connection, drop.Id));
+            Do(connection, r => r.Grab(connection));
+        }
+    }
+
     /// <summary>Встаёт рядом с кораблём id и уничтожает его одним выстрелом.</summary>
     private void Kill(FakeConnection connection, int id)
     {
@@ -641,12 +661,46 @@ public sealed class MissionTests : IDisposable
         Do(a, r => r.Mission(a, Protocol.CompleteMission, null)); // трюм пуст — сдавать нечего
         Assert.NotNull(Missions(a).Active);
 
-        PlayerOf(a).Cargo.Add("metal", 5);
+        // Купленное (здесь — просто положенное в трюм) не в счёт: «собрать» — это добыть в космосе.
+        PlayerOf(a).Cargo.Add("metal", 2);
+        Do(a, r => r.Mission(a, Protocol.CompleteMission, null));
+        Assert.NotNull(Missions(a).Active);
+        Assert.Equal(Protocol.NotGatheredNotice, a.Last<NoticeMsg>().Code);
+        Assert.Equal(0, Missions(a).Active!.Progress);
+
+        Gather(a, "metal", 3);
+        Assert.Equal(3, Missions(a).Active!.Progress);
+        Dock(a);
         var credits = PlayerOf(a).Credits;
         Do(a, r => r.Mission(a, Protocol.CompleteMission, null));
         Assert.Null(Missions(a).Active);
         Assert.Equal(credits + reward, Credits(a));
         Assert.Equal(2, a.Last<CargoMsg>().Items["metal"]);
+    }
+
+    [Fact]
+    public void Collect_DoesNotCountWhatWasJettisonedAndPickedUpAgain()
+    {
+        _galaxy = New(CollectOnly);
+        var a = Veteran();
+        Dock(a);
+        Accept(a, MissionRules.CollectKind);
+        PlayerOf(a).Cargo.Add("metal", 3);
+        Do(a, r => r.Dock(a, false));
+        Place(a, 800, 800);
+        Do(a, r => r.Jettison(a, "metal"));
+        Steps(1);
+        GrabAll(a, "metal");
+        Assert.Equal(3, PlayerOf(a).Cargo.Count("metal"));
+        Assert.Equal(0, Missions(a).Active!.Progress);
+        Assert.Equal(0, Missions(a).Active!.Gathered);
+
+        // Добытое засчитывается, но не больше, чем лежит в трюме: продал — счёт упал.
+        Gather(a, "metal", 2);
+        Assert.Equal(2, Missions(a).Active!.Progress);
+        Dock(a);
+        Do(a, r => r.Sell(a, "metal", 4));
+        Assert.Equal(1, Missions(a).Active!.Progress);
     }
 
     [Fact]

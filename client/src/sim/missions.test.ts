@@ -106,7 +106,7 @@ describe('mission text', () => {
     const collect = { offer: offer({ kind: 'collect', item: 'titanium' }), progress: 4 };
     expect(activeLine(collect, names)).toBe('Титан: 4/4');
     expect(activeHint(collect, 'tau', false, names)).toBe('сдайте на любой станции');
-    expect(activeHint({ ...collect, progress: 1 }, 'tau', false, names)).toBe('добудьте в космосе');
+    expect(activeHint({ ...collect, progress: 1 }, 'tau', false, names)).toBe('добудьте в космосе — купленное не в счёт');
   });
 
   it('puts the tutorial ahead of a mission in the tracker', () => {

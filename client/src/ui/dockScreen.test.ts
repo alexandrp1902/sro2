@@ -5,9 +5,11 @@ import type { HullParams } from '../sim/movement';
 import type { ReputationRules } from '../sim/reputation';
 import type { ModuleConfig, ShipFit } from '../sim/fitting';
 import type { WeaponConfig } from '../sim/combat';
+import type { GalaxyDto } from '../net/protocol';
 import {
   canFillSlots,
   canStrip,
+  galaxyRoster,
   clampQty,
   hullSlotViews,
   maxBuyable,
@@ -284,5 +286,58 @@ describe('оснащение пачкой', () => {
     expect(canFillSlots(hull, armed, slots, ['repair'], weapons, modules)).toBe(true);
     const hungry: ModuleConfig = { ...modules, repair: { ...modules.repair, power: 100 } };
     expect(canFillSlots(hull, armed, slots, ['repair'], weapons, hungry)).toBe(false);
+  });
+});
+
+/** shared/galaxy.json с комментариями: клиент его не импортирует, тест читает как текст и срезает `//` вне строк. */
+function readGalaxy(): { systems: Record<string, { station?: boolean; dockScene?: string; planets?: { id?: string; settlement?: { scene?: string } }[] }> } {
+  const files = import.meta.glob('../../../shared/galaxy.json', { query: '?raw', import: 'default', eager: true });
+  const text = Object.values(files)[0] as string;
+  let out = '';
+  let inString = false;
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i];
+    if (inString) {
+      out += c;
+      if (c === '\\') out += text[++i];
+      else if (c === '"') inString = false;
+    } else if (c === '"') {
+      inString = true;
+      out += c;
+    } else if (c === '/' && text[i + 1] === '/') {
+      while (i < text.length && text[i] !== '\n') i++;
+      out += '\n';
+    } else {
+      out += c;
+    }
+  }
+  return JSON.parse(out);
+}
+
+describe('dock staff across the real galaxy', () => {
+  it('never repeats a name, nor a first name or surname within one dock', () => {
+    const galaxy = readGalaxy();
+    const systems = Object.entries(galaxy.systems).map(([id, s]) => ({
+      id,
+      places: [
+        ...(s.station === false ? [] : [{ key: `st:${id}`, name: id, scene: s.dockScene ?? null }]),
+        ...(s.planets ?? [])
+          .filter((p) => p.settlement)
+          .map((p) => ({ key: `pl:${p.id}`, name: p.id ?? '', scene: p.settlement?.scene ?? null })),
+      ],
+    }));
+    const roster = galaxyRoster({ systems } as unknown as GalaxyDto);
+    expect(roster.size).toBeGreaterThan(60); // 19 мест × 4 вкладки
+    const names = [...roster.values()];
+    expect(new Set(names).size, 'полные имена').toBe(names.length);
+    // Фамилия по всей галактике тоже своя: пулов хватает, а четыре Чэнь на двадцать доков читались как клан.
+    const surnames = names.filter((n) => n.includes(' ')).map((n) => n.split(' ')[1].replace(/(ова|ева|ёва|ина|ая)$/, ''));
+    expect(new Set(surnames).size, 'фамилии').toBe(surnames.length);
+    for (const { places } of systems) {
+      for (const { key } of places) {
+        const here = [...roster.entries()].filter(([k]) => k.startsWith(`${key}|`)).map(([, n]) => n.split(' '));
+        expect(new Set(here.map((n) => n[0])).size, `${key}: имена`).toBe(here.length);
+      }
+    }
   });
 });

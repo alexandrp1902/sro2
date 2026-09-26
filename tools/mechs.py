@@ -7,6 +7,9 @@
 
 Тайлы пустыни (art/mechs/tiles/desert-*) — стенд-ин до партии P4: 128 px, здание — 256 px на квадрат 2×2.
 
+Эффекты боя (art/mechs/effects/mech-fx-*) — листы 3×2 кадра по 512 px, кадр по центру клетки: режутся сеткой
+в fx-<имя>-<n>.webp по 192 px, число кадров уходит в rigMeta.json.
+
 Запуск из корня репозитория: python tools/mechs.py  (нужен Pillow с WebP).
 Перезапускать только после замены листов — результат лежит в git.
 """
@@ -19,6 +22,7 @@ from PIL import Image
 ROOT = Path(__file__).resolve().parent.parent
 RIG = ROOT / "art" / "mechs" / "production" / "medium-rig.json"
 TILES = ROOT / "art" / "mechs" / "tiles"
+EFFECTS = ROOT / "art" / "mechs" / "effects"
 OUT = ROOT / "client" / "public" / "mechs"
 META = ROOT / "client" / "src" / "mech" / "rigMeta.json"
 
@@ -33,6 +37,14 @@ LAYERS = {
     "body-medium": "body",
     "arm-autocannon-right": "right",
     "shield-light-left": "left",
+}
+
+# Эффект в игре → лист и его сетка (столбцы, ряды). Кадры идут по рядам слева направо.
+FX_SIDE = 192
+FX_FILES = {
+    "hit": ("mech-fx-hit.png", 3, 2),
+    "explosion": ("mech-fx-explosion.png", 3, 2),
+    "block": ("mech-fx-shield-block.png", 3, 2),
 }
 
 # Клетка поля → файл тайла. Земля и камни — сплошные, ящик, стена и здание — поверх земли.
@@ -67,6 +79,16 @@ def main() -> None:
         tile = Image.open(TILES / file).convert("RGBA").resize((side, side), Image.LANCZOS)
         save(tile, f"tile-{name}")
 
+    fx = {}
+    for name, (file, cols, rows) in FX_FILES.items():
+        sheet = Image.open(EFFECTS / file).convert("RGBA")
+        cw, ch = sheet.width // cols, sheet.height // rows
+        for n in range(cols * rows):
+            x, y = n % cols * cw, n // cols * ch
+            frame = sheet.crop((x, y, x + cw, y + ch)).resize((FX_SIDE, FX_SIDE), Image.LANCZOS)
+            save(frame, f"fx-{name}-{n}")
+        fx[name] = cols * rows
+
     frames = {}
     for i, direction in enumerate(directions):
         frame = rig["frames"][direction]
@@ -88,10 +110,11 @@ def main() -> None:
         "groundPivot": rig["groundPivot"],
         "directions": [d.lower() for d in directions],
         "frames": frames,
+        "fx": fx,
     }
     META.parent.mkdir(parents=True, exist_ok=True)
     META.write_text(json.dumps(meta, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-    print(f"{len(LAYERS) * len(directions)} layers, {len(TILE_FILES)} tiles -> {OUT}")
+    print(f"{len(LAYERS) * len(directions)} layers, {len(TILE_FILES)} tiles, {sum(fx.values())} fx frames -> {OUT}")
 
 
 if __name__ == "__main__":

@@ -9,6 +9,7 @@ import { FixedLoop } from './game/loop';
 import { LOOT_MOUSE_RADIUS_PX, METEOR_MOUSE_RADIUS_PX, cycle, nearest, nearestLoot, pickArrow, pickAt, pickNearest } from './game/targeting';
 import { Controls } from './input/controls';
 import { AbilityButton } from './input/ability';
+import { UiToggle } from './ui/uiToggle';
 import { FireControl, bindCombatKeys } from './input/fire';
 import { preventBrowserGestures } from './input/gestures';
 import { KeyboardControls, bindKeyboard } from './input/keyboard';
@@ -265,6 +266,16 @@ async function main(): Promise<void> {
   // Кнопка активного модуля — пока заглушка (M20c): активируемых модулей в игре нет, и она это говорит.
   const ability = new AbilityButton(el('ability'));
   let abilityHintAt = 0;
+  // «Скрыть» внизу телефона: весь интерфейс полёта прочь — и стик с огнём отпущены, чтобы корабль не ушёл сам.
+  let uiHidden = false;
+  const uiToggle = new UiToggle(el('ui-toggle') as HTMLButtonElement, coarsePointer(), (hidden) => {
+    uiHidden = hidden;
+    overlay.view.visible = !hidden;
+    if (!hidden) return;
+    stick.reset();
+    controls.release();
+    fire.release();
+  });
   ability.onPress = () => {
     const now = Date.now();
     if (now - abilityHintAt < 10_000) return; // жмут её часто, а сказать нечего — не засоряем ленту
@@ -1102,6 +1113,7 @@ async function main(): Promise<void> {
       dockScreen.setPlace(message.place); // где именно стоим: от этого заголовок, фон и вкладки (M15)
       dockScreen.setHangar(message);
       cargoHud.setDocked(docked); // в доке груз продают, а не выбрасывают (M15.1)
+      uiToggle.setDocked(docked);
       if (docked && !was) {
         // Посадка — это спуск, а не стыковка: показываем проход сквозь атмосферу поверх экрана поселения.
         if (message.place?.kind === 'pl') landing.show(planetKindOf(message.place.key));
@@ -1434,7 +1446,7 @@ async function main(): Promise<void> {
       });
     starfield.update(camera.x, camera.y, camera.zoom, app.screen.width, app.screen.height);
     nebula.update(now);
-    weaponArc.update(state.x, state.y, state.rot, target && !dead && !docked ? weapon : null, aim?.state === 'ready');
+    weaponArc.update(state.x, state.y, state.rot, target && !dead && !docked && !uiHidden ? weapon : null, aim?.state === 'ready');
     overlay.update({
       ships: remote.visible(),
       meteors: meteors.visible(),

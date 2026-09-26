@@ -96,6 +96,43 @@ public class TiersTests
     }
 
     [Fact]
+    public void Expand_GrowsEvenAPlainEngine_WithTheFlatBonus()
+    {
+        // «Искра» ×1: прибавки сверх единицы нет, и без engineFlat Mk2 была бы той же «Искрой» за 600.
+        var flat = new[] { Two[0] with { EngineFlat = 0.05 }, Two[1] with { EngineFlat = 0.1 } };
+        var plain = new Dictionary<string, ModuleParams>(Modules)
+        {
+            ["engineS"] = new("Искра", Fitting.EngineSlot, EquipClass.S, Power: 5),
+        };
+        var modules = Tiers.Expand(plain, flat);
+        Assert.Equal(1.05, modules["engineS_mk2"].Speed, 6);
+        Assert.Equal(1.05, modules["engineS_mk2"].Accel, 6);
+        Assert.Equal(1.1, modules["engineS_mk3"].Speed, 6);
+        Assert.Equal(1.2, modules["engineM_mk2"].Speed, 6); // 1 + 0.1 × 1.5 + 0.05
+        // Ухудшение и тут не растёт, а щит прибавку двигателя не получает.
+        Assert.Equal(0.9, modules["afterburner_mk2"].Accel, 6);
+        Assert.Equal(1, modules["shieldS_mk2"].Speed, 6);
+    }
+
+    [Fact]
+    public void RealShop_EveryEngineTierIsFasterThanTheOneBelow()
+    {
+        Assert.True(Balance.TryParse(TestHulls.SharedSources(), out var balance, out var error), error);
+        foreach (var (id, m) in balance!.Modules)
+        {
+            if (m.Slot != Fitting.EngineSlot || Tiers.Split(id).Tier != 1) continue;
+            for (var tier = 2; tier <= Tiers.Max; tier++)
+            {
+                var lower = balance.Modules[Tiers.Id(id, tier - 1)];
+                var upper = balance.Modules[Tiers.Id(id, tier)];
+                Assert.True(upper.Speed > lower.Speed, $"{Tiers.Id(id, tier)}: скорость не выросла");
+                Assert.True(upper.Accel >= lower.Accel, $"{Tiers.Id(id, tier)}: разгон упал");
+                if (m.Accel >= 1) Assert.True(upper.Accel > lower.Accel, $"{Tiers.Id(id, tier)}: разгон не вырос");
+            }
+        }
+    }
+
+    [Fact]
     public void Price_MultipliesAndRoundsToTens()
     {
         Assert.Equal(300, Tiers.Price(300, 1, Two));

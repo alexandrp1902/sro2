@@ -12,7 +12,7 @@ import type { ShopRules } from '../sim/shop';
 import type { MechBattleView, MechPart, MechRules } from '../mech/rules';
 
 /** Версия протокола; зеркало Protocol.Version на сервере. Сервер другой версии (или старый, без поля) — не играем. */
-export const PROTOCOL_VERSION = 34;
+export const PROTOCOL_VERSION = 35;
 
 /** Состояние ИИ пирата: патруль, бой, возврат в логово (налётчик — полёт от врат к точке), уход из системы. */
 export type AiState = 'patrol' | 'attack' | 'return' | 'leave';
@@ -413,6 +413,8 @@ export interface GalaxySystemDto {
 export interface PlaceNameDto {
   key: string;
   name: string;
+  /** Набор фонов дока; нет — общий по виду места. По нему раздаются имена персонала (sim/staff.ts). */
+  scene?: string | null;
 }
 
 /** Регион галактики (M11): Ядро, Пограничье, Дальний рубеж. */

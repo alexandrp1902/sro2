@@ -9,11 +9,16 @@ namespace Sro.Sim;
 /// <param name="Price">Цена к цене Mk1.</param>
 /// <param name="Engine">Прибавка двигателя сверх ×1 (speed − 1, accel − 1) растёт в столько раз; ухудшения не растут.</param>
 /// <param name="Radar">Дальность радара.</param>
-public sealed record TierDef(double Stat = 1, double Power = 1, double Price = 1, double Engine = 1, double Radar = 1)
+/// <param name="EngineFlat">
+/// Ровная прибавка к скорости и разгону двигателя сверх ×1. Без неё базовый двигатель ×1 от тира не рос вовсе:
+/// растить нечего, и «Искра Mk2» была той же «Искрой», только прожорливее.
+/// </param>
+public sealed record TierDef(double Stat = 1, double Power = 1, double Price = 1, double Engine = 1, double Radar = 1, double EngineFlat = 0)
 {
     public string? Validate()
     {
         if (!(Stat > 0) || !(Power > 0) || !(Price > 0) || !(Engine > 0) || !(Radar > 0)) return "all multipliers must be positive";
+        if (!(EngineFlat >= 0)) return "engineFlat must not be negative";
         return null;
     }
 }
@@ -97,8 +102,8 @@ public static class Tiers
                 {
                     Name = Name(m.Name, tier),
                     Power = Whole(m.Power * t.Power),
-                    Speed = Fine(Boost(m.Speed, t.Engine)),
-                    Accel = Fine(Boost(m.Accel, t.Engine)),
+                    Speed = Fine(Drive(m, m.Speed, t)),
+                    Accel = Fine(Drive(m, m.Accel, t)),
                     Shield = Whole(m.Shield * t.Stat),
                     ShieldRegen = Whole(m.ShieldRegen * t.Stat),
                     Radar = Whole(m.Radar * t.Radar),
@@ -128,6 +133,13 @@ public static class Tiers
 
     /// <summary>Множитель двигателя: прибавка сверх ×1 растёт, ухудшение (форсаж хуже разгоняется) остаётся как есть.</summary>
     private static double Boost(double value, double k) => value > 1 ? 1 + (value - 1) * k : value;
+
+    /// <summary>
+    /// Скорость или разгон двигателя старшего тира: прибавка растёт по <see cref="Boost"/>, и сверху — ровная
+    /// <see cref="TierDef.EngineFlat"/>, чтобы рос и двигатель ×1. Ухудшение (разгон форсажа) не трогаем.
+    /// </summary>
+    private static double Drive(ModuleParams m, double value, TierDef t) =>
+        Boost(value, t.Engine) + (m.Slot == Fitting.EngineSlot && value >= 1 ? t.EngineFlat : 0);
 
     /// <summary>
     /// Целое: энергия, щит, радар, бак, выход генератора, ремонт и трюм — счётные величины, и игрок видит их

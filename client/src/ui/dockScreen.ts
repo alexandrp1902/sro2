@@ -35,13 +35,13 @@ import {
 } from '../sim/fitting';
 import { keyHint, keymap } from '../input/keymap';
 import { hops, type GalaxyDto } from '../sim/galaxy';
-import { gearIcon, hasSprite, moduleSprite, shipSprite, spriteUrl, weaponSprite } from '../render/sprites';
+import { gearIcon, hasSprite, missionSprite, moduleSprite, shipSprite, spriteUrl, weaponSprite } from '../render/sprites';
 import { DEFAULT_HULL, type Hulls } from '../sim/hulls';
 import type { HullParams } from '../sim/movement';
 import { activeHint, activeLine, offerNote, offerTitle, timeLeft, type MissionNames } from '../sim/missions';
 import { isStory, lootItem, rarityColor, type LootRules } from '../sim/loot';
 import { NO_MARKET, affordable, rumourLine, stockLevel, tradeCost, trend, yardLine, type MarketRules } from '../sim/market';
-import { staffOf, type StaffRole } from '../sim/staff';
+import { buildRoster, staffOf, type StaffMember, type StaffRole, type StaffRoster, type StaffSlot } from '../sim/staff';
 import {
   NO_REP,
   allowsLevel,
@@ -173,6 +173,23 @@ const SCENE_SETS: Record<string, readonly string[]> = {
 export function sceneArt(place: Place, tab: Tab, set?: string | null): string {
   const art = SCENES[tab].art;
   return set && SCENE_SETS[set]?.includes(art) ? `${set}-${art}` : `${place}-${art}`;
+}
+
+/**
+ * Люди всех доков галактики разом — чтобы имена не повторялись ни в одном из них. Вкладки с человеком
+ * у каждого места одни и те же; верфь есть не везде, но лишний слот лишь занимает одно имя из пула.
+ */
+export function galaxyRoster(galaxy: GalaxyDto): StaffRoster {
+  const slots: StaffSlot[] = [];
+  for (const system of galaxy.systems) {
+    for (const place of system.places ?? []) {
+      for (const tab of ['missions', 'cargo', 'hulls', 'ships'] as const) {
+        const role = SCENES[tab].who;
+        if (role) slots.push({ place: place.key, role, art: sceneArt(placeKind(place.key), tab, place.scene) });
+      }
+    }
+  }
+  return buildRoster(slots);
 }
 
 /** Адрес фона сцены: относительный, как и спрайты. */
@@ -360,6 +377,16 @@ export function repChip(rules: ReputationRules, value: number): { text: string; 
  * Значок ступени: белый силуэт, который CSS-маска красит в цвет плашки. Адрес абсолютный —
  * относительный в переменной считается от файла стилей, а он лежит в assets/ (как и фон сцены).
  */
+/** Значок вида задания перед его названием — маской, цветом текста строки; null — значка нет. */
+function missionIcon(kind: string): HTMLElement | null {
+  const name = missionSprite(kind);
+  if (!name) return null;
+  const mark = el('span', 'mission-icon');
+  mark.style.setProperty('--mission-icon', `url("${new URL(spriteUrl(name), document.baseURI).href}")`);
+  mark.setAttribute('aria-hidden', 'true');
+  return mark;
+}
+
 export function repIcon(name: string): HTMLElement {
   const mark = el('span', 'rep-chip-icon');
   mark.style.setProperty('--rep-icon', `url("${new URL(spriteUrl(name), document.baseURI).href}")`);
@@ -421,6 +448,8 @@ export class DockScreen {
   private placeDto: PlaceDto | null = null;
   /** Карта галактики (M15.6): по ней ангар зовёт места по именам и считает прыжки до них. */
   private galaxy: GalaxyDto | null = null;
+  /** Имена персонала всей галактики (sim/staff.ts): без него тёзки возможны, с ним — нет. */
+  private roster: StaffRoster | null = null;
   /** Места галактики по ключу; null — ещё не собраны из карты. */
   private places: Map<string, { name: string; system: string; systemName: string }> | null = null;
   /** Имя станции этой системы и её набор сцен — запасной вариант, пока места нет. */
@@ -536,6 +565,7 @@ export class DockScreen {
   setGalaxy(galaxy: GalaxyDto | null): void {
     this.galaxy = galaxy;
     this.places = null;
+    this.roster = galaxy ? galaxyRoster(galaxy) : null;
     this.render();
   }
 
@@ -773,7 +803,7 @@ export class DockScreen {
       view.append(ship);
     }
     if (scene.who) {
-      const person = staffOf(this.staffSeed(), scene.who, sceneArt(this.place, this.tab, this.scene_));
+      const person = this.staff(scene.who, this.tab);
       const caption = el('div', 'dock-scene-caption');
       // Торговец и мастер верфи вместо приветствия рассказывают, что слышали: подсказка ценнее вежливости.
       const heard = this.tab === 'cargo' ? this.rumour() : this.tab === 'hulls' ? this.yardRumour() : null;
@@ -892,6 +922,11 @@ export class DockScreen {
     return this.placeKey ?? this.station;
   }
 
+  /** Кто встречает во вкладке tab: имя — из списка всей галактики, если он уже есть. */
+  private staff(role: StaffRole, tab: Tab): StaffMember {
+    return staffOf(this.staffSeed(), role, sceneArt(this.place, tab, this.scene_), this.roster);
+  }
+
   /** Рынок станции (M12): в одном списке и покупка, и продажа. */
   private renderCargo(body: HTMLElement): void {
     const cargo = this.cargo;
@@ -915,7 +950,7 @@ export class DockScreen {
     // Та же реплика торговца, что стоит под его картинкой, — для телефона, где сцены нет совсем.
     // На широком экране её прячет CSS тем же брейкпоинтом, которым показывает сцену: дважды не повторяем.
     const rumour = this.rumour();
-    if (rumour) body.append(el('div', 'dock-rumour', `${staffOf(this.staffSeed(), 'cargo', sceneArt(this.place, 'cargo', this.scene_)).name}: ${rumour}`));
+    if (rumour) body.append(el('div', 'dock-rumour', `${this.staff('cargo', 'cargo').name}: ${rumour}`));
 
     // Быстрая продажа — первым делом: с полным трюмом в док заходят чаще, чем за покупками.
     // Две кнопки в ряд (M16a): ресурсы и модули продаются отдельно, чтобы за модулями не ходить
@@ -1084,7 +1119,10 @@ export class DockScreen {
     if (story?.relay) {
       const box = el('div', 'dock-mission dock-tutorial');
       box.append(el('div', 'dock-mission-head sro-label sro-warn', `${story.name} · часть первая пройдена`));
-      box.append(el('div', 'dock-name sro-row__name', 'Ретранслятор · Первая вылазка'));
+      const relay = el('div', 'dock-name sro-row__name', 'Ретранслятор · Первая вылазка');
+      const ground = missionIcon('ground');
+      if (ground) relay.prepend(ground);
+      box.append(relay);
       box.append(el('div', 'dock-stats sro-row__meta', relayLine(story.sortieWon === true)));
       const actions = el('div', 'dock-mission-actions');
       actions.append(button(story.sortieWon ? 'Ещё раз' : 'На связь', 'dock-buy sro-btn sro-btn--sm', () => this.handlers.onRelay()));
@@ -1112,6 +1150,8 @@ export class DockScreen {
     row.dataset.state = busy ? 'poor' : 'buy';
     if (offer.story) row.classList.add('dock-row--story');
     const name = el('div', 'dock-name sro-row__name', offerTitle(offer, this.names));
+    const icon = missionIcon(offer.kind);
+    if (icon) name.prepend(icon);
     // Кто даёт работу — видно до того, как её возьмут: с этого человека и начинается сцена.
     const note = offer.story
       ? `${offer.story.giver} · ${offer.story.role} — ${offerNote(offer, this.names)}`
@@ -1130,7 +1170,7 @@ export class DockScreen {
     }
     // Та же наводка мастера, что стоит под его картинкой, — для телефона, где сцены нет совсем.
     const yard = this.yardRumour();
-    if (yard) body.append(el('div', 'dock-rumour', `${staffOf(this.staffSeed(), 'hulls', sceneArt(this.place, 'hulls', this.scene_)).name}: ${yard}`));
+    if (yard) body.append(el('div', 'dock-rumour', `${this.staff('hulls', 'hulls').name}: ${yard}`));
     let shown = 0;
     for (const id of this.hulls.ids()) {
       const hull = this.hulls.get(id);

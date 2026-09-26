@@ -11,6 +11,24 @@ import { DIRECTION_NAMES, type MechPart } from './rules';
 type Layer = 'chassis' | 'body' | 'left' | 'right';
 const LAYERS: Layer[] = ['chassis', 'body', 'left', 'right'];
 
+/** Эффекты боя (пачка E): попадание, взрыв, блок щитом. Кадров у каждого — сколько нарезал tools/mechs.py. */
+export type FxName = 'hit' | 'explosion' | 'block';
+export const FX_FRAMES: Readonly<Record<FxName, number>> = (meta as { fx?: Record<FxName, number> }).fx ?? {
+  hit: 0,
+  explosion: 0,
+  block: 0,
+};
+
+/** Кадры эффекта по порядку; пусто — эффект не загрузился, бой идёт и без него. */
+export function fxTextures(name: FxName): Texture[] {
+  const out: Texture[] = [];
+  for (let i = 0; i < FX_FRAMES[name]; i++) {
+    const texture = textures.get(`fx-${name}-${i}`);
+    if (texture) out.push(texture);
+  }
+  return out;
+}
+
 /** Тайлы поля (стенд-ин до P4). */
 export const TILE_NAMES = ['ground-1', 'ground-2', 'rough', 'crate', 'wall', 'building'] as const;
 export type TileName = (typeof TILE_NAMES)[number];
@@ -33,6 +51,7 @@ export function loadMechArt(): Promise<void> {
     const names = [
       ...LAYERS.flatMap((layer) => DIRECTION_NAMES.map((d) => `${layer}-${d}`)),
       ...TILE_NAMES.map((t) => `tile-${t}`),
+      ...(Object.keys(FX_FRAMES) as FxName[]).flatMap((fx) => Array.from({ length: FX_FRAMES[fx] }, (_, i) => `fx-${fx}-${i}`)),
     ];
     const loaded = await Assets.load(names.map((name) => ({ alias: `mech:${name}`, src: mechUrl(name), data: { autoGenerateMipmaps: true } })));
     for (const name of names) textures.set(name, loaded[`mech:${name}`] as Texture);

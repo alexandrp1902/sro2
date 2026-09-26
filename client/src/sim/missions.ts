@@ -78,7 +78,7 @@ export function offerNote(offer: MissionOffer, names: MissionNames): string {
     case 'kill':
       return 'награда — сразу за последнего';
     case 'collect':
-      return 'сдать в любом доке';
+      return 'добыть в космосе, купленное не в счёт · сдать в любом доке';
     case 'deliver':
       return `${names.system(offer.system ?? '')} · груз займёт ${offer.count} ед. трюма`;
     case 'escort':
@@ -139,7 +139,7 @@ export function activeHint(active: Active, here: string | null, docked: boolean,
     case 'kill':
       return here === offer.system ? 'уничтожайте их здесь' : `летите в ${names.system(offer.system ?? '')}`;
     case 'collect':
-      if (progress < offer.count) return 'добудьте в космосе';
+      if (progress < offer.count) return 'добудьте в космосе — купленное не в счёт';
       return docked ? 'сдайте на вкладке «Задания»' : 'сдайте на любой станции';
     case 'deliver':
       return here === offer.system

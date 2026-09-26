@@ -2073,7 +2073,7 @@ public sealed partial class Room
         [.. galaxy.SystemMap.Select(kv => new GalaxySystemDto(
             kv.Key, kv.Value.Name, kv.Value.Danger, kv.Value.Pvp, kv.Value.Station,
             kv.Value.Map?.X ?? 0, kv.Value.Map?.Y ?? 0, kv.Value.Region,
-            [.. kv.Value.Places(kv.Key, 0).Select(p => new PlaceNameDto(p.Key, p.Name))],
+            [.. kv.Value.Places(kv.Key, 0).Select(p => new PlaceNameDto(p.Key, p.Name, p.Scene))],
             [.. kv.Value.GateList.Select(g => g.To)]))],
         [.. galaxy.LinkList.Select(l => new LinkDto(l.A, l.B))],
         galaxy.Regions is null ? null : [.. galaxy.RegionMap.Select(kv => new RegionDto(kv.Key, kv.Value.Name, kv.Value.Color))]);
@@ -2140,6 +2140,7 @@ public sealed partial class Room
                 SendCargo(player);
                 SendHangar(player); // подобранное снаряжение попадает на склад
                 Save(player);
+                Gathered(player, taken);
                 if (!Advance(player, new TutorialEvent(MissionRules.GrabStep))) SendCollect(player);
                 // Сюжет узнаёт о подборе здесь: по нему приходит звено в шестой миссии и открывается выбор.
                 if (taken is not null) StoryPicked(player, taken);
@@ -2252,7 +2253,8 @@ public sealed partial class Room
         }
         var count = player.Cargo.Count(item);
         if (count <= 0 || !player.Cargo.Remove(item, count)) return;
-        _loot.SpillOne(Balance.Loot, item, count, player.Ship.X, player.Ship.Y, player.Ship.Vx, player.Ship.Vy, Tick);
+        // Выброшенное — из трюма, а трюм мог быть куплен: подобрав его обратно, «собрать» не закрыть.
+        _loot.SpillOne(Balance.Loot, item, count, player.Ship.X, player.Ship.Y, player.Ship.Vx, player.Ship.Vy, Tick, fromHold: true);
         player.CargoFullUntilTick = 0;
         connection.Send(new NoticeMsg(Protocol.JettisonedNotice));
         SendCargo(player);
@@ -2711,6 +2713,12 @@ public sealed partial class Room
                     connection.Send(new NoticeMsg(Protocol.TooFarNotice));
                     return;
                 }
+                // Обычное «собрать» — добыть в космосе, а не купить у соседа по системе (см. Gathered).
+                if (collect.Story is null && log.Active.Gathered < collect.Count)
+                {
+                    connection.Send(new NoticeMsg(Protocol.NotGatheredNotice));
+                    return;
+                }
                 if (!player.Cargo.Remove(item, collect.Count)) return;
                 Complete(player);
                 return;
@@ -2882,6 +2890,18 @@ public sealed partial class Room
         return true;
     }
 
+    /// <summary>
+    /// Подобранное в космосе засчитывается обычному «собрать»: предмет тот, и он не из трюма игрока (купленную руду
+    /// выбросили бы и подобрали обратно). Сюжетное «собрать» считает по трюму, как раньше.
+    /// </summary>
+    private static void Gathered(Player player, LootDrop? taken)
+    {
+        if (taken is null || taken.FromHold) return;
+        if (player.Missions.Active is not { Offer: { Kind: MissionRules.CollectKind, Story: null } offer } active) return;
+        if (offer.Item != taken.Item) return;
+        player.Missions.Active = active with { Gathered = Math.Min(offer.Count, active.Gathered + taken.Count) };
+    }
+
     /// <summary>У «собрать» прогресс — сколько такого в трюме: трюм изменился — клиенту новый счёт.</summary>
     private void SendCollect(Player player)
     {
@@ -2921,8 +2941,13 @@ public sealed partial class Room
     {
         if (player.Connection is null) return;
         var active = player.Missions.Active;
-        if (active?.Offer is { Kind: MissionRules.CollectKind, Item: { } item })
-            active = active with { Progress = Math.Min(active.Offer.Count, player.Cargo.Items.GetValueOrDefault(item)) };
+        if (active?.Offer is { Kind: MissionRules.CollectKind, Item: { } item } collect)
+        {
+            // Обычное «собрать» считает добытое, но не больше, чем в трюме: продал или выбросил — счёт упал.
+            var held = player.Cargo.Items.GetValueOrDefault(item);
+            var count = collect.Story is null ? Math.Min(held, active.Gathered) : held;
+            active = active with { Progress = Math.Min(active.Offer.Count, count) };
+        }
         player.Connection.Send(new MissionsMsg(
             TutorialOf(player),
             active,

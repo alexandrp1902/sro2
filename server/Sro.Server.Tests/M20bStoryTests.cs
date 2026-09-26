@@ -125,7 +125,7 @@ public sealed class M20bStoryTests : IDisposable
                     RewardHull: "heavy",
                     RewardIf: "yes",
                     Lines: new StoryLines(Done: ["Спасибо."]),
-                    Alt: new StoryAlt("yes", new StoryLines(Done: ["Забирайте «Тяжёлый»."]))),
+                    Alt: new StoryAlt("yes", new StoryLines(Done: ["Забирайте «Тяжёлый»."]), DoneBy: "Дан", DoneRole: "сварщик")),
             ]),
     });
 
@@ -381,6 +381,7 @@ public sealed class M20bStoryTests : IDisposable
         // Флага «я с вами» у этого пилота нет: корабля тоже нет.
         Assert.DoesNotContain("heavy", PlayerOf(a).Hulls);
         Assert.Equal("Спасибо.", a.Last<DialogMsg>().Lines[^1]);
+        Assert.Equal(("Ева", "инженер"), (a.Last<DialogMsg>().Who, a.Last<DialogMsg>().Role));
 
         var b = Pilot("Bob");
         PlayerOf(b).StoryOf(Campaign).Flags.Add("yes");
@@ -394,6 +395,8 @@ public sealed class M20bStoryTests : IDisposable
         Assert.NotEqual("heavy", PlayerOf(b).HullId);
         // И реплика у него своя: выбор слышно, а не только видно в ангаре.
         Assert.Equal("Забирайте «Тяжёлый».", b.Last<DialogMsg>().Lines[^1]);
+        // Корабль отдаёт его хозяин: в этом варианте на сдаче говорит он, а не та, кто выдала работу.
+        Assert.Equal(("Дан", "сварщик"), (b.Last<DialogMsg>().Who, b.Last<DialogMsg>().Role));
     }
 
     [Fact]

@@ -226,7 +226,11 @@ public sealed record StoryRef(
 /// Courier: unix-секунды, когда выйдет срок; 0 — срока нет. Именно момент, а не остаток: пилот уходит
 /// из игры и возвращается, и остаток тогда можно было бы обнулять перезаходом (M14).
 /// </param>
-public sealed record ActiveMission(MissionOffer Offer, int Progress = 0, long Until = 0);
+/// <param name="Gathered">
+/// «Собрать»: сколько нужного добыто в космосе после взятия. Сдать можно не больше этого — купленное на рынке
+/// и подобранное из собственного выброшенного трюма сюда не попадает.
+/// </param>
+public sealed record ActiveMission(MissionOffer Offer, int Progress = 0, long Until = 0, int Gathered = 0);
 
 /// <summary>
 /// Задания и обучение из shared/missions.json (GDD §36, §54). Доска каждой станции генерируется из шаблонов

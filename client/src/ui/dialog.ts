@@ -1,15 +1,30 @@
 /**
  * Карточка сюжетного диалога (M20a): кто говорит, что говорит и что можно ответить.
  *
- * Портретов в игре пока нет, поэтому говорящего представляет значок кампании — две буквы имени
- * в рамке, нарисованные кодом. Слот под картинку в разметке уже есть (`.dialog-face`), и когда
- * портреты появятся, он заполняется одной строкой, не трогая ничего остального.
+ * Говорящего представляет портрет (пачка M: public/portraits, нарезает tools/portraits.py), а у кого
+ * портрета нет — значок кампании: две буквы имени в рамке, нарисованные кодом.
  *
  * Живёт своим хостом рядом с остальными карточками, а не внутри дока: док перерисовывается целиком,
  * и карточка, вложенная в него, пропадала бы от любой покупки.
  */
 
 import type { DialogOptionDto } from '../net/protocol';
+
+/**
+ * Портреты по имени говорящего — так, как его пишет story.json (giver, doneBy) и mechs.json (who).
+ * Имя, а не id: сервер шлёт в диалоге только его, и заводить ради картинки поле в протоколе незачем.
+ */
+const PORTRAITS: Readonly<Record<string, string>> = {
+  'Ева Морен': 'eva',
+  'Капитан Холт': 'holt',
+  'Дан': 'dan',
+};
+
+/** Адрес портрета говорящего; null — портрета нет, рисуем монограмму. */
+export function portraitUrl(who: string): string | null {
+  const name = PORTRAITS[who.trim()];
+  return name ? `portraits/${name}.webp` : null;
+}
 
 /** Что показывает карточка. Отдельный тип: демо-экран строит её без сервера. */
 export interface DialogView {
@@ -79,7 +94,7 @@ export class DialogCard {
    * и очередь из двух карточек читалась бы как «нажми дважды».
    */
   show(view: DialogView, campaign: string, onAnswer?: (flag: string) => void): void {
-    this.face.textContent = monogram(view.who);
+    this.paintFace(view.who);
     this.who.textContent = view.who;
     this.caption.textContent = dialogCaption(view.role, campaign);
     this.body.replaceChildren(
@@ -108,6 +123,26 @@ export class DialogCard {
   hide(): void {
     this.root.hidden = true;
     this.answer = null;
+  }
+
+  /** Портрет, если он есть; не загрузился — та же монограмма, что и у безликих. */
+  private paintFace(who: string): void {
+    const url = portraitUrl(who);
+    this.face.dataset.portrait = String(!!url);
+    if (!url) {
+      this.face.textContent = monogram(who);
+      return;
+    }
+    const img = document.createElement('img');
+    img.alt = '';
+    img.decoding = 'async';
+    img.src = url;
+    img.addEventListener('error', () => {
+      if (!img.isConnected) return;
+      this.face.dataset.portrait = 'false';
+      this.face.textContent = monogram(who);
+    });
+    this.face.replaceChildren(img);
   }
 
   private button(label: string, className: string, onClick: () => void): HTMLButtonElement {

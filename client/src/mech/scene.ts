@@ -1,5 +1,5 @@
 import { Application, Container, Graphics, Sprite, Text } from 'pixi.js';
-import { MechRig, mechTexture } from './rig';
+import { type FxName, MechRig, fxTextures, mechTexture } from './rig';
 import { MechField, PARTS, STEPS, alive, type MechPart, type MechUnitView } from './rules';
 
 /** Клетка поля на экране при зуме 1 (план M21: 72 px). */
@@ -10,6 +10,12 @@ const RIG_PX = CELL_PX * 1.8;
 const FOOT_Y = CELL_PX * 0.3;
 const ZOOM_MIN = 0.4;
 const ZOOM_MAX = 1.6;
+/** Эффекты боя (пачка E): размер в клетках и длительность, мс. Взрыв крупнее и дольше — это конец меха. */
+const FX: Record<FxName, { size: number; ms: number }> = {
+  hit: { size: 1.1, ms: 360 },
+  block: { size: 1.7, ms: 480 },
+  explosion: { size: 2.4, ms: 900 },
+};
 /** Сдвиг пальца больше этого — перетаскивание поля, а не тап. */
 const DRAG_SLOP = 8;
 
@@ -329,6 +335,8 @@ export class MechScene {
       style: { fontFamily: 'Manrope Variable, system-ui, sans-serif', fontSize: 18, fontWeight: '800', fill: color, stroke: { color: 0x08090b, width: 4 } },
     });
     label.anchor.set(0.5, 1);
+    // Попадание и блок видно и картинкой: вспышка на корпусе, щит — сотами вокруг меха.
+    if (kind === 'hit' || kind === 'block') void this.burst(view, kind);
     const x = view.holder.x;
     const y = view.holder.y - CELL_PX * 0.9;
     label.position.set(x, y);
@@ -350,8 +358,26 @@ export class MechScene {
     this.pose(view, view.unit.dir);
     if (part === 'body' && hp <= 0) {
       view.base.visible = false;
+      void this.burst(view, 'explosion');
       void this.tween(400, (k) => (view.holder.alpha = 1 - 0.65 * k));
     }
+  }
+
+  /** Проиграть эффект поверх меха кадр за кадром; кадров нет — ничего не рисуем. */
+  private burst(view: UnitView, name: FxName): Promise<void> {
+    const frames = fxTextures(name);
+    if (frames.length === 0) return Promise.resolve();
+    const { size, ms } = FX[name];
+    const sprite = new Sprite(frames[0]);
+    sprite.anchor.set(0.5);
+    sprite.width = CELL_PX * size;
+    sprite.height = CELL_PX * size;
+    // Центр — на корпусе, а не на клетке: мех стоит ногами ниже центра, а корпус заходит выше.
+    sprite.position.set(view.holder.x, view.holder.y - CELL_PX * 0.2);
+    this.fx.addChild(sprite);
+    return this.tween(ms, (k) => {
+      sprite.texture = frames[Math.min(frames.length - 1, Math.floor(k * frames.length))];
+    }).then(() => sprite.destroy());
   }
 
   unitOf(id: string): MechUnitView | null {

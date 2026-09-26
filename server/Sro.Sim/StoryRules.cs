@@ -94,7 +94,9 @@ public sealed record StorySpawn(
 /// развилок в кампании мало, а держать по варианту на каждый флаг значило бы писать кампанию дважды.
 /// </summary>
 /// <param name="Flag">Чей это вариант: у кого этот флаг стоит, тот и услышит эти реплики.</param>
-public sealed record StoryAlt(string Flag, StoryLines? Lines = null);
+/// <param name="DoneBy">Кто говорит на сдаче в этом варианте; null — как в основном.</param>
+/// <param name="DoneRole">Подпись под его именем; null — как в основном.</param>
+public sealed record StoryAlt(string Flag, StoryLines? Lines = null, string? DoneBy = null, string? DoneRole = null);
 
 /// <summary>
 /// Миссия кампании (M20a). Механика — из уже существующих видов заданий: сюжет добавляет не новые

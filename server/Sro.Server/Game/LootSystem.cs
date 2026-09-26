@@ -56,7 +56,8 @@ internal sealed class LootSystem(Func<int> nextId, Random rng, ILogger log)
         string item,
         int count,
         bool fromContainer = false,
-        int owner = 0)
+        int owner = 0,
+        bool fromHold = false)
     {
         if (count < 1 || !loot.Knows(item)) return null;
         if (_drops.Count >= loot.MaxItems)
@@ -66,7 +67,7 @@ internal sealed class LootSystem(Func<int> nextId, Random rng, ILogger log)
         }
         // Содержимое контейнера ждёт игрока сколько угодно: оно и есть постоянная точка на карте.
         var expires = fromContainer ? long.MaxValue : tick + loot.LifetimeTicks;
-        var drop = new LootDrop(nextId(), item, count, x, y, vx, vy, expires, fromContainer, owner);
+        var drop = new LootDrop(nextId(), item, count, x, y, vx, vy, expires, fromContainer, owner, fromHold);
         _drops.Add(drop);
         return drop;
     }
@@ -159,7 +160,8 @@ internal sealed class LootSystem(Func<int> nextId, Random rng, ILogger log)
             if (hold is { IsEmpty: false })
             {
                 var dead = ships[kill.Id];
-                Spill(hold, loot, dead.Ship.X, dead.Ship.Y, dead.DeathVx, dead.DeathVy, tick);
+                // Трюм игрока мог быть куплен: подобранное из него «собрать» не засчитывает.
+                Spill(hold, loot, dead.Ship.X, dead.Ship.Y, dead.DeathVx, dead.DeathVy, tick, fromHold: dead is Player);
             }
             var (tableId, level) = ships.GetValueOrDefault(kill.Id) switch
             {
@@ -178,7 +180,7 @@ internal sealed class LootSystem(Func<int> nextId, Random rng, ILogger log)
     /// Весь груз трюма — в космос вокруг точки гибели, кучками не больше <see cref="PileVolume"/>. Груз доставки
     /// (Reserved) — не предмет: он остаётся за пилотом.
     /// </summary>
-    public void Spill(Cargo hold, LootRules loot, double x, double y, double vx, double vy, long tick)
+    public void Spill(Cargo hold, LootRules loot, double x, double y, double vx, double vy, long tick, bool fromHold = false)
     {
         // Сюжетный предмет гибель переживает (M20a): цепочка миссий не должна рваться на первом же
         // респауне. Поэтому высыпается не весь трюм, а всё, кроме него, и чистится тоже выборочно.
@@ -188,7 +190,7 @@ internal sealed class LootSystem(Func<int> nextId, Random rng, ILogger log)
             if (loot.IsStory(item)) continue;
             spilled.Add((item, total));
             var pile = Math.Max(1, (int)Math.Floor(PileVolume / Math.Max(loot.Volume(item), 1e-9)));
-            for (var left = total; left > 0; left -= pile) Scatter(loot, tick, x, y, vx, vy, item, Math.Min(pile, left));
+            for (var left = total; left > 0; left -= pile) Scatter(loot, tick, x, y, vx, vy, item, Math.Min(pile, left), fromHold: fromHold);
         }
         foreach (var (item, count) in spilled) hold.Remove(item, count);
     }
@@ -198,13 +200,14 @@ internal sealed class LootSystem(Func<int> nextId, Random rng, ILogger log)
     /// </summary>
     /// <param name="owner">Чей это груз (M20a); 0 — ничей. Сюжет кладёт ящики адресно.</param>
     /// <param name="waits">Не протухать и ждать хозяина, как содержимое контейнера (M20a).</param>
+    /// <param name="fromHold">Из трюма игрока — «собрать» такое не засчитывает (см. <see cref="LootDrop.FromHold"/>).</param>
     public void SpillOne(
         LootRules loot, string item, int count, double x, double y, double vx, double vy, long tick,
-        int owner = 0, bool waits = false)
+        int owner = 0, bool waits = false, bool fromHold = false)
     {
         var pile = Math.Max(1, (int)Math.Floor(PileVolume / Math.Max(loot.Volume(item), 1e-9)));
         for (var left = count; left > 0; left -= pile)
-            Scatter(loot, tick, x, y, vx, vy, item, Math.Min(pile, left), owner, waits);
+            Scatter(loot, tick, x, y, vx, vy, item, Math.Min(pile, left), owner, waits, fromHold);
     }
 
     /// <summary>
@@ -228,13 +231,13 @@ internal sealed class LootSystem(Func<int> nextId, Random rng, ILogger log)
     /// <summary>Предмет в случайной точке круга DropRadius: стопка в одной точке не разбирается тапом.</summary>
     private void Scatter(
         LootRules loot, long tick, double x, double y, double vx, double vy, string item, int count,
-        int owner = 0, bool waits = false)
+        int owner = 0, bool waits = false, bool fromHold = false)
     {
         var radius = loot.DropRadius * Math.Sqrt(rng.NextDouble());
         var angle = rng.NextDouble() * 2 * Math.PI;
         Spawn(
             loot, tick, x + radius * Math.Cos(angle), y + radius * Math.Sin(angle),
-            vx * loot.DriftFactor, vy * loot.DriftFactor, item, count, waits, owner);
+            vx * loot.DriftFactor, vy * loot.DriftFactor, item, count, waits, owner, fromHold);
     }
 
     /// <summary>

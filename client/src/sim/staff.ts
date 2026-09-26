@@ -12,6 +12,10 @@
  * Верфь и ангар нарисованы сверху, без людей, — там имя свободное. Торговец джунглей — ящер:
  * у него одно имя, фамилий у его народа не водится.
  *
+ * Хеш по месту сам по себе тёзок не исключает: на двадцать мест одни и те же пулы давали двух
+ * Тариков Азизи и четырёх Чэнь. Поэтому, когда известна вся галактика, имена раздаёт buildRoster —
+ * по очереди, и следующий берёт следующее свободное. Без неё (демо, тесты) имя считается по месту.
+ *
  * Реплики написаны без рода говорящего («говорят», а не «слышал»): одна строка годится всем.
  */
 
@@ -263,9 +267,96 @@ const LINES: Record<StaffRole, readonly string[]> = {
 
 /** Имя из пула: имя и фамилия — от одного зерна, но с разной солью. */
 function nameFrom(pool: NamePool, sex: 'm' | 'f', seed: string): string {
+  return candidate(pool, sex, seed).name;
+}
+
+/** Имя с частями: family — мужская форма фамилии, чтобы Хансен и Хансен, Рябов и Рябова считались роднёй. */
+function candidate(pool: NamePool, sex: 'm' | 'f', seed: string): { name: string; first: string; family: string } {
   const first = pick(sex === 'f' ? pool.f : pool.m, `${seed}|first`);
-  const last = pick(pool.last, `${seed}|last`)[sex === 'f' ? 1 : 0];
-  return `${first} ${last}`;
+  const pair = pick(pool.last, `${seed}|last`);
+  return { name: `${first} ${pair[sex === 'f' ? 1 : 0]}`, first, family: pair[0] };
+}
+
+/** Кто стоит в слоте: ящер или человек такого-то пула и пола; drawn — это задано портретом. */
+type Look = { alien: true } | { pool: NamePool; sex: 'm' | 'f'; drawn: boolean };
+
+function lookOf(seed: string, art?: string | null): Look {
+  const drawn = art ? APPEARANCE[art] : undefined;
+  if (drawn && 'alien' in drawn) return { alien: true };
+  if (drawn) return { pool: POOLS[drawn.origin], sex: drawn.sex, drawn: true };
+  const origin = pick(ANY_ORIGIN, `${seed}|origin`);
+  return { pool: POOLS[origin], sex: hash(`${seed}|sex`) % 2 === 1 ? 'f' : 'm', drawn: false };
+}
+
+/** Один человек дока: где, в какой вкладке и какая там картинка (имя сцены, как у staffOf). */
+export interface StaffSlot {
+  place: string;
+  role: StaffRole;
+  art?: string | null;
+}
+
+/** Имена всей галактики: «место|вкладка» → имя. */
+export type StaffRoster = ReadonlyMap<string, string>;
+
+/** Сколько попыток держать фамилию единственной на всю галактику; дальше хватит «не в этом доке». */
+const FAMILY_TRIES = 24;
+const MAX_TRIES = 200;
+
+/**
+ * Имена на всю галактику разом: полные имена не повторяются нигде, в одном доке нет ни тёзок, ни
+ * однофамильцев, а по возможности и фамилия у каждого своя. Порядок устойчивый, поэтому у всех игроков
+ * состав один и тот же, а первая попытка — то самое имя, что дал бы staffOf: люди, которым не с кем
+ * было совпасть, остаются при своих.
+ * Сначала — те, кого нарисовали: их пул задан портретом, и у малых пулов (западный, ближневосточный)
+ * фамилии кончаются быстро. Мастера верфи и ангара идут следом и при повторе меняют и происхождение.
+ */
+export function buildRoster(slots: readonly StaffSlot[]): StaffRoster {
+  const roster = new Map<string, string>();
+  const names = new Set<string>();
+  const families = new Set<string>();
+  const local = new Map<string, { first: Set<string>; family: Set<string> }>();
+  const drawnFirst = (slot: StaffSlot) => `${slot.art && APPEARANCE[slot.art] ? 0 : 1}|${slot.place}|${slot.role}`;
+  const sorted = [...slots].sort((a, b) => {
+    const ka = drawnFirst(a);
+    const kb = drawnFirst(b);
+    return ka < kb ? -1 : ka > kb ? 1 : 0;
+  });
+  for (const slot of sorted) {
+    const seed = `${slot.place}|${slot.role}`;
+    if (roster.has(seed)) continue;
+    const look = lookOf(seed, slot.art);
+    let here = local.get(slot.place);
+    if (!here) local.set(slot.place, (here = { first: new Set(), family: new Set() }));
+    if ('alien' in look) {
+      // Ящеров мало, и фамилий у них нет: достаточно, чтобы имя не повторялось.
+      let name = pick(ALIEN_NAMES, `${seed}|alien`);
+      for (let n = 1; names.has(name) && n < MAX_TRIES; n++) name = pick(ALIEN_NAMES, `${seed}|alien|${n}`);
+      names.add(name);
+      roster.set(seed, name);
+      continue;
+    }
+    // Запасной — первый, кто хотя бы не тёзка никому: на случай, если пул мал и строже не выходит.
+    let chosen: ReturnType<typeof candidate> | null = null;
+    let spare: ReturnType<typeof candidate> | null = null;
+    for (let n = 0; n < MAX_TRIES && !chosen; n++) {
+      const salt = n === 0 ? seed : `${seed}|${n}`;
+      // Без портрета человек может быть откуда угодно: повтор тянет и новое происхождение.
+      const who = look.drawn ? look : lookOf(salt);
+      if ('alien' in who) continue;
+      const c = candidate(who.pool, who.sex, salt);
+      if (names.has(c.name)) continue;
+      spare ??= c;
+      const alone = !here.first.has(c.first) && !here.family.has(c.family);
+      if (alone && (n >= FAMILY_TRIES || !families.has(c.family))) chosen = c;
+    }
+    chosen ??= spare ?? candidate(look.pool, look.sex, seed);
+    names.add(chosen.name);
+    families.add(chosen.family);
+    here.first.add(chosen.first);
+    here.family.add(chosen.family);
+    roster.set(seed, chosen.name);
+  }
+  return roster;
 }
 
 /**
@@ -275,17 +366,13 @@ function nameFrom(pool: NamePool, sex: 'm' | 'f', seed: string): string {
  * @param art имя сцены без dock/ и .webp («ring-office»): по нему пол и происхождение берутся
  *   с портрета. Без него (или для верфи и ангара, где людей не рисуют) — вольный выбор по месту.
  */
-export function staffOf(place: string, role: StaffRole, art?: string | null): StaffMember {
+export function staffOf(place: string, role: StaffRole, art?: string | null, roster?: StaffRoster | null): StaffMember {
   const line = pick(LINES[role], `${place}|${role}|line`);
   const seed = `${place}|${role}`;
-  const look = art ? APPEARANCE[art] : undefined;
-  if (look && 'alien' in look) {
-    return { name: pick(ALIEN_NAMES, `${seed}|alien`), role: ROLES[role], line: pick(ALIEN_LINES, `${place}|alien|line`) };
+  const look = lookOf(seed, art);
+  const listed = roster?.get(seed);
+  if ('alien' in look) {
+    return { name: listed ?? pick(ALIEN_NAMES, `${seed}|alien`), role: ROLES[role], line: pick(ALIEN_LINES, `${place}|alien|line`) };
   }
-  if (look) {
-    return { name: nameFrom(POOLS[look.origin], look.sex, seed), role: ROLES[role], line };
-  }
-  const origin = pick(ANY_ORIGIN, `${seed}|origin`);
-  const sex = hash(`${seed}|sex`) % 2 === 1 ? 'f' : 'm';
-  return { name: nameFrom(POOLS[origin], sex, seed), role: ROLES[role], line };
+  return { name: listed ?? nameFrom(look.pool, look.sex, seed), role: ROLES[role], line };
 }

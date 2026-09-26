@@ -575,6 +575,38 @@
     "w": 128,
     "h": 117
   },
+  "mission-escort": {
+    "w": 128,
+    "h": 118
+  },
+  "mission-patrol": {
+    "w": 128,
+    "h": 89
+  },
+  "mission-courier": {
+    "w": 128,
+    "h": 65
+  },
+  "mission-meteor": {
+    "w": 128,
+    "h": 128
+  },
+  "mission-ground": {
+    "w": 126,
+    "h": 128
+  },
+  "resources-mech-frame": {
+    "w": 128,
+    "h": 128
+  },
+  "resources-mech-drive": {
+    "w": 112,
+    "h": 128
+  },
+  "resources-mech-weapon": {
+    "w": 124,
+    "h": 128
+  },
   "suns-corona-inner": {
     "w": 512,
     "h": 512

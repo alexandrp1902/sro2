@@ -1,0 +1,37 @@
+{
+  "date": "2026-09-26",
+  "A-J": {
+    "total": 196,
+    "missing": []
+  },
+  "portraits": [
+    {
+      "file": "sources/portrait-eva.png",
+      "width": 1254,
+      "height": 1254,
+      "mode": "RGB",
+      "decoded": true
+    },
+    {
+      "file": "sources/portrait-holt.png",
+      "width": 1254,
+      "height": 1254,
+      "mode": "RGB",
+      "decoded": true
+    },
+    {
+      "file": "sources/portrait-dan.png",
+      "width": 1254,
+      "height": 1254,
+      "mode": "RGB",
+      "decoded": true
+    },
+    {
+      "file": "sources/portrait-contact.png",
+      "width": 1254,
+      "height": 1254,
+      "mode": "RGB",
+      "decoded": true
+    }
+  ]
+}

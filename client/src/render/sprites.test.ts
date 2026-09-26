@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { hasSprite, moduleSprite, shipSprite, weaponSprite } from './sprites';
+import { hasSprite, itemSprite, missionSprite, moduleSprite, shipSprite, weaponSprite } from './sprites';
 
 /**
  * Таблицы имён картинок и нарезка живут порознь: имя пишется руками в sprites.ts, а файл появляется из
@@ -17,6 +17,22 @@ describe('sprite names', () => {
     }
     // Тир на картинку не влияет: Mk2 рисуется значком, а не своим спрайтом.
     expect(moduleSprite('utility', 'thrusters_mk2')).toBe(moduleSprite('utility', 'thrusters'));
+  });
+
+  it('marks board missions with the drawn kind icons, and leaves the rest bare', () => {
+    expect(missionSprite('collect')).toBe('mission-meteor');
+    expect(missionSprite('hunt')).toBe('mission-meteor');
+    expect(missionSprite('escort')).toBe('mission-escort');
+    expect(missionSprite('patrol')).toBe('mission-patrol');
+    expect(missionSprite('courier')).toBe('mission-courier');
+    expect(missionSprite('ground')).toBe('mission-ground');
+    for (const kind of ['kill', 'deliver', 'defend']) expect(missionSprite(kind), kind).toBeNull();
+  });
+
+  it('draws the prototype parts as mech parts, not as stand-in goods', () => {
+    expect(itemSprite('mechFrame')).toBe('resources-mech-frame');
+    expect(itemSprite('driveBlock')).toBe('resources-mech-drive');
+    expect(itemSprite('weaponModule')).toBe('resources-mech-weapon');
   });
 
   it('falls back to the slot, and to nothing for a slot without a picture', () => {

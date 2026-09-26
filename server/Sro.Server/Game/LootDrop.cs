@@ -12,6 +12,10 @@ namespace Sro.Server.Game;
 /// Видят такую стопку все — снапшот в системе один, — но взять её может только хозяин. Иначе двое,
 /// идущие по одной кампании, растаскивали бы ящики друг у друга, и цепочка вставала бы намертво.
 /// </param>
+/// <param name="fromHold">
+/// Высыпано из трюма игрока — выброшено за борт или осталось после его гибели. Такой груз не «добыт в космосе»:
+/// «собрать» его не засчитывает, иначе купленную руду выбрасывали бы и подбирали обратно.
+/// </param>
 public sealed class LootDrop(
     int id,
     string item,
@@ -22,9 +26,13 @@ public sealed class LootDrop(
     double vy,
     long expiresAtTick,
     bool fromContainer = false,
-    int owner = 0)
+    int owner = 0,
+    bool fromHold = false)
 {
     public bool FromContainer { get; } = fromContainer;
+
+    /// <summary>Из трюма игрока: для «собрать» не в счёт.</summary>
+    public bool FromHold { get; } = fromHold;
 
     /// <summary>Чей груз; 0 — ничей, берёт кто успел.</summary>
     public int Owner { get; } = owner;

@@ -3,7 +3,7 @@
  * на фиксированных данных. Нужна проходам по дизайну (скриншоты headless-браузером на ПК и телефоне)
  * и ничего не шлёт. Экраны: flight, dock-missions, dock-cargo, dock-hulls, dock-ships, dock-fitting,
  * galaxy, controls, audio, radio, confirm, menu, password, death, login, login-new, login-over, party10, trade,
- * relay (ретранслятор в доке), mech и mech-end (наземный бой, M21).
+ * relay (ретранслятор в доке), mech и mech-end (наземный бой, M21), dialog-eva (диалог с портретом).
  */
 import { MechScreen } from '../mech/screen';
 import { DEFAULT_RULES } from '../mech/rules';
@@ -35,6 +35,7 @@ import { PasswordForm } from './passwordForm';
 import { PilotForm } from './pilotForm';
 import { Minimap, type MinimapFrame } from './minimap';
 import { ObjectiveHud } from './objectiveHud';
+import { UiToggle } from './uiToggle';
 import { InviteCard, PartyPanel, type PartyMark, type PartyRow } from './party';
 import { TradeWindow } from './trade';
 import { StatusHud } from './statusHud';
@@ -268,6 +269,8 @@ export function runDemo(screen: string): void {
       el('fire').dataset.aim = 'ready';
       el('fire').querySelector('.fire-state')!.textContent = 'вкл';
     }
+    // «Скрыть» / «показать» внизу по центру (телефон): видна только при касании, как стик.
+    new UiToggle(el('ui-toggle') as HTMLButtonElement, coarsePointer(), noop);
   };
 
   const dock = (tab: Tab, relay = false): void => {
@@ -442,6 +445,18 @@ export function runDemo(screen: string): void {
             { label: 'Отдать записи', flag: 'logGiven' },
             { label: 'Оставить себе', flag: 'logKept' },
           ],
+        },
+        'Тихая война',
+      );
+      break;
+    case 'dialog-eva':
+      // Диалог с портретом (пачка M): Ева — главный голос кампании.
+      flightHud();
+      new DialogCard(el('dialog')).show(
+        {
+          who: 'Ева Морен',
+          role: 'инженер рудника',
+          lines: ['Машина собрана и стоит в тайнике за поясом метеоритов. Дан выведет её тягачом, вы проводите.'],
         },
         'Тихая война',
       );
