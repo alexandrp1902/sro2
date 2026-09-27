@@ -180,7 +180,7 @@ public sealed class M20StoryTests : IDisposable
         var offer = State(connection)?.Offer;
         Assert.NotNull(offer);
         Do(connection, r => r.Mission(connection, Protocol.AcceptMission, offer!.Id));
-        Assert.NotNull(Missions_(connection).Active?.Offer.Story);
+        Assert.NotNull(Missions_(connection).StoryActive?.Offer.Story);
     }
 
     /// <summary>Долететь до скриптованного груза и собрать его весь.</summary>
@@ -277,7 +277,7 @@ public sealed class M20StoryTests : IDisposable
         Assert.All(mine, d => Assert.True(Math.Abs(d.X - 1000) < 200 && Math.Abs(d.Y - 1000) < 200));
         Assert.All(mine, d => Assert.True(d.ExpiresAtTick == long.MaxValue));
         // И метка цели ведёт именно туда.
-        Assert.Equal((1000d, 1000d), (Missions_(a).Mark!.X, Missions_(a).Mark!.Y));
+        Assert.Equal((1000d, 1000d), (Missions_(a).StoryMark!.X, Missions_(a).StoryMark!.Y));
 
         var b = Pilot("Bob");
         Undock(b);
@@ -303,14 +303,14 @@ public sealed class M20StoryTests : IDisposable
         Dock(a);
         Do(a, r => r.Mission(a, Protocol.CompleteMission, null));
         Assert.Equal(Protocol.TooFarNotice, a.Last<NoticeMsg>().Code);
-        Assert.NotNull(Missions_(a).Active);
+        Assert.NotNull(Missions_(a).StoryActive);
 
         Undock(a);
         JumpTo(a, "home");
         Dock(a);
         var before = Credits(a);
         Do(a, r => r.Mission(a, Protocol.CompleteMission, null));
-        Assert.Null(Missions_(a).Active);
+        Assert.Null(Missions_(a).StoryActive);
         Assert.Equal(before + 100, Credits(a));
         // Сданное уехало из трюма, миссия записана, отношение ушло месту.
         Assert.Equal(0, PlayerOf(a).Cargo.Count("cores"));
@@ -393,7 +393,7 @@ public sealed class M20StoryTests : IDisposable
         TakeStory(a);
         var rep = Rep(a, "st:home");
         Do(a, r => r.Mission(a, Protocol.AbandonMission, null));
-        Assert.Null(Missions_(a).Active);
+        Assert.Null(Missions_(a).StoryActive);
         // Отказ от сюжета — это «не сейчас», а не «подвёл заказчика».
         Assert.Equal(rep, Rep(a, "st:home"));
         Assert.Equal("fetch", State(a)!.Offer!.Story!.Mission);
@@ -413,7 +413,7 @@ public sealed class M20StoryTests : IDisposable
         Undock(a);
         JumpTo(a, "port");
         Dock(a);        // доставка сдаётся сама
-        Assert.Null(Missions_(a).Active);
+        Assert.Null(Missions_(a).StoryActive);
         Assert.Equal(2, State(a)!.Done);
 
         TakeStory(a);   // probe, здесь же в Порту
@@ -424,14 +424,14 @@ public sealed class M20StoryTests : IDisposable
         var dialog = a.Last<DialogMsg>();
         Assert.Equal("Отдадите?", dialog.Lines[0]);
         Assert.Equal(["given", "kept"], dialog.Options!.Select(o => o.Flag));
-        Assert.NotNull(Missions_(a).Active);
+        Assert.NotNull(Missions_(a).StoryActive);
 
         // Чужого варианта не бывает: сервер отвечает только на то, что было на кнопке.
         Do(a, r => r.Mission(a, Protocol.ChooseStory, "ransom"));
-        Assert.NotNull(Missions_(a).Active);
+        Assert.NotNull(Missions_(a).StoryActive);
 
         Do(a, r => r.Mission(a, Protocol.ChooseStory, "kept"));
-        Assert.Null(Missions_(a).Active);
+        Assert.Null(Missions_(a).StoryActive);
         Assert.Equal(3, State(a)!.Done);
         // «Оставить» — журнал остаётся уликой в трюме; «отдать» забрал бы его.
         Assert.Equal(1, PlayerOf(a).Cargo.Count("relic"));
@@ -504,6 +504,6 @@ public sealed class M20StoryTests : IDisposable
         Collect(a);
         Dock(a);
         Do(a, r => r.Mission(a, Protocol.CompleteMission, null));
-        Assert.Null(Missions_(a).Active);
+        Assert.Null(Missions_(a).StoryActive);
     }
 }

@@ -721,7 +721,7 @@ public sealed record MissionMarkDto(int Ship, double X, double Y);
 /// Обучение и задания пилота — только ему. Шлётся по событию: вход, прыжок, стыковка, прогресс, правка баланса.
 /// </summary>
 /// <param name="Tutorial">Текущий шаг обучения; null — обучения нет.</param>
-/// <param name="Active">Взятое задание; null — нет.</param>
+/// <param name="Active">Взятое задание с доски; null — нет.</param>
 /// <param name="Offers">Доска станции этой системы; в системе без станции пусто.</param>
 /// <param name="Done">Что сделано этим событием; null — просто обновление.</param>
 /// <param name="Mark">Куда смотреть по живому заданию (M14); null — метки нет.</param>
@@ -729,13 +729,17 @@ public sealed record MissionMarkDto(int Ship, double X, double Y);
 /// Состояние сюжетной кампании (M20a); null — сюжета в игре нет или пилот его ещё не видел.
 /// Приходит и тогда, когда предложения на доске нет, — журналу надо что-то показывать всегда.
 /// </param>
+/// <param name="StoryActive">Взятая сюжетная миссия — свой слот рядом с <paramref name="Active"/>; null — нет.</param>
+/// <param name="StoryMark">Куда смотреть по сюжетной миссии; null — метки нет.</param>
 public sealed record MissionsMsg(
     TutorialDto? Tutorial,
     ActiveMission? Active,
     IReadOnlyList<MissionOffer> Offers,
     MissionDoneDto? Done = null,
     MissionMarkDto? Mark = null,
-    StoryStateDto? Story = null) : ServerMessage;
+    StoryStateDto? Story = null,
+    ActiveMission? StoryActive = null,
+    MissionMarkDto? StoryMark = null) : ServerMessage;
 
 /// <summary>
 /// Кампания глазами пилота (M20a): для журнала и для раздела «Сюжет» на доске.
@@ -754,6 +758,10 @@ public sealed record MissionsMsg(
 /// этот — «дальше уже есть куда нажать».
 /// </param>
 /// <param name="SortieWon">Первая вылазка мехов выиграна (M21): карточка ретранслятора пишет «пройдено».</param>
+/// <param name="Next">
+/// Куда лететь за следующей миссией (плейтест 2026-09-26: «после Морен непонятно, куда дальше»). Есть всегда,
+/// пока сюжетная миссия не взята и кампании есть что предложить, — где бы пилот ни стоял.
+/// </param>
 public sealed record StoryStateDto(
     string Campaign,
     string Name,
@@ -763,7 +771,22 @@ public sealed record StoryStateDto(
     MissionOffer? Offer = null,
     bool More = false,
     bool Relay = false,
-    bool SortieWon = false);
+    bool SortieWon = false,
+    StoryNextDto? Next = null);
+
+/// <summary>Следующая встреча по сюжету: кто, где и в какой системе даёт миссию.</summary>
+/// <param name="Mission">Id миссии; «relay» — кампания пройдена, ждёт ретранслятор (M20b).</param>
+/// <param name="Place">Ключ места выдачи: по нему клиент ставит метку, стрелку и курс.</param>
+/// <param name="System">Система места выдачи.</param>
+/// <param name="Rep">Ступень отношения, которой пока не хватает для этой миссии; null — хватает.</param>
+public sealed record StoryNextDto(
+    string Mission,
+    string Title,
+    string Giver,
+    string Role,
+    string Place,
+    string System,
+    string? Rep = null);
 
 /// <summary>
 /// Карточка сюжетного диалога (M20a): портрет, имя, реплики и до двух кнопок. Портрета пока нет —
@@ -1045,6 +1068,8 @@ public static class Protocol
     public const string NoStockNotice = "noStock";
     /// <summary>Товар события спроса в дефиците по всей системе: его везут из других систем.</summary>
     public const string ShortageNotice = "shortage";
+    /// <summary>Живое задание (конвой, патруль, оборона) уже взято в другом слоте: второе разом не взять.</summary>
+    public const string LiveBusyNotice = "liveBusy";
     /// <summary>Это и есть груз твоего задания «собрать», взятого здесь: его надо привезти, а не купить на месте (M16a).</summary>
     public const string MissionGoodsNotice = "missionGoods";
     /// <summary>Док закрыт: в этой системе пилота считают врагом (M13).</summary>
@@ -1086,6 +1111,9 @@ public static class Protocol
 
     /// <summary>Флаг кампании: первая вылазка выиграна, награда выплачена.</summary>
     public const string SortieWonFlag = "firstSortie";
+
+    /// <summary>Указатель сюжета (<see cref="StoryNextDto.Mission"/>): кампания пройдена, ждёт ретранслятор.</summary>
+    public const string RelayMission = "relay";
 
     /// <summary>За что начислена или снята репутация (<see cref="RepChangeDto.Code"/>; M13).</summary>
     public const string RepMissionDone = "missionDone";

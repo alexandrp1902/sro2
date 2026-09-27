@@ -321,10 +321,17 @@ public sealed partial class Room
         player.Missions.Tutorial = TutorialFrom(profile, player.Career);
         // Живое задание в комнату не возвращается: его конвой и звено остались в прошлом вылете (M14).
         // Профиль старше M15 зовёт заказчика и адрес по системе — переводим в ключи мест.
-        player.Missions.Active =
-            profile?.Mission is { } taken && !MissionRules.IsLive(taken.Offer.Kind) ? MissionRules.Upgrade(taken) : null;
+        // Сюжет со своим слотом (плейтест 2026-09-26): в профиле постарше он лежит в Mission и переезжает.
+        player.Missions.Active = null;
+        player.Missions.Story = null;
+        foreach (var saved in new[] { profile?.Mission, profile?.StoryMission })
+        {
+            if (saved is null || MissionRules.IsLive(saved.Offer.Kind)) continue;
+            var taken = MissionRules.Upgrade(saved);
+            player.Missions.Set(MissionLog.SlotOf(taken.Offer), taken);
+        }
         player.Missions.Seed = profile?.MissionSeed ?? Random.Shared.Next();
-        player.Cargo.Reserved = Reserve(player.Missions.Active);
+        player.Cargo.Reserved = Reserve(player);
         // Сюжет (M20a): что пройдено и как пилот выбирал. Живое сюжетное задание, как и обычное живое,
         // в комнату не возвращается — но выполненное и флаги переживают всё.
         LoadStory(player, profile);
@@ -553,7 +560,7 @@ public sealed partial class Room
     public void Release(Player player)
     {
         // Конвой и звено остаются здесь — увезти их с собой нельзя, значит работа сорвана (M14).
-        if (RunOf(player) is not null) Fail(player, Protocol.LeftFail);
+        if (RunOf(player) is { } run) Fail(player, run.Slot, Protocol.LeftFail);
         // Сюжетные ящики и вызванные корабли тоже остаются в прошлой системе: id пилота в новой комнате
         // будет другим, и хозяина у них там всё равно не найдётся. Вернётся — разложим заново.
         StoryEnd(player);
@@ -2115,7 +2122,7 @@ public sealed partial class Room
 
     private void Remove(Player player)
     {
-        if (RunOf(player) is not null) Fail(player, Protocol.LeftFail);
+        if (RunOf(player) is { } run) Fail(player, run.Slot, Protocol.LeftFail);
         StoryEnd(player);
         Save(player);
         _players.Remove(player.Id);
@@ -2383,12 +2390,16 @@ public sealed partial class Room
             // теперь у станции и у поселения под ней работа разная, и прислать её надо здесь.
             SendMissions(player);
             // Ушёл в док, бросив конвой посреди системы, — это и есть «отстал» (M14).
-            if (RunOf(player)?.Kind == MissionRules.EscortKind) Fail(player, Protocol.AwayFail);
+            if (RunOf(player) is { Kind: MissionRules.EscortKind } escort) Fail(player, escort.Slot, Protocol.AwayFail);
             // Груз доставки и письмо сдаются сами, стоит встать в нужном месте. Именно в месте, а не
             // в системе: с M15 их в системе несколько, и доставка на планету не засчитывается на станции.
-            if (player.Missions.Active?.Offer is { Kind: MissionRules.DeliverKind or MissionRules.CourierKind } errand &&
-                errand.Destination == target.Key)
-                Complete(player);
+            // Сдаются оба слота: доставка с доски и сюжетная могут вести в один и тот же док.
+            foreach (var slot in MissionLog.Slots)
+            {
+                if (player.Missions.Of(slot)?.Offer is { Kind: MissionRules.DeliverKind or MissionRules.CourierKind } errand &&
+                    errand.Destination == target.Key)
+                    Complete(player, slot);
+            }
         }
         else
         {
@@ -2627,6 +2638,7 @@ public sealed partial class Room
             // Номер шага (до M18) больше не пишется: шаг хранится по id, «done» — пройдено.
             TutorialStep: player.Missions.Tutorial ?? MissionLog.Finished,
             Mission: player.Missions.Active,
+            StoryMission: player.Missions.Story,
             MissionSeed: player.Missions.Seed,
             Fit: player.Fit,
             Storage: new SortedDictionary<string, int>(player.Storage, StringComparer.Ordinal),
@@ -2653,7 +2665,7 @@ public sealed partial class Room
 
     /// <summary>
     /// Задания (GDD §36): взять с доски и сдать «собрать» — в доке, бросить — где угодно; пропустить обучение (§54).
-    /// Взять можно только одно; груз доставки должен влезть в трюм.
+    /// Взять можно одно с доски и одну сюжетную миссию; живое из них — только одно; груз доставки должен влезть в трюм.
     /// </summary>
     public void Mission(IClientConnection connection, string? action, string? id)
     {
@@ -2663,7 +2675,6 @@ public sealed partial class Room
         {
             case Protocol.AcceptMission:
             {
-                if (log.Active is not null) return;
                 if (!player.Docked)
                 {
                     connection.Send(new NoticeMsg(Protocol.TooFarNotice));
@@ -2676,22 +2687,30 @@ public sealed partial class Room
                     SendMissions(player); // доска успела смениться: пусть клиент увидит новую
                     return;
                 }
-                if (offer.Kind == MissionRules.DeliverKind && offer.Story is null &&
-                    player.Cargo.Used(Balance.Loot) + offer.Count > player.Effective(Balance).Cargo)
+                var slot = MissionLog.SlotOf(offer);
+                if (log.Of(slot) is not null) return;
+                if (MissionRules.IsLive(offer.Kind) && log.LiveSlot is not null)
+                {
+                    connection.Send(new NoticeMsg(Protocol.LiveBusyNotice));
+                    return;
+                }
+                // Бронь трюма у второго слота уже сидит в Used: доставка должна влезть рядом с ней.
+                if (Reserve(offer) is var need && need > 0 && player.Cargo.Used(Balance.Loot) + need > player.Effective(Balance).Cargo)
                 {
                     connection.Send(new NoticeMsg(Protocol.CargoFullNotice));
                     return;
                 }
                 // Срок письма идёт по стенным часам, а не по тикам: пилот уходит из игры, а гонец ждать не станет.
-                log.Active = new ActiveMission(offer, Until: offer.Seconds > 0 ? NowSeconds + offer.Seconds : 0);
+                log.Set(slot, new ActiveMission(offer, Until: offer.Seconds > 0 ? NowSeconds + offer.Seconds : 0));
                 // Сюжетный груз выдаётся здесь же; не влез — работа не берётся, и доска остаётся как была.
                 if (offer.Story is { } story && !StoryAccept(player, story))
                 {
-                    log.Active = null;
+                    log.Set(slot, null);
                     return;
                 }
-                log.Seed++;
-                player.Cargo.Reserved = Reserve(log.Active);
+                // Доска меняется, когда с неё взяли работу; сюжетная миссия её не трогает.
+                if (slot == MissionSlot.Board) log.Seed++;
+                player.Cargo.Reserved = Reserve(player);
                 _log.LogInformation("Player {Id} took a {Kind} mission for {Reward} credits", player.Id, offer.Kind, offer.Reward);
                 // Последний шаг обучения (M18) — взять работу: трюм, задания и профиль Advance уже отправил.
                 if (Advance(player, new TutorialEvent(MissionRules.BoardStep)))
@@ -2702,11 +2721,15 @@ public sealed partial class Room
                 break;
             }
             case Protocol.AbandonMission:
-                if (!Abandon(player)) return;
+                if (log.SlotOf(id) is not { } dropped || !Abandon(player, dropped)) return;
                 break;
             case Protocol.CompleteMission:
             {
-                if (log.Active?.Offer is not { Kind: MissionRules.CollectKind, Item: { } item } collect) return;
+                // Без id (клиент до протокола 36) сдаётся то «собрать», что взято.
+                var slot = string.IsNullOrEmpty(id)
+                    ? MissionLog.Slots.Cast<MissionSlot?>().FirstOrDefault(s => log.Of(s!.Value)?.Offer.Kind == MissionRules.CollectKind)
+                    : log.SlotOf(id);
+                if (slot is not { } from || log.Of(from) is not { Offer: { Kind: MissionRules.CollectKind, Item: { } item } collect } taken) return;
                 if (!player.Docked)
                 {
                     connection.Send(new NoticeMsg(Protocol.TooFarNotice));
@@ -2719,13 +2742,13 @@ public sealed partial class Room
                     return;
                 }
                 // Обычное «собрать» — добыть в космосе, а не купить у соседа по системе (см. Gathered).
-                if (collect.Story is null && log.Active.Gathered < collect.Count)
+                if (collect.Story is null && taken.Gathered < collect.Count)
                 {
                     connection.Send(new NoticeMsg(Protocol.NotGatheredNotice));
                     return;
                 }
                 if (!player.Cargo.Remove(item, collect.Count)) return;
-                Complete(player);
+                Complete(player, from);
                 return;
             }
             case Protocol.SkipTutorial:
@@ -2792,7 +2815,7 @@ public sealed partial class Room
             player.Missions.Active = hunt with { Progress = hunt.Progress + 1 };
             if (hunt.Progress + 1 >= hunted.Count)
             {
-                Complete(player);
+                Complete(player, MissionSlot.Board);
                 return;
             }
             SendMissions(player);
@@ -2807,7 +2830,7 @@ public sealed partial class Room
         player.Missions.Active = active with { Progress = active.Progress + 1 };
         if (active.Progress + 1 >= offer.Count)
         {
-            Complete(player);
+            Complete(player, MissionSlot.Board);
             return;
         }
         SendMissions(player);
@@ -2815,13 +2838,13 @@ public sealed partial class Room
     }
 
     /// <summary>Задание выполнено: награда, место в трюме свободно, доска обновляется.</summary>
-    private void Complete(Player player)
+    private void Complete(Player player, MissionSlot slot)
     {
-        if (player.Missions.Active is not { } active) return;
-        EndRun(player.Id);
-        player.Missions.Active = null;
-        player.Missions.Seed++;
-        player.Cargo.Reserved = 0;
+        if (player.Missions.Of(slot) is not { } active) return;
+        EndRun(player.Id, slot);
+        player.Missions.Set(slot, null);
+        if (slot == MissionSlot.Board) player.Missions.Seed++;
+        player.Cargo.Reserved = Reserve(player);
         player.Credits += active.Offer.Reward;
         SendCargo(player);
         SendMissions(player, new MissionDoneDto(Protocol.MissionDone, active.Offer.Reward, Mission: active.Offer));
@@ -2852,13 +2875,13 @@ public sealed partial class Room
     /// Зовётся и тогда, когда задание проваливать нечем, — смотрит только на взятое.
     /// </summary>
     /// <param name="code">Причина (<see cref="Protocol.TraderFail"/> и прочие) — по ней клиент пишет строку.</param>
-    private void Fail(Player player, string code)
+    private void Fail(Player player, MissionSlot slot, string code)
     {
-        if (player.Missions.Active is not { } active) return;
-        EndRun(player.Id);
-        player.Missions.Active = null;
-        player.Missions.Seed++;
-        player.Cargo.Reserved = 0;
+        if (player.Missions.Of(slot) is not { } active) return;
+        EndRun(player.Id, slot);
+        player.Missions.Set(slot, null);
+        if (slot == MissionSlot.Board) player.Missions.Seed++;
+        player.Cargo.Reserved = Reserve(player);
         SendCargo(player);
         SendMissions(player, new MissionDoneDto(Protocol.MissionFailed, 0, Mission: active.Offer, Reason: code));
         Save(player);
@@ -2879,12 +2902,12 @@ public sealed partial class Room
     /// бросил — подвёл заказчика. Отказ дешевле провала: работу он вернул, а не потерял.
     /// </summary>
     /// <returns>false — отказываться было не от чего.</returns>
-    private bool Abandon(Player player)
+    private bool Abandon(Player player, MissionSlot slot)
     {
-        if (player.Missions.Active is not { } dropped) return false;
-        EndRun(player.Id);
-        player.Missions.Active = null;
-        player.Cargo.Reserved = 0;
+        if (player.Missions.Of(slot) is not { } dropped) return false;
+        EndRun(player.Id, slot);
+        player.Missions.Set(slot, null);
+        player.Cargo.Reserved = Reserve(player);
         if (dropped.Offer.Story is not null)
         {
             // Отказ от сюжета — это «не сейчас», а не «подвёл заказчика»: кампания ждёт на доске.
@@ -2922,13 +2945,17 @@ public sealed partial class Room
     /// <summary>У «собрать» прогресс — сколько такого в трюме: трюм изменился — клиенту новый счёт.</summary>
     private void SendCollect(Player player)
     {
-        if (player.Missions.Active?.Offer.Kind == MissionRules.CollectKind) SendMissions(player);
+        if (player.Missions.Active?.Offer.Kind == MissionRules.CollectKind || player.Missions.Story?.Offer.Kind == MissionRules.CollectKind)
+            SendMissions(player);
     }
 
+    /// <summary>Сколько места в трюме держат оба взятых задания.</summary>
+    private int Reserve(Player player) => Reserve(player.Missions.Active?.Offer) + Reserve(player.Missions.Story?.Offer);
+
     /// <summary>Сколько места в трюме держит задание: груз доставки.</summary>
-    private int Reserve(ActiveMission? active)
+    private int Reserve(MissionOffer? offer)
     {
-        if (active?.Offer is not { Kind: MissionRules.DeliverKind } deliver) return 0;
+        if (offer is not { Kind: MissionRules.DeliverKind } deliver) return 0;
         // Сюжетная доставка везёт настоящий предмет (M20a), и он уже занимает трюм: бронировать
         // под него объём второй раз — значит отнять у пилота место дважды за один ящик.
         if (StoryMissionOf(deliver.Story) is { GiveList.Count: > 0 }) return 0;
@@ -2957,21 +2984,25 @@ public sealed partial class Room
     private void SendMissions(Player player, MissionDoneDto? done = null)
     {
         if (player.Connection is null) return;
-        var active = player.Missions.Active;
-        if (active?.Offer is { Kind: MissionRules.CollectKind, Item: { } item } collect)
-        {
-            // Обычное «собрать» считает добытое, но не больше, чем в трюме: продал или выбросил — счёт упал.
-            var held = player.Cargo.Items.GetValueOrDefault(item);
-            var count = collect.Story is null ? Math.Min(held, active.Gathered) : held;
-            active = active with { Progress = Math.Min(active.Offer.Count, count) };
-        }
         player.Connection.Send(new MissionsMsg(
             TutorialOf(player),
-            active,
+            Shown(player, player.Missions.Active),
             OffersFor(player),
             done,
-            MarkOf(player),
-            StoryState(player)));
+            MarkOf(player, MissionSlot.Board),
+            StoryState(player),
+            Shown(player, player.Missions.Story),
+            MarkOf(player, MissionSlot.Story)));
+    }
+
+    /// <summary>Задание глазами клиента: у «собрать» прогресс — сколько такого в трюме.</summary>
+    private static ActiveMission? Shown(Player player, ActiveMission? active)
+    {
+        if (active?.Offer is not { Kind: MissionRules.CollectKind, Item: { } item } collect) return active;
+        // Обычное «собрать» считает добытое, но не больше, чем в трюме: продал или выбросил — счёт упал.
+        var held = player.Cargo.Items.GetValueOrDefault(item);
+        var count = collect.Story is null ? Math.Min(held, active.Gathered) : held;
+        return active with { Progress = Math.Min(active.Offer.Count, count) };
     }
 
     /// <summary>Трюм — личное дело игрока: снапшот один на всех, места для него там нет.</summary>

@@ -139,6 +139,10 @@ public sealed record StoryAlt(string Flag, StoryLines? Lines = null, string? Don
 /// <param name="Convoy">Escort: тип NPC, которым идёт конвой; null — обычный торговец системы.</param>
 /// <param name="ConvoyName">Имя над конвоем: у сюжетного транспорта есть водитель, а не «Торговец».</param>
 /// <param name="ConvoyAt">Откуда конвой стартует; null — от пилота, как у обычного сопровождения.</param>
+/// <param name="Prologue">
+/// Миссия пролога (плейтест 2026-09-26): дорога новичка от Сола до начала кампании. Тот, кто кампанию уже
+/// начал, пролог не видит — он считается пройденным, хотя в профиле его нет.
+/// </param>
 public sealed record StoryMission(
     string Id,
     string Title,
@@ -176,7 +180,8 @@ public sealed record StoryMission(
     StoryAlt? Alt = null,
     string? Convoy = null,
     string? ConvoyName = null,
-    StoryPoint? ConvoyAt = null)
+    StoryPoint? ConvoyAt = null,
+    bool Prologue = false)
 {
     [JsonIgnore] public IReadOnlyList<StorySpawn> SpawnList => Spawns ?? [];
     [JsonIgnore] public IReadOnlyList<IReadOnlyList<InvasionGroup>> WaveList => Waves ?? [];
@@ -220,6 +225,20 @@ public sealed record StoryCampaign(string Name, IReadOnlyList<StoryMission>? Mis
         return -1;
     }
 
+    /// <summary>Пилот уже в самой кампании: прошёл хоть одну миссию после пролога.</summary>
+    public bool Begun(IReadOnlyCollection<string> done) => MissionList.Any(m => !m.Prologue && done.Contains(m.Id));
+
+    /// <summary>
+    /// Пройдена ли миссия. Пролог у того, кто кампанию уже начал, считается пройденным: он появился
+    /// после них (плейтест 2026-09-26), и возвращать ветеранов на дорогу из Сола незачем. Профиль при этом
+    /// не переписывается — убери пролог из файла, и всё станет как было.
+    /// </summary>
+    public bool Passed(StoryMission mission, IReadOnlyCollection<string> done) =>
+        done.Contains(mission.Id) || (mission.Prologue && Begun(done));
+
+    /// <summary>Сколько миссий файла пройдено — для «миссия N из M».</summary>
+    public int Count(IReadOnlyCollection<string> done) => MissionList.Count(m => Passed(m, done));
+
     /// <summary>
     /// Следующая невыполненная миссия по порядку; null — всё, что есть в файле, пройдено.
     /// Порядок в файле и есть цепочка: <c>after</c> отдельным полем был бы вторым источником правды.
@@ -227,7 +246,7 @@ public sealed record StoryCampaign(string Name, IReadOnlyList<StoryMission>? Mis
     public StoryMission? Next(IReadOnlyCollection<string> done)
     {
         foreach (var mission in MissionList)
-            if (!done.Contains(mission.Id)) return mission;
+            if (!Passed(mission, done)) return mission;
         return null;
     }
 }
@@ -347,6 +366,10 @@ public sealed record StoryRules(IReadOnlyDictionary<string, StoryCampaign>? Camp
         var mission = list[index];
         if (mission is null) return "is null";
         if (string.IsNullOrWhiteSpace(mission.Id)) return "id is empty";
+        // Пролог — начало цепочки: миссия пролога после основной означала бы, что ветеран, для которого
+        // пролог «пройден», перепрыгнет через неё посреди кампании.
+        if (mission.Prologue && index > 0 && list[index - 1] is { Prologue: false })
+            return "prologue must come before the campaign proper";
         for (var i = 0; i < index; i++)
             if (list[i]?.Id == mission.Id) return $"duplicate id '{mission.Id}'";
         if (string.IsNullOrWhiteSpace(mission.Title)) return "title is empty";
@@ -372,6 +395,11 @@ public sealed record StoryRules(IReadOnlyDictionary<string, StoryCampaign>? Camp
             if (mission.Dest is { } dest && !galaxy.HasPlace(dest)) return $"unknown dest '{dest}'";
             if (mission.RepPlace is { } paid && !galaxy.HasPlace(paid)) return $"unknown repPlace '{paid}'";
             if (mission.System is { } system && galaxy.System(system) is null) return $"unknown system '{system}'";
+            // Живая миссия начинается на вылете там, где её взяли: конвою и волнам нужна эта система.
+            // Выданная в другой, она молча бросалась бы на первом же вылете.
+            if (MissionRules.IsLive(mission.Kind) &&
+                galaxy.SystemOfPlace(mission.Place) != (mission.System ?? galaxy.SystemOfPlace(mission.Destination)))
+                return $"a live {mission.Kind} is played where it is given: '{mission.Place}' is in another system";
         }
         if (reputation is not null && mission.Rep is { } level && reputation.IndexOf(level) < 0)
             return $"unknown reputation level '{level}'";

@@ -76,8 +76,9 @@ public sealed partial class Room
     // ------------------------------------------------------------------ предложение и журнал
 
     /// <summary>
-    /// Что показать пилоту про кампанию: сколько пройдено, последние реплики и работа, доступная здесь.
-    /// Шлётся и тогда, когда работы тут нет: журналу надо что-то показывать в любом доке.
+    /// Что показать пилоту про кампанию: сколько пройдено, последние реплики, работа, доступная здесь,
+    /// и куда лететь за следующей. Шлётся всегда, где бы пилот ни стоял: игрок должен знать, куда дальше
+    /// по сюжету, с первой минуты после обучения (плейтест 2026-09-26), а не наткнуться на него случайно.
     /// </summary>
     private StoryStateDto? StoryState(Player player)
     {
@@ -85,54 +86,74 @@ public sealed partial class Room
         if (!rules.Any) return null;
 
         // Взятая сюжетная миссия главнее места: журнал должен говорить о ней, где бы пилот ни стоял.
-        if (player.Missions.Active?.Offer.Story is { } taken && rules.Campaign(taken.Campaign) is { } running)
-            return State(taken.Campaign, running, null);
+        if (player.Missions.Story?.Offer.Story is { } taken && rules.Campaign(taken.Campaign) is { } running)
+            return State(taken.Campaign, running, null, null);
 
         foreach (var (id, campaign) in rules.CampaignMap)
         {
-            var log = player.Story.GetValueOrDefault(id);
-            IReadOnlyCollection<string> done = log?.Done ?? [];
-            var next = campaign.Next(done);
-            // Написанное кончилось: у того, кто это прошёл, в журнале «продолжение следует».
-            if (next is null)
+            IReadOnlyCollection<string> done = player.Story.GetValueOrDefault(id)?.Done ?? [];
+            if (campaign.Next(done) is not { } next)
             {
-                if (done.Count > 0) return State(id, campaign, null);
+                // Написанное кончилось: у того, кто это прошёл, в журнале «продолжение следует»,
+                // а указатель ведёт к ретранслятору, пока первая вылазка не выиграна.
+                if (done.Count > 0) return State(id, campaign, null, RelayPointer(player, id, campaign));
                 continue;
             }
             var offer = Available(player, next) ? StoryOffer(id, campaign, next) : null;
-            // Кампания, к которой пилот ещё не притронулся и которую здесь не дают, — не его дело:
-            // журнал о ненайденной истории молчит.
-            if (offer is null && done.Count == 0) continue;
-            return State(id, campaign, offer);
+            return State(id, campaign, offer, Pointer(player, next));
         }
         return null;
 
-        StoryStateDto State(string id, StoryCampaign campaign, MissionOffer? offer)
+        StoryStateDto State(string id, StoryCampaign campaign, MissionOffer? offer, StoryNextDto? pointer)
         {
             var log = player.Story.GetValueOrDefault(id);
-            // Считаем только то, что в файле и есть: id, оставшийся в профиле от убранной миссии,
-            // не должен превращать «3 из 14» в «4 из 14».
-            var count = log is null ? 0 : campaign.MissionList.Count(m => log.Done.Contains(m.Id));
             IReadOnlyCollection<string> passed = log?.Done ?? [];
             return new StoryStateDto(
                 id,
                 campaign.Name,
-                count,
+                // Считаем только то, что в файле и есть: id, оставшийся в профиле от убранной миссии,
+                // не должен превращать «3 из 14» в «4 из 14». Пролог у ветерана — пройден.
+                campaign.Count(passed),
                 campaign.Length,
                 log?.Lines ?? [],
                 offer,
-                offer is null && player.Missions.Active?.Offer.Story is null && campaign.Next(passed) is null,
+                offer is null && player.Missions.Story is null && campaign.Next(passed) is null,
                 RelayOpen(player, campaign, passed),
-                log?.Flags.Contains(Protocol.SortieWonFlag) == true);
+                log?.Flags.Contains(Protocol.SortieWonFlag) == true,
+                pointer);
         }
+    }
+
+    /// <summary>Следующая встреча: кто и где даёт миссию, и хватает ли для неё отношения.</summary>
+    private StoryNextDto Pointer(Player player, StoryMission next)
+    {
+        var system = Balance.Galaxy.SystemOfPlace(next.Place) ?? SystemId;
+        // Отношение смотрим к системе места выдачи, а не к той, где пилот стоит сейчас.
+        var locked = next.Rep is { } level &&
+            !Balance.Reputation.AtLeast(player.Rep.Value(Reputation.System(system), NowSeconds, Balance.Reputation), level);
+        return new StoryNextDto(next.Id, next.Title, next.Giver, next.Role, next.Place, system, locked ? next.Rep : null);
+    }
+
+    /// <summary>Кампания пройдена: указатель ведёт к ретранслятору, пока его вылазка не выиграна.</summary>
+    private StoryNextDto? RelayPointer(Player player, string id, StoryCampaign campaign)
+    {
+        if (campaign.MissionList.Count == 0) return null;
+        if (player.Story.GetValueOrDefault(id)?.Flags.Contains(Protocol.SortieWonFlag) == true) return null;
+        var last = campaign.MissionList[^1];
+        var system = Balance.Galaxy.SystemOfPlace(last.Place) ?? SystemId;
+        return new StoryNextDto(Protocol.RelayMission, "Ретранслятор", last.Giver, last.Role, last.Place, system);
     }
 
     /// <summary>Дают ли эту миссию здесь и сейчас: то место, свободные руки, хватает отношения.</summary>
     private bool Available(Player player, StoryMission mission)
     {
         if (!player.Docked || player.DockedPlace != mission.Place) return false;
-        // Слот задания один на пилота: сюжет и работа с доски делят его, как две обычные работы.
-        if (player.Missions.Active is not null) return false;
+        // У сюжета свой слот (плейтест 2026-09-26): работа с доски ему не мешает.
+        if (player.Missions.Story is not null) return false;
+        // Посреди обучения сюжет не предлагают: новичку на первом экране хватает своих шагов. На последнем
+        // шаге («возьмите работу») он уже можно — и взятая сюжетная миссия этот шаг закрывает.
+        if (Balance.Missions.Step(player.Career, player.Missions.Tutorial) is { } step && step.What != MissionRules.BoardStep)
+            return false;
         return mission.Rep is not { } level || Balance.Reputation.AtLeast(SystemRep(player), level);
     }
 
@@ -353,7 +374,7 @@ public sealed partial class Room
     /// <summary>Пилот вылетел: сюжет раскладывает ящики и зовёт тех, кто ждёт именно вылета.</summary>
     private void StoryUndock(Player player)
     {
-        if (player.Missions.Active?.Offer.Story is not { } story || StoryMissionOf(story) is not { } mission) return;
+        if (player.Missions.Story?.Offer.Story is not { } story || StoryMissionOf(story) is not { } mission) return;
         StoryHere(player);
         StorySpawn(player, mission, StoryRules.OnUndock);
     }
@@ -365,7 +386,7 @@ public sealed partial class Room
     private void StoryHere(Player player)
     {
         StoryDrops(player);
-        if (player.Missions.Active?.Offer.Story is not { } story) return;
+        if (player.Missions.Story?.Offer.Story is not { } story) return;
         if (StoryMissionOf(story) is not { } mission) return;
         if (StorySystemOf(mission) is { } where && where != SystemId) return;
         if (_storyStaged.GetValueOrDefault(player.Id) == mission.Id) return;
@@ -380,7 +401,7 @@ public sealed partial class Room
     /// </summary>
     private void StoryDrops(Player player)
     {
-        if (player.Missions.Active?.Offer.Story is not { } story) return;
+        if (player.Missions.Story?.Offer.Story is not { } story) return;
         if (StoryMissionOf(story) is not { Point: { } point, Item: { } item } mission) return;
         if (mission.Kind != MissionRules.CollectKind) return;
         if (StorySystemOf(mission) is { } where && where != SystemId) return;
@@ -409,7 +430,7 @@ public sealed partial class Room
     /// <summary>Пилот поднял груз: сюжету это повод прислать встречающих и задать вопрос.</summary>
     private void StoryPicked(Player player, LootDrop drop)
     {
-        if (player.Missions.Active?.Offer.Story is not { } story) return;
+        if (player.Missions.Story?.Offer.Story is not { } story) return;
         if (StoryMissionOf(story) is not { Item: { } item } mission || drop.Item != item) return;
         if (player.Cargo.Count(item) < mission.Count) return;
 
@@ -430,7 +451,7 @@ public sealed partial class Room
     private void StoryChoose(Player player, string? flag)
     {
         if (!_storyAsked.TryGetValue(player.Id, out var story)) return;
-        if (player.Missions.Active?.Offer.Story is not { } active || active.Mission != story.Mission) return;
+        if (player.Missions.Story?.Offer.Story is not { } active || active.Mission != story.Mission) return;
         if (StoryMissionOf(story) is not { Choice: { } choice } mission) return;
         if (choice.OptionList.FirstOrDefault(o => o.Flag == flag) is not { } option) return;
 
@@ -446,13 +467,13 @@ public sealed partial class Room
             // «Не сейчас» (M20b): работа возвращается на доску, цепочка стоит на той же миссии,
             // а уплаченное возвращается — пилот ни за что не платил.
             if (PriceOf(player, mission) is var paid && paid > 0) player.Credits += paid;
-            Abandon(player);
+            Abandon(player, MissionSlot.Story);
             SendCargo(player);
             SendMissions(player);
             Save(player);
             return;
         }
-        if (mission.Finish == StoryRules.FinishChoice) Complete(player);
+        if (mission.Finish == StoryRules.FinishChoice) Complete(player, MissionSlot.Story);
         else Save(player);
     }
 

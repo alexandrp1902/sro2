@@ -12,12 +12,14 @@ namespace Sro.Server.Game;
 /// <see cref="MissionRules.EscortKind"/>, <see cref="MissionRules.PatrolKind"/>
 /// или <see cref="MissionRules.DefendKind"/>.
 /// </param>
-public sealed class MissionRun(int id, int playerId, string kind)
+/// <param name="Slot">Из какого слота задание: провал и сдача прогона касаются только его.</param>
+public sealed class MissionRun(int id, int playerId, string kind, MissionSlot slot = MissionSlot.Board)
 {
     /// <summary>Номер прогона: им помечены его конвой и его звено.</summary>
     public int Id { get; } = id;
     public int PlayerId { get; } = playerId;
     public string Kind { get; } = kind;
+    public MissionSlot Slot { get; } = slot;
 
     /// <summary>Сопровождение: чей это конвой; 0 — конвоя уже нет.</summary>
     public int TraderId;

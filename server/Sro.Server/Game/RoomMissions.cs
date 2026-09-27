@@ -59,9 +59,9 @@ public sealed partial class Room
     /// </summary>
     private void StartRun(Player player)
     {
-        if (player.Missions.Active?.Offer is not { } offer || !MissionRules.IsLive(offer.Kind)) return;
+        if (player.Missions.LiveSlot is not { } slot || player.Missions.Of(slot)?.Offer is not { } offer) return;
         if (_runs.ContainsKey(player.Id)) return;
-        var run = new MissionRun(++_runCount, player.Id, offer.Kind);
+        var run = new MissionRun(++_runCount, player.Id, offer.Kind, slot);
         var started = offer.Kind switch
         {
             MissionRules.EscortKind => StartEscort(run, player, offer),
@@ -73,7 +73,7 @@ public sealed partial class Room
         {
             // Отыграть нечем: некого вести или некому лететь. Пилот в этом не виноват — задание просто снимаем.
             _log.LogWarning("Player {Id} cannot start a {Kind} mission here", player.Id, offer.Kind);
-            Abandon(player);
+            Abandon(player, slot);
             return;
         }
         _runs[player.Id] = run;
@@ -90,26 +90,29 @@ public sealed partial class Room
         StepTutorial();
         foreach (var kill in _kills)
         {
-            if (_players.GetValueOrDefault(kill.Id) is { Missions.Active.Offer.Kind: { } kind } dead &&
-                MissionRules.DiesWithTheShip(kind))
-                Fail(dead, Protocol.DeadFail);
+            if (_players.GetValueOrDefault(kill.Id) is not { } dead) continue;
+            foreach (var slot in MissionLog.Slots)
+            {
+                if (dead.Missions.Of(slot)?.Offer.Kind is { } kind && MissionRules.DiesWithTheShip(kind))
+                    Fail(dead, slot, Protocol.DeadFail);
+            }
         }
         if (_runs.Count > 0)
         {
             foreach (var run in _runs.Values.ToList())
             {
                 if (_players.GetValueOrDefault(run.PlayerId) is not { } player ||
-                    player.Missions.Active is not { } active ||
+                    player.Missions.Of(run.Slot) is not { } active ||
                     active.Offer.Kind != run.Kind)
                 {
                     // Пилота в комнате уже нет или задание кончилось мимо нас — актёров убираем.
-                    EndRun(run.PlayerId);
+                    EndRun(run.PlayerId, run.Slot);
                     continue;
                 }
                 // Корабль-призрак после обрыва связи никого не ведёт: 60 секунд ждать конвою незачем.
                 if (player.Connection is null)
                 {
-                    Fail(player, Protocol.LeftFail);
+                    Fail(player, run.Slot, Protocol.LeftFail);
                     continue;
                 }
                 if (run.Kind == MissionRules.EscortKind) StepEscort(run, player, active);
@@ -121,7 +124,7 @@ public sealed partial class Room
         var now = NowSeconds;
         foreach (var player in _players.Values)
         {
-            if (player.Missions.Active is { Until: > 0 } timed && now >= timed.Until) Fail(player, Protocol.TimeFail);
+            if (player.Missions.Active is { Until: > 0 } timed && now >= timed.Until) Fail(player, MissionSlot.Board, Protocol.TimeFail);
         }
         // Доска сменилась по часам (M15.1) — показать новую тем, кто на неё сейчас смотрит.
         // Тем, кто в космосе, слать незачем: доску они увидят, когда встанут, и она будет уже свежей.
@@ -255,12 +258,12 @@ public sealed partial class Room
     {
         if (_ships.GetValueOrDefault(run.TraderId) is not Trader { IsDead: false } trader)
         {
-            Fail(player, Protocol.TraderFail);
+            Fail(player, run.Slot, Protocol.TraderFail);
             return;
         }
         if (trader.Gone)
         {
-            Complete(player);
+            Complete(player, run.Slot);
             return;
         }
 
@@ -277,7 +280,7 @@ public sealed partial class Room
             {
                 trader.Gone = true;
                 RemoveShip(trader);
-                Complete(player);
+                Complete(player, run.Slot);
                 return;
             }
         }
@@ -300,7 +303,7 @@ public sealed partial class Room
                 SpawnAmbush(run, trader, offer);
                 run.Wave++;
                 run.WaveTick = Tick;
-                player.Missions.Active = active with { Progress = run.Wave };
+                player.Missions.Set(run.Slot, active with { Progress = run.Wave });
                 player.Connection?.Send(new NoticeMsg(Protocol.AmbushNotice));
                 BroadcastPlayers();
                 SendMissions(player);
@@ -325,7 +328,7 @@ public sealed partial class Room
             return;
         }
         var patience = Balance.Missions.EscortFor(offer)?.AwaySeconds ?? 0;
-        if (patience > 0 && Tick - run.AwaySince >= Combat.SecondsToTicks(patience)) Fail(player, Protocol.AwayFail);
+        if (patience > 0 && Tick - run.AwaySince >= Combat.SecondsToTicks(patience)) Fail(player, run.Slot, Protocol.AwayFail);
     }
 
     /// <summary>
@@ -355,7 +358,7 @@ public sealed partial class Room
         }
         if (wing == 0)
         {
-            Fail(player, Protocol.WingFail);
+            Fail(player, run.Slot, Protocol.WingFail);
             return;
         }
         // Бой начался — точка не засчитывается, пока его не кончат. Убежать от него нельзя: пираты
@@ -391,10 +394,10 @@ public sealed partial class Room
     {
         run.Point++;
         run.Engaged = false;
-        player.Missions.Active = active with { Progress = run.Point };
+        player.Missions.Set(run.Slot, active with { Progress = run.Point });
         if (run.Point >= active.Offer.Count)
         {
-            Complete(player);
+            Complete(player, run.Slot);
             return;
         }
         MoveWing(run);
@@ -434,7 +437,7 @@ public sealed partial class Room
     private int SendRaidWave(MissionRun run, MissionOffer? offer = null)
     {
         if (DefendPoint(run) is not { } spot) return 0;
-        var taken = offer ?? _players.GetValueOrDefault(run.PlayerId)?.Missions.Active?.Offer;
+        var taken = offer ?? _players.GetValueOrDefault(run.PlayerId)?.Missions.Of(run.Slot)?.Offer;
         var story = StoryMissionOf(taken?.Story);
         // Чем дальше волна, тем злее: как у засад на конвой. Последняя волна — самая тяжёлая.
         var wave = story is not null ? story.Wave(run.Wave) : Balance.Missions.Wave(run.Wave);
@@ -449,7 +452,7 @@ public sealed partial class Room
         if (DefendPoint(run) is not { } spot)
         {
             // Поселение убрала горячая правка: винить пилота не в чем.
-            Abandon(player);
+            Abandon(player, run.Slot);
             SendMissions(player);
             return;
         }
@@ -474,14 +477,14 @@ public sealed partial class Room
         }
         if (run.Strikes > 0 && run.Strikes >= Strikes(offer))
         {
-            Fail(player, Protocol.RaidFail);
+            Fail(player, run.Slot, Protocol.RaidFail);
             return;
         }
 
         // Бросить поселение под ударом — это провал: уйти в док на нём самом тоже не выход.
         if (player.Docked || player.IsDead)
         {
-            Fail(player, Protocol.AwayFail);
+            Fail(player, run.Slot, Protocol.AwayFail);
             return;
         }
         var px = player.Ship.X - spot.X;
@@ -495,7 +498,7 @@ public sealed partial class Room
             }
             else if (Tick - run.AwaySince >= Combat.SecondsToTicks(AwaySeconds(offer)))
             {
-                Fail(player, Protocol.AwayFail);
+                Fail(player, run.Slot, Protocol.AwayFail);
                 return;
             }
         }
@@ -512,13 +515,13 @@ public sealed partial class Room
         // Волна выбита. Последняя — работа сделана; иначе передышка, и следующая идёт от врат.
         if (run.Wave >= offer.Count)
         {
-            Complete(player);
+            Complete(player, run.Slot);
             return;
         }
         if (run.NextWaveTick == 0)
         {
             run.NextWaveTick = Tick + Combat.SecondsToTicks(GapSeconds(offer));
-            player.Missions.Active = active with { Progress = run.Wave };
+            player.Missions.Set(run.Slot, active with { Progress = run.Wave });
             SendMissions(player);
             return;
         }
@@ -526,7 +529,7 @@ public sealed partial class Room
         run.NextWaveTick = 0;
         if (SendRaidWave(run, offer) == 0)
         {
-            Complete(player); // посылать больше некого — считаем отбитым
+            Complete(player, run.Slot); // посылать больше некого — считаем отбитым
             return;
         }
         BroadcastPlayers();
@@ -644,9 +647,12 @@ public sealed partial class Room
     /// Прогон окончен — чем бы он ни кончился. Конвой перестаёт быть заданием и долетает куда летел;
     /// звено уходит из системы, как пираты после отбитого вторжения.
     /// </summary>
-    private void EndRun(int playerId)
+    /// <param name="slot">Кончилось задание этого слота; null — всё равно какого. Прогон другого слота живёт дальше:
+    /// сдача работы с доски не должна обрывать сюжетную оборону.</param>
+    private void EndRun(int playerId, MissionSlot? slot = null)
     {
-        if (!_runs.Remove(playerId, out var run)) return;
+        if (!_runs.TryGetValue(playerId, out var run) || (slot is { } only && run.Slot != only)) return;
+        _runs.Remove(playerId);
         if (_ships.GetValueOrDefault(run.TraderId) is Trader trader) trader.MissionId = 0;
         foreach (var ranger in _pirates)
         {
@@ -677,7 +683,7 @@ public sealed partial class Room
                 MissionRules.PatrolKind => _pirates.Any(p => p.MissionId == run.Id && p.Type.IsRanger && !p.IsDead && !p.Gone),
                 _ => true,
             };
-            if (!alive) Fail(player, run.Kind == MissionRules.EscortKind ? Protocol.TraderFail : Protocol.WingFail);
+            if (!alive) Fail(player, run.Slot, run.Kind == MissionRules.EscortKind ? Protocol.TraderFail : Protocol.WingFail);
         }
     }
 
@@ -685,16 +691,17 @@ public sealed partial class Room
     /// Куда смотреть по живому заданию: за конвоем — по его кораблю (он ходит, и снапшот знает где),
     /// за патрулём — к текущей точке маршрута. null — метки нет.
     /// </summary>
-    private MissionMarkDto? MarkOf(Player player)
+    private MissionMarkDto? MarkOf(Player player, MissionSlot slot)
     {
         // Сюжетная точка — такая же цель, как конвой и маршрут патруля: без неё «обломки в Нове»
         // пришлось бы искать по всей системе (M20a). Набрал сколько нужно — метка гаснет.
-        if (player.Missions.Active?.Offer.Story is { } story &&
+        if (slot == MissionSlot.Story &&
+            player.Missions.Story?.Offer.Story is { } story &&
             StoryMissionOf(story) is { Point: { } wreck, Item: { } item } mission &&
             StorySystemOf(mission) == SystemId &&
             player.Cargo.Count(item) < mission.Count)
             return new MissionMarkDto(0, wreck.X, wreck.Y);
-        if (RunOf(player) is not { } run) return null;
+        if (RunOf(player) is not { } run || run.Slot != slot) return null;
         if (run.Kind == MissionRules.EscortKind)
             return _ships.GetValueOrDefault(run.TraderId) is Trader { IsDead: false } ? new MissionMarkDto(run.TraderId, 0, 0) : null;
         if (run.Kind == MissionRules.DefendKind)

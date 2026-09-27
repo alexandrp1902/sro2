@@ -233,7 +233,7 @@ public sealed class M20bStoryTests : IDisposable
         var a = Pilot();
         var before = Credits(a);
         TakeStory(a);
-        Assert.NotNull(Missions_(a).Active?.Offer.Story);
+        Assert.NotNull(Missions_(a).StoryActive?.Offer.Story);
         Assert.Equal(before - 500, Credits(a));
         // Деталь при этом выдана: за деньги пилот получает груз, а не обещание.
         Assert.Equal(1, PlayerOf(a).Cargo.Count("part"));
@@ -251,7 +251,7 @@ public sealed class M20bStoryTests : IDisposable
         var a = Pilot();
         PlayerOf(a).Credits = 100;
         TakeStory(a);
-        Assert.Null(Missions_(a).Active);
+        Assert.Null(Missions_(a).StoryActive);
         Assert.Equal(Protocol.NoCreditsNotice, a.Last<NoticeMsg>().Code);
         // И груза не выдали: не оплачено — не отгружено.
         Assert.Equal(0, PlayerOf(a).Cargo.Count("part"));
@@ -274,7 +274,7 @@ public sealed class M20bStoryTests : IDisposable
         Assert.Equal(before - 300, Credits(a));
 
         Do(a, r => r.Mission(a, Protocol.ChooseStory, "no"));
-        Assert.Null(Missions_(a).Active);
+        Assert.Null(Missions_(a).StoryActive);
         // Работа вернулась на доску той же самой, а деньги — пилоту.
         Assert.Equal("ask", State(a)!.Offer!.Story!.Mission);
         Assert.Equal(before, Credits(a));
@@ -289,7 +289,7 @@ public sealed class M20bStoryTests : IDisposable
         Passed(a, "pay");
         TakeStory(a);
         Do(a, r => r.Mission(a, Protocol.ChooseStory, "yes"));
-        Assert.Equal("ask", Missions_(a).Active?.Offer.Story?.Mission);
+        Assert.Equal("ask", Missions_(a).StoryActive?.Offer.Story?.Mission);
         Assert.Contains("yes", PlayerOf(a).StoryOf(Campaign).Flags);
     }
 
@@ -377,7 +377,7 @@ public sealed class M20bStoryTests : IDisposable
         TakeStory(a);
         PlayerOf(a).Cargo.Add("metal", 1);
         Do(a, r => r.Mission(a, Protocol.CompleteMission, null));
-        Assert.Null(Missions_(a).Active);
+        Assert.Null(Missions_(a).StoryActive);
         // Флага «я с вами» у этого пилота нет: корабля тоже нет.
         Assert.DoesNotContain("heavy", PlayerOf(a).Hulls);
         Assert.Equal("Спасибо.", a.Last<DialogMsg>().Lines[^1]);
@@ -409,7 +409,7 @@ public sealed class M20bStoryTests : IDisposable
         Do(a, r => r.Mission(a, Protocol.CompleteMission, null));
         // Просили один: остальные четыре — груз пилота, а не заказчика.
         Assert.Equal(4, PlayerOf(a).Cargo.Count("metal"));
-        Assert.Null(Missions_(a).Active);
+        Assert.Null(Missions_(a).StoryActive);
     }
 
     // ------------------------------------------------------------------ заглушка

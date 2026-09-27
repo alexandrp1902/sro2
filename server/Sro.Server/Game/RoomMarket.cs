@@ -190,11 +190,16 @@ public sealed partial class Room
     /// «собрать» (M16a). Иначе задание сдавалось бы покупкой на месте, ведь склад теперь открыт весь.
     /// null — ничего не заперто.
     /// </summary>
-    private string? MissionGood(Player player) =>
-        player.Missions.Active?.Offer is { Kind: MissionRules.CollectKind, Item: { } item } collect
-        && PlaceOf(player)?.Key == collect.From
-            ? item
-            : null;
+    private string? MissionGood(Player player)
+    {
+        var here = PlaceOf(player)?.Key;
+        foreach (var slot in MissionLog.Slots)
+        {
+            if (player.Missions.Of(slot)?.Offer is { Kind: MissionRules.CollectKind, Item: { } item } collect && here == collect.From)
+                return item;
+        }
+        return null;
+    }
 
     /// <summary>Цены — только тому, кто в доке: рынок у каждого места свой.</summary>
     private void SendMarket(Player player)

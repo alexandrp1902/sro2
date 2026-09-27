@@ -68,6 +68,10 @@ public sealed record StoryProgress(
 /// Сюжетные кампании (M20a): id кампании → что в ней пройдено. null — профиль старше M20 или пилот
 /// не брал ни одной сюжетной миссии; читается как «кампания не начата», и первая её миссия ждёт на доске.
 /// </param>
+/// <param name="StoryMission">
+/// Взятая сюжетная миссия — у неё свой слот рядом с <paramref name="Mission"/> (плейтест 2026-09-26).
+/// В профиле старше этого сюжет лежит в <paramref name="Mission"/>, и при входе он переезжает сюда.
+/// </param>
 public sealed record AccountProfile(
     int Credits,
     string Hull,
@@ -89,4 +93,5 @@ public sealed record AccountProfile(
     double? Hp = null,
     string? TutorialStep = null,
     IReadOnlyDictionary<string, StoryProgress>? Story = null,
-    IReadOnlyDictionary<string, Sro.Sim.ShipFit>? Fits = null);
+    IReadOnlyDictionary<string, Sro.Sim.ShipFit>? Fits = null,
+    Sro.Sim.ActiveMission? StoryMission = null);

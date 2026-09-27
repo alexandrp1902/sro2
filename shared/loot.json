@@ -39,6 +39,11 @@
     "armorSections": { "name": "Броневые секции", "rarity": "uncommon", "volume": 10, "price": 0, "story": true },
     "shipLog": { "name": "Бортовой журнал", "rarity": "epic", "volume": 1, "price": 0, "story": true },
 
+    // Пролог «Дорога в Нову» (плейтест 2026-09-26): бумаги рейса «Надежды» от Терры до Новы.
+    "contracts": { "name": "Контракты найма", "rarity": "common", "volume": 2, "price": 0, "story": true },
+    "mailCapsule": { "name": "Почтовая капсула", "rarity": "uncommon", "volume": 1, "price": 0, "story": true },
+    "passengerList": { "name": "Список пассажиров", "rarity": "rare", "volume": 1, "price": 0, "story": true },
+
     // Детали прототипа (M20b). Объёмы разные нарочно: каркас в 30 влезает не в каждый корпус, и это
     // единственное место кампании, где корабль выбирают под работу, а не под бой.
     "blueprint": { "name": "Неполный чертёж", "rarity": "epic", "volume": 1, "price": 0, "story": true },

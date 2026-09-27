@@ -22,10 +22,65 @@ public class StoryRulesTests
         var quiet = story.Campaign("quietWar");
         Assert.NotNull(quiet);
         Assert.Equal("Тихая война", quiet!.Name);
-        // Кампания дописана до конца (M20b): четырнадцать задуманных и четырнадцать написанных.
-        Assert.Equal(14, quiet.Length);
-        Assert.Equal(14, quiet.MissionList.Count);
+        // Пролог из пяти (плейтест 2026-09-26) и четырнадцать миссий кампании, дописанной до конца (M20b).
+        Assert.Equal(19, quiet.Length);
+        Assert.Equal(19, quiet.MissionList.Count);
+        Assert.Equal("recruit", quiet.MissionList[0].Id);
+        Assert.All(quiet.MissionList.Take(5), m => Assert.True(m.Prologue, m.Id));
+        Assert.All(quiet.MissionList.Skip(5), m => Assert.False(m.Prologue, m.Id));
         Assert.Equal("prototype", quiet.MissionList[^1].Id);
+    }
+
+    [Fact]
+    public void SharedFile_QuotaLeadsStraightToThePlatform()
+    {
+        // «Норма добычи» кончается у Платформы, и следующая миссия даётся там же (плейтест: после Морен
+        // и после Нова-Один было непонятно, куда лететь).
+        var quiet = Shared().Story.Campaign("quietWar")!;
+        Assert.Equal(["quota", "supply", "cells", "medic", "parts"], quiet.MissionList.Skip(5).Take(5).Select(m => m.Id));
+        Assert.Equal(quiet.Mission("quota")!.Destination, quiet.Mission("supply")!.Place);
+    }
+
+    [Fact]
+    public void ThePrologueIsPassedByThoseAlreadyOnTheRoad()
+    {
+        var quiet = Shared().Story.Campaign("quietWar")!;
+        Assert.Equal("recruit", quiet.Next([])!.Id);
+        Assert.Equal("letters", quiet.Next(["recruit"])!.Id);
+        // Кто начал кампанию до пролога, продолжает с того же места и не летит обратно в Сол.
+        Assert.Equal("supply", quiet.Next(["quota"])!.Id);
+        Assert.Equal(6, quiet.Count(["quota"]));
+        Assert.Equal(0, quiet.Count([]));
+    }
+
+    [Fact]
+    public void SharedFile_ThePrologueFitsAFreshPilot()
+    {
+        var balance = Shared();
+        var quiet = balance.Story.Campaign("quietWar")!;
+        foreach (var mission in quiet.MissionList.Where(m => m.Prologue))
+        {
+            // Новичок на «Ослике»: не больше двух противников разом и не выше второго уровня.
+            foreach (var spawn in mission.SpawnList)
+                Assert.True(spawn.Level <= 2 && spawn.Count <= 2, $"{mission.Id}: {spawn.Npc} Ур.{spawn.Level} ×{spawn.Count}");
+            foreach (var group in mission.WaveList.SelectMany(w => w))
+                Assert.True(group.Level <= 2 && group.Count <= 2, $"{mission.Id}: {group.Type} Ур.{group.Level} ×{group.Count}");
+            // И пролог идёт по спокойным системам: в свободный PvP новичка ведёт уже сама кампания.
+            var system = balance.Galaxy.SystemOfPlace(mission.Place)!;
+            Assert.True(balance.Galaxy.System(system)!.Danger <= 3, $"{mission.Id}: {system}");
+        }
+    }
+
+    [Fact]
+    public void SharedFile_EveryHandInSaysWhereToGoNext()
+    {
+        // После каждой миссии, кроме последней, кто-то говорит, куда лететь дальше: хотя бы есть что сказать.
+        var quiet = Shared().Story.Campaign("quietWar")!;
+        foreach (var mission in quiet.MissionList.SkipLast(1))
+        {
+            var said = mission.Lines?.Done?.Count > 0 || mission.Choice?.OptionList.All(o => o.Lines?.Count > 0) == true;
+            Assert.True(said, $"{mission.Id}: no lines on hand-in");
+        }
     }
 
     [Fact]
@@ -138,6 +193,31 @@ public class StoryRulesTests
         ] } } }
         """);
         Assert.Contains("unknown kind", error);
+    }
+
+    [Fact]
+    public void APrologueAfterTheCampaignBeganIsRefused()
+    {
+        var error = Error("""
+        { "campaigns": { "c": { "name": "К", "missions": [
+          { "id": "a", "title": "Т", "place": "st:home", "giver": "Г", "role": "р", "kind": "collect", "item": "metal" },
+          { "id": "b", "title": "Т", "place": "st:home", "giver": "Г", "role": "р", "kind": "collect", "item": "metal", "prologue": true }
+        ] } } }
+        """);
+        Assert.Contains("prologue must come before", error);
+    }
+
+    [Fact]
+    public void ALiveStoryMissionIsGivenWhereItIsPlayed()
+    {
+        // Конвой, выданный в Соле с целью в Веге, молча бросался бы на первом же вылете.
+        var (npcs, items) = Catalogs();
+        StoryRules.TryParse("""
+        { "campaigns": { "c": { "name": "К", "missions": [
+          { "id": "a", "title": "Т", "place": "st:sol", "giver": "Г", "role": "р", "kind": "escort", "dest": "pl:vegaOne" }
+        ] } } }
+        """, npcs, items, out _, out var error, galaxy: Shared().Galaxy);
+        Assert.Contains("played where it is given", error);
     }
 
     [Fact]
