@@ -90,7 +90,11 @@ internal static class PirateBrain
         // Без этого волна обороны летела к цели гуськом, и в бою с пилотом каждый оставался один.
         else if (pirate.State == PirateState.Return && pirate.IsRaider && pirate.PatrolUntilTick == 0 && pirate.LeaveAtTick == 0 &&
                  pirate.Hp > pirate.MaxHp(hull) * pirate.RetreatHp &&
-                 Assist(pirate, ships, pirates, npc, shelter, tick, onTheWay: true) is { } mate)
+                 Assist(pirate, ships, pirates, npc, shelter, tick, onTheWay: true) is { } mate &&
+                 // Бой, который тут же пришлось бы бросить (у укрытия станции, против перевеса), не начинаем:
+                 // иначе бой бросается, налётчик снова в пути, снова видит товарища — и так без конца.
+                 ReturnReason(pirate, mate, hull, npc, shelter, onTheWay: true) is null &&
+                 !IsOutmatched(pirate, mate, pirates, balance))
         {
             pirate.State = PirateState.Attack;
             pirate.TargetId = mate.Id;

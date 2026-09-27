@@ -87,4 +87,39 @@ public sealed class RaidAssistTests
         _galaxy.Step();
         Assert.All(raiders, r => Assert.Equal((PirateState.Attack, player.Id), (r.State, r.TargetId)));
     }
+
+    [Fact]
+    public void ARaiderAtTheStationDoesNotTurnIntoAFightItWouldDropAtOnce()
+    {
+        // Регресс: налётчик в пути у самого укрытия станции разворачивался к товарищу, тут же бросал бой
+        // («слишком близко к укрытию»), снова был в пути — и так по кругу, пока не кончался стек сервера.
+        var (c, player, raiders) = StartDefence();
+        var station = Room.PlacePosition(Room.Balance.Place("st:home")!);
+        var shelter = Room.Balance.Npc.StationSafeRadius;
+        // Налётчик — внутри запаса у укрытия, пилот — сразу за его краем: оба в дальности боя друг от друга.
+        (raiders[1].Ship.X, raiders[1].Ship.Y) = (station.X + 300, station.Y);
+        (player.Ship.X, player.Ship.Y) = (station.X + shelter + 50, station.Y);
+        (raiders[0].Ship.X, raiders[0].Ship.Y) = (station.X + shelter + 200, station.Y);
+        raiders[0].State = PirateState.Attack;
+        raiders[0].TargetId = player.Id;
+
+        _galaxy.Step();
+
+        Assert.Equal(PirateState.Return, raiders[1].State);
+        Assert.NotNull(c);
+    }
+
+    private (FakeConnection, Player, List<Pirate>) StartDefence()
+    {
+        var c = new FakeConnection(1);
+        _galaxy.Join(c, null, "Alice", null);
+        _galaxy.Undock(c);
+        var player = Room.Pilot(c.Last<WelcomeMsg>().Id)!;
+        (player.Ship.X, player.Ship.Y) = Room.PlacePosition(Room.Balance.Place(Settlement)!);
+        Room.Dock(c, true, Settlement);
+        Room.Mission(c, Protocol.AcceptMission, c.Last<MissionsMsg>().Offers.First(o => o.Kind == MissionRules.DefendKind).Id);
+        Room.Dock(c, false);
+        _galaxy.Step();
+        return (c, player, [.. Room.Pirates.Where(p => p.MissionId != 0 && !p.IsDead)]);
+    }
 }
