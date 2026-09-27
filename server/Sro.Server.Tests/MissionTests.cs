@@ -1001,6 +1001,8 @@ public sealed class MissionTests : IDisposable
         Assert.Equal(1, Missions(a).Active?.Progress);
         Assert.True(RoomOf(a).Pirates.Count > pirates);
         Assert.Equal(Protocol.AmbushNotice, a.Last<NoticeMsg>().Code);
+        // Засада не патрулирует в стороне, а сразу идёт на конвой (плейтест 2026-09-27, «Надежда»).
+        Assert.All(Ambush(a), p => Assert.Equal((PirateState.Attack, convoy.Id), (p.State, p.TargetId)));
     }
 
     [Fact]

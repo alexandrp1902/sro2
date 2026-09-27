@@ -604,8 +604,8 @@ public sealed partial class Room
     }
 
     /// <summary>
-    /// Засада на конвой: группа волны встаёт впереди по его курсу. Точка обязана быть вне жара звезды и вне
-    /// укрытия станции — в укрытии пираты развернулись бы, не начав боя.
+    /// Засада на конвой: группа волны встаёт впереди по его курсу, вне жара звезды и вне укрытия станции,
+    /// и сразу идёт на конвой.
     /// </summary>
     private void SpawnAmbush(MissionRun run, Trader trader, MissionOffer offer)
     {
@@ -614,6 +614,15 @@ public sealed partial class Room
         var wave = story is not null ? story.Wave(run.Wave) : Balance.Missions.Wave(run.Wave);
         if (wave.Count == 0) return;
         SpawnWave(wave, AmbushPoint(trader), invasionId: 0, missionId: run.Id, onSite: true, fixedLevel: story is not null);
+        // Засада не ждёт, пока конвой подлетит к ней сам (плейтест 2026-09-27: «Надежда» встала, а пираты
+        // патрулировали в стороне): она сразу идёт на конвой — хоть у самой станции, на то она и засада.
+        foreach (var raider in _pirates)
+        {
+            if (raider.MissionId != run.Id || raider.IsDead || raider.Gone || raider.State != PirateState.Patrol) continue;
+            raider.State = PirateState.Attack;
+            raider.TargetId = trader.Id;
+            raider.HoldsGround = true;
+        }
     }
 
     /// <summary>Точка засады: впереди конвоя по курсу и вбок, подальше от звезды и от укрытия станции.</summary>
@@ -629,15 +638,27 @@ public sealed partial class Room
         var y = trader.Ship.Y + uy * ahead + ux * AmbushSide * side;
 
         var npc = Balance.Npc;
-        var burn = (Balance.Sun?.BurnRadius ?? 0) + GalaxyRules.HeatMargin + npc.PatrolRadius;
-        var shelter = Balance.HasStation ? Balance.StationPath.Radius + npc.StationSafeRadius + npc.PatrolRadius : 0;
-        var min = Math.Max(burn, shelter);
-        var radius = Math.Sqrt(x * x + y * y);
-        if (radius < min)
+        // Из укрытия станции — только из круга вокруг неё самой, а не из всего кольца её орбиты: иначе засаду
+        // на маршруте «станция → планета» выносило на 2000+ от конвоя, и она его не видела (плейтест 2026-09-27).
+        if (Balance.HasStation)
         {
-            // Внутрь запретного круга засаду не ставим — выталкиваем её наружу по тому же направлению.
+            var (sx, sy) = StationPosition;
+            var keep = npc.StationSafeRadius + npc.PatrolRadius;
+            var (fx, fy) = (x - sx, y - sy);
+            var away = Math.Sqrt(fx * fx + fy * fy);
+            if (away < keep)
+            {
+                var (ox, oy) = away > 1 ? (fx / away, fy / away) : (-uy * side, ux * side);
+                (x, y) = (sx + ox * keep, sy + oy * keep);
+            }
+        }
+        var burn = (Balance.Sun?.BurnRadius ?? 0) + GalaxyRules.HeatMargin + npc.PatrolRadius;
+        var radius = Math.Sqrt(x * x + y * y);
+        if (radius < burn)
+        {
+            // Внутрь жара звезды засаду не ставим — выталкиваем её наружу по тому же направлению.
             var (ox, oy) = radius > 1 ? (x / radius, y / radius) : (ux, uy);
-            (x, y) = (ox * min, oy * min);
+            (x, y) = (ox * burn, oy * burn);
         }
         var limit = NpcRules.WorldLimit - npc.PatrolRadius;
         return (Math.Clamp(x, -limit, limit), Math.Clamp(y, -limit, limit));
