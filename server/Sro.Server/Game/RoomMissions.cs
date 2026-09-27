@@ -481,15 +481,17 @@ public sealed partial class Room
             return;
         }
 
-        // Бросить поселение под ударом — это провал: уйти в док на нём самом тоже не выход.
-        if (player.Docked || player.IsDead)
+        // Бросить поселение под ударом — это провал. Сесть на само поселение, чтобы починиться, можно
+        // (плейтест 2026-09-27): налёт при этом не ждёт, и кто долетел — тот и ударил.
+        var repairing = player.Docked && player.DockedPlace == run.Place;
+        if (player.IsDead || player.Docked && !repairing)
         {
             Fail(player, run.Slot, Protocol.AwayFail);
             return;
         }
         var px = player.Ship.X - spot.X;
         var py = player.Ship.Y - spot.Y;
-        if (px * px + py * py > offer.Radius * offer.Radius)
+        if (!repairing && px * px + py * py > offer.Radius * offer.Radius)
         {
             if (run.AwaySince == 0)
             {

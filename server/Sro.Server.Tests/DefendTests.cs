@@ -210,14 +210,52 @@ public sealed class DefendTests
     }
 
     [Fact]
-    public void GoingBackIntoTheDock_GivesTheSettlementUp()
+    public void LandingOnTheSettlementToRepair_KeepsTheWork()
     {
         var a = Guest();
         var player = Start(a);
 
-        // Сесть посреди налёта — это и есть «бросил»: работа начинается на вылете и в доке не идёт.
+        // Сесть на само поселение и починиться — не «бросил» (плейтест 2026-09-27): работа идёт дальше.
         (player.Ship.X, player.Ship.Y) = Spot;
         Room.Dock(a, true, Settlement);
+        Steps(3 * SimConfig.TickRate);
+        Assert.NotNull(Missions(a).Active);
+
+        Room.Dock(a, false);
+        Steps(2);
+        Assert.NotNull(Missions(a).Active);
+        Assert.NotEmpty(Raiders());
+    }
+
+    [Fact]
+    public void WhileThePilotRepairs_TheRaidersStillStrike()
+    {
+        var a = Guest();
+        var player = Start(a);
+        (player.Ship.X, player.Ship.Y) = Spot;
+        Room.Dock(a, true, Settlement);
+
+        // Налёт не ждёт, пока пилот в доке: долетевшие бьют, и два удара — провал.
+        for (var strike = 0; strike < 2; strike++)
+        {
+            var raider = Assert.Single(Raiders());
+            (raider.Ship.X, raider.Ship.Y) = Spot;
+            Steps(3);
+        }
+
+        Assert.Equal(Protocol.MissionFailed, Missions(a).Done?.Kind);
+        Assert.Equal(Protocol.RaidFail, Missions(a).Done?.Reason);
+    }
+
+    [Fact]
+    public void DockingAnywhereElse_GivesTheSettlementUp()
+    {
+        var a = Guest();
+        var player = Start(a);
+
+        // Улететь на станцию посреди налёта — это и есть «бросил».
+        (player.Ship.X, player.Ship.Y) = Room.PlacePosition(Room.Balance.Place(Station)!);
+        Room.Dock(a, true, Station);
         Steps(2);
 
         Assert.Equal(Protocol.MissionFailed, Missions(a).Done?.Kind);
