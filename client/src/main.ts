@@ -993,7 +993,7 @@ async function main(): Promise<void> {
 
   /**
    * Где цель задания в этой системе: ближайший дрон, пират или груз, станция, врата. Кого нет на радаре —
-   * на того и не указываем: трекер всё равно говорит, что делать.
+   * на того и не указываем: трекер всё равно говорит, что делать. Кроме дронов: те всегда у станции.
    */
   /** Учебный буй (M18) в этот кадр; null — шаг не тот, пилот в доке или буй в другой системе. */
   let buoyNow: Point | null = null;
@@ -1012,8 +1012,12 @@ async function main(): Promise<void> {
       return best;
     };
     switch (goal.kind) {
+      // Дроны висят у станции Сол: пока ни одного нет на радаре, указываем на станцию (плейтест 2026-09-27).
       case 'drone':
-        return closest([...remote.visible()].filter((s) => s.kind === 'drone' && !s.dead));
+        return (
+          closest([...remote.visible()].filter((s) => s.kind === 'drone' && !s.dead)) ??
+          (system?.station ? { ...systemView.stationAt, size: STATION.radius } : null)
+        );
       case 'pirate': {
         // Тип пирата в снапшоте не приходит — узнаём по корпусу типа из npcs.json.
         const hull = goal.npc ? npcRules?.types?.[goal.npc]?.hull : undefined;
