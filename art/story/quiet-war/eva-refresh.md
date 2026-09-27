@@ -1,5 +1,9 @@
 # Ева Морен — обновление 2026-09-27
 
+Дополнение: по запросу пользователя волосы перекрашены в естественный медно-рыжий цвет встроенным image_gen. Обновлены тот же исходник и игровой WebP. Промпт перекраски:
+
+Use case: identity-preserve. Edit the provided portrait of Eva Moren. Change ONLY the hair color from brown to natural, clearly visible copper ginger red hair, with warm auburn shadows and copper highlights. Keep the exact same woman, youthful face, eyes, freckles, expression, skin, grease smudge, hairstyle and individual loose strands, pose, clothing, headset, straps, background, lighting and square composition unchanged. Preserve realistic hair texture; no neon orange or artificial saturated red. No other changes.
+
 Новый портрет создан встроенным image_gen по прежнему изображению как референсу стиля, одежды и композиции. Ева — молодая взрослая девушка 22–25 лет, с мягкими чертами, лёгкой улыбкой и собранными волосами. Сохранены наушники, потёртая рабочая куртка и следы грязи.
 
 Исходник: `sources/portrait-eva.png`. Игровая версия: `client/public/portraits/eva.webp`, 256×256, собрана штатным `tools/portraits.py`. Существующая привязка имени в `client/src/ui/dialog.ts` использует новый файл автоматически.
