@@ -120,8 +120,13 @@ body {
   align-items: flex-end;
 }
 
-.hud-right > .objective,
-.hud-right > .event {
+/* Трекер и табло события: на ПК — обычные строки колонки, на телефоне свёрнутые встают в один ряд кружков. */
+.hud-badges {
+  display: contents;
+}
+
+.hud-badges > .objective,
+.hud-badges > .event {
   width: 100%;
 }
 
@@ -906,6 +911,19 @@ body.ui-hidden #ability {
     gap: 6px;
   }
 
+  /*
+   * Свёрнутые трекер и табло события — один ряд кружков под миникартой: жёлтый, зелёный, красный
+   * (плейтест 2026-09-27). Развёрнутая плашка занимает всю ширину и уходит на свою строку.
+   */
+  .hud-badges {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    align-items: center;
+    gap: 6px;
+    width: 100%;
+  }
+
   .objective-badge {
     width: 32px;
     height: 32px;
@@ -950,12 +968,14 @@ body.ui-hidden #ability {
    * Табло события в полэкрана над миникартой не нужно (M16c): свёрнутое — красный треугольник с «!»,
    * тап разворачивает его на месте (invasion.ts ведёт data-open).
    */
-  .event[data-open='false'] {
-    width: var(--touch);
-    height: var(--touch);
+  /* Красный кружок того же размера, что жёлтый и зелёный у трекера: ряд читается как одна строка значков. */
+  .hud-badges > .event[data-open='false'] {
+    width: 32px;
+    height: 32px;
     padding: 0;
     display: grid;
     place-items: center;
+    border-radius: 50%;
     border-color: var(--danger-line);
     background: var(--danger-pane);
   }
@@ -968,8 +988,8 @@ body.ui-hidden #ability {
 
   .event[data-open='false'] > .event-badge {
     display: block;
-    width: 26px;
-    height: 26px;
+    width: 20px;
+    height: 20px;
     fill: none;
     stroke: var(--danger-text);
   }
