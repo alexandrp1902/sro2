@@ -7,14 +7,28 @@
 export interface Tip {
   title: string;
   text: string;
+  /** Сюжет — зелёная строка с галочкой, как в трекере и на доске. */
+  story?: boolean;
 }
 
 /**
- * Три совета: где взять работу, где узнать цены, как проложить путь. Чистая: тексты проверяют тесты.
+ * Советы: первым — куда зовёт сюжет (плейтест 2026-09-26: после обучения игрок должен сразу знать,
+ * куда лететь), дальше — где взять работу, где узнать цены, как проложить путь. Чистая: тексты проверяют тесты.
  * @param coarse Палец, а не мышь: про клавишу карты на телефоне говорить незачем.
+ * @param story Строка сюжетного трекера; null — сюжета нет или он пройден.
  */
-export function tipLines(coarse: boolean): Tip[] {
+export function tipLines(coarse: boolean, story: { title: string } | null = null): Tip[] {
+  const lead: Tip[] = story
+    ? [
+        {
+          title: 'Сюжет «Тихая война»',
+          text: `${story.title}. Зелёная метка, звезда на карте и курс ведут туда; сюжетное задание берётся вместе с обычным.`,
+          story: true,
+        },
+      ]
+    : [];
   return [
+    ...lead,
     {
       title: 'Доска заданий',
       text: 'Первая вкладка дока. Доставка, охота, сопровождение — чем опаснее система, тем выше награда.',
@@ -60,14 +74,20 @@ export class TipsCard {
     return !this.root.hidden;
   }
 
-  show(coarse: boolean): void {
+  show(coarse: boolean, story: { title: string } | null = null): void {
     this.list.replaceChildren(
-      ...tipLines(coarse).map((tip) => {
+      ...tipLines(coarse, story).map((tip) => {
         const row = document.createElement('div');
         row.className = 'tips-row';
         const head = document.createElement('div');
-        head.className = 'tips-row__title';
-        head.textContent = tip.title;
+        head.className = tip.story ? 'tips-row__title sro-ok' : 'tips-row__title';
+        if (tip.story) {
+          const icon = document.createElement('span');
+          icon.className = 'mission-icon mission-icon--story';
+          icon.setAttribute('aria-hidden', 'true');
+          head.append(icon);
+        }
+        head.append(tip.title);
         const text = document.createElement('div');
         text.className = 'tips-row__text sro-dialog__text';
         text.textContent = tip.text;

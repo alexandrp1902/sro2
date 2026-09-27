@@ -367,8 +367,19 @@ body {
   line-height: 16px;
 }
 
-/* Кружок свёрнутой плашки: виден только на телефоне и только свёрнутым (см. мобильный блок ниже). */
-.objective-badge {
+/* Сюжет — вторая строка трекера (плейтест 2026-09-26): зелёная, под заданием с доски. */
+.objective-row + .objective-row:not([hidden]) {
+  margin-top: 6px;
+  padding-top: 6px;
+  border-top: 1px solid var(--line-soft);
+}
+
+.objective-row[hidden] {
+  display: none;
+}
+
+/* Кружки свёрнутой плашки: видны только на телефоне и только свёрнутой (см. мобильный блок ниже). */
+.objective-badges {
   display: none;
 }
 
@@ -872,36 +883,67 @@ body.ui-hidden #ability {
   }
 
   /*
-   * Плашка задания на телефоне сворачивается тапом в жёлтый кружок с «!» (objectiveHud.ts, data-collapsed),
-   * тап по кружку разворачивает её обратно. Жёлтый — цвет задания и маркера цели в мире.
+   * Плашка задания на телефоне сворачивается тапом в кружки (objectiveHud.ts, data-collapsed): жёлтый «!» —
+   * обучение или задание с доски, зелёная галочка — сюжет. Тап по ним разворачивает плашку обратно.
+   * Цвета — те же, что у маркеров целей в мире.
    */
   .objective[data-collapsed='true'] {
-    width: 32px;
-    height: 32px;
+    width: auto;
     padding: 0;
-    display: grid;
-    place-items: center;
-    border-radius: 50%;
-    border-color: var(--warn);
-    background: var(--warn);
+    border: 0;
+    background: none;
+    box-shadow: none;
+    backdrop-filter: none;
   }
 
-  .objective[data-collapsed='true'] > .objective-head,
-  .objective[data-collapsed='true'] > .objective-hint {
+  .objective[data-collapsed='true'] > .objective-row {
     display: none;
   }
 
-  /* Задание сменилось, пока плашка свёрнута: кружок пару раз вспыхивает (objectiveHud.ts). */
-  .objective[data-collapsed='true'].objective--new {
-    animation: objective-new 0.7s ease-out 3;
+  .objective[data-collapsed='true'] > .objective-badges {
+    display: flex;
+    justify-content: flex-end;
+    gap: 6px;
   }
 
-  .objective[data-collapsed='true'] > .objective-badge {
-    display: block;
+  .objective-badge {
+    width: 32px;
+    height: 32px;
+    display: grid;
+    place-items: center;
+    border-radius: 50%;
     font-size: 20px;
     font-weight: 700;
     line-height: 1;
     color: var(--bg-space);
+  }
+
+  .objective-badge[hidden] {
+    display: none;
+  }
+
+  .objective-badge--board {
+    --pulse: var(--warn);
+    background: var(--warn);
+  }
+
+  .objective-badge--story {
+    --pulse: var(--ok);
+    background: var(--ok);
+  }
+
+  /* Галочка в кружке — тем же силуэтом, что значок сюжета на доске, только тёмным по зелёному. */
+  .objective-badge--story > span {
+    width: 22px;
+    height: 22px;
+    background: var(--bg-space);
+    -webkit-mask: var(--story-check) center / contain no-repeat;
+    mask: var(--story-check) center / contain no-repeat;
+  }
+
+  /* Строка сменилась, пока плашка свёрнута: её кружок пару раз вспыхивает (objectiveHud.ts). */
+  .objective-badge.objective--new {
+    animation: objective-new 0.7s ease-out 3;
   }
 
   /*
@@ -1625,9 +1667,9 @@ body.ui-hidden #ability {
   border-bottom: 0;
 }
 
-/* Сюжетная строка (M20a): золотая кромка слева — чтобы историю было видно среди рядовой работы. */
+/* Сюжетная строка (M20a): зелёная кромка слева (плейтест 2026-09-26) — сюжет не путается с доской. */
 .dock-row--story {
-  border-left: 2px solid var(--warn);
+  border-left: 2px solid var(--ok);
   padding-left: 8px;
 }
 
@@ -1773,6 +1815,16 @@ body.ui-hidden #ability {
   mask: var(--rep-icon) center / contain no-repeat;
 }
 
+/* Значок сюжета (плейтест 2026-09-26): галочка в кружке, зелёная — сюжет не путается с доской. */
+:root {
+  --story-check: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='9.5'/%3E%3Cpath d='M7.5 12.4l3 3 6-6.4'/%3E%3C/svg%3E");
+}
+
+.mission-icon--story {
+  --mission-icon: var(--story-check);
+  color: var(--ok);
+}
+
 /* Значок вида задания перед названием (доска, трекер): белый силуэт, окрашенный цветом строки. */
 .mission-icon {
   flex-shrink: 0;
@@ -1915,6 +1967,11 @@ body.ui-hidden #ability {
 
 .dock-mission .dock-name {
   margin: 2px 0;
+}
+
+/* Взятая сюжетная миссия — та же карточка, но с зелёной кромкой, как её строка в трекере. */
+.dock-mission--story {
+  border-color: color-mix(in srgb, var(--ok) 45%, transparent);
 }
 
 /* Срок письма (M14): идёт, пока пилот в доке, и краснеет на последней минуте. */
@@ -2247,6 +2304,11 @@ body.ui-hidden #ability {
   stroke-width: 0.7;
 }
 
+/* Система, куда ведёт сюжет, — зелёное кольцо, как его маркер в мире (плейтест 2026-09-26). */
+.galaxy-objective--story {
+  stroke: var(--ok);
+}
+
 .galaxy-invasion {
   fill: none;
   stroke: var(--danger);
@@ -2280,6 +2342,8 @@ body.ui-hidden #ability {
 .galaxy-badge--home text { fill: var(--text-muted); }
 .galaxy-badge--objective circle { stroke: var(--warn); }
 .galaxy-badge--objective text { fill: var(--warn); }
+.galaxy-badge--story circle { stroke: var(--ok); }
+.galaxy-badge--story text { fill: var(--ok); }
 .galaxy-badge--invasion circle { stroke: var(--danger); }
 .galaxy-badge--invasion text { fill: var(--danger-text); }
 .galaxy-badge--demand circle { stroke: var(--warn); }
@@ -2558,7 +2622,7 @@ body.ui-hidden #ability {
 
 @keyframes objective-new {
   0% {
-    box-shadow: 0 0 0 0 var(--warn);
+    box-shadow: 0 0 0 0 var(--pulse, var(--warn));
   }
   100% {
     box-shadow: 0 0 0 12px transparent;
@@ -2593,7 +2657,7 @@ body.ui-hidden #ability {
   }
 
   /* Новое задание в свёрнутом кружке — одна вспышка вместо трёх. */
-  .objective[data-collapsed='true'].objective--new {
+  .objective-badge.objective--new {
     animation-iteration-count: 1;
   }
 

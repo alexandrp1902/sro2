@@ -1,21 +1,22 @@
-// Сквозная проверка сюжетной кампании (M20a) без браузера: пилот долетает до Новы, находит на доске
-// Военной станции раздел «Сюжет» с первой миссией «Тихой войны», берёт её, вылетает — и видит конвой,
-// метку цели и реплику Холта. Потом бросает работу и убеждается, что она вернулась на доску, а отношение
-// от этого не пострадало: сюжет — не обычная работа, за отказ от истории не штрафуют.
+// Сквозная проверка сюжетной кампании без браузера (M20a, переделано по плейтесту 2026-09-26): сразу после
+// обучения сюжет знает, куда звать, — к вербовщице в Новом Порту на Терре, первой миссии пролога. Пилот садится
+// туда, берёт сюжетную миссию и работу с доски разом (у сюжета свой слот), слышит реплику, получает бумаги
+// в трюм. Потом бросает сюжет — работа с доски остаётся, сюжет возвращается на доску, а отношение от этого
+// не страдает: за отказ от истории не штрафуют.
 //
-// Заодно проверяется поселение «Рудник Прайм» (M20a): оно должно приехать в welcome вместе с системой.
+// Заодно проверяются типы NPC и предметы второй половины кампании (M20b): они едут в welcome.
 // Нужен запущенный сервер и Node 24 (встроенный WebSocket). Заводит аккаунт smk-story-<число>. Идёт 1–3 минуты.
 //   node tools/smoke-story.mjs [ws://localhost:5000/ws]
 
-import { aroundSun, openSocket, stationAt } from './wire.mjs';
+import { aroundSun, openSocket, orbitAt, settlement, stationAt } from './wire.mjs';
 
 const url = process.argv[2] ?? 'ws://localhost:5000/ws';
 const INPUT_INTERVAL_MS = 50;
 const CLOSE_HIDDEN = 4000;
 const RUN = Math.floor(10000 + Math.random() * 90000);
 
-/** Дорога от Sol до Новы: короче неё нет, а длиннее смоуку незачем. */
-const ROUTE = ['vega', 'nova'];
+/** Первая встреча пролога: вербовщица в Новом Порту на Терре. */
+const FIRST = { mission: 'recruit', place: 'pl:terra', system: 'sol' };
 
 class Client {
   constructor(hello) {
@@ -155,6 +156,19 @@ class Client {
     await this.until(() => this.hangar.docked, 4000, 'docked');
   }
 
+  /** Сесть в поселение по ключу места: долететь до планеты на её орбите и попросить посадку. */
+  async land(key) {
+    if (this.hangar?.docked) return;
+    await this.until(() => this.snapshot, 4000, 'a snapshot');
+    const system = this.welcome.system;
+    const planet = settlement(system, key);
+    if (!planet) throw new Error(`no settlement ${key} in ${system.id}`);
+    const range = this.welcome.loot.stationRange + planet.size;
+    await this.flyTo(() => orbitAt(system, planet.orbit, this.snapshot.tick), range - 60, 120000);
+    this.send({ t: 'dock', on: true, place: key });
+    await this.until(() => this.hangar.docked, 4000, 'landed');
+  }
+
   async jump(to) {
     const gate = this.welcome.system.gates.find((g) => g.to === to);
     await this.flyTo(gate, 120, 120000);
@@ -185,16 +199,11 @@ async function main() {
   a.send({ t: 'mission', action: 'skip' });
   await a.until(() => a.missions && !a.missions.tutorial, 4000, 'tutorial skipped');
 
-  await a.undock();
-  for (const to of ROUTE) await a.jump(to);
-  check(`долетели до Новы: ${a.welcome.system.name}`, a.welcome.system.id === 'nova');
-
-  // Рудник Прайм (M20a) — правка мира: поселение должно приехать вместе с системой.
-  const prime = (a.welcome.system.planets ?? []).find((p) => p.id === 'novaPrime');
-  check(`Нова-Прайм стала обитаемой: «${prime?.settlement?.name ?? '—'}»`, !!prime?.settlement);
-
-  await a.dock();
-  await a.until(() => a.missions !== null, 4000, 'the board of the station');
+  // Сюжет зовёт сразу, где бы пилот ни стоял: кто, где и в какой системе даёт первую миссию.
+  const next = a.story?.next;
+  check(`сюжет зовёт сразу: ${next?.giver ?? '—'} — ${next?.place ?? '—'} (${next?.system ?? '—'})`,
+    next?.mission === FIRST.mission && next.place === FIRST.place && next.system === FIRST.system);
+  check(`пролог — часть кампании: ${a.story?.total ?? 0} миссий`, (a.story?.total ?? 0) >= 19);
 
   // Вторая половина кампании (M20b) приезжает клиенту данными: без этих типов и предметов половина
   // её сцен была бы пустым местом — курьера некому играть, а деталей прототипа не существует.
@@ -202,52 +211,44 @@ async function main() {
   for (const type of ['corpGuard', 'corpCourier', 'corpConvoy', 'rebelTug']) {
     check(`тип NPC «${type}» приехал: ${npcs[type]?.name ?? '—'}`, !!npcs[type]);
   }
-  check(
-    'корабли корпорации рисуются своими корпусами',
-    ['corpGuard', 'corpCourier', 'corpConvoy'].every((t) => npcs[t]?.look === 'corp'),
-  );
   const items = a.welcome.loot?.items ?? {};
-  for (const item of ['blueprint', 'mechFrame', 'driveBlock', 'reactor', 'neuroLink', 'weaponModule']) {
-    check(`деталь «${items[item]?.name ?? item}» есть и она сюжетная`, items[item]?.story === true);
+  for (const item of ['contracts', 'mailCapsule', 'passengerList', 'blueprint', 'mechFrame', 'reactor']) {
+    check(`предмет «${items[item]?.name ?? item}» есть и он сюжетный`, items[item]?.story === true);
   }
-  check(`каркас крупный: ${items.mechFrame?.volume ?? 0} мест в трюме`, (items.mechFrame?.volume ?? 0) >= 30);
-
-  const state = a.story;
-  check(`доска знает о кампании: «${state?.name ?? '—'}»`, !!state);
-  if (!state) return;
-  check(`кампания длиннее написанного: ${state.done} из ${state.total}`, state.total >= 14);
-
-  const offer = state.offer;
-  check(`первая миссия ждёт на Военной станции: «${offer?.story?.title ?? '—'}»`, !!offer?.story);
-  if (!offer) return;
-  check(`у неё есть имя выдающего: ${offer.story.giver} · ${offer.story.role}`, !!offer.story.giver);
-  check('сюжетная строка приехала и в общем списке доски', a.missions.offers.some((o) => o.id === offer.id));
-  check(`её адрес — место, а не система: ${offer.place}`, (offer.place ?? '').startsWith('pl:'));
-
-  const repBefore = a.rep?.places?.['st:nova'] ?? 0;
-  a.dialogs.length = 0;
-  a.send({ t: 'mission', action: 'accept', id: offer.id });
-  await a.until(() => a.missions.active?.offer.story, 4000, 'taking the story mission');
-  check(`взяли: «${a.missions.active.offer.story.objective}»`, a.missions.active.offer.story.mission === offer.story.mission);
-  await a.until(() => a.dialogs.length > 0, 3000, 'the line said when taking it');
-  check(`заказчик сказал своё: «${a.dialogs[0].lines[0]}»`, a.dialogs[0].who === offer.story.giver);
 
   await a.undock();
-  // Живое задание начинается на вылете: конвой выходит вместе с пилотом, и у цели появляется метка.
-  await a.until(() => a.missions.mark, 6000, 'the objective mark');
-  check(`конвой вышел и у цели есть метка: #${a.missions.mark.ship}`, a.missions.mark.ship !== 0);
-  const convoy = a.players?.players.find((p) => p.kind === 'convoy');
-  check(`конвой виден в ростере: «${convoy?.name ?? '—'}»`, !!convoy);
+  await a.land(FIRST.place);
+  await a.until(() => a.story?.offer, 4000, 'the story offer at the first meeting');
+  const offer = a.story.offer;
+  check(`первая миссия ждёт на месте: «${offer.story.title}» от ${offer.story.giver}`, offer.story.mission === FIRST.mission);
+  const board = a.missions.offers.find((o) => !o.story);
+  check(`рядом и работа с доски: ${board?.kind ?? '—'}`, !!board);
 
-  // Отказ от сюжета возвращает его на доску и не бьёт по отношению.
-  a.send({ t: 'mission', action: 'abandon' });
-  await a.until(() => a.missions.active === null, 4000, 'abandoning the story mission');
-  await a.dock();
+  const repBefore = a.rep?.places?.[FIRST.place] ?? 0;
+  a.dialogs.length = 0;
+  a.send({ t: 'mission', action: 'accept', id: offer.id });
+  await a.until(() => a.missions.storyActive?.offer.story, 4000, 'taking the story mission');
+  check(`взяли сюжет: «${a.missions.storyActive.offer.story.objective}»`, a.missions.storyActive.offer.id === offer.id);
+  await a.until(() => a.dialogs.length > 0, 3000, 'the line said when taking it');
+  check(`заказчица сказала своё: «${a.dialogs[0].lines[0]}»`, a.dialogs[0].who === offer.story.giver);
+  await a.until(() => (a.cargo?.items?.contracts ?? 0) > 0, 3000, 'the papers in the hold');
+  check('контракты легли в трюм', a.cargo.items.contracts === 1);
+  check('взятая миссия ведёт сама — указателя нет', !a.story?.next);
+
+  if (board) {
+    a.send({ t: 'mission', action: 'accept', id: board.id });
+    await a.until(() => a.missions.active, 4000, 'taking the board work next to the story');
+    check(`и работа с доски взята рядом с сюжетом: ${a.missions.active.offer.kind}`, a.missions.active.offer.id === board.id && !!a.missions.storyActive);
+  }
+
+  // Отказ от сюжета: работа с доски остаётся, сюжет возвращается на доску, отношение не страдает.
+  a.send({ t: 'mission', action: 'abandon', id: offer.id });
+  await a.until(() => !a.missions.storyActive, 4000, 'abandoning the story mission');
+  if (board) check('работа с доски пережила отказ от сюжета', a.missions.active?.offer.id === board.id);
   await a.until(() => a.story?.offer, 5000, 'the story back on the board');
-  check(`брошенная миссия вернулась на доску: «${a.story.offer.story.title}»`, a.story.offer.story.mission === offer.story.mission);
-  const repAfter = a.rep?.places?.['st:nova'] ?? 0;
+  check(`брошенная миссия вернулась на доску: «${a.story.offer.story.title}»`, a.story.offer.story.mission === FIRST.mission);
+  const repAfter = a.rep?.places?.[FIRST.place] ?? 0;
   check(`отказ от сюжета не стоил отношения: ${repBefore} → ${repAfter}`, repAfter >= repBefore);
-  // Заглушка ждёт своего часа: до конца кампании «Ретранслятор» не показывается нигде.
   check('до финала кампании ретранслятора нет', !a.story.relay);
 
   a.close();

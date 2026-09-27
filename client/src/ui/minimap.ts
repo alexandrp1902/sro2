@@ -36,6 +36,7 @@ interface Palette {
   textStrong: string;
   bgWindow: string;
   warn: string;
+  ok: string;
   danger: string;
 }
 
@@ -47,6 +48,7 @@ const FALLBACK: Palette = {
   textStrong: '#f6f7f9',
   bgWindow: 'rgba(20,22,26,0.97)',
   warn: '#d9c08a',
+  ok: '#7fd08f',
   danger: '#e0524a',
 };
 
@@ -58,6 +60,7 @@ const TOKEN: Record<keyof Palette, string> = {
   textStrong: '--text-strong',
   bgWindow: '--bg-window',
   warn: '--warn',
+  ok: '--ok',
   danger: '--danger',
 };
 
@@ -102,6 +105,8 @@ export interface MinimapFrame {
   targetId: number;
   /** Цель задания или обучения — золотое кольцо; null — нет. */
   objective?: { x: number; y: number } | null;
+  /** Цель по сюжету — зелёное кольцо, чуть шире золотого: у них бывает одна точка. */
+  storyObjective?: { x: number; y: number } | null;
   /** Учебный буй (M18) — пунктирная зона остановки в масштабе карты; null — шаг не тот. */
   buoy?: { x: number; y: number } | null;
   /** Ракеты в полёте. */
@@ -352,10 +357,14 @@ export class Minimap {
       ctx.restore();
     }
 
-    if (frame.objective) {
+    for (const [goal, color, radius] of [
+      [frame.objective, palette.warn, 6],
+      [frame.storyObjective, palette.ok, 9],
+    ] as const) {
+      if (!goal) continue;
       ctx.beginPath();
-      ctx.arc(px(frame.objective.x), px(frame.objective.y), 6 * dpr, 0, 2 * Math.PI);
-      ctx.strokeStyle = palette.warn;
+      ctx.arc(px(goal.x), px(goal.y), radius * dpr, 0, 2 * Math.PI);
+      ctx.strokeStyle = color;
       ctx.lineWidth = 1.5 * dpr;
       ctx.stroke();
     }

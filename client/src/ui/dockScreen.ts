@@ -341,10 +341,10 @@ export interface DockHandlers {
   onMenu(anchor: DOMRect): void;
   /** Взять задание с доски. */
   onAccept(id: string): void;
-  /** Бросить своё задание. */
-  onAbandon(): void;
-  /** Сдать «собрать». */
-  onComplete(): void;
+  /** Бросить задание: с доски или сюжетное — по его id. */
+  onAbandon(id: string): void;
+  /** Сдать «собрать» — по его id: взяты могут быть два, с доски и сюжетное. */
+  onComplete(id: string): void;
   onSkipTutorial(): void;
   /** «Ретранслятор» (M20b): кампания пройдена — наземный бой мехов (M21). */
   onRelay(): void;
@@ -363,8 +363,11 @@ export function relayLine(won: boolean): string {
  */
 export function startTab(missions: MissionsMsg | null, cargo: Record<string, number>): Tab {
   if (missions?.tutorial) return 'missions';
-  const offer = missions?.active?.offer;
-  if (offer?.kind === 'collect' && (cargo[offer.item ?? ''] ?? 0) >= offer.count) return 'missions';
+  // Сюжетную миссию дают здесь — её и показываем первой: за ней сюда и летели.
+  if (missions?.story?.offer) return 'missions';
+  for (const offer of [missions?.active?.offer, missions?.storyActive?.offer]) {
+    if (offer?.kind === 'collect' && (cargo[offer.item ?? ''] ?? 0) >= offer.count) return 'missions';
+  }
   return 'cargo';
 }
 
@@ -403,6 +406,13 @@ export function repChip(rules: ReputationRules, value: number): { text: string; 
 function missionIcon(kind: string): HTMLElement | null {
   const name = missionSprite(kind);
   return name ? maskIcon(name) : null;
+}
+
+/** Значок сюжета: галочка в кружке (плейтест 2026-09-26) — зелёная, как строка сюжета в трекере. */
+function storyIcon(): HTMLElement {
+  const mark = el('span', 'mission-icon mission-icon--story');
+  mark.setAttribute('aria-hidden', 'true');
+  return mark;
 }
 
 /** Значок кампании (пачка R) перед её названием; null — кампании его не рисовали. */
@@ -1131,6 +1141,30 @@ export class DockScreen {
       body.append(box);
     }
 
+    // Сюжет — свой слот и свой, зелёный, блок над заданием с доски (плейтест 2026-09-26).
+    const story = missions.story;
+    const storyActive = missions.storyActive ?? null;
+    if (storyActive) {
+      const box = el('div', 'dock-mission dock-mission--story');
+      const head = el('div', 'dock-mission-head sro-label sro-ok', `Сюжет · ${story?.name ?? ''} · награда ${formatCredits(storyActive.offer.reward)}`);
+      head.prepend(storyIcon());
+      box.append(head);
+      box.append(el('div', 'dock-name sro-row__name', activeLine(storyActive, this.names)));
+      box.append(el('div', 'dock-stats sro-row__meta', activeHint(storyActive, this.here, hangar.docked, this.names)));
+      box.append(this.missionActions(storyActive));
+      body.append(box);
+    } else if (story?.next && !story.offer && story.next.mission !== 'relay') {
+      // Здесь сюжет не дают — но куда за ним лететь, док говорит сам: в доке трекер спрятан.
+      const next = story.next;
+      const line = el(
+        'div',
+        'dock-note dock-story-note sro-ok',
+        `Дальше по сюжету: ${next.giver} — ${this.names.place(next.place)}, ${this.names.system(next.system)}`,
+      );
+      line.prepend(storyIcon());
+      body.append(line);
+    }
+
     const active = missions.active;
     if (active) {
       const box = el('div', 'dock-mission');
@@ -1143,20 +1177,10 @@ export class DockScreen {
         box.append(this.timer);
         this.tick(Date.now());
       }
-      const actions = el('div', 'dock-mission-actions');
-      if (active.offer.kind === 'collect') {
-        const give = button('Сдать', 'dock-buy sro-btn sro-btn--sm', () => this.handlers.onComplete());
-        give.disabled = active.progress < active.offer.count;
-        actions.append(give);
-      }
-      actions.append(button('Отказаться', 'dock-link sro-btn sro-btn--ghost sro-btn--sm', () => this.handlers.onAbandon()));
-      box.append(actions);
+      box.append(this.missionActions(active));
       body.append(box);
     }
 
-    // Сюжет — над обычной работой и своей строкой (M20a): это не «ещё одно задание с доски»,
-    // а продолжение истории, и найтись оно должно первым.
-    const story = missions.story;
     // Кампания пройдена и пилот стоит там, где она кончилась (M20b): отсюда ретранслятор ведёт в наземный
     // бой (M21). Бой повторяемый — кнопка остаётся и после победы, меняется только подпись.
     if (story?.relay) {
@@ -1175,23 +1199,38 @@ export class DockScreen {
       box.append(actions);
       body.append(box);
     }
+    // Сюжет — над обычной работой и своей строкой (M20a): это не «ещё одно задание с доски»,
+    // а продолжение истории, и найтись оно должно первым. Слот у него свой: доска ему не мешает.
     if (story?.offer) {
-      const title = el('div', 'dock-note dock-story-note sro-warn', story.name);
+      const title = el('div', 'dock-note dock-story-note sro-ok', story.name);
       const mark = campaignIcon(story.campaign);
       if (mark) title.prepend(mark);
       body.append(title);
-      body.append(this.missionRow(story.offer, active !== null));
+      body.append(this.missionRow(story.offer, storyActive !== null));
     }
 
     // Доска и сюжет приезжают в одном списке offers: сюжетную строку из него убираем, иначе она
     // встала бы дважды — своим разделом и рядовой работой станции.
     const board = missions.offers.filter((offer) => !offer.story);
     if (board.length === 0) {
-      if (!active && !story?.offer) body.append(el('div', 'dock-empty sro-muted', 'Заданий на этой станции нет.'));
+      if (!active && !storyActive && !story?.offer) body.append(el('div', 'dock-empty sro-muted', 'Заданий на этой станции нет.'));
       return;
     }
     body.append(el('div', 'dock-note sro-muted', active ? 'Доска станции: сначала сдайте или бросьте своё задание' : 'Доска станции'));
     for (const offer of board) body.append(this.missionRow(offer, active !== null));
+  }
+
+  /** Кнопки взятого задания: «Сдать» у «собрать» и «Отказаться» — по id, их может быть два. */
+  private missionActions(active: NonNullable<MissionsMsg['active']>): HTMLElement {
+    const actions = el('div', 'dock-mission-actions');
+    const id = active.offer.id;
+    if (active.offer.kind === 'collect') {
+      const give = button('Сдать', 'dock-buy sro-btn sro-btn--sm', () => this.handlers.onComplete(id));
+      give.disabled = active.progress < active.offer.count;
+      actions.append(give);
+    }
+    actions.append(button('Отказаться', 'dock-link sro-btn sro-btn--ghost sro-btn--sm', () => this.handlers.onAbandon(id)));
+    return actions;
   }
 
   private missionRow(offer: MissionOffer, busy: boolean): HTMLElement {
@@ -1199,7 +1238,8 @@ export class DockScreen {
     row.dataset.state = busy ? 'poor' : 'buy';
     if (offer.story) row.classList.add('dock-row--story');
     const name = el('div', 'dock-name sro-row__name', offerTitle(offer, this.names));
-    const icon = missionIcon(offer.kind);
+    // У сюжета значок свой — зелёная галочка в кружке, а не вид задания: его ищут взглядом первым.
+    const icon = offer.story ? storyIcon() : missionIcon(offer.kind);
     if (icon) name.prepend(icon);
     // Кто даёт работу — видно до того, как её возьмут: с этого человека и начинается сцена.
     const note = offer.story

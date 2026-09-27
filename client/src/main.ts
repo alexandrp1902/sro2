@@ -51,7 +51,19 @@ import { NO_LOOT, gearVolume, lootItem, lootLabel, rarityColor, type GearItem, t
 import type { MarketRules } from './sim/market';
 import { DT, ION_SLOW, directionAngle, localVelocity, slowedHull, type MoveInput } from './sim/movement';
 import { orbitSeconds, placeOrbit, toWorld, type Point } from './sim/orbits';
-import { objective, objectiveSystem, trackerLines, doneLines, storyLine, storyJournal, type MissionNames, type Objective } from './sim/missions';
+import {
+  objective,
+  objectiveSystem,
+  trackerLines,
+  doneLines,
+  storyLine,
+  storyJournal,
+  storyObjective,
+  storyObjectiveSystem,
+  storyTrackerLines,
+  type MissionNames,
+  type Objective,
+} from './sim/missions';
 import { AutoTarget } from './sim/autoTarget';
 import type { NpcRules } from './sim/npcs';
 import { DEFAULT_WEAPON, Weapons } from './sim/weapons';
@@ -438,8 +450,9 @@ async function main(): Promise<void> {
     onUndock: () => send({ t: 'dock', on: false }),
     onMenu: (anchor) => menu.toggleAt(anchor),
     onAccept: (id) => send({ t: 'mission', action: 'accept', id }),
-    onAbandon: () => send({ t: 'mission', action: 'abandon' }),
-    onComplete: () => send({ t: 'mission', action: 'complete' }),
+    // Id обязателен (протокол 36): заданий может быть два — с доски и сюжетное.
+    onAbandon: (id) => send({ t: 'mission', action: 'abandon', id }),
+    onComplete: (id) => send({ t: 'mission', action: 'complete', id }),
     onSkipTutorial: () => send({ t: 'mission', action: 'skip' }),
     // Ретранслятор (M21): наземный бой. Экран откроется, когда сервер пришлёт поле, — а не по нажатию:
     // бой мог уже идти (вернулись после обрыва связи), и тогда сервер пришлёт его, а не новый.
@@ -496,12 +509,12 @@ async function main(): Promise<void> {
   const menu = new BurgerMenu(el('menu'), (action) => {
     if (action === 'audio') audioWindow.toggle();
     else if (action === 'controls') controlsWindow.toggle();
-    else if (action === 'tips') tips.show(coarsePointer());
+    else if (action === 'tips') tips.show(coarsePointer(), storyTips());
     // Журнал кампании (M20a): где остановилась история и что сказали в прошлый раз.
     else if (action === 'story') {
       const state = missions?.story ?? null;
       dialog.show(
-        { who: state ? storyLine(state) : 'Журнал', role: '', lines: storyJournal(state) },
+        { who: state ? storyLine(state) : 'Журнал', role: '', lines: storyJournal(state, names.place) },
         '',
       );
     }
@@ -552,6 +565,7 @@ async function main(): Promise<void> {
             gates: system.gates.map((g) => g.to),
             home,
             objective: objectiveSystem(missions, system.id, galaxy),
+            storyObjective: storyObjectiveSystem(missions, system.id),
             invasion: invasion.system(performance.now()),
             demand: demand.system(performance.now()),
             market: marketRules,
@@ -563,6 +577,24 @@ async function main(): Promise<void> {
     );
   // Трекер цели: тап — карта галактики, на ней звёздочкой отмечена система задания.
   const objectiveHud = new ObjectiveHud(el('objective'), () => galaxyMap.show());
+
+  /**
+   * Сюжет ведёт сам (плейтест 2026-09-26: «игрок всегда знает, куда дальше»): курс ставится на систему
+   * следующей сюжетной цели. Свой курс игрока не перебивается — сюжет ведёт, пока курс пуст или его ставил
+   * он же. force — конец обучения: тут курс ставится в любом случае, это и есть «что дальше».
+   */
+  let storyCourse: string | null = null;
+  const followStory = (force = false) => {
+    const to = storyObjectiveSystem(missions, system?.id ?? null);
+    if (to === storyCourse && !force) return;
+    if (to && (force || course === null || course === storyCourse)) setCourse(to);
+    storyCourse = to;
+  };
+  /** Строка сюжета для карточки «Что дальше»; null — сюжета нет. */
+  const storyTips = () => {
+    const lines = storyTrackerLines(missions ? { ...missions, tutorial: null } : null, system?.id ?? null, docked, names);
+    return lines ? { title: lines.title } : null;
+  };
   const invasionHud = new InvasionHud(el('event'), () => galaxyMap.show());
   const partyPanel = new PartyPanel(el('party'), () => send({ t: 'party', action: 'leave' }));
   const inviteCard = new InviteCard(el('invite'), (accept, from, kind) =>
@@ -1139,7 +1171,10 @@ async function main(): Promise<void> {
       menu.story = message.story !== null && message.story !== undefined;
       if (message.done) for (const line of doneLines(message.done)) feed.add(line);
       // Последний шаг обучения (M18) — «что дальше»: сервер присылает это событие один раз.
-      if (message.done?.kind === 'tutorial' && message.done.last) tips.show(coarsePointer());
+      // Первой строкой — сюжет, и курс сразу ведёт к его первой встрече.
+      const graduated = message.done?.kind === 'tutorial' && message.done.last === true;
+      if (graduated) tips.show(coarsePointer(), storyTips());
+      followStory(graduated);
       refreshGalaxyMap();
     };
     connection.onMech = (message) => mech.apply(message);
@@ -1397,8 +1432,12 @@ async function main(): Promise<void> {
 
     // Цель задания или обучения: на неё указывает золотой маркер, на миникарте — кольцо.
     const goal = online ? locateObjective(objective(missions, system?.id ?? null, galaxy, docked || dead), state) : null;
+    // Сюжет — свой, зелёный маркер (плейтест 2026-09-26): взятая миссия или следующая встреча.
+    const storyGoal = online ? locateObjective(storyObjective(missions, system?.id ?? null, galaxy, docked || dead), state) : null;
+    const tracked = online && !docked;
     objectiveHud.update(
-      online && !docked ? trackerLines(missions, system?.id ?? null, docked, names, controls.source === 'stick') : null,
+      tracked ? trackerLines(missions, system?.id ?? null, docked, names, controls.source === 'stick') : null,
+      tracked ? storyTrackerLines(missions, system?.id ?? null, docked, names) : null,
     );
     dockScreen.tick(Date.now()); // срок письма идёт и в доке (M14)
     // Вторжение в приоритете: там идёт бой и тикает таймер, а спрос подождёт в ленте, в доке и на карте.
@@ -1457,6 +1496,7 @@ async function main(): Promise<void> {
       station: selectedMark(),
       sectorUnit,
       objective: goal,
+      storyObjective: storyGoal,
       party: party.ids,
     });
     fx.update(now, camera.zoom, locate);
@@ -1560,6 +1600,7 @@ async function main(): Promise<void> {
         ships: [...remote.visible()].map((s) => ({ id: s.id, x: s.x, y: s.y, kind: isAlly(s.id) ? 'party' : s.kind, dead: s.dead })),
         targetId,
         objective: goal,
+        storyObjective: storyGoal,
         buoy: buoyNow,
         missiles: missiles.visible(),
         sos: sos.active(now, (id) => {

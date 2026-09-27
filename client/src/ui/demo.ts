@@ -240,7 +240,10 @@ export function runDemo(screen: string): void {
     cargoHud.setRules(loot);
     cargoHud.setCargo(cargo);
     cargoHud.update({ kind: 'station', distance: 340, inRange: false });
-    objectiveHud.update({ title: 'Доставить Металл ×5 на Вегу', hint: 'Откройте карту — M, прыгайте через врата', kind: 'deliver' });
+    objectiveHud.update(
+      { title: 'Доставить Металл ×5 на Вегу', hint: 'Откройте карту — M, прыгайте через врата', kind: 'deliver' },
+      { title: 'Встреча: Ханна Лейн — Купол Альфы, Альфа Центавра', hint: 'курс проложен — летите к вратам' },
+    );
     invasionHud.update({ title: 'Вторжение пиратов', hint: 'волна 2 из 3 · 01:20', alert: true });
     partyPanel.update(
       [
@@ -336,6 +339,33 @@ export function runDemo(screen: string): void {
         { id: 'o7', kind: 'defend', count: 3, reward: 900, from: 'sol', place: 'pl:terra' },
         { id: 'o8', kind: 'deliver', system: 'vega', count: 5, reward: 420, from: 'sol', place: 'st:vega' },
       ],
+      // Сюжет в своём слоте (плейтест 2026-09-26): зелёный блок над заданием с доски.
+      storyActive: relay ? null : {
+        offer: {
+          id: 'story:quietWar:letters',
+          kind: 'collect',
+          item: 'mailCapsule',
+          count: 3,
+          reward: 600,
+          from: 'pl:alphaTwo',
+          place: 'pl:alphaTwo',
+          system: 'alphaCen',
+          story: {
+            campaign: 'quietWar',
+            mission: 'letters',
+            name: 'Тихая война',
+            title: 'Письма из Новы',
+            brief: 'Почтовый дрон из Новы не долетел до купола — упал в системе.',
+            objective: 'Соберите 3 почтовые капсулы у упавшего дрона',
+            hint: 'Место падения отмечено на карте; капсулы подбираются лучом захвата',
+            giver: 'Ханна Лейн',
+            role: 'жена шахтёра, Купол Альфы',
+            number: 2,
+            total: 19,
+          },
+        },
+        progress: 1,
+      },
       // Кампания (M20a): на доске у неё свой раздел над работой станции.
       story: relay ? {
         // Кампания пройдена (M21): на её последнем месте — ретранслятор в наземный бой.
@@ -434,7 +464,7 @@ export function runDemo(screen: string): void {
       objectiveHud.update({
         title: 'Обучение 2/8: Долетите до буя и остановитесь',
         hint: touch ? 'Стоп — двойной тап по стику' : 'Тормоз — полный назад: удерживайте {brake}, пока скорость не упадёт до нуля',
-      });
+      }, null);
       const own = DEMO_MINIMAP.own!;
       const buoy = { x: own.x + 900, y: own.y - 700 };
       minimap.update({ ...DEMO_MINIMAP, buoy, objective: buoy }, 1e9 + 1000);

@@ -165,7 +165,8 @@ class Client {
     for (let i = 0; i < tries; i++) {
       const found = this.missions.offers.find(match);
       if (found) return found;
-      const any = this.missions.offers[0];
+      // Сюжет в перетряске доски не участвует: у него свой слот, и доску он не меняет.
+      const any = this.missions.offers.find((o) => !o.story);
       if (!any) return null;
       const seen = this.missions.offers.map((o) => o.id).join();
       this.send({ t: 'mission', action: 'accept', id: any.id });

@@ -811,6 +811,25 @@ export interface StoryStateDto {
   relay?: boolean;
   /** Первая вылазка мехов выиграна (M21). */
   sortieWon?: boolean;
+  /**
+   * Куда лететь за следующей миссией: есть всегда, пока сюжетная миссия не взята (плейтест 2026-09-26:
+   * «после Морен непонятно, куда дальше»).
+   */
+  next?: StoryNextDto | null;
+}
+
+/** Следующая встреча по сюжету: кто, где и в какой системе даёт миссию. */
+export interface StoryNextDto {
+  /** Id миссии; «relay» — кампания пройдена, ждёт ретранслятор. */
+  mission: string;
+  title: string;
+  giver: string;
+  role: string;
+  /** Ключ места выдачи: по нему метка, стрелка и курс. */
+  place: string;
+  system: string;
+  /** Ступень отношения, которой пока не хватает; нет — хватает. */
+  rep?: string | null;
 }
 
 /** Куда смотреть по живому заданию (M14): ship — идти за этим кораблём, 0 — к точке (x, y). */
@@ -857,8 +876,8 @@ export interface TutorialDto {
 export interface MissionsMsg {
   t: 'missions';
   tutorial: TutorialDto | null;
-  /** Взятое задание; progress у kill — сколько уничтожено, у collect — сколько такого в трюме. */
-  active: { offer: MissionOffer; progress: number; until?: number } | null;
+  /** Взятое задание с доски; progress у kill — сколько уничтожено, у collect — сколько такого в трюме. */
+  active: ActiveMissionDto | null;
   /** Доска станции этой системы; без станции пусто. */
   offers: MissionOffer[];
   /** Что сделано этим событием — строка в ленте. */
@@ -874,8 +893,19 @@ export interface MissionsMsg {
   } | null;
   /** Куда смотреть по живому заданию (M14); нет — метки нет. */
   mark?: MissionMarkDto | null;
-  /** Кампания (M20a); нет — сюжета в игре нет или пилот его ещё не видел. */
+  /** Кампания (M20a); нет — сюжета в игре нет. */
   story?: StoryStateDto | null;
+  /** Взятая сюжетная миссия — свой слот рядом с доской (плейтест 2026-09-26). */
+  storyActive?: ActiveMissionDto | null;
+  /** Куда смотреть по сюжетной миссии; нет — метки нет. */
+  storyMark?: MissionMarkDto | null;
+}
+
+/** Взятое задание: предложение и сколько сделано. */
+export interface ActiveMissionDto {
+  offer: MissionOffer;
+  progress: number;
+  until?: number;
 }
 
 /**

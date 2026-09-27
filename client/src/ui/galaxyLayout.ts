@@ -29,7 +29,7 @@ export function regionLabelAt(systems: readonly { x: number; y: number }[], lift
   return { x, y: Math.min(...systems.map((s) => s.y)) - lift };
 }
 
-export type BadgeKind = 'home' | 'objective' | 'invasion' | 'demand';
+export type BadgeKind = 'home' | 'story' | 'objective' | 'invasion' | 'demand';
 
 export interface Badge {
   kind: BadgeKind;
@@ -38,10 +38,10 @@ export interface Badge {
   dy: number;
 }
 
-/** Слоты вокруг узла по порядку занятия: северо-восток, северо-запад, восток, запад (y растёт вниз). */
-const SLOTS = [-45, -135, 0, 180];
+/** Слоты вокруг узла по порядку занятия: северо-восток, северо-запад, восток, запад, север (y растёт вниз). */
+const SLOTS = [-45, -135, 0, 180, -90];
 
-const BADGE_ORDER: BadgeKind[] = ['home', 'objective', 'invasion', 'demand'];
+const BADGE_ORDER: BadgeKind[] = ['home', 'story', 'objective', 'invasion', 'demand'];
 
 /** Какие значки стоят у узла и где: каждый следующий берёт следующий свободный слот. */
 export function nodeBadges(flags: Partial<Record<BadgeKind, boolean>>, radius = 7.6): Badge[] {

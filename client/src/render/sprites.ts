@@ -94,6 +94,11 @@ const ITEM_SPRITES: Record<string, string> = {
   mechFrame: 'mech-frame',
   driveBlock: 'mech-drive',
   weaponModule: 'mech-weapon',
+  // Бумаги пролога (плейтест 2026-09-26) — пока чужими иконками: контракты — листами чертежа, список
+  // пассажиров — журналом, почтовая капсула — контейнером. Свои заказаны в art/next-art-requests.md.
+  contracts: 'blueprint',
+  passengerList: 'shipLog',
+  mailCapsule: 'container',
 };
 
 /**

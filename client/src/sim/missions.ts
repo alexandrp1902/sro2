@@ -1,4 +1,4 @@
-import type { MissionOffer, MissionsMsg, StoryStateDto } from '../net/protocol';
+import type { MissionMarkDto, MissionOffer, MissionsMsg, StoryStateDto } from '../net/protocol';
 import { nearestStation, nextHop, type GalaxyDto } from './galaxy';
 
 /** Имена для текста заданий: сервер шлёт id системы, типа пирата и предмета. */
@@ -243,16 +243,6 @@ export function objective(
   const active = missions.active;
   if (!active) return null;
   const { offer } = active;
-  if (offer.story) {
-    // Сюжетную точку называет сервер — как у живых заданий: обломки стоят там, где написано в кампании.
-    if (missions.mark) {
-      const mark = missions.mark;
-      return mark.ship ? { kind: 'ship', id: mark.ship } : { kind: 'point', x: mark.x, y: mark.y };
-    }
-    if (offer.system && here !== offer.system) return gateTo(offer.system);
-    // Сдавать — в своём месте, а не на ближайшей станции: у сюжета адрес именной.
-    return { kind: 'place', key: destination(offer) };
-  }
   switch (offer.kind) {
     case 'kill':
       return here === offer.system ? { kind: 'pirate', npc: offer.npc ?? null } : gateTo(offer.system ?? '');
@@ -286,8 +276,6 @@ export function objectiveSystem(missions: MissionsMsg | null, here: string | nul
   const active = missions?.active;
   if (!active || !here) return null;
   const { offer } = active;
-  // Сюжет всегда знает свою систему: «доставить в Нову» должно быть видно и на карте галактики.
-  if (offer.story) return offer.system && offer.system !== here ? offer.system : null;
   // Конвой и патруль целиком укладываются в эту систему: на карте галактики им указывать не на что.
   if (offer.kind === 'escort' || offer.kind === 'patrol') return null;
   if (offer.kind === 'collect') {
@@ -297,6 +285,93 @@ export function objectiveSystem(missions: MissionsMsg | null, here: string | nul
   }
   return offer.system === here ? null : (offer.system ?? null);
 }
+
+/** Метка сервера → цель на экране. */
+function markTarget(mark: MissionMarkDto): Objective {
+  return mark.ship ? { kind: 'ship', id: mark.ship } : { kind: 'point', x: mark.x, y: mark.y };
+}
+
+/**
+ * Цель по сюжету (плейтест 2026-09-26): у сюжета свой слот и своя, зелёная, метка. Взята миссия — ведёт она;
+ * не взята — ведёт указатель на следующую встречу: врата к её системе, а в ней — место выдачи.
+ * Во время обучения молчит: новичку хватает одной стрелки.
+ */
+export function storyObjective(
+  missions: MissionsMsg | null,
+  here: string | null,
+  galaxy: GalaxyDto | null,
+  docked: boolean,
+): Objective | null {
+  if (!missions || !here || docked || missions.tutorial) return null;
+  const gateTo = (to: string): Objective | null => {
+    const hop = galaxy ? nextHop(galaxy, here, to) : null;
+    return hop ? { kind: 'gate', to: hop } : null;
+  };
+  const active = missions.storyActive;
+  if (active) {
+    // Сюжетную точку называет сервер — как у живых заданий: обломки стоят там, где написано в кампании.
+    if (missions.storyMark) return markTarget(missions.storyMark);
+    const { offer } = active;
+    // Живой сюжетной миссии без метки показывать нечего: конвой ещё не вышел.
+    if (offer.kind === 'escort' || offer.kind === 'defend') return null;
+    if (offer.system && here !== offer.system) return gateTo(offer.system);
+    // Сдавать — в своём месте, а не на ближайшей станции: у сюжета адрес именной.
+    return { kind: 'place', key: destination(offer) };
+  }
+  const next = missions.story?.next;
+  if (!next) return null;
+  return next.system !== here ? gateTo(next.system) : { kind: 'place', key: next.place };
+}
+
+/** Система сюжетной цели для карты галактики и курса; null — цель здесь или её нет. */
+export function storyObjectiveSystem(missions: MissionsMsg | null, here: string | null): string | null {
+  if (!missions || !here || missions.tutorial) return null;
+  const offer = missions.storyActive?.offer;
+  const system = offer ? (offer.system ?? null) : (missions.story?.next?.system ?? null);
+  return system && system !== here ? system : null;
+}
+
+/** Строки трекера: заголовок, подсказка и вид — для значка. */
+export interface TrackerLines {
+  title: string;
+  hint: string;
+  kind?: string;
+}
+
+/**
+ * Строки сюжетного трекера: взятая миссия или следующая встреча. null — прятать.
+ * Во время обучения молчит — на экране один трекер, и это обучение.
+ */
+export function storyTrackerLines(
+  missions: MissionsMsg | null,
+  here: string | null,
+  docked: boolean,
+  names: MissionNames,
+): TrackerLines | null {
+  if (!missions || missions.tutorial) return null;
+  const active = missions.storyActive;
+  if (active) return { title: activeLine(active, names), hint: activeHint(active, here, docked, names), kind: active.offer.kind };
+  const next = missions.story?.next;
+  if (!next) return null;
+  return { title: `Встреча: ${next.giver} — ${names.place(next.place)}, ${names.system(next.system)}`, hint: meetingHint(next, here, docked) };
+}
+
+/** Как добраться до встречи: отношение, система, док. */
+function meetingHint(next: NonNullable<StoryStateDto['next']>, here: string | null, docked: boolean): string {
+  if (next.rep) return `сначала нужно отношение «${REP_NAMES[next.rep] ?? next.rep}» в этой системе`;
+  if (next.system !== here) return 'курс проложен — летите к вратам';
+  if (docked) return 'миссия — во вкладке «Задания» того дока';
+  return onAPlanet(next.place) ? 'садитесь в поселении' : 'пристыкуйтесь к станции';
+}
+
+/** Ступени отношения по-русски — те же, что в shared/reputation.json; неизвестная — как есть. */
+const REP_NAMES: Record<string, string> = {
+  enemy: 'Враг',
+  distrust: 'Недоверие',
+  neutral: 'Нейтрал',
+  friend: 'Друг',
+  hero: 'Герой',
+};
 
 /**
  * Строки трекера цели: обучение важнее задания. null — прятать.
@@ -308,7 +383,7 @@ export function trackerLines(
   docked: boolean,
   names: MissionNames,
   touch = false,
-): { title: string; hint: string; kind?: string } | null {
+): TrackerLines | null {
   if (!missions) return null;
   const tutorial = missions.tutorial;
   if (tutorial) {
@@ -332,10 +407,15 @@ export function storyLine(state: StoryStateDto): string {
   return state.done >= state.total ? `${state.name} · пройдена` : state.name;
 }
 
-/** Что показывает журнал под этой строкой: последние реплики, а без них — одна пояснительная. */
-export function storyJournal(state: StoryStateDto | null): string[] {
+/**
+ * Что показывает журнал под этой строкой: последние реплики и куда дальше. Без реплик — одна пояснительная.
+ * place — имя места по ключу: указатель называет док, а не «pl:alphaTwo».
+ */
+export function storyJournal(state: StoryStateDto | null, place: (key: string) => string = (key) => key): string[] {
   if (!state) return ['Сюжетных заданий пока нет.'];
+  const next = state.next && state.next.mission !== 'relay' ? [`Дальше: ${state.next.giver}, ${place(state.next.place)}.`] : [];
   if (state.done >= state.total) return [...state.lines, 'Часть первая пройдена. Продолжение следует.'];
   if (state.more) return [...state.lines, 'Продолжение следует.'];
-  return state.lines.length > 0 ? state.lines : ['Возьмите сюжетное задание на доске.'];
+  if (state.lines.length === 0) return next.length > 0 ? next : ['Возьмите сюжетное задание на доске.'];
+  return [...state.lines, ...next];
 }

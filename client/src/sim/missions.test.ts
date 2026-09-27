@@ -13,6 +13,9 @@ import {
   offerTitle,
   storyJournal,
   storyLine,
+  storyObjective,
+  storyObjectiveSystem,
+  storyTrackerLines,
   timeLeft,
   trackerLines,
   type MissionNames,
@@ -285,6 +288,13 @@ describe('startTab', () => {
     expect(startTab(collect, { titanium: 4 })).toBe('missions');
     expect(startTab(null, {})).toBe('cargo');
   });
+
+  it('opens on missions where the story is given, or when a story collect is ready', () => {
+    const story = { campaign: 'quietWar', name: 'Тихая война', done: 0, total: 19, lines: [], offer: offer({ kind: 'deliver' }) };
+    expect(startTab({ ...withActive(null), story }, {})).toBe('missions');
+    const collect: MissionsMsg = { ...withActive(null), storyActive: { offer: offer({ kind: 'collect', item: 'titanium', count: 1 }), progress: 1 } };
+    expect(startTab(collect, { titanium: 1 })).toBe('missions');
+  });
 });
 
 describe('M15 deliveries', () => {
@@ -339,21 +349,82 @@ describe('M20a story missions', () => {
     expect(activeLine(run.active!, names)).toBe('Довезите секции');
   });
 
+  /** Сюжетная миссия в своём слоте (плейтест 2026-09-26): слот доски при этом пуст. */
+  const withStory = (active: MissionsMsg['active'], mark: MissionsMsg['mark'] = null): MissionsMsg => ({
+    ...withActive(null),
+    storyActive: active,
+    storyMark: mark,
+  });
+
   it('points at the scripted wreck, then at the place where it is handed in', () => {
-    const withMark = withActive(
+    const withMark = withStory(
       { offer: offer({ kind: 'collect', item: 'titanium', count: 1, system: 'nova', story: story() }), progress: 0 },
-      null,
       { ship: 0, x: -2600, y: 500 },
     );
-    expect(objective(withMark, 'nova', galaxy, false)).toEqual({ kind: 'point', x: -2600, y: 500 });
+    expect(storyObjective(withMark, 'nova', galaxy, false)).toEqual({ kind: 'point', x: -2600, y: 500 });
+    // Жёлтая цель доски сюжет не показывает: у него своя, зелёная.
+    expect(objective(withMark, 'nova', galaxy, false)).toBeNull();
 
     // Метка погасла — сдавать надо в своё место, а не на ближайшей станции.
-    const collected = withActive({ offer: offer({ kind: 'collect', item: 'titanium', count: 1, system: 'nova', place: 'pl:novaPrime', story: story() }), progress: 1 });
-    expect(objective(collected, 'nova', galaxy, false)).toEqual({ kind: 'place', key: 'pl:novaPrime' });
+    const collected = withStory({ offer: offer({ kind: 'collect', item: 'titanium', count: 1, system: 'nova', place: 'pl:novaPrime', story: story() }), progress: 1 });
+    expect(storyObjective(collected, 'nova', galaxy, false)).toEqual({ kind: 'place', key: 'pl:novaPrime' });
     // Из другой системы — через врата, и на карте галактики видно куда.
-    expect(objective(collected, 'sol', galaxy, false)).toEqual({ kind: 'gate', to: 'vega' });
-    expect(objectiveSystem(collected, 'sol', galaxy)).toBe('nova');
-    expect(objectiveSystem(collected, 'nova', galaxy)).toBeNull();
+    expect(storyObjective(collected, 'sol', galaxy, false)).toEqual({ kind: 'gate', to: 'vega' });
+    expect(storyObjectiveSystem(collected, 'sol')).toBe('nova');
+    expect(storyObjectiveSystem(collected, 'nova')).toBeNull();
+  });
+
+  const pointer = {
+    campaign: 'quietWar',
+    name: 'Тихая война',
+    done: 3,
+    total: 19,
+    lines: ['Капитан Ларсен спрашивал вас.'],
+    next: { mission: 'supply', title: 'Маршрут снабжения', giver: 'Диспетчер Платформы', role: 'Платформа', place: 'pl:novaPrime', system: 'nova' },
+  };
+  const waiting = (): MissionsMsg => ({ ...withActive(null), story: pointer });
+
+  it('always knows where the next meeting is, even with no story mission taken', () => {
+    expect(storyObjective(waiting(), 'sol', galaxy, false)).toEqual({ kind: 'gate', to: 'vega' });
+    expect(storyObjective(waiting(), 'nova', galaxy, false)).toEqual({ kind: 'place', key: 'pl:novaPrime' });
+    expect(storyObjectiveSystem(waiting(), 'sol')).toBe('nova');
+    expect(storyTrackerLines(waiting(), 'sol', false, names)).toEqual({
+      title: `Встреча: Диспетчер Платформы — ${names.place('pl:novaPrime')}, Nova`,
+      hint: 'курс проложен — летите к вратам',
+    });
+    expect(storyTrackerLines(waiting(), 'nova', false, names)?.hint).toBe('садитесь в поселении');
+    // Не хватает отношения — трекер говорит об этом, а не шлёт туда впустую.
+    const locked = { ...waiting(), story: { ...pointer, next: { ...pointer.next, rep: 'neutral' } } };
+    expect(storyTrackerLines(locked, 'sol', false, names)?.hint).toBe('сначала нужно отношение «Нейтрал» в этой системе');
+  });
+
+  it('stays quiet during the tutorial: one arrow for a newcomer is enough', () => {
+    const learning: MissionsMsg = { ...waiting(), tutorial: { step: 0, total: 8, title: 'Вылет', hint: '', kind: 'undock' } as TutorialDto };
+    expect(storyObjective(learning, 'sol', galaxy, false)).toBeNull();
+    expect(storyObjectiveSystem(learning, 'sol')).toBeNull();
+    expect(storyTrackerLines(learning, 'sol', false, names)).toBeNull();
+    // А трекер обучения — на своём месте, жёлтой строкой.
+    expect(trackerLines(learning, 'sol', false, names)?.title).toBe('Обучение 1/8: Вылет');
+  });
+
+  it('keeps the board and the story side by side', () => {
+    const both: MissionsMsg = {
+      ...waiting(),
+      active: { offer: offer({ kind: 'kill', system: 'vega', count: 2 }), progress: 1 },
+      storyActive: { offer: offer({ kind: 'deliver', count: 1, system: 'nova', place: 'st:nova', story: story({ objective: 'Довезите список' }) }), progress: 0 },
+    };
+    expect(trackerLines(both, 'vega', false, names)?.kind).toBe('kill');
+    expect(storyTrackerLines(both, 'vega', false, names)?.title).toBe('Довезите список');
+    expect(objective(both, 'vega', galaxy, false)).toEqual({ kind: 'pirate', npc: null });
+    expect(storyObjective(both, 'vega', galaxy, false)).toEqual({ kind: 'gate', to: 'nova' });
+  });
+
+  it('says in the journal who to see next', () => {
+    expect(storyJournal(pointer, (key) => (key === 'pl:novaPrime' ? 'Рудник Прайм' : key))).toEqual([
+      'Капитан Ларсен спрашивал вас.',
+      'Дальше: Диспетчер Платформы, Рудник Прайм.',
+    ]);
+    expect(storyJournal({ ...pointer, lines: [] })).toEqual(['Дальше: Диспетчер Платформы, pl:novaPrime.']);
   });
 
   it('writes the journal line', () => {

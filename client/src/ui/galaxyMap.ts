@@ -18,6 +18,8 @@ export interface GalaxyMapState {
   home: string | null;
   /** Куда ведёт задание (GDD §36); null — никуда или цель здесь. */
   objective?: string | null;
+  /** Куда ведёт сюжет — взятая миссия или следующая встреча (плейтест 2026-09-26); null — цель здесь. */
+  storyObjective?: string | null;
   /** Где вторжение пиратов (GDD §38) — объявлено или идёт; null — нигде. */
   invasion?: string | null;
   /** Где событие спроса (M15.5) — объявлено или идёт приём; null — нигде. */
@@ -48,7 +50,7 @@ const OUTLOOK_TEXT: Record<JumpOutlook, string> = {
 };
 
 /** Значки у узла: глиф и роль цвета (класс задаёт цвет из токенов). */
-const BADGE_GLYPH: Record<BadgeKind, string> = { home: '⌂', objective: '★', invasion: '⚔', demand: '₪' };
+const BADGE_GLYPH: Record<BadgeKind, string> = { home: '⌂', story: '✓', objective: '★', invasion: '⚔', demand: '₪' };
 
 /** Радиусы узла в единицах карты: ядро, кольцо отношения, «вы здесь», кольца событий, зона тапа. */
 const R = { core: 3.2, rep: 5.2, here: 6.4, event: 7.4, eventOuter: 8.4, hit: 11 };
@@ -224,12 +226,14 @@ export class GalaxyMap {
     if (system.id === current) group.append(svgEl('circle', { cx: x, cy: y, r: R.here, class: 'galaxy-here' }));
     else if (system.id === this.selected) group.append(svgEl('circle', { cx: x, cy: y, r: R.here, class: 'galaxy-selected' }));
     const objective = system.id === state.objective;
+    const story = system.id === state.storyObjective;
     const invasion = system.id === state.invasion;
     if (objective) group.append(svgEl('circle', { cx: x, cy: y, r: R.event, class: 'galaxy-objective' }));
-    if (invasion) group.append(svgEl('circle', { cx: x, cy: y, r: objective ? R.eventOuter : R.event, class: 'galaxy-invasion' }));
+    if (story) group.append(svgEl('circle', { cx: x, cy: y, r: objective ? R.eventOuter : R.event, class: 'galaxy-objective galaxy-objective--story' }));
+    if (invasion) group.append(svgEl('circle', { cx: x, cy: y, r: objective || story ? R.eventOuter : R.event, class: 'galaxy-invasion' }));
 
     // Значки событий — бейджами у узла, а не суффиксами в имени: в 3 px «Rigel ⚔» не прочесть.
-    for (const badge of nodeBadges({ home: system.id === state.home, objective, invasion, demand: system.id === state.demand })) {
+    for (const badge of nodeBadges({ home: system.id === state.home, story, objective, invasion, demand: system.id === state.demand })) {
       const g = svgEl('g', { class: `galaxy-badge galaxy-badge--${badge.kind}` });
       g.append(svgEl('circle', { cx: x + badge.dx, cy: y + badge.dy, r: 2.4 }));
       const glyph = svgEl('text', { x: x + badge.dx, y: y + badge.dy });
@@ -357,6 +361,7 @@ function legend(): HTMLElement {
   key(svgEl('line', { x1: 1, y1: 6, x2: 11, y2: 6, class: 'galaxy-key-route' }), 'пунктир — курс');
   const badges: [BadgeKind, string][] = [
     ['home', 'дом: сюда вернётесь после гибели'],
+    ['story', 'сюжет: куда дальше'],
     ['objective', 'цель задания'],
     ['invasion', 'вторжение пиратов'],
     ['demand', 'событие спроса'],
