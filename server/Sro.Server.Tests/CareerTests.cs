@@ -107,6 +107,8 @@ public sealed class CareerTests : IDisposable
         var cargo = a.Last<CargoMsg>();
 
         Assert.Equal("heavy", hangar.Hull);
+        // Лишней «Пчелы» в ангаре нет (плейтест 2026-09-27): у торговца только свой корабль.
+        Assert.Equal(["heavy"], hangar.Hulls);
         Assert.Equal(500, cargo.Credits);
         // Часть капитала уже в товаре: везти есть что с первой минуты.
         Assert.Equal(40, cargo.Items["food"]);

@@ -270,6 +270,8 @@ public sealed partial class Room
             player.Credits = path?.Credits ?? Balance.Economy.StartCredits; // GDD §54: новый пилот получает стартовый капитал
             if (path is { Hull: { } hull } && Hulls.ContainsKey(hull))
             {
+                // Корпус пути — единственный в ангаре: «Пчела» по умолчанию торговцу не положена (плейтест 2026-09-27).
+                player.Hulls.Clear();
                 player.HullId = hull;
                 player.Hulls.Add(hull);
             }
@@ -284,8 +286,11 @@ public sealed partial class Room
         {
             player.Credits = profile.Credits;
             // Корпус, пушку или модуль могли убрать из баланса, пока пилот отсутствовал, — такие просто пропадают.
+            // Ангар — ровно тот, что в профиле: корпус по умолчанию сюда не подмешивается.
+            player.Hulls.Clear();
             foreach (var id in profile.Hulls) if (Hulls.ContainsKey(id)) player.Hulls.Add(id);
             if (player.Hulls.Contains(profile.Hull) && Hulls.ContainsKey(profile.Hull)) player.HullId = profile.Hull;
+            player.Hulls.Add(player.HullId); // корабль, на котором пилот вылетит, в ангаре есть всегда
             var (fit, storage) = profile.Fit is { } saved ? (saved, profile.Storage) : MigrateFit(profile);
             foreach (var (id, count) in storage ?? new Dictionary<string, int>())
             {
