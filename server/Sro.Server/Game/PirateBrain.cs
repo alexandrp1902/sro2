@@ -87,18 +87,30 @@ internal static class PirateBrain
             else pirate.Avenge = foe.Id;
         }
         // Налётчик в пути не бросает своих: товарищ по волне сцепился с пилотом — разворачивается к нему на помощь.
-        // Без этого волна обороны летела к цели гуськом, и в бою с пилотом каждый оставался один.
-        else if (pirate.State == PirateState.Return && pirate.IsRaider && pirate.PatrolUntilTick == 0 && pirate.LeaveAtTick == 0 &&
+        // Без этого волна обороны летела к цели гуськом, и в бою с пилотом каждый оставался один. Так же и тот,
+        // кто после боя возвращается на свою точку патруля (плейтест 2026-09-27: пираты помогают друг другу).
+        else if (pirate.State == PirateState.Return && pirate.IsRaider && pirate.LeaveAtTick == 0 &&
                  pirate.Hp > pirate.MaxHp(hull) * pirate.RetreatHp &&
                  Assist(pirate, ships, pirates, npc, shelter, tick, onTheWay: true) is { } mate &&
                  // Бой, который тут же пришлось бы бросить (у укрытия станции, против перевеса), не начинаем:
                  // иначе бой бросается, налётчик снова в пути, снова видит товарища — и так без конца.
-                 ReturnReason(pirate, mate, hull, npc, shelter, onTheWay: true) is null &&
+                 ReturnReason(pirate, mate, hull, npc, shelter, OnTheWay(pirate, tick)) is null &&
                  !IsOutmatched(pirate, mate, pirates, balance))
         {
             pirate.State = PirateState.Attack;
             pirate.TargetId = mate.Id;
             log.LogInformation("{Pirate} joins the fight with {Target} on its way", pirate, mate.Name);
+        }
+        // Налётчик в пути видит пилота рядом — бросается на него сам, не дожидаясь выстрела (плейтест 2026-09-27:
+        // пираты пролетали мимо, хотя игрок был у них на радаре).
+        else if (pirate.State == PirateState.Return && pirate.IsRaider && pirate.LeaveAtTick == 0 &&
+                 pirate.Hp > pirate.MaxHp(hull) * pirate.RetreatHp &&
+                 Engage(pirate, ships, pirates, balance, shelter, tick, outlaws) is { } prey &&
+                 ReturnReason(pirate, prey, hull, npc, shelter, OnTheWay(pirate, tick)) is null)
+        {
+            pirate.State = PirateState.Attack;
+            pirate.TargetId = prey.Id;
+            log.LogInformation("{Pirate} attacks {Target} on its way", pirate, prey.Name);
         }
 
         if (pirate.State == PirateState.Leave)
@@ -353,21 +365,52 @@ internal static class PirateBrain
             return attacker;
 
         ShipEntity? nearest = null;
-        var nearestDistance = Math.Max(npc.AggroRange, pirate.Type.DefendRange);
+        var range = Math.Max(npc.AggroRange, pirate.Type.DefendRange);
+        var nearestDistance = double.MaxValue;
         foreach (var ship in ships.Values)
         {
             if (!IsCandidate(pirate, ship, tick, shelter) || !Wants(pirate, ship, tick, offenders, outlaws)) continue;
             if (IsOutmatched(pirate, ship, pirates, balance)) continue; // на сильную стаю сам не лезет
             var distance = Distance(pirate, ship);
+            // Пилота пират замечает издалека (engageRange, плейтест 2026-09-27), торговца — только вблизи.
+            var limit = pirate.Type.IsPirate && ship is Player ? Math.Max(range, npc.PlayerAggroRange) : range;
             // Маскировка (M19) сужает круг именно пирату: рейнджер видит всех, и тот, кто уже выстрелил,
             // тоже найден — эта ветка выше, по attackerId и DropRange.
-            var reach = pirate.Type.IsPirate ? nearestDistance * ship.Stealth(balance) : nearestDistance;
-            if (distance > reach) continue;
+            var reach = pirate.Type.IsPirate ? limit * ship.Stealth(balance) : limit;
+            if (distance > reach || distance > nearestDistance) continue;
             nearest = ship;
             nearestDistance = distance;
         }
         if (nearest is not null) return nearest;
         return Assist(pirate, ships, pirates, npc, shelter, tick, onTheWay: false);
+    }
+
+    /// <summary>
+    /// Пилот, на которого пират бросается по дороге к своей точке: ближайший в <see cref="NpcRules.PlayerAggroRange"/>,
+    /// не в укрытии и не под защитой. Торговцев в пути налётчик не трогает — его дело точка налёта.
+    /// </summary>
+    private static Player? Engage(
+        Pirate pirate,
+        IReadOnlyDictionary<int, ShipEntity> ships,
+        IReadOnlyList<Pirate> pirates,
+        Balance balance,
+        Shelter shelter,
+        long tick,
+        IReadOnlySet<int>? outlaws)
+    {
+        if (!pirate.Type.IsPirate) return null;
+        Player? nearest = null;
+        var nearestDistance = double.MaxValue;
+        foreach (var ship in ships.Values)
+        {
+            if (ship is not Player player || !IsCandidate(pirate, player, tick, shelter) ||
+                !Wants(pirate, player, tick, null, outlaws) || IsOutmatched(pirate, player, pirates, balance)) continue;
+            var distance = Distance(pirate, player);
+            if (distance > balance.Npc.PlayerAggroRange * player.Stealth(balance) || distance >= nearestDistance) continue;
+            nearest = player;
+            nearestDistance = distance;
+        }
+        return nearest;
     }
 
     /// <summary>

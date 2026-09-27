@@ -1,9 +1,10 @@
 {
   "respawnSeconds": 20,
   "aggroRange": 700,
-  "dropRange": 1000,
-  "assistRange": 900,
-  "leashRange": 1800,
+  "engageRange": 1750,
+  "dropRange": 2100,
+  "assistRange": 1750,
+  "leashRange": 2600,
   "stationSafeRadius": 900,
   "patrolRadius": 250,
   "patrolThrottle": 0.35,

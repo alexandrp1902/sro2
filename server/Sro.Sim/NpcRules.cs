@@ -125,6 +125,10 @@ public sealed record NpcLevelScaling(double Hp = 0.2, double Shield = 0.2, doubl
 /// <summary>NPC системы из shared/npcs.json: пираты (GDD §31–32) — типы, уровни, логова и поведение ИИ.</summary>
 /// <param name="RespawnSeconds">Через столько уничтоженный NPC появляется снова в своём логове.</param>
 /// <param name="AggroRange">Пират замечает игрока ближе этого.</param>
+/// <param name="EngageRange">
+/// Игрока пират замечает дальше, чем торговца: ближе этого — бросается на него и в патруле, и по дороге к своей точке
+/// (плейтест 2026-09-27: 2.5 сектора). null — как <paramref name="AggroRange"/>.
+/// </param>
 /// <param name="DropRange">Цель дальше этого потеряна.</param>
 /// <param name="AssistRange">Пират вступает в бой собрата, если тот ближе этого.</param>
 /// <param name="LeashRange">Дальше этого от логова пират не преследует, а возвращается.</param>
@@ -147,7 +151,8 @@ public sealed record NpcRules(
     double OutmatchRatio = 2,
     NpcLevelScaling? LevelScaling = null,
     IReadOnlyDictionary<string, NpcType>? Types = null,
-    IReadOnlyList<NpcSpawn>? Spawns = null)
+    IReadOnlyList<NpcSpawn>? Spawns = null,
+    double? EngageRange = null)
 {
     public const string File = "npcs.json";
 
@@ -162,6 +167,9 @@ public sealed record NpcRules(
     [JsonIgnore] public IReadOnlyDictionary<string, NpcType> TypeMap => Types ?? new Dictionary<string, NpcType>();
     [JsonIgnore] public IReadOnlyList<NpcSpawn> SpawnList => Spawns ?? [];
     [JsonIgnore] public int Count => SpawnList.Sum(s => s.Count);
+
+    /// <summary>На каком расстоянии пират бросается на игрока: не ближе обычного агро.</summary>
+    [JsonIgnore] public double PlayerAggroRange => Math.Max(AggroRange, EngageRange ?? AggroRange);
 
     /// <summary>«Пират Ур.2».</summary>
     public static string Name(NpcType type, int level) => $"{type.Name} Ур.{level}";
@@ -195,6 +203,8 @@ public sealed record NpcRules(
     {
         if (!(RespawnSeconds >= 0)) return "respawnSeconds must not be negative";
         if (!(AggroRange > 0) || !(DropRange >= AggroRange)) return "ranges must satisfy 0 < aggroRange <= dropRange";
+        if (EngageRange is { } engage && !(engage >= AggroRange && engage <= DropRange))
+            return "engageRange must satisfy aggroRange <= engageRange <= dropRange";
         if (!(AssistRange >= 0) || !(LeashRange > 0) || !(StationSafeRadius >= 0) || !(PatrolRadius >= 0))
             return "assistRange, stationSafeRadius and patrolRadius must not be negative, leashRange must be positive";
         if (!(PatrolThrottle > 0 && PatrolThrottle <= 1)) return "patrolThrottle must be within 0..1";
