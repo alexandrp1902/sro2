@@ -90,15 +90,10 @@ export function shipSprite(hull: string, role: ShipRole | null = null): SpriteNa
 const ITEM_SPRITES: Record<string, string> = {
   tech: 'plasma',
   // Детали прототипа (M20b): каркас, приводы и оружейный модуль — детали меха из пачки E. Остальные
-  // сюжетные предметы нарисованы своими иконками (пачка Q) и названы по id — подмена им не нужна.
+  // сюжетные предметы нарисованы своими иконками (пачки Q и T) и названы по id — подмена им не нужна.
   mechFrame: 'mech-frame',
   driveBlock: 'mech-drive',
   weaponModule: 'mech-weapon',
-  // Бумаги пролога (плейтест 2026-09-26) — пока чужими иконками: контракты — листами чертежа, список
-  // пассажиров — журналом, почтовая капсула — контейнером. Свои заказаны в art/next-art-requests.md.
-  contracts: 'blueprint',
-  passengerList: 'shipLog',
-  mailCapsule: 'container',
 };
 
 /**

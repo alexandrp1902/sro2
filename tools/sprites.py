@@ -122,6 +122,10 @@ SINGLES = [
     *[(f"story-items/item-{f}", f"resources-{n}", 128) for f, n in
       [("power-core", "powerCore"), ("armor-sections", "armorSections"), ("ship-log", "shipLog"),
        ("blueprint", "blueprint"), ("reactor", "reactor"), ("neuro-link", "neuroLink")]],
+    # Бумаги пролога «Дорога в Нову» (пачка T): у этих исходников шум альфы доходит до 7/255 и сидит
+    # по всему полю — режим «soft» обнуляет его порогом повыше, чем у остальных.
+    *[(f"../story/quiet-war/items/{n}", f"resources-{n}", 128, "soft") for n in
+      ["contracts", "mailCapsule", "passengerList"]],
     # Детали меха (пачка E) — вместо подмен у деталей прототипа (M20b): каркас, приводы, оружейный модуль.
     # Имя — resources-<что в ITEM_SPRITES>, как у товаров. Остальные детали ждут инвентаря мехов.
     ("../mechs/parts/mech-body-medium", "resources-mech-frame", 128),
@@ -190,10 +194,10 @@ def bounds(sheet: Image.Image, cols: int, rows: int):
     return result
 
 
-def clean(img: Image.Image) -> Image.Image:
+def clean(img: Image.Image, cut: int = 4) -> Image.Image:
     """Прозрачный «пух» генератора — в ноль, чтобы при масштабе он не подкрашивал края."""
     a = np.asarray(img).copy()
-    a[a[..., 3] < 4] = 0
+    a[a[..., 3] < cut] = 0
     return Image.fromarray(a, "RGBA")
 
 
@@ -294,7 +298,7 @@ def main() -> None:
     for entry in SINGLES:
         path, key, longest = entry[:3]
         mode = entry[3] if len(entry) > 3 else "trim"
-        img = clean(Image.open(SRC / f"{path}.png").convert("RGBA"))
+        img = clean(Image.open(SRC / f"{path}.png").convert("RGBA"), 8 if mode == "soft" else 4)
         img = fit(ring(img) if mode == "ring" else single(img), longest)
         save(img, key)
         meta[key] = {"w": img.width, "h": img.height}

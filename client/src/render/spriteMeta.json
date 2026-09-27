@@ -655,6 +655,18 @@
     "w": 128,
     "h": 117
   },
+  "resources-contracts": {
+    "w": 127,
+    "h": 128
+  },
+  "resources-mailCapsule": {
+    "w": 128,
+    "h": 90
+  },
+  "resources-passengerList": {
+    "w": 128,
+    "h": 113
+  },
   "resources-mech-frame": {
     "w": 128,
     "h": 128

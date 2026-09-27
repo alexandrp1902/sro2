@@ -1,0 +1,233 @@
+{
+  "date": "2026-09-27",
+  "files": [
+    {
+      "id": "ilyina",
+      "file": "sources/portrait-ilyina.png",
+      "name": "Вербовщица Ильина",
+      "kind": "portrait",
+      "expectedRuntimeSize": 256,
+      "width": 1254,
+      "height": 1254,
+      "mode": "RGB",
+      "bytes": 2083341,
+      "decoded": true
+    },
+    {
+      "id": "brandt",
+      "file": "sources/portrait-brandt.png",
+      "name": "Староста Брандт",
+      "kind": "portrait",
+      "expectedRuntimeSize": 256,
+      "width": 1254,
+      "height": 1254,
+      "mode": "RGB",
+      "bytes": 2330143,
+      "decoded": true
+    },
+    {
+      "id": "hanna-lane",
+      "file": "sources/portrait-hanna-lane.png",
+      "name": "Ханна Лейн",
+      "kind": "portrait",
+      "expectedRuntimeSize": 256,
+      "width": 1254,
+      "height": 1254,
+      "mode": "RGB",
+      "bytes": 2148255,
+      "decoded": true
+    },
+    {
+      "id": "vega-dispatcher",
+      "file": "sources/portrait-vega-dispatcher.png",
+      "name": "Диспетчер Веги",
+      "kind": "portrait",
+      "expectedRuntimeSize": 256,
+      "width": 1254,
+      "height": 1254,
+      "mode": "RGB",
+      "bytes": 2228972,
+      "decoded": true
+    },
+    {
+      "id": "owen",
+      "file": "sources/portrait-owen.png",
+      "name": "Смотритель Оуэн",
+      "kind": "portrait",
+      "expectedRuntimeSize": 256,
+      "width": 1254,
+      "height": 1254,
+      "mode": "RGB",
+      "bytes": 2365516,
+      "decoded": true
+    },
+    {
+      "id": "larsen",
+      "file": "sources/portrait-larsen.png",
+      "name": "Капитан Ларсен",
+      "kind": "portrait",
+      "expectedRuntimeSize": 256,
+      "width": 1254,
+      "height": 1254,
+      "mode": "RGB",
+      "bytes": 2134510,
+      "decoded": true
+    },
+    {
+      "id": "contracts",
+      "file": "items/contracts.png",
+      "name": "Контракты найма",
+      "kind": "item",
+      "expectedRuntimeSize": 128,
+      "width": 1254,
+      "height": 1254,
+      "mode": "RGBA",
+      "bytes": 2000449,
+      "decoded": true,
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "visibleBounds": [
+        0,
+        45,
+        1204,
+        1198
+      ],
+      "alphaThresholdBounds": {
+        "8": [
+          102,
+          75,
+          1200,
+          1178
+        ],
+        "32": [
+          102,
+          76,
+          1198,
+          1178
+        ],
+        "128": [
+          103,
+          76,
+          1198,
+          1177
+        ],
+        "240": [
+          104,
+          77,
+          1197,
+          1176
+        ]
+      },
+      "touchesEdge": true,
+      "subjectTouchesEdge": false
+    },
+    {
+      "id": "mailCapsule",
+      "file": "items/mailCapsule.png",
+      "name": "Почтовая капсула",
+      "kind": "item",
+      "expectedRuntimeSize": 128,
+      "width": 1254,
+      "height": 1254,
+      "mode": "RGBA",
+      "bytes": 1653057,
+      "decoded": true,
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "visibleBounds": [
+        0,
+        166,
+        1223,
+        1198
+      ],
+      "alphaThresholdBounds": {
+        "8": [
+          49,
+          210,
+          1220,
+          1031
+        ],
+        "32": [
+          49,
+          210,
+          1220,
+          1031
+        ],
+        "128": [
+          50,
+          211,
+          1220,
+          1030
+        ],
+        "240": [
+          50,
+          212,
+          1219,
+          1030
+        ]
+      },
+      "touchesEdge": true,
+      "subjectTouchesEdge": false
+    },
+    {
+      "id": "passengerList",
+      "file": "items/passengerList.png",
+      "name": "Список пассажиров",
+      "kind": "item",
+      "expectedRuntimeSize": 128,
+      "width": 1254,
+      "height": 1254,
+      "mode": "RGBA",
+      "bytes": 2047085,
+      "decoded": true,
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "visibleBounds": [
+        0,
+        22,
+        1240,
+        1254
+      ],
+      "alphaThresholdBounds": {
+        "8": [
+          17,
+          112,
+          1238,
+          1192
+        ],
+        "32": [
+          17,
+          112,
+          1237,
+          1192
+        ],
+        "128": [
+          18,
+          113,
+          1237,
+          1191
+        ],
+        "240": [
+          19,
+          114,
+          1236,
+          1190
+        ]
+      },
+      "touchesEdge": true,
+      "subjectTouchesEdge": false
+    }
+  ],
+  "errors": [],
+  "warnings": [
+    "contracts: faint alpha noise touches canvas edge; source preserved",
+    "mailCapsule: faint alpha noise touches canvas edge; source preserved",
+    "passengerList: faint alpha noise touches canvas edge; source preserved"
+  ]
+}

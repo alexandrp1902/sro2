@@ -1,0 +1,65 @@
+[
+  {
+    "id": "ilyina",
+    "file": "sources/portrait-ilyina.png",
+    "name": "Вербовщица Ильина",
+    "kind": "portrait",
+    "expectedRuntimeSize": 256
+  },
+  {
+    "id": "brandt",
+    "file": "sources/portrait-brandt.png",
+    "name": "Староста Брандт",
+    "kind": "portrait",
+    "expectedRuntimeSize": 256
+  },
+  {
+    "id": "hanna-lane",
+    "file": "sources/portrait-hanna-lane.png",
+    "name": "Ханна Лейн",
+    "kind": "portrait",
+    "expectedRuntimeSize": 256
+  },
+  {
+    "id": "vega-dispatcher",
+    "file": "sources/portrait-vega-dispatcher.png",
+    "name": "Диспетчер Веги",
+    "kind": "portrait",
+    "expectedRuntimeSize": 256
+  },
+  {
+    "id": "owen",
+    "file": "sources/portrait-owen.png",
+    "name": "Смотритель Оуэн",
+    "kind": "portrait",
+    "expectedRuntimeSize": 256
+  },
+  {
+    "id": "larsen",
+    "file": "sources/portrait-larsen.png",
+    "name": "Капитан Ларсен",
+    "kind": "portrait",
+    "expectedRuntimeSize": 256
+  },
+  {
+    "id": "contracts",
+    "file": "items/contracts.png",
+    "name": "Контракты найма",
+    "kind": "item",
+    "expectedRuntimeSize": 128
+  },
+  {
+    "id": "mailCapsule",
+    "file": "items/mailCapsule.png",
+    "name": "Почтовая капсула",
+    "kind": "item",
+    "expectedRuntimeSize": 128
+  },
+  {
+    "id": "passengerList",
+    "file": "items/passengerList.png",
+    "name": "Список пассажиров",
+    "kind": "item",
+    "expectedRuntimeSize": 128
+  }
+]

@@ -28,6 +28,13 @@ PORTRAITS = [
     ("story/quiet-war/sources/portrait-fang-lead", "fang-lead"),
     # Контакт на станции пока нигде не говорит: портрет готов, подключится вместе с его репликами.
     ("story/quiet-war/sources/portrait-contact", "contact"),
+    # Пролог «Дорога в Нову» (пачка T).
+    ("story/quiet-war/sources/portrait-ilyina", "ilyina"),
+    ("story/quiet-war/sources/portrait-brandt", "brandt"),
+    ("story/quiet-war/sources/portrait-hanna-lane", "hanna-lane"),
+    ("story/quiet-war/sources/portrait-vega-dispatcher", "vega-dispatcher"),
+    ("story/quiet-war/sources/portrait-owen", "owen"),
+    ("story/quiet-war/sources/portrait-larsen", "larsen"),
 ]
 
 
