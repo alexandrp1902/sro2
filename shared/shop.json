@@ -14,7 +14,7 @@
 
   "hulls": {
     "light": 0,
-    // «Ослик» (M18) — стартовый корабль торговца. В продаже только в Новом Порту: вернуть себе,
+    // «Ослик» (M18) — стартовый корабль торговца. В продаже только на Терре: вернуть себе,
     // если продал, а не купить вместо «Мула» — тот и есть первая покупка торговца.
     "starterTrader": 1500,
     "scout": 2500,
@@ -145,17 +145,17 @@
 
     // Поселения (M15). На поверхности снаряжение дешевле, чем на орбите, но выбор беднее: чинят
     // везде, а корпуса продают лишь там, где верфь (см. settlement.shipyard в galaxy.json).
-    "pl:terra": { "title": "Порт Новый Порт", "hulls": ["starterTrader"], "price": 0.95 },
-    "pl:vegaOne": { "title": "Склад Ледяной Веги", "remove": ["heavyLaser"], "price": 0.93 },
-    "pl:alphaTwo": { "title": "Лавка Купола Альфы", "remove": ["cannon"], "price": 0.9 },
-    "pl:tauPrima": { "title": "Верфь Пыльной Гавани", "hulls": ["industrial", "tug", "runner"], "items": ["cargoPod", "grapple"], "price": 0.97 },
+    "pl:terra": { "title": "Порт Терры", "hulls": ["starterTrader"], "price": 0.95 },
+    "pl:vegaOne": { "title": "Склад Веги I", "remove": ["heavyLaser"], "price": 0.93 },
+    "pl:alphaTwo": { "title": "Лавка Альфы II", "remove": ["cannon"], "price": 0.9 },
+    "pl:tauPrima": { "title": "Верфь Тау-Примы", "hulls": ["industrial", "tug", "runner"], "items": ["cargoPod", "grapple"], "price": 0.97 },
     "pl:novaGiant": { "title": "Причал Нова-Один", "items": ["cargoPod"], "price": 1.02 },
-    // Рудник Прайм (M20a): посёлок шахтёров, а не верфь — чинят и продают самое нужное.
-    "pl:novaPrime": { "title": "Склад Рудника Прайм", "items": ["cargoPod", "repair"], "price": 1.0 },
+    // Нова-Прайм (M20a): посёлок шахтёров, а не верфь — чинят и продают самое нужное.
+    "pl:novaPrime": { "title": "Склад Нова-Прайм", "items": ["cargoPod", "repair"], "price": 1.0 },
     "pl:castorOre": { "title": "Контора Рудника", "items": ["cargoPod"], "price": 0.92 },
     "pl:barnardGarden": { "title": "Лавка Оранжереи", "items": ["repair"], "price": 1.0 },
-    "pl:sigmaIce": { "title": "Верфь Мороза", "hulls": ["freighter", "clipper"], "items": ["cooling"], "price": 1.05 },
+    "pl:sigmaIce": { "title": "Верфь Сигма-Льда", "hulls": ["freighter", "clipper"], "items": ["cooling"], "price": 1.05 },
     "pl:aldPyre": { "title": "Плавильня", "items": ["railgun", "reactiveArmor"], "price": 1.08 },
-    "pl:edgeAsh": { "title": "Верфь Пепельного Приюта", "hulls": ["frigate", "galleon", "lancer", "corsair"], "items": ["torpedoes"], "price": 1.1 }
+    "pl:edgeAsh": { "title": "Верфь Край-Пепла", "hulls": ["frigate", "galleon", "lancer", "corsair"], "items": ["torpedoes"], "price": 1.1 }
   }
 }

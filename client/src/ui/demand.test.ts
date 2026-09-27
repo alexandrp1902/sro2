@@ -12,7 +12,7 @@ const msg = (state: DemandMsg['state'], extra: Partial<DemandMsg> = {}): DemandM
   system: 'edge',
   systemName: 'Край',
   place: 'pl:edgeAsh',
-  placeName: 'Пепельный Приют',
+  placeName: 'Край-Пепел',
   case: 'revolt',
   title: 'Восстание',
   goods: ['arms', 'medicine'],
@@ -27,7 +27,7 @@ describe('DemandBoard', () => {
   it('объявление называет место, товары и срок — и только один раз', () => {
     const board = new DemandBoard();
     const first = board.apply(msg('announce'), 0, 'sol', name);
-    expect(first?.text).toBe('ВОССТАНИЕ: Пепельный Приют (Край) нужны Оружие и Медикаменты — 180 ед., приём через 01:30');
+    expect(first?.text).toBe('ВОССТАНИЕ: Край-Пепел (Край) нужны Оружие и Медикаменты — 180 ед., приём через 01:30');
     expect(first?.alert).toBe(true);
     // Отсчёт идёт раз в секунду: каждую секунду в ленту писать нечего.
     expect(board.apply(msg('announce', { secondsLeft: 89 }), 1000, 'sol', name)).toBeNull();
@@ -49,10 +49,10 @@ describe('DemandBoard', () => {
   it('квота выбрана и срок вышел читаются по-разному', () => {
     const board = new DemandBoard();
     expect(board.apply(msg('filled', { left: 0 }), 0, 'sol', name)?.text).toBe(
-      'Восстание: спрос закрыт, Пепельный Приют обеспечен',
+      'Восстание: спрос закрыт, Край-Пепел обеспечен',
     );
     expect(board.apply(msg('over', { left: 42 }), 0, 'sol', name)?.text).toBe(
-      'Восстание: срок вышел, Пепельный Приют помощи не дождался',
+      'Восстание: срок вышел, Край-Пепел помощи не дождался',
     );
   });
 
@@ -60,7 +60,7 @@ describe('DemandBoard', () => {
     const board = new DemandBoard();
     board.apply(msg('open', { left: 74, mul: 3.14, secondsLeft: 600 }), 0, 'edge', name);
     const lines = board.lines(0, name);
-    expect(lines?.title).toBe('ВОССТАНИЕ · Пепельный Приют');
+    expect(lines?.title).toBe('ВОССТАНИЕ · Край-Пепел');
     expect(lines?.hint).toBe('Оружие и Медикаменты по ×3.1 · осталось 74 из 180 · 10:00');
   });
 
@@ -84,9 +84,9 @@ describe('demandLine', () => {
   });
 
   it('соседке по системе строка объясняет дефицит и говорит, куда везти', () => {
-    const quote = { case: 'plague', title: 'Эпидемия', goods: ['medicine'], mul: 2.5, left: 50, quota: 100, here: false, placeName: 'Пепельный Приют' };
+    const quote = { case: 'plague', title: 'Эпидемия', goods: ['medicine'], mul: 2.5, left: 50, quota: 100, here: false, placeName: 'Край-Пепел' };
     expect(demandLine(quote, name)).toBe(
-      'Эпидемия: Медикаменты в дефиците по всей системе — берут на Пепельный Приют по ×2.5, осталось 50 из 100',
+      'Эпидемия: Медикаменты в дефиците по всей системе — берут на Край-Пепел по ×2.5, осталось 50 из 100',
     );
   });
 

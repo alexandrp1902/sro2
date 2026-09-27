@@ -242,7 +242,7 @@ export function runDemo(screen: string): void {
     cargoHud.update({ kind: 'station', distance: 340, inRange: false });
     objectiveHud.update(
       { title: 'Доставить Металл ×5 на Вегу', hint: 'Откройте карту — M, прыгайте через врата', kind: 'deliver' },
-      { title: 'Встреча: Ханна Лейн — Купол Альфы, Альфа Центавра', hint: 'курс проложен — летите к вратам' },
+      { title: 'Встреча: Ханна Лейн — Альфа II, Альфа Центавра', hint: 'курс проложен — летите к вратам' },
     );
     invasionHud.update({ title: 'Вторжение пиратов', hint: 'волна 2 из 3 · 01:20', alert: true });
     partyPanel.update(
@@ -359,7 +359,7 @@ export function runDemo(screen: string): void {
             objective: 'Соберите 3 почтовые капсулы у упавшего дрона',
             hint: 'Место падения отмечено на карте; капсулы подбираются лучом захвата',
             giver: 'Ханна Лейн',
-            role: 'жена шахтёра, Купол Альфы',
+            role: 'жена шахтёра, Альфа II',
             number: 2,
             total: 19,
           },
@@ -394,9 +394,9 @@ export function runDemo(screen: string): void {
             mission: 'medic',
             name: 'Тихая война',
             title: 'Инженер Морен',
-            brief: 'На Руднике Прайм кончились лекарства. Отвезите — и заодно посмотрите, чем там дышат.',
-            objective: 'Отвезите медикаменты на Рудник Прайм',
-            hint: 'Груз занимает трюм; сдать — в доке Рудника Прайм',
+            brief: 'На Нова-Прайм кончились лекарства. Отвезите — и заодно посмотрите, чем там дышат.',
+            objective: 'Отвезите медикаменты на Нова-Прайм',
+            hint: 'Груз занимает трюм; сдать — в доке Нова-Прайм',
             giver: 'Капитан Холт',
             role: 'начальник охраны станции',
             number: 3,
@@ -421,7 +421,7 @@ export function runDemo(screen: string): void {
         { kind: 'yard', good: hulls.ids()[3] ?? 'lancer', system: 'aldebaran', name: 'Крепость Альдебарана', hops: 3, price: 24000 },
       ],
       station: { produces: ['metal', 'ore'], consumes: ['crystals'] } as MarketMsg['station'],
-      demand: { case: 'uprising', title: 'Восстание на Терре', goods: ['energy'], mul: 2.8, left: 80, quota: 100, here: true, start: 3, end: 2, placeName: 'Новый Порт' },
+      demand: { case: 'uprising', title: 'Восстание на Терре', goods: ['energy'], mul: 2.8, left: 80, quota: 100, here: true, start: 3, end: 2, placeName: 'Терра' },
     };
     const rep: RepMsg = {
       t: 'rep',

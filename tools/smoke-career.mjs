@@ -142,7 +142,7 @@ async function main() {
   check(`with ${trader.cargo.credits} credits, fewer than a ranger's 1000`, trader.cargo.credits < 1000);
   check(
     `its first step is its own: «${trader.missions.tutorial?.title ?? '—'}»`,
-    trader.missions.tutorial?.id === 'undock' && /Порт/.test(trader.missions.tutorial?.title ?? ''),
+    trader.missions.tutorial?.id === 'undock' && /Терр/.test(trader.missions.tutorial?.title ?? ''),
   );
   check(
     `it starts docked at ${trader.hangar.place?.name ?? 'nowhere'}`,

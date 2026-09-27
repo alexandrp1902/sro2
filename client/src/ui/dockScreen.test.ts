@@ -244,7 +244,7 @@ describe('sceneUrl', () => {
   });
 
   it('gives a twin settlement its own people and the yard of the set it was drawn from', () => {
-    // Пачка L: Рудник Кастора — та же комната, что у Купола Альфы, но свой диспетчер и торговец.
+    // Пачка L: Кастор-Руда — та же комната, что у Альфы II, но свой диспетчер и торговец.
     expect(sceneUrl('planet', 'missions', 'barren-mine')).toBe('dock/barren-mine-office.webp');
     expect(sceneUrl('planet', 'cargo', 'ice-frost')).toBe('dock/ice-frost-trader.webp');
     // Верфь и ангар двойнику не рисовали: они берутся у исходного биома, а не общие planet-*.

@@ -65,10 +65,10 @@ describe('tipLines', () => {
   });
 
   it('после обучения первой строкой — куда зовёт сюжет', () => {
-    const lines = tipLines(false, { title: 'Встреча: Вербовщица Ильина — Новый Порт, Сол' });
+    const lines = tipLines(false, { title: 'Встреча: Вербовщица Ильина — Терра, Сол' });
     expect(lines.map((t) => t.title)).toEqual(['Сюжет «Тихая война»', 'Доска заданий', 'Груз и слухи', 'Карта и курс']);
     expect(lines[0].story).toBe(true);
-    expect(lines[0].text).toMatch(/^Встреча: Вербовщица Ильина — Новый Порт, Сол\. Зелёная метка/);
+    expect(lines[0].text).toMatch(/^Встреча: Вербовщица Ильина — Терра, Сол\. Зелёная метка/);
   });
 });
 

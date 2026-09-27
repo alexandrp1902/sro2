@@ -44,7 +44,7 @@ const names: MissionNames = {
   item: (id) => (id === 'titanium' ? 'Титан' : id),
   place: (key) =>
     key === 'pl:terra'
-      ? 'Новый Порт'
+      ? 'Терра'
       : `Станция ${galaxy.systems.find((s) => s.id === key.slice(3))?.name ?? key.slice(3)}`,
 };
 
@@ -96,7 +96,7 @@ describe('mission text', () => {
     );
     // Адрес — место, а не система: на планете той же системы своя доска и своя репутация (M15).
     expect(offerTitle(offer({ kind: 'deliver', system: 'sol', place: 'pl:terra', count: 6 }), names)).toBe(
-      'Доставить груз: Новый Порт · 6 ед.',
+      'Доставить груз: Терра · 6 ед.',
     );
   });
 
@@ -420,9 +420,9 @@ describe('M20a story missions', () => {
   });
 
   it('says in the journal who to see next', () => {
-    expect(storyJournal(pointer, (key) => (key === 'pl:novaPrime' ? 'Рудник Прайм' : key))).toEqual([
+    expect(storyJournal(pointer, (key) => (key === 'pl:novaPrime' ? 'Нова-Прайм' : key))).toEqual([
       'Капитан Ларсен спрашивал вас.',
-      'Дальше: Диспетчер Платформы, Рудник Прайм.',
+      'Дальше: Диспетчер Платформы, Нова-Прайм.',
     ]);
     expect(storyJournal({ ...pointer, lines: [] })).toEqual(['Дальше: Диспетчер Платформы, pl:novaPrime.']);
   });

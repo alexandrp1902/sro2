@@ -1332,7 +1332,7 @@ export class DockScreen {
     return fit !== undefined && canStrip(fit, hullSlotViews(this.hulls.get(id), this.modules.enabled));
   }
 
-  /** «Станция Vega · система Vega» / «Поселение «Новый Порт» · система Sol». */
+  /** «Станция Vega · система Vega» / «Поселение «Терра» · система Sol». */
   private whereLine(key: string): string {
     const known = this.placeIndex().get(key);
     const name = known?.name ?? this.placeName(key) ?? key.slice(key.indexOf(':') + 1);

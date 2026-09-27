@@ -66,9 +66,9 @@ async function main() {
   check(`захват ×${modules?.grapple?.grab}, сканер ${modules?.deepScanner?.scan}, маскировка ${modules?.cloak?.stealth}`,
     modules?.grapple?.grab === 1.6 && modules?.deepScanner?.scan === 4000 && modules?.cloak?.stealth === 0.4);
 
-  // --- витрина места, где пилот стоит (Новый Порт, Ядро) ---
+  // --- витрина места, где пилот стоит (Терра, Ядро) ---
   const stock = shop?.stock ?? Object.keys(shop?.items ?? {});
-  check(`в Новом Порту продают «Иглу» и «Тягач»: ${stock.filter((id) => id === 'needle' || id === 'tug').join(', ') || '—'}`,
+  check(`на Терре продают «Иглу» и «Тягач»: ${stock.filter((id) => id === 'needle' || id === 'tug').join(', ') || '—'}`,
     stock.includes('needle') && stock.includes('tug'));
   check('в Ядре есть дробовик и грузовой захват', stock.includes('shotgun') && stock.includes('grapple'));
   check('в Ядре нет «Галеона» и залпа — это товар Рубежа', !stock.includes('galleon') && !stock.includes('salvo'));

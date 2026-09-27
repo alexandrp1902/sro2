@@ -29,7 +29,7 @@
           "size": 150,
           "orbit": { "radius": 1900, "periodMinutes": 90, "phase": 200 },
           "id": "terra",
-          "settlement": { "name": "Новый Порт", "shipyard": true }
+          "settlement": { "name": "Терра", "shipyard": true }
         },
         {
           "name": "Марс",
@@ -213,7 +213,7 @@
           "size": 140,
           "orbit": { "radius": 1850, "periodMinutes": 70, "phase": 250 },
           "id": "vegaOne",
-          "settlement": { "name": "Ледяная Вега", "scene": "ice" }
+          "settlement": { "name": "Вега I", "scene": "ice" }
         },
         {
           "name": "Вега II",
@@ -361,7 +361,7 @@
           "size": 120,
           "orbit": { "radius": 2900, "periodMinutes": 160, "phase": 220 },
           "id": "alphaTwo",
-          "settlement": { "name": "Купол Альфы", "scene": "barren" }
+          "settlement": { "name": "Альфа II", "scene": "barren" }
         }
       ],
       "spawns": [
@@ -459,7 +459,7 @@
           "size": 160,
           "orbit": { "radius": 1500, "periodMinutes": 50, "phase": 60 },
           "id": "tauPrima",
-          "settlement": { "name": "Пыльная Гавань", "scene": "desert", "shipyard": true }
+          "settlement": { "name": "Тау-Прима", "scene": "desert", "shipyard": true }
         },
         {
           "name": "Тау-Секунда",
@@ -596,7 +596,7 @@
           "size": 150,
           "orbit": { "radius": 2000, "periodMinutes": 110, "phase": 330 },
           "id": "novaPrime",
-          "settlement": { "name": "Рудник Прайм", "scene": "desert-prime" }
+          "settlement": { "name": "Нова-Прайм", "scene": "desert-prime" }
         },
         {
           "name": "Нова-Гигант",
@@ -604,7 +604,7 @@
           "size": 230,
           "orbit": { "radius": 3300, "periodMinutes": 260, "phase": 80 },
           "id": "novaGiant",
-          "settlement": { "name": "Платформа Нова-Один", "scene": "orbital-platform" }
+          "settlement": { "name": "Нова-Гигант", "scene": "orbital-platform" }
         }
       ],
       "spawns": [
@@ -733,7 +733,7 @@
           "size": 160,
           "orbit": { "radius": 1700, "periodMinutes": 60, "phase": 100 },
           "id": "castorOre",
-          "settlement": { "name": "Рудник Кастора", "scene": "barren-mine" }
+          "settlement": { "name": "Кастор-Руда", "scene": "barren-mine" }
         },
         {
           "name": "Кастор-Туман",
@@ -852,7 +852,7 @@
           "size": 160,
           "orbit": { "radius": 1900, "periodMinutes": 95, "phase": 300 },
           "id": "barnardGarden",
-          "settlement": { "name": "Оранжерея Барнарда", "scene": "jungle" }
+          "settlement": { "name": "Барнард-Сад", "scene": "jungle" }
         },
         {
           "name": "Барнард-Кольцо",
@@ -970,7 +970,7 @@
           "size": 140,
           "orbit": { "radius": 2200, "periodMinutes": 100, "phase": 150 },
           "id": "sigmaIce",
-          "settlement": { "name": "Станция Мороз", "scene": "ice-frost", "shipyard": true }
+          "settlement": { "name": "Сигма-Лёд", "scene": "ice-frost", "shipyard": true }
         },
         {
           "name": "Сигма-Пустошь",
@@ -1091,7 +1091,7 @@
           "size": 170,
           "orbit": { "radius": 1800, "periodMinutes": 75, "phase": 130 },
           "id": "aldPyre",
-          "settlement": { "name": "Плавильня Пекла", "scene": "lava" }
+          "settlement": { "name": "Альдебаран-Пекло", "scene": "lava" }
         },
         {
           "name": "Альдебаран-Прах",
@@ -1312,7 +1312,7 @@
           "size": 180,
           "orbit": { "radius": 2100, "periodMinutes": 120, "phase": 250 },
           "id": "edgeAsh",
-          "settlement": { "name": "Пепельный Приют", "scene": "lava-ash", "shipyard": true }
+          "settlement": { "name": "Край-Пепел", "scene": "lava-ash", "shipyard": true }
         },
         {
           "name": "Край-Кольцо",
