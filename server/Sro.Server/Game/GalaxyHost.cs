@@ -1,5 +1,6 @@
 using System.Collections.Concurrent;
 using System.Diagnostics;
+using Microsoft.Extensions.Configuration;
 using Sro.Server.Accounts;
 using Sro.Server.Net;
 using Sro.Sim;
@@ -20,6 +21,8 @@ public sealed class GalaxyHost : BackgroundService
 
     private readonly ILogger<GalaxyHost> _log;
     private readonly ConcurrentQueue<Action> _commands = new();
+    private readonly AutoResetEvent _wake = new(false);
+    private readonly TimeSpan _idleTimeout;
     private readonly Galaxy _galaxy;
     private readonly List<double> _tickMs = new(StatsSeconds * SimConfig.TickRate);
     private readonly double[] _roomMs;
@@ -27,9 +30,16 @@ public sealed class GalaxyHost : BackgroundService
     private long _statsFromBytes;
     private long _statsFromTimestamp = Stopwatch.GetTimestamp();
 
-    public GalaxyHost(BalanceStore balance, AccountStore accounts, ILogger<GalaxyHost> log, ILogger<Room> roomLog)
+    public GalaxyHost(
+        BalanceStore balance,
+        AccountStore accounts,
+        ILogger<GalaxyHost> log,
+        ILogger<Room> roomLog,
+        IConfiguration configuration)
     {
         _log = log;
+        var idleTimeoutSeconds = configuration.GetValue("Simulation:IdleTimeoutSeconds", 600);
+        _idleTimeout = idleTimeoutSeconds > 0 ? TimeSpan.FromSeconds(idleTimeoutSeconds) : Timeout.InfiniteTimeSpan;
         _galaxy = new Galaxy(balance.Balance, roomLog, accounts);
         // Отладка M21: проставить кампанию целиком каждому входящему, чтобы попасть к ретранслятору без
         // четырнадцати миссий. Только явной переменной окружения, и громко: на проде её быть не должно.
@@ -39,7 +49,7 @@ public sealed class GalaxyHost : BackgroundService
             log.LogWarning("SRO_STORY_SKIP={Campaign}: every account that joins gets the whole campaign marked done", skip);
         }
         _roomMs = new double[_galaxy.Rooms.Count];
-        balance.Changed += b => _commands.Enqueue(() => _galaxy.ApplyBalance(b));
+        balance.Changed += b => Enqueue(() => _galaxy.ApplyBalance(b));
     }
 
     public long Tick => Interlocked.Read(ref _tick);
@@ -51,14 +61,14 @@ public sealed class GalaxyHost : BackgroundService
     public Balance Balance => _galaxy.Balance;
 
     public void Join(IClientConnection connection, HelloMsg hello) =>
-        _commands.Enqueue(() => _galaxy.Join(connection, hello.Token, hello.Name, hello.Hull, hello.Weapon));
+        Enqueue(() => _galaxy.Join(connection, hello.Token, hello.Name, hello.Hull, hello.Weapon));
 
     /// <summary>Пилот с аккаунтом: вход уже проверен в сетевом потоке.</summary>
     /// <param name="career">Путь нового пилота (M15.5); null — общий стартовый набор.</param>
     public void JoinAccount(IClientConnection connection, string accountId, string name, string? career = null) =>
-        _commands.Enqueue(() => _galaxy.JoinAccount(connection, accountId, name, career));
+        Enqueue(() => _galaxy.JoinAccount(connection, accountId, name, career));
 
-    public void Leave(IClientConnection connection) => _commands.Enqueue(() => _galaxy.Disconnect(connection));
+    public void Leave(IClientConnection connection) => Enqueue(() => _galaxy.Disconnect(connection));
 
     public void Input(IClientConnection connection, InputMsg message)
     {
@@ -116,19 +126,25 @@ public sealed class GalaxyHost : BackgroundService
 
     /// <summary>Группа живёт поверх систем — команда идёт галактике, а не комнате.</summary>
     public void Party(IClientConnection connection, string? action, int id) =>
-        _commands.Enqueue(() => _galaxy.Party(connection, action, id));
+        Enqueue(() => _galaxy.Party(connection, action, id));
 
     /// <summary>Обмен, как и группа, живёт поверх комнат: сессию держит галактика (M16b).</summary>
     public void Trade(IClientConnection connection, TradeMsg trade) =>
-        _commands.Enqueue(() => _galaxy.Trade(connection, trade.Action, trade.Id, trade.Credits, trade.Items, trade.Rev));
+        Enqueue(() => _galaxy.Trade(connection, trade.Action, trade.Id, trade.Credits, trade.Items, trade.Rev));
 
     /// <summary>Наземный бой (M21) — галактике: сессия переживает комнату, которая забыла бы пилота без связи.</summary>
     public void Mech(IClientConnection connection, MechActMsg message) =>
-        _commands.Enqueue(() => _galaxy.Mech(connection, message));
+        Enqueue(() => _galaxy.Mech(connection, message));
 
     /// <summary>Комната выбирается в потоке тика: к моменту выполнения корабль мог уже перелететь в другую систему.</summary>
     private void With(IClientConnection connection, Action<Room> command) =>
-        _commands.Enqueue(() => _galaxy.With(connection, command));
+        Enqueue(() => _galaxy.With(connection, command));
+
+    private void Enqueue(Action command)
+    {
+        _commands.Enqueue(command);
+        _wake.Set();
+    }
 
     protected override Task ExecuteAsync(CancellationToken stoppingToken) =>
         Task.Factory.StartNew(() => Run(stoppingToken), stoppingToken, TaskCreationOptions.LongRunning, TaskScheduler.Default);
@@ -141,15 +157,55 @@ public sealed class GalaxyHost : BackgroundService
     {
         var clock = Stopwatch.StartNew();
         long done = 0;
+        var lastOnline = Stopwatch.GetTimestamp();
+        var paused = false;
         while (!ct.IsCancellationRequested)
         {
+            if (paused)
+            {
+                // No world ticks while idle. A queued join wakes the loop immediately without
+                // keeping a timer or poller running at the simulation tick rate.
+                var signaled = WaitHandle.WaitAny(new WaitHandle[] { _wake, ct.WaitHandle });
+                if (signaled == 1 || ct.IsCancellationRequested) break;
+
+                // Ignore elapsed wall time while asleep so the simulation never tries to catch up.
+                done = (long)(clock.Elapsed.TotalSeconds * SimConfig.TickRate);
+                try { RunTick(); }
+                catch (Exception e) { _log.LogError(e, "Galaxy tick failed after idle wake"); }
+                if (_galaxy.OnlineTotal > 0)
+                {
+                    lastOnline = Stopwatch.GetTimestamp();
+                    paused = false;
+                    _tickMs.Clear();
+                    Array.Clear(_roomMs);
+                    _statsFromBytes = WebSocketConnection.FrameBytes;
+                    _statsFromTimestamp = Stopwatch.GetTimestamp();
+                    _log.LogInformation("Simulation resumed after a player connected");
+                }
+                continue;
+            }
+
             var due = (long)(clock.Elapsed.TotalSeconds * SimConfig.TickRate);
             for (var n = 0; done < due && n < MaxCatchUpTicks; n++, done++)
             {
-                try { RunTick(); }
+                try
+                {
+                    var hadOnlinePlayers = _galaxy.OnlineTotal > 0;
+                    RunTick();
+                    if (_galaxy.OnlineTotal > 0 || hadOnlinePlayers) lastOnline = Stopwatch.GetTimestamp();
+                }
                 catch (Exception e) { _log.LogError(e, "Galaxy tick failed"); }
             }
             if (done < due) done = due;
+
+            if (_idleTimeout != Timeout.InfiniteTimeSpan && _galaxy.OnlineTotal == 0 &&
+                Stopwatch.GetElapsedTime(lastOnline) >= _idleTimeout)
+            {
+                paused = true;
+                _log.LogInformation("Simulation paused after {IdleSeconds} seconds with no online players",
+                    _idleTimeout.TotalSeconds);
+                continue;
+            }
 
             var wait = TimeSpan.FromSeconds((done + 1) * SimConfig.Dt) - clock.Elapsed;
             if (wait > TimeSpan.Zero) ct.WaitHandle.WaitOne(wait);
