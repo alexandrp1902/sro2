@@ -24,14 +24,14 @@ export class LocalRace {
   get lap(): number { return Math.min(this.config.track.lapCount, this.lapTimesMs.length + 1); }
   get lapElapsedMs(): number { return Math.max(0, this.elapsedMs - this.lastLapMs); }
   abort(reason = 'USER_ABORT'): void { if (this.active) { this.state = 'ABORTED'; this.reason = reason; } }
-  advance(now: number, input: Input): void {
+  advance(now: number, input: Input | (() => Input)): void {
     if (!this.active || now < this.startsAt) return;
     this.state = 'RUNNING'; this.elapsedMs = Math.max(0, Math.round(now - this.startsAt));
     this.accumulator += Math.min(.25, Math.max(0, (now - this.lastNow) / 1000)); this.lastNow = now;
     const { track, rules } = this.config;
     while (this.accumulator >= DT && this.active) {
       const stepStart = now - this.startsAt - this.accumulator * 1000;
-      const motion = step(this.body, input, track, rules);
+      const motion = step(this.body, typeof input === 'function' ? input() : input, track, rules);
       for (const segment of motion.segments) {
         const gates = [...track.checkpoints, track.finishLine].map((gate, index) => ({ index, t: crossing(segment.from, segment.to, gate) }))
           .filter(g => g.t !== null).sort((a, b) => a.t! - b.t!);

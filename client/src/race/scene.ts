@@ -3,6 +3,7 @@ import type { Body, Impact } from './physics';
 import type { Config, Input, Vec } from './types';
 import { artUrl, podLayout, raceAssets, type Livery } from './art';
 import { RaceParticles } from './particles';
+import type { Racer } from './opponents';
 
 /** Uses the game's existing Pixi renderer and ticker. All geometry is in world units. */
 export class RaceScene {
@@ -11,6 +12,8 @@ export class RaceScene {
   private world = new Container();
   private track = new Graphics();
   private vehicle = new Container();
+  private rivals = new Container();
+  private rivalViews: { view: Container; flames: Sprite[] }[] = [];
   private hull = new Sprite();
   private pilot = new Graphics();
   private link = new Sprite();
@@ -35,7 +38,7 @@ export class RaceScene {
   private camera = { x: 0, y: 0 };
   constructor() {
     this.view.addChild(this.background, this.world);
-    this.world.addChild(this.track, this.banks, this.landMask, this.floorShadow, this.floorMask, this.scenery, this.decals, this.vehicle, this.particleView);
+    this.world.addChild(this.track, this.banks, this.landMask, this.floorShadow, this.floorMask, this.scenery, this.decals, this.rivals, this.vehicle, this.particleView);
     this.banks.setMask({ mask: this.landMask, inverse: true });
     this.floorShadow.mask = this.floorMask;
     this.particleView.sortableChildren = true;
@@ -109,6 +112,8 @@ export class RaceScene {
     pattern.transform.scale(size / texture.width, size / texture.height); return pattern;
   }
   load(config: Config): void {
+    for (const child of this.rivals.removeChildren()) child.destroy({ children: true });
+    this.rivalViews = [];
     this.track.clear(); this.clearScenery(); const t = config.track;
     let seed = 731;
     const random = () => { seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0; return seed / 4294967296; };
@@ -206,7 +211,7 @@ export class RaceScene {
     this.camera = { ...t.spawn }; this.maxHp = config.rules.hp; this.lastNow = 0; this.wasCrashed = false;
     this.particles.reset(); this.renderParticles(); this.view.visible = true;
   }
-  frame(now: number, width: number, height: number, b: Body, input: Input, crashed: boolean, crashVelocity?: Vec, impacts: Impact[] = []): void {
+  frame(now: number, width: number, height: number, b: Body, input: Input, crashed: boolean, crashVelocity?: Vec, impacts: Impact[] = [], racers: readonly Racer[] = []): void {
     this.background.clear().rect(0, 0, width, height).fill(0x503527);
     const speed = Math.hypot(b.velocity.x, b.velocity.y);
     const scale = Math.min(width, height) / (55 + Math.min(45, speed * .8));
@@ -218,6 +223,28 @@ export class RaceScene {
     this.world.position.set(width / 2 - this.camera.x * scale, height * .43 - this.camera.y * scale);
     this.vehicle.position.set(b.position.x, b.position.y); this.vehicle.rotation = b.heading;
     this.vehicle.visible = !crashed;
+    racers.forEach((racer, index) => {
+      let rival = this.rivalViews[index];
+      if (!rival) {
+        const view = new Container(), layout = podLayout[racer.livery];
+        const hull = this.sprite(`pod-${racer.livery}-v1`, view, 0, 0, 3.65);
+        const flames = [0, 1].map(i => {
+          const flame = this.sprite('pod-exhaust-v1', view, (layout.nozzle - .5) * 3.65,
+            (i ? 1 : -1) * layout.engineY * hull.height, 1);
+          flame.anchor.set(.96, .5); flame.blendMode = 'add'; view.setChildIndex(flame, i); return flame;
+        });
+        const pilot = new Graphics().circle((layout.seat - .5) * 3.65, 0, .12).fill(0xd7c7a2);
+        view.addChild(pilot); this.rivals.addChild(view);
+        rival = { view, flames }; this.rivalViews[index] = rival;
+      }
+      const body = racer.run.body;
+      rival.view.position.set(body.position.x, body.position.y); rival.view.rotation = body.heading;
+      rival.view.visible = racer.run.state !== 'CRASHED' && racer.run.state !== 'ABORTED';
+      for (const flame of rival.flames) {
+        flame.visible = racer.run.state === 'RUNNING' && Math.hypot(body.velocity.x, body.velocity.y) > 1;
+        flame.width = 1.6 + .2 * Math.sin(now / 31 + index); flame.height = .55;
+      }
+    });
     const power = input.brake ? 0 : input.throttle;
     for (let i = 0; i < 2; i++) {
       const flame = this.flames[i], flicker = 1 + .10 * Math.sin(now / 31 + i * 2) + .05 * Math.sin(now / 13);

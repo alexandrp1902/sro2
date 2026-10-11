@@ -45,6 +45,10 @@ try {
     await evaluate(`(async()=>{bench.livery=${JSON.stringify(width===1280?'blue':'copper')};await bench.start();bench.apply({t:'raceEvent',event:'joined',requestId:sent.find(m=>m.act==='join').requestId,sessionId:'fixture',config});bench.apply({t:'raceEvent',event:'started',sessionId:'fixture',countdownMs:3000});})()`);
     assert(await evaluate(`bench.scene.hull.texture.width>100&&bench.scene.hull.width===3.65`),'generated bolide is loaded at double size');
     await sleep(100);assert(await evaluate(`bench.scene.view.visible`));
+    assert.equal(await evaluate(`bench.opponents.racers.length`),3,'three computer opponents join each race');
+    assert.equal(await evaluate(`bench.scene.rivals.children.length`),3,'opponent pods render during countdown');
+    assert(await evaluate(`bench.root.querySelector('.race-hud').textContent.includes('Место')`),'HUD displays race position');
+    assert(await evaluate(`bench.opponents.racers.every(r=>r.run.state==='COUNTDOWN')`),'opponents wait for the shared start');
     const bounds=await evaluate(`(()=>{const box=s=>{const r=document.querySelector(s).getBoundingClientRect();return{x:r.x,y:r.y,w:r.width,h:r.height}};return {stick:box('.race-stick'),brake:box('.race-brake'),hud:box('.race-hud')}})()`);
     for(const box of Object.values(bounds)){assert(box.x>=0&&box.y>=0&&box.x+box.w<=width+1&&box.y+box.h<=height+1,JSON.stringify({width,height,box}));}
     assert(await evaluate(`!document.querySelector('.race-boost')&&!document.querySelector('.race-speed')`),'boost removed');
@@ -101,6 +105,7 @@ try {
     await evaluate(`bench.apply({t:'raceEvent',event:'result',sessionId:'fixture',validationStatus:'CONFIRMED',result:{sessionId:'fixture',playerId:null,name:'Guest',rankingKey:config.rankingKey,status:'CRASHED',reason:'WALL',elapsedMs:1534,totalMs:null,lapTimesMs:[],finishedAt:new Date().toISOString()}})`);
     await sleep(750);
     assert(await evaluate(`bench.root.textContent.includes('DNF')`));
+    assert(await evaluate(`bench.root.textContent.includes('Шакал')&&bench.root.textContent.includes('Искра')&&bench.root.textContent.includes('Кочевник')`),'results include all opponents');
     await evaluate(`bench.terminal();bench.close()`);assert(await evaluate(`!document.body.classList.contains('race-open')`));
     results.push({width,height,layout:'PASS',menuScroll:menu.scroll>menu.client?'PASS':'FITS',bolideImage:'PASS',latchedStick:'PASS',localSimulation:'PASS',desktopKeyboard:'PASS',countdown:'PASS',focusReset:'PASS',exitMenu:'PASS'});
   }

@@ -3,6 +3,7 @@ import track from '../../../shared/race/tracks/red-canyon.json';
 import { RaceInput } from './input';
 import { body, type Body } from './physics';
 import { LocalRace } from './localRace';
+import { RaceOpponents } from './opponents';
 import { RaceScene } from './scene';
 import { artUrl, type Livery } from './art';
 import type { Board, Config, Finish, RaceCommand, RaceEvent, Result } from './types';
@@ -38,6 +39,7 @@ export class RaceScreen {
   private mode: 'terminal' | 'loading' | 'race' | 'results' = 'terminal';
   private config: Config = { track, rules, hash: '', rankingKey: `${track.id}:${track.version}:${rules.id}:${rules.vehicleVersion}:${track.lapCount}:browser-v1}` };
   private run: LocalRace | null = null;
+  private opponents: RaceOpponents | null = null;
   private finishSubmission: Finish | null = null;
   private finishSent = false;
   private session: string | null = null;
@@ -82,7 +84,7 @@ export class RaceScreen {
     this.options.resetSpace(); document.body.classList.remove('race-open');
   }
   private terminal(): void {
-    this.mode = 'terminal'; this.session = null; this.run = null; this.result = null;
+    this.mode = 'terminal'; this.session = null; this.run = null; this.opponents = null; this.result = null;
     this.input.unbind(); this.scene.close(); this.message = ''; this.renderTerminal(); this.fetchBoards();
     this.root.classList.remove('race-screen--driving');
   }
@@ -110,7 +112,8 @@ export class RaceScreen {
     card.append(node('p', 'race-best', `Личный заезд: ${best ? raceTime(best.timeMs) : 'Рекорд пока не установлен'}`),
       node('p', 'race-best', `Лучший круг: ${lap ? raceTime(lap.timeMs) : 'Рекорд пока не установлен'}`));
     if (!this.options.registered?.()) card.append(node('p', 'race-muted', 'Тестовый заезд — общий рекорд не сохраняется. Для рейтинга нужен зарегистрированный аккаунт.'));
-    const start = button('Заезд на время', () => this.start()); start.classList.add('sro-btn--primary'); start.disabled = !this.options.online(); card.append(start);
+    card.append(node('p', '', 'На старте — три компьютерных соперника: Шакал, Искра и Кочевник. Обгоняйте их и ставьте рекорды времени.'));
+    const start = button('Гонка с соперниками', () => this.start()); start.classList.add('sro-btn--primary'); start.disabled = !this.options.online(); card.append(start);
     card.append(node('p', '', 'W / ↑ — повысить скорость · S / ↓ — снизить скорость · A / D / ← / → — поворот · Пробел — тормоз, пока зажат. На телефоне: стик задаёт направление и скорость, остаётся в выбранном положении; кнопка тормоза действует, пока зажата.'));
     const tabs = node('div', 'race-actions');
     for (const [kind, label] of [['total', `${this.config.track.lapCount} круга`], ['lap', 'Лучший круг']] as const) {
@@ -137,6 +140,7 @@ export class RaceScreen {
     this.previousBest = this.boards.total?.self?.timeMs ?? null;
     this.mode = 'loading'; this.session = null; this.message = ''; this.result = null; this.run = null; this.finishSubmission = null; this.finishSent = false;
     this.resultShowAt = 0; this.resultRendered = false;
+    this.opponents = null;
     this.input.unbind(); this.root.replaceChildren(node('section', 'race-card sro-pane', 'Загружаем трассу…'));
     this.joinRequest = crypto.randomUUID();
     const requestId = this.joinRequest;
@@ -171,6 +175,7 @@ export class RaceScreen {
     if (m.sessionId !== this.session) return;
     if (m.event === 'started' && this.mode === 'loading') {
       this.run = new LocalRace(this.config, performance.now(), m.countdownMs ?? this.config.rules.countdownSeconds * 1000);
+      this.opponents = new RaceOpponents(this.run, this.livery);
       this.body = this.run.body; this.mode = 'race'; this.menuOpen = false;
       this.input.value.heading = this.config.track.spawnHeading;
       this.renderRace(); this.lastFrame = 0; this.lastCountdown = ''; return;
@@ -227,6 +232,18 @@ export class RaceScreen {
       r.status === 'FINISHED' ? 'Финиш' : r.status === 'CRASHED' ? 'БОЛИД УНИЧТОЖЕН · DNF' : 'Заезд прерван · ABORT'));
     if (r.reason) card.append(node('p', '', TEXT[r.reason] ?? 'Заезд завершён'));
     card.append(node('h2', 'sro-num', raceTime(r.elapsedMs)));
+    if (this.opponents) {
+      card.append(node('h2', '', r.status === 'FINISHED' ? `Место на финише: ${this.opponents.place}/4` : 'Участники заезда'));
+      const table = node('table', 'race-ranking');
+      for (const [i, racer] of this.opponents.standings().entries()) {
+        const row = node('tr', racer.player ? 'race-best' : '');
+        const run = racer.run;
+        row.append(node('td', '', String(i + 1)), node('td', '', racer.name), node('td', 'sro-num',
+          run.state === 'FINISHED' ? raceTime(run.elapsedMs) : run.active ? `Круг ${run.lap}/${this.config.track.lapCount}` : 'DNF'));
+        table.append(row);
+      }
+      card.append(table);
+    }
     for (const [i, lap] of r.lapTimesMs.entries()) card.append(node('p', 'sro-num', `Круг ${i + 1} — ${raceTime(lap)}`));
     if (r.lapTimesMs.length) card.append(node('p', '', `Лучший завершённый круг: ${raceTime(Math.min(...r.lapTimesMs))}`));
     const confirmed = this.validation === 'CONFIRMED';
@@ -283,6 +300,7 @@ export class RaceScreen {
     this.input.update(dt);
     if (this.mode === 'race' && this.run) {
       const laps = this.run.lapTimesMs.length;
+      this.opponents?.advance(now);
       this.run.advance(now, this.input.value);
       if (this.run.lapTimesMs.length > laps) {
         this.showLap(this.run.lapTimesMs.length, this.run.lapTimesMs.at(-1)!);
@@ -291,11 +309,11 @@ export class RaceScreen {
     }
     if (this.mode === 'results' && this.finishSubmission && !this.finishSent && online) this.sendFinish();
     if (this.scene.view.visible) this.scene.frame(now, width, height, this.body, this.input.value,
-      this.result?.status === 'CRASHED', this.run?.crashVelocity, this.run?.impacts.splice(0));
+      this.result?.status === 'CRASHED', this.run?.crashVelocity, this.run?.impacts.splice(0), this.opponents?.racers);
     if (this.mode === 'results' && !this.resultRendered && now >= this.resultShowAt) this.renderResults();
     if (this.mode !== 'race' || !this.run) return;
     const s = this.run;
-    if (this.hud) this.hud.textContent = `${raceTime(s.elapsedMs, false)}  ·  Круг ${s.lap}/${this.config.track.lapCount}  ·  ${raceTime(s.lapElapsedMs, false)}\n${Math.ceil(this.body.hp)} HP  ·  ${Math.hypot(this.body.velocity.x, this.body.velocity.y).toFixed(0)} → ${(this.input.value.throttle * this.config.rules.engineLimit).toFixed(0)} ед./с${!online ? ' · Нет связи' : ''}`;
+    if (this.hud) this.hud.textContent = `${raceTime(s.elapsedMs, false)}  ·  Круг ${s.lap}/${this.config.track.lapCount}  ·  Место ${this.opponents?.place ?? 1}/4\n${Math.ceil(this.body.hp)} HP  ·  ${Math.hypot(this.body.velocity.x, this.body.velocity.y).toFixed(0)} → ${(this.input.value.throttle * this.config.rules.engineLimit).toFixed(0)} ед./с${!online ? ' · Нет связи' : ''}`;
     const count = s.state === 'COUNTDOWN' ? String(Math.ceil(s.countdownMs(now) / 1000)) : s.state === 'RUNNING' && s.elapsedMs < 700 ? 'СТАРТ' : '';
     if (count && count !== this.lastCountdown) this.options.sound?.(count === 'СТАРТ' ? 'start' : 'countdown');
     this.lastCountdown = count; if (this.countdown) this.countdown.textContent = count;
