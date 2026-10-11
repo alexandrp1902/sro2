@@ -53,6 +53,7 @@ public sealed class MechSessionTests : IDisposable
             ["proto"] = new("Прототип", "medium", "medium", "light", "gun"),
             ["raider"] = new("Налётчик", "medium", "medium", "light", "gun"),
         },
+        TrainingPlace: "st:home",
         Missions: new Dictionary<string, MechMission>
         {
             [MechRules.FirstSortie] = new(
@@ -206,6 +207,93 @@ public sealed class MechSessionTests : IDisposable
         Act(c, Protocol.MechStart);
         Assert.Equal(0, c.Count<MechStateMsg>());
         Assert.Equal(0, c.Count<MechRefusedMsg>());
+    }
+
+    [Fact]
+    public void TrainingStartsBeforeTheCampaignWithoutMarkingAnyStoryProgress()
+    {
+        var c = Pilot();
+        Assert.True(c.Last<MissionsMsg>().MechTraining);
+        Assert.False(c.Last<MissionsMsg>().Story?.Relay ?? false);
+        Act(c, Protocol.MechTrain);
+        Assert.Equal(3, c.Last<MechStateMsg>().Battle.Units.Length);
+        Assert.Equal("Тренировочная вылазка", BattleOf(c).Mission.Name);
+        Assert.Null(_galaxy.MechOf(PlayerOf(c).AccountId)!.Campaign);
+        Assert.Empty(PlayerOf(c).Story);
+        Assert.Equal("", c.Last<DialogMsg>().Campaign);
+        Do(c, r => r.Dock(c, false));
+        Assert.True(PlayerOf(c).Docked);
+        Assert.Equal(Protocol.MechBusyNotice, c.Last<NoticeMsg>().Code);
+        Act(c, Protocol.MechQuit);
+        Assert.True(c.Last<MechEndMsg>().Training);
+        Assert.Empty(PlayerOf(c).Story);
+        Act(c, Protocol.MechTrain);
+        Assert.NotNull(_galaxy.MechOf(PlayerOf(c).AccountId));
+    }
+
+    [Fact]
+    public void TrainingWinsAreRepeatableWithoutRewardsOrCampaignFlags()
+    {
+        var c = Pilot();
+        var credits = Credits(c);
+        for (var i = 0; i < 2; i++)
+        {
+            Act(c, Protocol.MechTrain);
+            Soften(c);
+            var end = PlayOut(c);
+            Assert.True(end.Won);
+            Assert.True(end.Training);
+            Assert.False(end.First);
+            Assert.Equal(0, end.Reward);
+            Assert.Equal(credits, Credits(c));
+            Assert.Empty(PlayerOf(c).Story);
+        }
+        PlayerOf(c).StoryOf(Campaign).Done.Add("one");
+        Act(c, Protocol.MechStart);
+        Soften(c);
+        var storyEnd = PlayOut(c);
+        Assert.False(storyEnd.Training);
+        Assert.True(storyEnd.First);
+        Assert.Equal(1500, storyEnd.Reward);
+    }
+
+    [Fact]
+    public void TrainingRequiresDockingAtItsOwnPlaceAndCanBeDisabledInBalance()
+    {
+        var c = Pilot();
+        Do(c, r => r.Dock(c, false));
+        Assert.False(c.Last<MissionsMsg>().MechTraining);
+        Act(c, Protocol.MechTrain);
+        Assert.Equal(MechCodes.NoRelay, c.Last<MechRefusedMsg>().Code);
+        Dock(c);
+        _galaxy.ApplyBalance(_galaxy.Balance with { MechSet = Mechs with { TrainingPlace = "st:port" } });
+        Assert.False(c.Last<MissionsMsg>().MechTraining);
+        Act(c, Protocol.MechTrain);
+        Assert.Equal(MechCodes.NoRelay, c.Last<MechRefusedMsg>().Code);
+        _galaxy.ApplyBalance(_galaxy.Balance with { MechSet = Mechs with { TrainingPlace = null } });
+        Assert.False(c.Last<MissionsMsg>().MechTraining);
+        Act(c, Protocol.MechTrain);
+        Assert.Equal(MechCodes.NoRelay, c.Last<MechRefusedMsg>().Code);
+        Assert.Null(_galaxy.MechOf(PlayerOf(c).AccountId));
+    }
+
+    [Fact]
+    public void TrainingBattleResumesAfterReconnectWithoutOpeningTheStoryRelay()
+    {
+        var c = Pilot();
+        Act(c, Protocol.MechTrain);
+        Act(c, MechCommand.MoveAct, 2, 5);
+        var battle = BattleOf(c);
+        _galaxy.Disconnect(c);
+        var login = _accounts.Login("Alice", Password);
+        var back = new FakeConnection(++_nextConnection);
+        _galaxy.JoinAccount(back, login.Id, login.Name);
+        Assert.Same(battle, BattleOf(back));
+        Assert.NotNull(back.Last<MechStateMsg>());
+        Assert.False(back.Last<MissionsMsg>().Story?.Relay ?? false);
+        Act(back, Protocol.MechQuit);
+        Assert.True(back.Last<MechEndMsg>().Training);
+        Assert.Empty(PlayerOf(back).Story);
     }
 
     // ------------------------------------------------------------------ ходы

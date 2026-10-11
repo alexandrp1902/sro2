@@ -2,6 +2,7 @@ using System.Diagnostics;
 using Sro.Server.Accounts;
 using Sro.Server.Net;
 using Sro.Sim;
+using Sro.Sim.Mech;
 
 namespace Sro.Server.Game;
 
@@ -83,11 +84,13 @@ public sealed partial class Galaxy : IRoomHost
         AccountStore? accounts = null,
         Func<double>? roll = null,
         Func<int, Random>? random = null,
-        double? orbitEpoch = null)
+        double? orbitEpoch = null, TerritoryConfig? territory = null, TerritoryStore? territoryStore = null,
+        Func<DateTimeOffset>? territoryClock = null)
     {
         Balance = balance;
         _log = log;
         _accounts = accounts;
+        _territoryConfig = territory; _territoryStore = territoryStore; _territoryClock = territoryClock ?? (() => DateTimeOffset.UtcNow);
         var seed = 0;
         var epoch = orbitEpoch ?? Room.Now();
         foreach (var id in balance.Galaxy.SystemMap.Keys)
@@ -100,6 +103,7 @@ public sealed partial class Galaxy : IRoomHost
         _invasion = new InvasionDirector(log, random?.Invoke(seed++));
         _demand = new DemandDirector(log, random?.Invoke(seed++));
         _mechSeeds = random?.Invoke(seed++) ?? new Random();
+        RestoreTerritoryConnections();
     }
 
     /// <summary>Группы галактики.</summary>
@@ -167,19 +171,24 @@ public sealed partial class Galaxy : IRoomHost
         _demand.SendTo(player, this);
         if (_parties.PartyOf(player.Id) is { } party) SendParty(party);
         MechResume(player);
+        TerritoryResume(player);
     }
 
     public void Disconnect(IClientConnection connection)
     {
         if (!_byConnection.Remove(connection.Id, out var room)) return;
-        if (room.PlayerOf(connection) is { } player) MechLost(player);
+        if (room.PlayerOf(connection) is { } player) { MechLost(player); TerritoryLost(player); }
         room.Disconnect(connection);
     }
 
     /// <summary>Команда игрока — в комнату, где сейчас его корабль.</summary>
     public void With(IClientConnection connection, Action<Room> command)
     {
-        if (_byConnection.TryGetValue(connection.Id, out var room)) command(room);
+        if (_byConnection.TryGetValue(connection.Id, out var room))
+        {
+            if(room.PlayerOf(connection) is { } p&&_territoryStore?.ProfileFrozen(p.AccountId)==true) {SendTerritory(p,"saveFailed");return;}
+            command(room);
+        }
     }
 
     /// <summary>Тик всех систем; переходы между ними — сразу после шага комнаты, откуда корабль уходит.</summary>
@@ -198,6 +207,7 @@ public sealed partial class Galaxy : IRoomHost
         StepParties();
         StepTrades();
         StepMech();
+        StepTerritory();
 
         // «Онлайн» в статусе — по всей галактике: вошли в одной системе — узнают и в остальных.
         var total = OnlineTotal;

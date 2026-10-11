@@ -33,11 +33,12 @@ describe('menuItems', () => {
     expect(menuItems(true, true)).toEqual([
       { id: 'audio', label: 'Звук' },
       { id: 'tips', label: 'Советы' },
+      { id: 'territory', label: 'Территория Нова-Прайм' },
       { id: 'password', label: 'Сменить пароль' },
       { id: 'dev', label: 'Отладка' },
       { id: 'logout', label: 'Выход' },
     ]);
-    expect(menuItems(false, true).map((i) => i.id)).toEqual(['audio', 'controls', 'tips', 'password', 'logout']);
+    expect(menuItems(false, true).map((i) => i.id)).toEqual(['audio', 'controls', 'tips', 'territory', 'password', 'logout']);
     expect(menuItems(false, false).map((i) => i.id)).toEqual(['audio', 'controls', 'logout']);
   });
 
@@ -49,6 +50,7 @@ describe('menuItems', () => {
       'controls',
       'story',
       'tips',
+      'territory',
       'password',
       'logout',
     ]);

@@ -38,6 +38,14 @@ public sealed class InputBuffer(MoveInput initial)
     public int AckSeq { get; private set; }
     public MoveInput Last { get; private set; } = initial;
 
+    /// <summary>Сценарная остановка: убрать старую тягу, сохранив нумерацию входов соединения.</summary>
+    public void Stop()
+    {
+        while (_queue.Count > 0) Consume(_queue.Dequeue());
+        Last = Last with { Throttle = 0 };
+        Phantom = 0;
+    }
+
     /// <summary>Сколько шагов сделано без входа; столько же опоздавших входов засчитываются без шага.</summary>
     public int Phantom { get; private set; }
 

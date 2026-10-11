@@ -63,7 +63,7 @@ if (touch === 'touch') await s('Emulation.setTouchEmulationEnabled', { enabled: 
 await s('Page.navigate', { url });
 await sleep(2500); // шрифт и спрайты подгружаются, HUD успевает собраться
 if (expr) {
-  const r = await s('Runtime.evaluate', { expression: expr, returnByValue: true });
+  const r = await s('Runtime.evaluate', { expression: expr, returnByValue: true, awaitPromise: true });
   console.log(JSON.stringify(r.result?.result?.value ?? r, null, 1));
 }
 const shot = await s('Page.captureScreenshot', { format: 'png', ...(clip ? { clip } : {}) });

@@ -2,6 +2,7 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using Sro.Sim;
 using Sro.Sim.Mech;
+using Sro.Server.Game;
 
 namespace Sro.Server.Net;
 
@@ -38,6 +39,8 @@ namespace Sro.Server.Net;
 [JsonDerivedType(typeof(PvpMsg), "pvp")]
 [JsonDerivedType(typeof(PasswordMsg), "password")]
 [JsonDerivedType(typeof(MechActMsg), "mechAct")]
+[JsonDerivedType(typeof(TerritoryActMsg), "territoryAct")]
+[JsonDerivedType(typeof(WorkshopActMsg), "workshopAct")]
 public abstract record ClientMessage;
 
 /// <summary>
@@ -240,7 +243,17 @@ public sealed record PvpMsg(bool On) : ClientMessage;
 /// <see cref="Protocol.MechQuit"/> — отступить, это поражение.
 /// </param>
 public sealed record MechActMsg(
-    string? Act, int X = 0, int Y = 0, int? Dir = null, string? Target = null, string? Part = null) : ClientMessage;
+    string? Act, int X = 0, int Y = 0, int? Dir = null, string? Target = null, string? Part = null,
+    string? Session = null, int? Revision = null, string? Unit = null, string? Hand = null,
+    string? Mission = null, string[]? Squad = null, string? Request = null) : ClientMessage;
+
+public sealed record WorkshopActMsg(string? Act, int? Revision = null, string? Request = null,
+    string? Mech = null, string? Name = null, MechAssembly? Assembly = null, string? Recipe = null,
+    string? Resource = null, int Count = 0, bool ToCargo = false, string[]? Squad = null) : ClientMessage;
+
+public sealed record TerritoryActMsg(string Act, string? RequestId = null, int? Revision = null, int? Season = null,
+    string? Object = null, string? Operation = null, string[]? Squad = null, string? Preparation = null,
+    string? Partner = null, string? Claim = null, string? Mech = null) : ClientMessage;
 
 // Сервер → клиент
 [JsonPolymorphic(TypeDiscriminatorPropertyName = "t")]
@@ -271,9 +284,11 @@ public sealed record MechActMsg(
 [JsonDerivedType(typeof(RepMsg), "rep")]
 [JsonDerivedType(typeof(DialogMsg), "dialog")]
 [JsonDerivedType(typeof(MechStateMsg), "mechState")]
+[JsonDerivedType(typeof(TerritoryStateMsg), "territoryState")]
 [JsonDerivedType(typeof(MechEventsMsg), "mechEvents")]
 [JsonDerivedType(typeof(MechEndMsg), "mechEnd")]
 [JsonDerivedType(typeof(MechRefusedMsg), "mechRefused")]
+[JsonDerivedType(typeof(WorkshopStateMsg), "workshopState")]
 public abstract record ServerMessage;
 
 /// <summary>
@@ -281,13 +296,19 @@ public abstract record ServerMessage;
 /// Приходит на старте, после каждого хода и при возвращении после обрыва связи.
 /// </summary>
 /// <param name="Rules">Каталог мехов для прогноза на клиенте — только на старте и при возвращении.</param>
-public sealed record MechStateMsg(MechBattleView Battle, MechRules? Rules = null) : ServerMessage;
+public sealed record MechStateMsg(MechBattleView Battle, MechRules? Rules = null, string? Session = null, int Revision = 0,
+    string? YourAccount = null, DateTimeOffset? Deadline = null, TerritoryParticipant[]? Participants = null) : ServerMessage;
+public sealed record TerritoryStateMsg(TerritoryWorld World, TerritoryConfig Config, TerritoryProfile Profile,
+    bool Unlocked, bool Docked, TerritoryPreparation? Preparation = null, string? Refused = null,
+    string? RequestId = null, bool Waiting = false, string? Receipt = null, string? Account = null) : ServerMessage;
+public sealed record WorkshopStateMsg(MechWorkshopState State, MechRules Rules, int Credits, bool Open,
+    string[] Available, string? Refused = null, string? Request = null, TerritoryProfile? Territory = null) : ServerMessage;
 
 /// <summary>Что случилось за ход — игрока и сразу за ним противника, по порядку, для анимации.</summary>
 public sealed record MechEventsMsg(IReadOnlyList<MechEvent> Events) : ServerMessage;
 
 /// <summary>Бой кончен. Reward — сколько заплачено (только за первую победу), First — это была первая.</summary>
-public sealed record MechEndMsg(bool Won, int Reward, bool First) : ServerMessage;
+public sealed record MechEndMsg(bool Won, int Reward, bool First, bool Training = false, MechResult? Result = null) : ServerMessage;
 
 /// <summary>Ход не принят: код из <see cref="MechCodes"/>. Состояние боя не менялось.</summary>
 public sealed record MechRefusedMsg(string Code) : ServerMessage;
@@ -739,7 +760,8 @@ public sealed record MissionsMsg(
     MissionMarkDto? Mark = null,
     StoryStateDto? Story = null,
     ActiveMission? StoryActive = null,
-    MissionMarkDto? StoryMark = null) : ServerMessage;
+    MissionMarkDto? StoryMark = null,
+    bool MechTraining = false) : ServerMessage;
 
 /// <summary>
 /// Кампания глазами пилота (M20a): для журнала и для раздела «Сюжет» на доске.
@@ -772,7 +794,7 @@ public sealed record StoryStateDto(
     bool More = false,
     bool Relay = false,
     bool SortieWon = false,
-    StoryNextDto? Next = null);
+    StoryNextDto? Next = null, bool GroundComplete = false);
 
 /// <summary>Следующая встреча по сюжету: кто, где и в какой системе даёт миссию.</summary>
 /// <param name="Mission">Id миссии; «relay» — кампания пройдена, ждёт ретранслятор (M20b).</param>
@@ -793,13 +815,15 @@ public sealed record StoryNextDto(
 /// клиент рисует значок кампании сам; поле под него появится, когда появится арт.
 /// </summary>
 /// <param name="Options">Кнопки выбора; пусто — карточка закрывается одним «Дальше».</param>
+/// <param name="Stop">При досмотре сбросить управление и старое предсказание движения, сохранив возможность улететь.</param>
 public sealed record DialogMsg(
     string Campaign,
     string Mission,
     string Who,
     string Role,
     IReadOnlyList<string> Lines,
-    IReadOnlyList<DialogOptionDto>? Options = null) : ServerMessage;
+    IReadOnlyList<DialogOptionDto>? Options = null,
+    bool Stop = false) : ServerMessage;
 
 /// <summary>Кнопка в карточке диалога; Flag уходит обратно в <see cref="MissionMsg"/> как Id.</summary>
 public sealed record DialogOptionDto(string Label, string Flag);
@@ -1006,11 +1030,14 @@ public static class Protocol
     /// 33 — продажа корабля из ангара вместе с оснащением, M20c;
     /// 34 — наземный бой мехов у ретранслятора: mechAct, mechState, mechEvents, mechEnd, mechRefused, M21;
     /// 35 — «собрать» считает только добытое в космосе: gathered у задания и отказ notGathered).
+    /// 36 — отдельный сюжетный слот и пролог кампании;
+    /// 37 — тренировочная вылазка мехов без кампании: mechAct/train, missions/mechTraining и mechEnd/training.
+    /// 38 — постоянные мехи, мастерская, отряд, миссии 15–18, ревизии, руки, XP и результаты M22.
     /// Кадр снапшота в 29 тот же, что в 28: версия растёт потому, что старый клиент не знает про perk,
     /// hpMul и speedMul — и предсказывал бы и движение, и прочность своего корабля мимо сервера.
     /// Зеркало PROTOCOL_VERSION в client/src/net/protocol.ts.
     /// </summary>
-    public const int Version = 36;
+    public const int Version = 39;
 
     public const string DroneKind = "drone";
     public const string PirateKind = "pirate";
@@ -1107,6 +1134,7 @@ public static class Protocol
 
     /// <summary>Действия наземного боя (<see cref="MechActMsg.Act"/>), кроме ходов — те в <see cref="MechCommand"/>.</summary>
     public const string MechStart = "start";
+    public const string MechTrain = "train";
     public const string MechQuit = "quit";
 
     /// <summary>Флаг кампании: первая вылазка выиграна, награда выплачена.</summary>

@@ -8,6 +8,9 @@ export interface MechFrame {
   hp: number;
   armor: number;
   move?: number;
+  weight?: number;
+  maxLoad?: number;
+  art?: string;
 }
 
 export interface MechWeapon {
@@ -21,6 +24,8 @@ export interface MechWeapon {
   hp: number;
   armor: number;
   sound?: string;
+  weight?: number;
+  art?: string;
 }
 
 export interface MechShield {
@@ -28,6 +33,8 @@ export interface MechShield {
   hp: number;
   armor: number;
   block: number;
+  weight?: number;
+  art?: string;
 }
 
 export interface MechUnitDef {
@@ -36,6 +43,8 @@ export interface MechUnitDef {
   chassis: string;
   left?: string | null;
   right?: string | null;
+  backpack?: string | null;
+  level?: number;
 }
 
 export interface MechCombatDef {
@@ -72,9 +81,15 @@ export interface MechMission {
   intro?: MechLines | null;
   win?: MechLines | null;
   lose?: MechLines | null;
+  player?: Array<{unit: string; x: number; y: number; dir: number}>;
+  rewardParts?: string[];
+  objectiveXp?: number;
+  objective?: {kind: string; rounds?: number; route?: Array<{x: number; y: number}>; zone?: Array<{x: number; y: number}>; firingCells?: Array<{x: number; y: number}>; evacuation?: Array<{x:number;y:number}>};
+  biome?: string | null;
 }
 
 export interface MechRules {
+  trainingPlace?: string | null;
   bodies?: Record<string, MechFrame> | null;
   chassis?: Record<string, MechFrame> | null;
   weapons?: Record<string, MechWeapon> | null;
@@ -82,6 +97,10 @@ export interface MechRules {
   units?: Record<string, MechUnitDef> | null;
   combat?: MechCombatDef | null;
   missions?: Record<string, MechMission> | null;
+  backpacks?: Record<string, {name: string; effect: string; weight: number; value: number; art: string}> | null;
+  recipes?: Record<string, {category: string; part: string; credits: number; resources: Record<string, number>;workshopLevel?:number}> | null;
+  skills?: Record<string, {name: string; bonus: number; blockBonus?: number; accuracyPenalty?: number; requires?: string}> | null;
+  workshop?: {place: string; campaign: string; prototypeMission: string; prototypeUnit: string; starterParts: string[]; missionOrder: string[]} | null;
 }
 
 /** Части в порядке столбцов таблиц: корпус, левая, правая, шасси. */
@@ -319,6 +338,17 @@ export interface MechUnitView {
   hp: number[];
   max: number[];
   activated: boolean;
+  control?: 'player' | 'ai' | 'objective';
+  owner?: string | null;
+  accountOwner?: string | null;
+  assembly?: MechUnitDef | null;
+  skills?: string[];
+  level?: number;
+  repaired?: boolean;
+  stance?: boolean;
+  accuracyPenalty?: number;
+  dashRange?: number;
+  jumpRange?: number;
 }
 
 export interface MechBattleView {
@@ -332,6 +362,17 @@ export interface MechBattleView {
   moveRange: number;
   units: MechUnitView[];
   winner?: 'player' | 'enemy' | null;
+  goal?: string;
+  progress?: number;
+  required?: number;
+  objectiveUnit?: string | null;
+  reason?: string | null;
+  actions?: string[];
+  ready?: string[];
+  biome?: string | null;
+  interacted?: boolean;
+  evacuation?: Array<{x:number;y:number}> | null;
+  route?: Array<{x:number;y:number}> | null;
 }
 
 export function alive(u: MechUnitView): boolean {
@@ -339,14 +380,15 @@ export function alive(u: MechUnitView): boolean {
 }
 
 export function unitDef(rules: MechRules, u: MechUnitView): MechUnitDef | null {
-  return rules.units?.[u.unit] ?? null;
+  return u.assembly ?? rules.units?.[u.unit] ?? null;
 }
 
 /** Рука с живым оружием: правая раньше левой. */
-export function gunOf(rules: MechRules, u: MechUnitView): { arm: MechPart; id: string; weapon: MechWeapon } | null {
+export function gunOf(rules: MechRules, u: MechUnitView, hand?: string | null): { arm: MechPart; id: string; weapon: MechWeapon } | null {
   const def = unitDef(rules, u);
   if (!def) return null;
   for (const [arm, i, id] of [['right', 2, def.right], ['left', 1, def.left]] as const) {
+    if (hand && arm !== hand) continue;
     const weapon = id ? rules.weapons?.[id] : undefined;
     if (weapon && u.hp[i] > 0) return { arm, id: id!, weapon };
   }
@@ -371,13 +413,43 @@ export function armItem(rules: MechRules, id: string | null | undefined): MechWe
 export function armor(rules: MechRules, u: MechUnitView, part: MechPart): number {
   const def = unitDef(rules, u);
   if (!def) return 0;
-  switch (part) {
-    case 'body': return rules.bodies?.[def.body]?.armor ?? 0;
-    case 'chassis': return rules.chassis?.[def.chassis]?.armor ?? 0;
-    case 'left': return armItem(rules, def.left)?.armor ?? 0;
-    default: return armItem(rules, def.right)?.armor ?? 0;
+  const base = part === 'body' ? rules.bodies?.[def.body]?.armor ?? 0
+    : part === 'chassis' ? rules.chassis?.[def.chassis]?.armor ?? 0
+    : armItem(rules, part === 'left' ? def.left : def.right)?.armor ?? 0;
+  return base + packEffect(rules, u, 'armor') + (u.stance ? rules.skills?.defensiveStance?.bonus ?? 0 : 0);
+}
+
+export function packEffect(rules: MechRules, u: MechUnitView, effect: string): number {
+  const id = unitDef(rules, u)?.backpack;
+  const pack = id ? rules.backpacks?.[id] : null;
+  return pack?.effect === effect ? pack.value : 0;
+}
+
+export function assemblyWeight(rules: MechRules, def: MechUnitDef): number {
+  return (rules.bodies?.[def.body]?.weight ?? 0) + (armItem(rules, def.left)?.weight ?? 0)
+    + (armItem(rules, def.right)?.weight ?? 0) + (def.backpack ? rules.backpacks?.[def.backpack]?.weight ?? 0 : 0);
+}
+
+export function xpThreshold(level:number):number {return 100+75*(level-1)+25*(level-1)**2;}
+
+export function skillCompatible(rules:MechRules,def:MechUnitDef,id:string):boolean {
+  const skill=rules.skills?.[id];if(!skill)return false;
+  const weapons=Number(!!(def.left && rules.weapons?.[def.left]))+Number(!!(def.right && rules.weapons?.[def.right]));
+  switch(skill.requires) {
+    case 'twoWeapons':return weapons===2;
+    case 'weapon':return weapons>0;
+    case 'shield':return !!((def.left && rules.shields?.[def.left]) || (def.right && rules.shields?.[def.right]));
+    case 'biped':return def.chassis !== 'tracked';
+    default:return true;
   }
 }
+
+export const SKILL_DESCRIPTION:Readonly<Record<string,string>>={
+  doubleAttack:'Иногда стреляет второй исправной оружейной рукой.',counterAttack:'Иногда отвечает на обычную атаку исправным оружием.',
+  jump:'Иногда перепрыгивает препятствие на выбранную свободную клетку.',dash:'Иногда увеличивает дальность движения, снижая точность этой активации.',
+  evade:'Иногда полностью избегает попавшей атаки.',defensiveStance:'При завершении хода иногда усиливает броню и щит до следующей активации.',
+  targetingExpert:'Иногда снижает штраф прицельной атаки.',shieldMastery:'Иногда усиливает блок исправного щита.',
+};
 
 export function occupied(state: MechBattleView, except?: MechUnitView): Set<number> {
   const set = new Set<number>();
@@ -387,10 +459,18 @@ export function occupied(state: MechBattleView, except?: MechUnitView): Set<numb
 }
 
 /** Куда может дойти текущий мех игрока; уже ходил — никуда. */
-export function reachOf(state: MechBattleView): Map<number, number> {
+export function reachOf(state: MechBattleView, automatic = false): Map<number, number> {
   const me = state.units.find((u) => u.id === state.current);
   if (!me || state.moved || state.turn !== 'player') return new Map();
-  return new MechField(state.map).reach(me.x, me.y, state.moveRange, occupied(state, me));
+  const field=new MechField(state.map), taken=occupied(state,me);
+  const reach=field.reach(me.x,me.y,state.moveRange,taken);
+  if (!automatic || state.moveRange===0) return reach;
+  if (me.dashRange) for(const [cell,steps] of field.reach(me.x,me.y,state.moveRange+me.dashRange,taken)) reach.set(cell,steps);
+  if (me.jumpRange) for(let y=0;y<field.height;y++) for(let x=0;x<field.width;x++) {
+    const cell=field.index(x,y);
+    if (!reach.has(cell) && field.passable(x,y) && !taken.has(cell) && distance(me.x,me.y,x,y)<=me.jumpRange && (x!==me.x || y!==me.y)) reach.set(cell,1);
+  }
+  return reach;
 }
 
 export type Refusal = 'noGun' | 'outOfRange' | 'noLine';
@@ -409,28 +489,33 @@ export interface Forecast {
 }
 
 export function forecast(
-  rules: MechRules, state: MechBattleView, shooter: MechUnitView, target: MechUnitView, aimed: MechPart | null,
+  rules: MechRules, state: MechBattleView, shooter: MechUnitView, target: MechUnitView, aimed: MechPart | null, hand?: string | null,
 ): Forecast {
   const c = combatOf(rules);
   const from = side(shooter.x, shooter.y, target.x, target.y, target.dir);
   const dist = distance(shooter.x, shooter.y, target.x, target.y);
   const shield = shieldOf(rules, target);
-  const block = shield ? blockChance(c, shield.shield, shield.arm, target.hp[PARTS.indexOf(shield.arm)] > 0, from) : 0;
-  const gun = gunOf(rules, shooter);
+  const ordinaryBlock = shield ? blockChance(c, shield.shield, shield.arm, target.hp[PARTS.indexOf(shield.arm)] > 0, from) : 0;
+  const block = ordinaryBlock > 0 && target.stance ? Math.min(c.blockMax, ordinaryBlock + (rules.skills?.defensiveStance?.blockBonus ?? 0)) : ordinaryBlock;
+  const gun = gunOf(rules, shooter, hand);
   const base = { side: from, distance: dist, block, chance: 0, min: 0, max: 0 };
   if (!gun) return { ...base, ok: false, refusal: 'noGun' };
   const steps = shooter.id === state.current ? state.steps : 0;
   const range = shooter.id === state.current ? state.moveRange : 0;
-  const chance = hitChance(c, gun.weapon, dist, steps, range, from, aimed !== null);
+  const weapon = {...gun.weapon, accuracy: gun.weapon.accuracy + packEffect(rules, shooter, 'accuracy') - (shooter.accuracyPenalty ?? 0),
+    damage: round(gun.weapon.damage * (packEffect(rules, shooter, 'damage') || 1))};
+  const chance = hitChance(c, weapon, dist, steps, range, from, aimed !== null);
   // Куда может прийтись урон: выбранная часть или все живые с ненулевым весом; блок — в щит.
   const weights = partWeights(c, from, target.hp);
   const parts = aimed ? [aimed] : PARTS.filter((_, i) => weights[i] > 0);
   const armors = parts.map((p) => armor(rules, target, p));
-  if (shield && block > 0 && aimed !== shield.arm) armors.push(shield.shield.armor);
-  const [min, max] = damageRange(c, gun.weapon, armors);
+  if (shield && block > 0 && aimed !== shield.arm) armors.push(armor(rules, target, shield.arm));
+  const [min, max] = damageRange(c, weapon, armors);
   const field = new MechField(state.map);
-  const refusal: Refusal | undefined = dist < gun.weapon.minRange || dist > gun.weapon.maxRange ? 'outOfRange'
+  const firingCells=rules.missions?.[state.mission]?.objective?.firingCells;
+  const outsideFiringCells=target.id===state.objectiveUnit && firingCells?.length && !firingCells.some(p=>p.x===shooter.x && p.y===shooter.y);
+  const refusal: Refusal | undefined = dist < gun.weapon.minRange || dist > gun.weapon.maxRange || outsideFiringCells ? 'outOfRange'
     : !field.lineOfFire(shooter.x, shooter.y, target.x, target.y) ? 'noLine'
     : undefined;
-  return { ...base, ok: !refusal, refusal, chance, min, max, weapon: gun.weapon };
+  return { ...base, ok: !refusal, refusal, chance, min, max, weapon };
 }

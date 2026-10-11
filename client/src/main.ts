@@ -2,6 +2,7 @@ import '@fontsource-variable/manrope';
 import './design/tokens.css';
 import './design/components.css';
 import './style.css';
+import './mech/territory.css';
 import { Container } from 'pixi.js';
 import { createApp } from './render/app';
 import { SPAWN, STATION } from './game/layout';
@@ -456,7 +457,9 @@ async function main(): Promise<void> {
     onSkipTutorial: () => send({ t: 'mission', action: 'skip' }),
     // Ретранслятор (M21): наземный бой. Экран откроется, когда сервер пришлёт поле, — а не по нажатию:
     // бой мог уже идти (вернулись после обрыва связи), и тогда сервер пришлёт его, а не новый.
-    onRelay: () => send({ t: 'mechAct', act: 'start' }),
+    onRelay: () => send({ t: 'mechAct', act: 'start', request: crypto.randomUUID() }),
+    onMechTraining: () => send({ t: 'mechAct', act: 'train', request: crypto.randomUUID() }),
+    onWorkshop: (message) => send(message),
     // Карточка вопроса живёт вне дока (тот перерисовывается целиком) и создаётся ниже: к моменту
     // первого вопроса она уже есть.
     onConfirm: (lines, yes) => confirm.ask(lines, yes),
@@ -509,6 +512,7 @@ async function main(): Promise<void> {
   const menu = new BurgerMenu(el('menu'), (action) => {
     if (action === 'audio') audioWindow.toggle();
     else if (action === 'controls') controlsWindow.toggle();
+    else if (action === 'territory') dockScreen.territoryPanel.openRemote();
     else if (action === 'tips') tips.show(coarsePointer(), storyTips());
     // Журнал кампании (M20a): где остановилась история и что сказали в прошлый раз.
     else if (action === 'story') {
@@ -1182,7 +1186,22 @@ async function main(): Promise<void> {
       refreshGalaxyMap();
     };
     connection.onMech = (message) => mech.apply(message);
+    connection.onWorkshop = (message) => dockScreen.setWorkshop(message);
+    connection.onTerritory = (message) => dockScreen.setTerritory(message);
     connection.onDialog = (message) => {
+      if (message.stop) {
+        keyboard.blur();
+        stick.reset();
+        controls.release();
+        fire.release();
+        prediction.resync();
+        prediction.curr.vx = prediction.curr.vy = 0;
+        prediction.prev.vx = prediction.prev.vy = 0;
+        // Нулевой вход подтверждает серверу, что старая тяга уже сброшена.
+        prediction.step(controls.input(), (seq, input) =>
+          connection!.send({ t: 'input', seq, dx: input.dx, dy: input.dy, th: input.throttle }),
+        );
+      }
       dialog.show(message, message.campaign === missions?.story?.campaign ? (missions?.story?.name ?? '') : '', (flag) =>
         send({ t: 'mission', action: 'choose', id: flag }),
       );
@@ -1463,6 +1482,8 @@ async function main(): Promise<void> {
     // выстрелы и наведённые на меня пушки, а кончает семь секунд тишины (audio/mood.ts).
     // Наземный бой (M21) слышен из дока: для звука это «не в доке», слушатель в центре, угроза — сам бой.
     const inMech = mech.open;
+    mech.setOnline(connection?.state === 'online');
+    dockScreen.setWorkshopOnline(connection?.state === 'online');
     app.stage.visible = !inMech;
     audio.frame(inMech
       ? {

@@ -78,6 +78,9 @@ public sealed class AccountStore : IDisposable
     private readonly ILogger _log;
     private readonly int _iterations;
     private readonly Lock _lock = new();
+    private readonly HashSet<string> _territoryFrozen = [];
+    public void FreezeTerritory(IEnumerable<string> accounts) { lock(_lock) foreach(var id in accounts) _territoryFrozen.Add(id); }
+    public void UnfreezeTerritory(IEnumerable<string> accounts) { lock(_lock) foreach(var id in accounts) _territoryFrozen.Remove(id); }
     private readonly Lock _writeLock = new();
     private readonly Dictionary<string, AccountData> _byId = new(StringComparer.Ordinal);
     private readonly Dictionary<string, string> _idByName = new(StringComparer.OrdinalIgnoreCase);
@@ -228,7 +231,30 @@ public sealed class AccountStore : IDisposable
     {
         lock (_lock)
         {
+            if(_territoryFrozen.Contains(id)) return;
             if (_byId.TryGetValue(id, out var account)) Replace(account with { Profile = profile });
+        }
+    }
+
+    /// <summary>Commit a complete result before acknowledging it. Atomic file replacement; failure leaves the old profile.</summary>
+    public bool SaveDurable(string id, AccountProfile profile, bool territory = false)
+    {
+        lock (_writeLock)
+        lock (_lock)
+        {
+            if(!territory&&_territoryFrozen.Contains(id)) return false;
+            if (!_byId.TryGetValue(id, out var account)) return false;
+            var updated = account with { Profile = profile };
+            var path = PathOf(id);
+            try
+            {
+                using (var file = new FileStream(path + ".tmp", FileMode.Create, FileAccess.Write, FileShare.None))
+                { file.Write(JsonSerializer.SerializeToUtf8Bytes(updated, Json)); file.Flush(flushToDisk: true); }
+                File.Move(path + ".tmp", path, overwrite: true);
+                Replace(updated); _dirty.Remove(id); return true;
+            }
+            catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+            { _log.LogError(e, "Account {Id}: durable commit failed", id); return false; }
         }
     }
 

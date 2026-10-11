@@ -131,6 +131,10 @@ export function activeLine(active: Active, names: MissionNames, now = Date.now()
 export function activeHint(active: Active, here: string | null, docked: boolean, names: MissionNames): string {
   const { offer, progress } = active;
   if (offer.story) {
+    if (offer.kind === 'collect' && progress >= offer.count) {
+      const target = names.place(destination(offer));
+      return docked ? `сдайте груз в ${target} на вкладке «Задания»` : `доставьте груз в ${target}`;
+    }
     // Куда лететь — считаем сами: подсказка в файле написана про «здесь» и про другую систему молчит.
     if (offer.system && here && here !== offer.system) return `летите в ${names.system(offer.system)}`;
     return offer.story.hint;
@@ -413,7 +417,11 @@ export function storyLine(state: StoryStateDto): string {
  */
 export function storyJournal(state: StoryStateDto | null, place: (key: string) => string = (key) => key): string[] {
   if (!state) return ['Сюжетных заданий пока нет.'];
-  const next = state.next && state.next.mission !== 'relay' ? [`Дальше: ${state.next.giver}, ${place(state.next.place)}.`] : [];
+  if (state.groundComplete) return [...state.lines, 'Тихая война пройдена. Ева ждёт в мастерской на Нова-Прайм.'];
+  if (state.next?.mission === 'relay') {
+    return [...state.lines, `Первая вылазка: подключитесь к ретранслятору — ${place(state.next.place)}.`];
+  }
+  const next = state.next ? [`Дальше: ${state.next.giver}, ${place(state.next.place)}.`] : [];
   if (state.done >= state.total) return [...state.lines, 'Часть первая пройдена. Продолжение следует.'];
   if (state.more) return [...state.lines, 'Продолжение следует.'];
   if (state.lines.length === 0) return next.length > 0 ? next : ['Возьмите сюжетное задание на доске.'];

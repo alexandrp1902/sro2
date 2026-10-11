@@ -8,6 +8,7 @@ namespace Sro.Sim.Mech;
 public sealed class MechRandom(uint seed)
 {
     private uint _state = seed == 0 ? 0x9E3779B9u : seed;
+    public uint State { get => _state; set => _state = value; }
 
     public uint NextUInt()
     {

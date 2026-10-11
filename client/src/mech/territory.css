@@ -1,0 +1,21 @@
+.territory { display: flex; flex-direction: column; gap: 12px; max-width: 100%; overflow-wrap: anywhere; }
+.territory h2,.territory h3,.territory p { margin: 0; }
+.territory-map { display: block; width: 100%; height: 340px; flex: 0 0 auto; background: #111e2a; border: 1px solid #455463; border-radius: 12px; }
+.territory-map [role=button] { cursor: pointer; }
+.territory-map [role=button]:focus { outline: 1px solid #ffce84; }
+.territory-list { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 6px; }
+.territory-list button { white-space: normal; text-align: left; }
+.territory-card,.territory-preparation,.territory-service,.territory-eva { display: grid; gap: 10px; padding: 14px; }
+.territory-card label { display: flex; gap: 8px; align-items: center; }
+.territory-card input[type=text],.territory-card input:not([type]) { width: 100%; min-width: 0; padding: 10px; color: inherit; background: #132431; border: 1px solid #4a606e; border-radius: 6px; }
+.territory progress { width: 100%; accent-color: #6fceb2; }
+.territory-remote { position: fixed; inset: 5vh 10vw; z-index: 150; overflow: auto; padding: 18px; background: #111d29; }
+@media(max-width:600px) {
+ .mech[data-territory=true] .mech-squad { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); overflow-x: hidden; }
+ .mech[data-territory=true] .mech-squad .sro-btn { min-width: 0; max-width: none; }
+ .territory-remote { inset: 0; padding: 12px; }
+ .territory-list { grid-template-columns: minmax(0,1fr); }
+ .territory-card { border-top: 3px solid #638da6; }
+ .territory-bottom { position: fixed; left: 0; right: 0; bottom: 0; max-height: 72dvh; overflow-y: auto; z-index: 160; background: #111d29; padding-bottom: max(14px,env(safe-area-inset-bottom)); }
+ .territory button { min-height: 44px; white-space: normal; }
+}

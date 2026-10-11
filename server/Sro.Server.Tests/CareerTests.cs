@@ -119,7 +119,8 @@ public sealed class CareerTests : IDisposable
     public void TheWorldAlreadyKnowsTheTrader_ButOnlyAfterTheDecayWasApplied()
     {
         var a = Pilot("Cora", "trader");
-        Assert.Equal(15, PlayerOf(a).Rep.Values["st:test"], 6);
+        // Joining can cross a UTC second and apply a tiny amount of real-time decay.
+        Assert.Equal(15, PlayerOf(a).Rep.Values["st:test"], 3);
         // Прибавка не должна показаться лентой как событие: пилот ничего ещё не сделал.
         Assert.DoesNotContain(a.Messages.OfType<RepMsg>(), m => m.Change is not null);
     }

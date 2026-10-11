@@ -94,4 +94,6 @@ public sealed record AccountProfile(
     string? TutorialStep = null,
     IReadOnlyDictionary<string, StoryProgress>? Story = null,
     IReadOnlyDictionary<string, Sro.Sim.ShipFit>? Fits = null,
-    Sro.Sim.ActiveMission? StoryMission = null);
+    Sro.Sim.ActiveMission? StoryMission = null,
+    Sro.Sim.Mech.MechWorkshopState? Workshop = null,
+    Sro.Sim.Mech.TerritoryProfile? Territory = null);

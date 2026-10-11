@@ -56,7 +56,9 @@ public sealed class PirateEngageTests
             GalaxySet = Rules,
             MissionSet = Defend,
         };
-        _galaxy = new Galaxy(balance, NullLogger.Instance, roll: () => 0, random: seed => new Random(seed));
+        // Keep the settlement orbit fixed: otherwise wall-clock time can put freshly
+        // spawned raiders inside engage range before the test positions them.
+        _galaxy = new Galaxy(balance, NullLogger.Instance, roll: () => 0, random: seed => new Random(seed), orbitEpoch: 0);
     }
 
     private Room Room => _galaxy["home"];
@@ -105,6 +107,8 @@ public sealed class PirateEngageTests
         Room.Dock(c, true, Settlement);
         Room.Mission(c, Protocol.AcceptMission, c.Last<MissionsMsg>().Offers.First(o => o.Kind == MissionRules.DefendKind).Id);
         Room.Dock(c, false);
+        // The scenario starts with no pilot in the raiders' engage radius.
+        (player.Ship.X, player.Ship.Y) = (-5000, -5000);
         _galaxy.Step();
         var raiders = Room.Pirates.Where(p => p.MissionId != 0 && !p.IsDead).ToList();
         Assert.Equal(2, raiders.Count);

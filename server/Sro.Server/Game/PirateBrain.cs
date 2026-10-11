@@ -64,6 +64,13 @@ internal static class PirateBrain
         IReadOnlyDictionary<int, long>? offenders = null,
         IReadOnlySet<int>? outlaws = null)
     {
+        if (pirate.AwaitingStoryChoice)
+        {
+            pirate.FireHeld = false;
+            pirate.TargetId = 0;
+            pirate.LastInput = pirate.LastInput with { Throttle = 0 };
+            return;
+        }
         var npc = balance.Npc;
         var shelter = new Shelter(station.X, station.Y, npc.StationSafeRadius);
         var hull = pirate.Hull(balance.Hulls);

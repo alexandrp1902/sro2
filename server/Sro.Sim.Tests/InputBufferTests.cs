@@ -139,4 +139,22 @@ public class InputBufferTests
         var buffer = new InputBuffer(Idle);
         for (var i = 0; i < 30; i++) Assert.Equal(0, Tick(buffer).Count);
     }
+
+    [Fact]
+    public void ScriptedStopDiscardsQueuedThrustWithoutRestartingSequenceNumbers()
+    {
+        var (buffer, seq) = Started();
+        buffer.Enqueue(seq++, Thrust(1));
+        buffer.Enqueue(seq++, Thrust(1));
+        buffer.Stop();
+        Assert.Equal(seq - 1, buffer.AckSeq);
+        Assert.Equal(0, buffer.Last.Throttle);
+        Assert.False(buffer.Enqueue(seq - 1, Thrust(1)));
+        for (var i = 0; i < 10; i++)
+        {
+            var (count, steps) = Tick(buffer);
+            Assert.All(steps.Take(count), input => Assert.Equal(0, input.Throttle));
+        }
+        Assert.True(buffer.Enqueue(seq, Thrust(1)));
+    }
 }

@@ -6,9 +6,11 @@
  * relay (ретранслятор в доке), mech и mech-end (наземный бой, M21), dialog-eva (диалог с портретом).
  */
 import { MechScreen } from '../mech/screen';
+import {showMechArtReview} from '../mech/artReview';
 import { DEFAULT_RULES } from '../mech/rules';
 import type { Connection } from '../net/connection';
-import type { CareerDto, GalaxyDto, HangarMsg, MarketMsg, MissionsMsg, RepMsg } from '../net/protocol';
+import type { CareerDto, GalaxyDto, HangarMsg, MarketMsg, MissionsMsg, RepMsg, WorkshopStateMsg } from '../net/protocol';
+import {armItem, type MechRules, type MechUnitView} from '../mech/rules';
 import { Modules } from '../sim/fitting';
 import { Hulls } from '../sim/hulls';
 import type { LootRules } from '../sim/loot';
@@ -40,6 +42,7 @@ import { InviteCard, PartyPanel, type PartyMark, type PartyRow } from './party';
 import { TradeWindow } from './trade';
 import { StatusHud } from './statusHud';
 import { TipsCard } from './tips';
+import {territoryDemo} from '../mech/territoryDemo';
 
 /* loot.json — JSONC с комментариями, сборщик его не ест: каталог груза для витрины задан здесь. */
 const LOOT = {
@@ -173,6 +176,7 @@ const NAMES: MissionNames = {
 };
 
 export function runDemo(screen: string): void {
+  if(screen.startsWith('territory')) {territoryDemo(screen);return;}
   // Те же обработчики ввода, что в игре: колесо тяги и блокировка жестов должны не мешать прокрутке списков.
   bindKeyboard(new KeyboardControls(new Controls()));
   const hulls = new Hulls();
@@ -276,7 +280,7 @@ export function runDemo(screen: string): void {
     new UiToggle(el('ui-toggle') as HTMLButtonElement, coarsePointer(), noop);
   };
 
-  const dock = (tab: Tab, relay = false): void => {
+  const dock = (tab: Tab, relay = false, training = false): void => {
     const shop: ShopRules = {
       startCredits: 1000,
       repairPrice: 0.25,
@@ -287,16 +291,18 @@ export function runDemo(screen: string): void {
     const screen = new DockScreen(el('dock'), hulls, weapons, modules, {
       onSell: noop, onBuyGoods: noop, onBuy: noop, onEquip: noop, onTransport: noop, onFit: noop, onFitAll: noop,
       onSellItem: noop, onSellGear: noop, onSellHull: noop, onRepair: noop, onUndock: noop, onMenu: (anchor) => menu.toggleAt(anchor),
-      onAccept: noop, onAbandon: noop, onComplete: noop, onSkipTutorial: noop, onRelay: noop,
+      onAccept: noop, onAbandon: noop, onComplete: noop, onSkipTutorial: noop, onRelay: noop, onMechTraining: noop,
       // Витрина ничего не делает, но вопрос показать должна: на нём проверяют карточку поверх дока.
       onConfirm: (lines, yes) => confirm.ask(lines, yes),
     }, NAMES);
     screen.setRules(loot, shop, {}, REP_RULES);
     screen.setGalaxy(GALAXY);
-    screen.setStation('Гавань Сол', 'sol');
+    screen.setStation(training ? 'Нова-Прайм' : 'Гавань Сол', training ? 'nova' : 'sol');
     // «Гавань Сол» кольцевая, и набор сцен у неё свой (пачка G): в игре scene приезжает в месте с сервера.
-    screen.setPlace({ key: 'st:sol', kind: 'st', name: 'Гавань Сол', scene: 'ring', shipyard: true });
-    screen.setCargo(cargo);
+    screen.setPlace(training
+      ? { key: 'pl:novaPrime', kind: 'pl', name: 'Нова-Прайм', scene: 'desert', shipyard: true }
+      : { key: 'st:sol', kind: 'st', name: 'Гавань Сол', scene: 'ring', shipyard: true });
+    screen.setCargo(tab==='workshop'?{...cargo,credits:7200}:cargo);
     const fit = {
       weapons: [weapons.ids()[0] ?? null],
       engine: modules.ids().find((id) => modules.get(id)?.slot === 'engine') ?? null,
@@ -340,7 +346,8 @@ export function runDemo(screen: string): void {
         { id: 'o8', kind: 'deliver', system: 'vega', count: 5, reward: 420, from: 'sol', place: 'st:vega' },
       ],
       // Сюжет в своём слоте (плейтест 2026-09-26): зелёный блок над заданием с доски.
-      storyActive: relay ? null : {
+      mechTraining: training,
+      storyActive: relay || training ? null : {
         offer: {
           id: 'story:quietWar:letters',
           kind: 'collect',
@@ -433,7 +440,8 @@ export function runDemo(screen: string): void {
     screen.setMarket(market);
     screen.setRep(rep);
     screen.setHangar(hangar);
-    const index = (['missions', 'cargo', 'hulls', 'ships', 'fitting'] as Tab[]).indexOf(tab);
+    if (tab === 'workshop') screen.setWorkshop(workshopDemo());
+    const index = (['missions', 'cargo', 'hulls', 'ships', 'fitting', 'workshop'] as Tab[]).indexOf(tab);
     document.querySelectorAll<HTMLButtonElement>('.dock-tab')[index]?.click();
   };
 
@@ -574,9 +582,24 @@ export function runDemo(screen: string): void {
     case 'relay':
       dock('missions', true);
       break;
+    case 'mech-training':
+      dock('missions', false, true);
+      break;
     case 'mech':
     case 'mech-end':
       mechDemo(screen === 'mech-end', confirm);
+      break;
+    case 'mech-art':
+      void showMechArtReview();
+      break;
+    case 'workshop':
+      dock('workshop', true, true);
+      break;
+    case 'mech-squad':
+    case 'mech-m22-end':
+    case 'mech-escort':
+    case 'mech-save-pending':
+      m22Demo(screen, confirm);
       break;
     default:
       if (screen.startsWith('dock-')) dock(screen.slice(5) as Tab);
@@ -620,4 +643,41 @@ function mechDemo(end: boolean, confirm: ConfirmCard): void {
     screen.select('e1');
     if (end) screen.apply({ t: 'mechEnd', won: true, reward: 1500, first: true });
   }, 600);
+}
+
+function workshopDemo(): WorkshopStateMsg {
+  const parts = ['body:medium','chassis:mediumBiped','shield:light','weapon:autocannon',
+    'body:light','chassis:lightBiped','shield:light','weapon:pistol-cannon','backpack:repair','weapon:sword'].map((key,i) => {
+      const [category,part] = key.split(':'); return {id:`demo-part-${i}`, category, part};
+    });
+  return {t:'workshopState',open:true,credits:7200,available:['firstSortie','mineDefense','primeEscort'],rules:DEFAULT_RULES,
+    state:{revision:4,parts,resources:{titanium:14,energy:8,rareMetal:3},grants:['prototype','starter'],completed:['firstSortie','mineDefense'],results:[],squad:['demo-a','demo-b'],
+      mechs:[{id:'demo-a',name:'Прототип Евы',level:3,xp:75,skills:['targetingExpert','defensiveStance'],assembly:{body:parts[0].id,chassis:parts[1].id,left:parts[2].id,right:parts[3].id,backpack:parts[8].id}},
+        {id:'demo-b',name:'Шахтёр',level:2,xp:40,skills:['evade'],assembly:{body:parts[4].id,chassis:parts[5].id,left:parts[6].id,right:parts[7].id}}]}};
+}
+
+function m22Demo(kind:string, confirm:ConfirmCard):void {
+  const id=kind==='mech-escort'?'primeEscort':'majorAssault';
+  const mission=DEFAULT_RULES.missions![id] as NonNullable<MechRules['missions']>[string] & {
+    enemy:Array<{unit:string;x:number;y:number;dir:number}>;allies?:Array<{unit:string;x:number;y:number;dir:number}>;
+    objective:{object?:{unit:string;x:number;y:number;dir:number};kind:string};
+  };
+  const make=(unit:string,id:string,side:'player'|'enemy',x:number,y:number,dir:number,control:'player'|'ai'|'objective',owner?:string):MechUnitView=>{
+    const assembly=DEFAULT_RULES.units![unit];
+    const max=[DEFAULT_RULES.bodies![assembly.body].hp,armItem(DEFAULT_RULES,assembly.left)?.hp??0,armItem(DEFAULT_RULES,assembly.right)?.hp??0,DEFAULT_RULES.chassis![assembly.chassis].hp];
+    return {id,side,unit,name:assembly.name,x,y,dir,control,owner,assembly,hp:[...max],max,activated:false,skills:control==='player'?['targetingExpert','defensiveStance']:[]};
+  };
+  const units=[make('prototype','p1','player',6,8,2,'player','demo-a'),make('banditSword','p2','player',5,9,2,'player','demo-b'),
+    ...mission.enemy.map((s,i)=>make(s.unit,`e${i+1}`,'enemy',s.x,s.y,s.dir,'ai')),
+    ...(mission.allies??[]).map((s,i)=>make(s.unit,`a${i+1}`,'player',s.x,s.y,s.dir,'ai'))];
+  const objective=mission.objective.object;
+  if(objective)units.push(make(objective.unit,'objective','player',objective.x,objective.y,objective.dir,'objective'));
+  const screen=new MechScreen(el('mech'),{send:noop,confirm:(lines,yes)=>confirm.ask(lines,yes)});
+  screen.apply({t:'mechState',session:'demo-m22',revision:3,rules:DEFAULT_RULES,battle:{mission:id,map:mission.map,round:4,turn:'player',current:'p1',moved:false,steps:0,moveRange:4,units,goal:mission.goal,progress:kind==='mech-m22-end'||kind==='mech-save-pending'?2:1,required:mission.objective.kind==='escort'?mission.objective.route?.length??0:2,objectiveUnit:objective?'objective':null,winner:kind==='mech-save-pending'?'player':null}});
+  window.setTimeout(()=>{
+    if(kind==='mech-save-pending'){screen.apply({t:'mechRefused',code:'saveFailed'});return;}
+    screen.select('e1');
+    if(kind==='mech-m22-end')screen.apply({t:'mechEnd',won:true,reward:4000,first:true,result:{session:'demo-m22',mission:id,won:true,reason:'objectiveComplete',credits:4000,parts:['body:heavy','chassis:heavyBiped','weapon:sword'],
+      experience:[{id:'demo-a',name:'Прототип Евы',gained:175,level:4,xp:25,newSkills:['counterAttack']},{id:'demo-b',name:'Шахтёр',gained:110,level:3,xp:15,newSkills:[]}]}});
+  },600);
 }

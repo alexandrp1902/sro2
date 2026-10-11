@@ -10,9 +10,12 @@ import type { NpcRules } from '../sim/npcs';
 import type { ReputationRules } from '../sim/reputation';
 import type { ShopRules } from '../sim/shop';
 import type { MechBattleView, MechPart, MechRules } from '../mech/rules';
+import type { TerritoryAct, TerritoryStateMsg } from '../mech/territoryRules';
 
 /** Версия протокола; зеркало Protocol.Version на сервере. Сервер другой версии (или старый, без поля) — не играем. */
-export const PROTOCOL_VERSION = 36;
+// 38: M22 — workshop, squad, revisions, hands, XP and ground campaign finale.
+// 39: M23 — shared territory, durable seasons and cooperative ownership/timers.
+export const PROTOCOL_VERSION = 39;
 
 /** Состояние ИИ пирата: патруль, бой, возврат в логово (налётчик — полёт от врат к точке), уход из системы. */
 export type AiState = 'patrol' | 'attack' | 'return' | 'leave';
@@ -116,9 +119,12 @@ export type ClientMessage =
    * Наземный бой мехов (M21): start — у ретранслятора (или получить идущий бой заново), move (x, y),
    * attack (target, part — прицельный), end (dir — поворот напоследок), quit — отступить, это поражение.
    */
-  | { t: 'mechAct'; act: MechAct; x?: number; y?: number; dir?: number; target?: string; part?: MechPart };
+  | { t: 'mechAct'; act: MechAct; x?: number; y?: number; dir?: number; target?: string; part?: MechPart;
+      session?: string; revision?: number; unit?: string; hand?: string; mission?: string; squad?: string[]; request?: string }
+  | WorkshopAct
+  | TerritoryAct;
 
-export type MechAct = 'start' | 'move' | 'attack' | 'end' | 'quit';
+export type MechAct = 'start' | 'train' | 'move' | 'attack' | 'end' | 'quit' | 'select' | 'repair' | 'interact' | 'leave';
 
 export type PartyAction = 'invite' | 'accept' | 'decline' | 'leave';
 
@@ -816,6 +822,7 @@ export interface StoryStateDto {
    * «после Морен непонятно, куда дальше»).
    */
   next?: StoryNextDto | null;
+  groundComplete?: boolean;
 }
 
 /** Следующая встреча по сюжету: кто, где и в какой системе даёт миссию. */
@@ -899,6 +906,8 @@ export interface MissionsMsg {
   storyActive?: ActiveMissionDto | null;
   /** Куда смотреть по сюжетной миссии; нет — метки нет. */
   storyMark?: MissionMarkDto | null;
+  /** В этом доке доступен полигон мехов без прохождения сюжета. */
+  mechTraining?: boolean;
 }
 
 /** Взятое задание: предложение и сколько сделано. */
@@ -921,6 +930,8 @@ export interface DialogMsg {
   lines: string[];
   /** Кнопки выбора; нет — карточка закрывается одним «Дальше». */
   options?: DialogOptionDto[] | null;
+  /** Досмотр: сбросить прежнюю тягу, затем игрок снова может управлять кораблём. */
+  stop?: boolean;
 }
 
 /** Кнопка в карточке: flag уходит обратно как id в сообщении mission/choose. */
@@ -1122,20 +1133,27 @@ export type ServerMessage =
   | RepMsg
   | DialogMsg
   | MechStateMsg
+  | TerritoryStateMsg
   | MechEventsMsg
   | MechEndMsg
-  | MechRefusedMsg;
+  | MechRefusedMsg
+  | WorkshopStateMsg;
 
 /** Наземный бой целиком (M21): на старте, после каждого хода и при возвращении. rules — только на старте и возвращении. */
 export interface MechStateMsg {
   t: 'mechState';
   battle: MechBattleView;
   rules?: MechRules | null;
+  session?: string;
+  revision?: number;
+  yourAccount?: string | null;
+  deadline?: string | null;
+  participants?: Array<{account: string; name: string; participated: boolean; lostAt?: string | null; left: boolean}> | null;
 }
 
 /** Что случилось за ход игрока и сразу за ним противника — по порядку, для анимации. */
 export interface MechEvent {
-  kind: 'move' | 'face' | 'shot' | 'miss' | 'block' | 'hit' | 'partDown' | 'mechDown' | 'round';
+  kind: 'move' | 'face' | 'shot' | 'miss' | 'block' | 'hit' | 'partDown' | 'mechDown' | 'round' | 'skill' | 'skillFailed' | 'repair';
   unit: string;
   target?: string | null;
   path?: number[] | null;
@@ -1158,14 +1176,32 @@ export interface MechEndMsg {
   won: boolean;
   reward: number;
   first: boolean;
+  training?: boolean;
+  result?: MechResult | null;
 }
 
 export type MechRefusal =
   | 'noRelay' | 'noBattle' | 'notYourTurn' | 'alreadyMoved' | 'unreachable' | 'noTarget' | 'outOfRange'
-  | 'noLine' | 'armDown' | 'badPart' | 'badAct' | 'over';
+  | 'noLine' | 'armDown' | 'badPart' | 'badAct' | 'over' | 'staleRevision' | 'mechBusy' | 'workshopLocked'
+  | 'ownership' | 'overweight' | 'incomplete' | 'mechLimit' | 'resources' | 'badAssembly' | 'squadRequired' | 'cargoFull' | 'saveFailed' | 'badRepair';
 
 /** Ход не принят; состояние боя не менялось. */
 export interface MechRefusedMsg {
   t: 'mechRefused';
   code: MechRefusal;
 }
+
+export interface MechAssembly {body?: string | null; chassis?: string | null; left?: string | null; right?: string | null; backpack?: string | null}
+export interface OwnedMech {id: string; name: string; assembly: MechAssembly; level: number; xp: number; skills?: string[] | null}
+export interface MechPartInstance {id: string; category: string; part: string}
+export interface MechResult {session: string; mission: string; won: boolean; reason: string; credits: number; parts: string[];
+  territory?: {objectName:string;oldControl:number;control:number;oldOwner:string;owner:string;contribution:number;debts:Record<string,import('../mech/territoryRules').TerritoryDebt>} | null;
+  experience: Array<{id: string; name: string; gained: number; level: number; xp: number; newSkills: string[]}>}
+export interface MechWorkshopState {mechs: OwnedMech[]; parts: MechPartInstance[]; resources: Record<string, number>; squad: string[];
+  grants: string[]; completed: string[]; results: MechResult[]; revision: number}
+export interface WorkshopStateMsg {t: 'workshopState'; state: MechWorkshopState; rules: MechRules; credits: number;
+  territory?: import('../mech/territoryRules').TerritoryProfile | null;
+  open: boolean; available: string[]; refused?: MechRefusal | null; request?: string | null}
+export interface WorkshopAct {t: 'workshopAct'; act: 'read' | 'create' | 'save' | 'buy' | 'transfer' | 'squad';
+  revision?: number; request?: string; mech?: string; name?: string; assembly?: MechAssembly; recipe?: string;
+  resource?: string; count?: number; toCargo?: boolean; squad?: string[]}

@@ -94,6 +94,9 @@ public sealed class Pirate : ShipEntity, IScavenger
     /// </summary>
     public int OwnerId;
 
+    /// <summary>Досмотр: ждёт решения пилота, не ищет цели и не стреляет.</summary>
+    public bool AwaitingStoryChoice;
+
     /// <summary>
     /// Стоит на посту (M20b): не считает зону станции запретной и не уходит по поводку от дома. Без этого
     /// охрана, вызванная у шлюза, разворачивалась бы и улетала, не сделав ни выстрела.

@@ -1,0 +1,529 @@
+[
+  {
+    "id": "body-militia",
+    "prompt": "Use case: stylized-concept. Asset: production modular sprite sheet for SRO tactical mechs. Detailed worn ceramic armor and dark gunmetal 3D render, cyan player sensors or orange enemy sensors, fixed high orthographic camera 65 degrees above ground and fixed soft light upper left. Strict equal square-cell 4 columns x 2 rows grid, eight different views of ONE consistent component rotating vertically: row 1 N (REAR VIEW, only rear vents, NO face/visor/chest), NE (rear-right), E (right profile, forward points RIGHT), SE (front-right); row 2 S (front toward viewer, visor visible), SW (front-left), W (left profile, forward points LEFT), NW (rear-left). Never rotate the bitmap plane. Real transparent alpha, no text, no labels, no grid, no ground plane, no floor shadows. Each complete component centered inside its cell with 15% empty margins, all eight equal scale. Output landscape 2:1. ONLY militia torso with helmet and two round shoulder sockets, no arms or legs. Industrial olive-green rectangular armor, orange visor, rear has broad radiator.",
+    "path": "sources/m22/body-militia.png"
+  },
+  {
+    "id": "body-sniper",
+    "prompt": "Use case: stylized-concept. Asset: production modular sprite sheet for SRO tactical mechs. Detailed worn ceramic armor and dark gunmetal 3D render, cyan player sensors or orange enemy sensors, fixed high orthographic camera 65 degrees above ground and fixed soft light upper left. Strict equal square-cell 4 columns x 2 rows grid, eight different views of ONE consistent component rotating vertically: row 1 N (REAR VIEW, only rear vents, NO face/visor/chest), NE (rear-right), E (right profile, forward points RIGHT), SE (front-right); row 2 S (front toward viewer, visor visible), SW (front-left), W (left profile, forward points LEFT), NW (rear-left). Never rotate the bitmap plane. Real transparent alpha, no text, no labels, no grid, no ground plane, no floor shadows. Each complete component centered inside its cell with 15% empty margins, all eight equal scale. Output landscape 2:1. ONLY narrow sniper torso with compact angular helmet, raised optical sensor and two circular shoulder sockets, no arms or legs. Long narrow pale-gray chest, teal optic. Rear is exposed cooling assembly.",
+    "path": "sources/m22/body-sniper.png"
+  },
+  {
+    "id": "body-heavy",
+    "prompt": "Use case: stylized-concept. Asset: production modular sprite sheet for SRO tactical mechs. Detailed worn ceramic armor and dark gunmetal 3D render, cyan player sensors or orange enemy sensors, fixed high orthographic camera 65 degrees above ground and fixed soft light upper left. Strict equal square-cell 4 columns x 2 rows grid, eight different views of ONE consistent component rotating vertically: row 1 N (REAR VIEW, only rear vents, NO face/visor/chest), NE (rear-right), E (right profile, forward points RIGHT), SE (front-right); row 2 S (front toward viewer, visor visible), SW (front-left), W (left profile, forward points LEFT), NW (rear-left). Never rotate the bitmap plane. Real transparent alpha, no text, no labels, no grid, no ground plane, no floor shadows. Each complete component centered inside its cell with 15% empty margins, all eight equal scale. Output landscape 2:1. ONLY massive heavy assault torso with short helmet head and two circular shoulder sockets, no arms or legs. Broad layered off-white reinforced armor, blue sensor, thick central breastplate. Rear shows large twin radiator vents.",
+    "path": "sources/m22/body-heavy.png"
+  },
+  {
+    "id": "body-bandit",
+    "prompt": "Use case: stylized-concept. Asset: production modular sprite sheet for SRO tactical mechs. Detailed worn ceramic armor and dark gunmetal 3D render, cyan player sensors or orange enemy sensors, fixed high orthographic camera 65 degrees above ground and fixed soft light upper left. Strict equal square-cell 4 columns x 2 rows grid, eight different views of ONE consistent component rotating vertically: row 1 N (REAR VIEW, only rear vents, NO face/visor/chest), NE (rear-right), E (right profile, forward points RIGHT), SE (front-right); row 2 S (front toward viewer, visor visible), SW (front-left), W (left profile, forward points LEFT), NW (rear-left). Never rotate the bitmap plane. Real transparent alpha, no text, no labels, no grid, no ground plane, no floor shadows. Each complete component centered inside its cell with 15% empty margins, all eight equal scale. Output landscape 2:1. ONLY bandit torso with helmet and two round shoulder sockets, no arms or legs. Distinct asymmetrical salvaged rust-red armor, dark patch plates and orange visor, rear is exhaust/grilles.",
+    "path": "sources/m22/body-bandit.png"
+  },
+  {
+    "id": "body-light",
+    "prompt": "Use case: stylized-concept. Asset: production modular sprite sheet for SRO tactical mechs. Detailed worn ceramic armor and dark gunmetal 3D render, cyan player sensors or orange enemy sensors, fixed high orthographic camera 65 degrees above ground and fixed soft light upper left. Strict equal square-cell 4 columns x 2 rows grid, eight different views of ONE consistent component rotating vertically: row 1 N (REAR VIEW, only rear vents, NO face/visor/chest), NE (rear-right), E (right profile, forward points RIGHT), SE (front-right); row 2 S (front toward viewer, visor visible), SW (front-left), W (left profile, forward points LEFT), NW (rear-left). Never rotate the bitmap plane. Real transparent alpha, no text, no labels, no grid, no ground plane, no floor shadows. Each complete component centered inside its cell with 15% empty margins, all eight equal scale. Output landscape 2:1. ONLY light slender scout torso with head and two circular side shoulder sockets, no arms or legs. Slim white ceramic angular plates, cyan visor. Rear shows dark exposed radiator vents instead of a face.",
+    "path": "sources/m22/body-light.png"
+  },
+  {
+    "id": "body-enemy-heavy",
+    "prompt": "Use case: stylized-concept. Asset: production modular sprite sheet for SRO tactical mechs. Detailed worn ceramic armor and dark gunmetal 3D render, cyan player sensors or orange enemy sensors, fixed high orthographic camera 65 degrees above ground and fixed soft light upper left. Strict equal square-cell 4 columns x 2 rows grid, eight different views of ONE consistent component rotating vertically: row 1 N (REAR VIEW, only rear vents, NO face/visor/chest), NE (rear-right), E (right profile, forward points RIGHT), SE (front-right); row 2 S (front toward viewer, visor visible), SW (front-left), W (left profile, forward points LEFT), NW (rear-left). Never rotate the bitmap plane. Real transparent alpha, no text, no labels, no grid, no ground plane, no floor shadows. Each complete component centered inside its cell with 15% empty margins, all eight equal scale. Output landscape 2:1. ONLY enemy heavy torso with helmet and two round shoulder sockets, no arms or legs. Massive black and crimson armored silhouette, broad sloped steel chest, orange visor. Rear twin exhausts.",
+    "path": "sources/m22/body-enemy-heavy.png"
+  },
+  {
+    "id": "chassis-heavy-biped",
+    "prompt": "Use case: stylized-concept. Asset: production modular sprite sheet for SRO tactical mechs. Detailed worn ceramic armor and dark gunmetal 3D render, cyan player sensors or orange enemy sensors, fixed high orthographic camera 65 degrees above ground and fixed soft light upper left. Strict equal square-cell 4 columns x 2 rows grid, eight different views of ONE consistent component rotating vertically: row 1 N (REAR VIEW, only rear vents, NO face/visor/chest), NE (rear-right), E (right profile, forward points RIGHT), SE (front-right); row 2 S (front toward viewer, visor visible), SW (front-left), W (left profile, forward points LEFT), NW (rear-left). Never rotate the bitmap plane. Real transparent alpha, no text, no labels, no grid, no ground plane, no floor shadows. Each complete component centered inside its cell with 15% empty margins, all eight equal scale. Output landscape 2:1. ONLY heavy biped mech pelvis and two massive articulated armored legs and wide feet. No torso, arms, head. Open circular waist socket on top, thick white ceramic knee and shin plates, large pistons. Feet facing direction of view.",
+    "path": "sources/m22/chassis-heavy-biped.png"
+  },
+  {
+    "id": "chassis-light-biped",
+    "prompt": "Use case: stylized-concept. Asset: production modular sprite sheet for SRO tactical mechs. Detailed worn ceramic armor and dark gunmetal 3D render, cyan player sensors or orange enemy sensors, fixed high orthographic camera 65 degrees above ground and fixed soft light upper left. Strict equal square-cell 4 columns x 2 rows grid, eight different views of ONE consistent component rotating vertically: row 1 N (REAR VIEW, only rear vents, NO face/visor/chest), NE (rear-right), E (right profile, forward points RIGHT), SE (front-right); row 2 S (front toward viewer, visor visible), SW (front-left), W (left profile, forward points LEFT), NW (rear-left). Never rotate the bitmap plane. Real transparent alpha, no text, no labels, no grid, no ground plane, no floor shadows. Each complete component centered inside its cell with 15% empty margins, all eight equal scale. Output landscape 2:1. ONLY light biped mech pelvis and two slim articulated armored legs and feet. No torso, arms, head. Open circular waist socket on top, white ceramic slender shin armor, steel joints. Feet facing direction of view.",
+    "path": "sources/m22/chassis-light-biped.png"
+  },
+  {
+    "id": "chassis-tracks",
+    "prompt": "Use case: stylized-concept. Asset: production modular sprite sheet for SRO tactical mechs. Detailed worn ceramic armor and dark gunmetal 3D render, cyan player sensors or orange enemy sensors, fixed high orthographic camera 65 degrees above ground and fixed soft light upper left. Strict equal square-cell 4 columns x 2 rows grid, eight different views of ONE consistent component rotating vertically: row 1 N (REAR VIEW, only rear vents, NO face/visor/chest), NE (rear-right), E (right profile, forward points RIGHT), SE (front-right); row 2 S (front toward viewer, visor visible), SW (front-left), W (left profile, forward points LEFT), NW (rear-left). Never rotate the bitmap plane. Real transparent alpha, no text, no labels, no grid, no ground plane, no floor shadows. Each complete component centered inside its cell with 15% empty margins, all eight equal scale. Output landscape 2:1. ONLY mech tracked chassis with two continuous parallel tank treads and central low armored platform with large circular top waist socket. No body, head, arms or weapons. Gray gunmetal and offwhite armor. Top plate remains horizontal, eight directions rear to front.",
+    "path": "sources/m22/chassis-tracks.png"
+  },
+  {
+    "id": "arm-heavy-cannon-right",
+    "prompt": "Use case: stylized-concept. Asset: production modular sprite sheet for SRO tactical mechs. Detailed worn ceramic armor and dark gunmetal 3D render, cyan player sensors or orange enemy sensors, fixed high orthographic camera 65 degrees above ground and fixed soft light upper left. Strict equal square-cell 4 columns x 2 rows grid, eight different views of ONE consistent component rotating vertically: row 1 N (REAR VIEW, only rear vents, NO face/visor/chest), NE (rear-right), E (right profile, forward points RIGHT), SE (front-right); row 2 S (front toward viewer, visor visible), SW (front-left), W (left profile, forward points LEFT), NW (rear-left). Never rotate the bitmap plane. Real transparent alpha, no text, no labels, no grid, no ground plane, no floor shadows. Each complete component centered inside its cell with 15% empty margins, all eight equal scale. Output landscape 2:1. ONLY a detached anatomical RIGHT mech arm with spherical white armored shoulder, articulated elbow and massive heavy artillery cannon with broad bore, reinforced thick barrel and recoil cylinder. No torso, legs or other arm. Hand-specific shoulder inner socket faces toward torso: on front view S the right arm mounts on screen left, elbow/weapon extends forward. Muzzle points toward TOP for N, UPPER RIGHT for NE, RIGHT for E, LOWER RIGHT for SE, BOTTOM for S, LOWER LEFT for SW, LEFT for W, UPPER LEFT for NW. Keep shoulder above forearm; all parts disconnected from torso. Eight distinct views, fixed overhead camera.",
+    "path": "sources/m22/arm-heavy-cannon-right.png"
+  },
+  {
+    "id": "arm-pistol-cannon-left",
+    "prompt": "Use case: stylized-concept. Asset: production modular sprite sheet for SRO tactical mechs. Detailed worn ceramic armor and dark gunmetal 3D render, cyan player sensors or orange enemy sensors, fixed high orthographic camera 65 degrees above ground and fixed soft light upper left. Strict equal square-cell 4 columns x 2 rows grid, eight different views of ONE consistent component rotating vertically: row 1 N (REAR VIEW, only rear vents, NO face/visor/chest), NE (rear-right), E (right profile, forward points RIGHT), SE (front-right); row 2 S (front toward viewer, visor visible), SW (front-left), W (left profile, forward points LEFT), NW (rear-left). Never rotate the bitmap plane. Real transparent alpha, no text, no labels, no grid, no ground plane, no floor shadows. Each complete component centered inside its cell with 15% empty margins, all eight equal scale. Output landscape 2:1. ONLY a detached anatomical LEFT mech arm with spherical white armored shoulder, articulated elbow and short compact single-barrel pistol cannon with thick muzzle and short forearm. No torso, legs or other arm. Hand-specific shoulder inner socket faces toward torso: on front view S the left arm mounts on screen right, elbow/weapon extends forward. Muzzle points toward TOP for N, UPPER RIGHT for NE, RIGHT for E, LOWER RIGHT for SE, BOTTOM for S, LOWER LEFT for SW, LEFT for W, UPPER LEFT for NW. Keep shoulder above forearm; all parts disconnected from torso. Eight distinct views, fixed overhead camera.",
+    "path": "sources/m22/arm-pistol-cannon-left.png"
+  },
+  {
+    "id": "arm-pistol-cannon-right",
+    "prompt": "Use case: stylized-concept. Asset: production modular sprite sheet for SRO tactical mechs. Detailed worn ceramic armor and dark gunmetal 3D render, cyan player sensors or orange enemy sensors, fixed high orthographic camera 65 degrees above ground and fixed soft light upper left. Strict equal square-cell 4 columns x 2 rows grid, eight different views of ONE consistent component rotating vertically: row 1 N (REAR VIEW, only rear vents, NO face/visor/chest), NE (rear-right), E (right profile, forward points RIGHT), SE (front-right); row 2 S (front toward viewer, visor visible), SW (front-left), W (left profile, forward points LEFT), NW (rear-left). Never rotate the bitmap plane. Real transparent alpha, no text, no labels, no grid, no ground plane, no floor shadows. Each complete component centered inside its cell with 15% empty margins, all eight equal scale. Output landscape 2:1. ONLY a detached anatomical RIGHT mech arm with spherical white armored shoulder, articulated elbow and short compact single-barrel pistol cannon with thick muzzle and short forearm. No torso, legs or other arm. Hand-specific shoulder inner socket faces toward torso: on front view S the right arm mounts on screen left, elbow/weapon extends forward. Muzzle points toward TOP for N, UPPER RIGHT for NE, RIGHT for E, LOWER RIGHT for SE, BOTTOM for S, LOWER LEFT for SW, LEFT for W, UPPER LEFT for NW. Keep shoulder above forearm; all parts disconnected from torso. Eight distinct views, fixed overhead camera.",
+    "path": "sources/m22/arm-pistol-cannon-right.png"
+  },
+  {
+    "id": "arm-heavy-cannon-left",
+    "prompt": "Use case: stylized-concept. Asset: production modular sprite sheet for SRO tactical mechs. Detailed worn ceramic armor and dark gunmetal 3D render, cyan player sensors or orange enemy sensors, fixed high orthographic camera 65 degrees above ground and fixed soft light upper left. Strict equal square-cell 4 columns x 2 rows grid, eight different views of ONE consistent component rotating vertically: row 1 N (REAR VIEW, only rear vents, NO face/visor/chest), NE (rear-right), E (right profile, forward points RIGHT), SE (front-right); row 2 S (front toward viewer, visor visible), SW (front-left), W (left profile, forward points LEFT), NW (rear-left). Never rotate the bitmap plane. Real transparent alpha, no text, no labels, no grid, no ground plane, no floor shadows. Each complete component centered inside its cell with 15% empty margins, all eight equal scale. Output landscape 2:1. ONLY a detached anatomical LEFT mech arm with spherical white armored shoulder, articulated elbow and massive heavy artillery cannon with broad bore, reinforced thick barrel and recoil cylinder. No torso, legs or other arm. Hand-specific shoulder inner socket faces toward torso: on front view S the left arm mounts on screen right, elbow/weapon extends forward. Muzzle points toward TOP for N, UPPER RIGHT for NE, RIGHT for E, LOWER RIGHT for SE, BOTTOM for S, LOWER LEFT for SW, LEFT for W, UPPER LEFT for NW. Keep shoulder above forearm; all parts disconnected from torso. Eight distinct views, fixed overhead camera.",
+    "path": "sources/m22/arm-heavy-cannon-left.png"
+  },
+  {
+    "id": "arm-autocannon-left",
+    "prompt": "Use case: stylized-concept. Asset: production modular sprite sheet for SRO tactical mechs. Detailed worn ceramic armor and dark gunmetal 3D render, cyan player sensors or orange enemy sensors, fixed high orthographic camera 65 degrees above ground and fixed soft light upper left. Strict equal square-cell 4 columns x 2 rows grid, eight different views of ONE consistent component rotating vertically: row 1 N (REAR VIEW, only rear vents, NO face/visor/chest), NE (rear-right), E (right profile, forward points RIGHT), SE (front-right); row 2 S (front toward viewer, visor visible), SW (front-left), W (left profile, forward points LEFT), NW (rear-left). Never rotate the bitmap plane. Real transparent alpha, no text, no labels, no grid, no ground plane, no floor shadows. Each complete component centered inside its cell with 15% empty margins, all eight equal scale. Output landscape 2:1. ONLY a detached anatomical LEFT mech arm with spherical white armored shoulder, articulated elbow and long slim automatic cannon with ribbed cylindrical barrel. No torso, legs or other arm. Hand-specific shoulder inner socket faces toward torso: on front view S the left arm mounts on screen right, elbow/weapon extends forward. Muzzle points toward TOP for N, UPPER RIGHT for NE, RIGHT for E, LOWER RIGHT for SE, BOTTOM for S, LOWER LEFT for SW, LEFT for W, UPPER LEFT for NW. Keep shoulder above forearm; all parts disconnected from torso. Eight distinct views, fixed overhead camera.",
+    "path": "sources/m22/arm-autocannon-left.png"
+  },
+  {
+    "id": "arm-shotgun-left",
+    "prompt": "Use case: stylized-concept. Asset: production modular sprite sheet for SRO tactical mechs. Detailed worn ceramic armor and dark gunmetal 3D render, cyan player sensors or orange enemy sensors, fixed high orthographic camera 65 degrees above ground and fixed soft light upper left. Strict equal square-cell 4 columns x 2 rows grid, eight different views of ONE consistent component rotating vertically: row 1 N (REAR VIEW, only rear vents, NO face/visor/chest), NE (rear-right), E (right profile, forward points RIGHT), SE (front-right); row 2 S (front toward viewer, visor visible), SW (front-left), W (left profile, forward points LEFT), NW (rear-left). Never rotate the bitmap plane. Real transparent alpha, no text, no labels, no grid, no ground plane, no floor shadows. Each complete component centered inside its cell with 15% empty margins, all eight equal scale. Output landscape 2:1. ONLY a detached anatomical LEFT mech arm with spherical white armored shoulder, articulated elbow and short wide double-barrel shotgun, two large horizontal bores and broad receiver. No torso, legs or other arm. Hand-specific shoulder inner socket faces toward torso: on front view S the left arm mounts on screen right, elbow/weapon extends forward. Muzzle points toward TOP for N, UPPER RIGHT for NE, RIGHT for E, LOWER RIGHT for SE, BOTTOM for S, LOWER LEFT for SW, LEFT for W, UPPER LEFT for NW. Keep shoulder above forearm; all parts disconnected from torso. Eight distinct views, fixed overhead camera.",
+    "path": "sources/m22/arm-shotgun-left.png"
+  },
+  {
+    "id": "arm-sniper-left",
+    "prompt": "Use case: stylized-concept. Asset: production modular sprite sheet for SRO tactical mechs. Detailed worn ceramic armor and dark gunmetal 3D render, cyan player sensors or orange enemy sensors, fixed high orthographic camera 65 degrees above ground and fixed soft light upper left. Strict equal square-cell 4 columns x 2 rows grid, eight different views of ONE consistent component rotating vertically: row 1 N (REAR VIEW, only rear vents, NO face/visor/chest), NE (rear-right), E (right profile, forward points RIGHT), SE (front-right); row 2 S (front toward viewer, visor visible), SW (front-left), W (left profile, forward points LEFT), NW (rear-left). Never rotate the bitmap plane. Real transparent alpha, no text, no labels, no grid, no ground plane, no floor shadows. Each complete component centered inside its cell with 15% empty margins, all eight equal scale. Output landscape 2:1. ONLY a detached anatomical LEFT mech arm with spherical white armored shoulder, articulated elbow and very long thin precision sniper rifle with upper optic and long slender barrel. No torso, legs or other arm. Hand-specific shoulder inner socket faces toward torso: on front view S the left arm mounts on screen right, elbow/weapon extends forward. Muzzle points toward TOP for N, UPPER RIGHT for NE, RIGHT for E, LOWER RIGHT for SE, BOTTOM for S, LOWER LEFT for SW, LEFT for W, UPPER LEFT for NW. Keep shoulder above forearm; all parts disconnected from torso. Eight distinct views, fixed overhead camera.",
+    "path": "sources/m22/arm-sniper-left.png"
+  },
+  {
+    "id": "arm-sniper-right",
+    "prompt": "Use case: stylized-concept. Asset: production modular sprite sheet for SRO tactical mechs. Detailed worn ceramic armor and dark gunmetal 3D render, cyan player sensors or orange enemy sensors, fixed high orthographic camera 65 degrees above ground and fixed soft light upper left. Strict equal square-cell 4 columns x 2 rows grid, eight different views of ONE consistent component rotating vertically: row 1 N (REAR VIEW, only rear vents, NO face/visor/chest), NE (rear-right), E (right profile, forward points RIGHT), SE (front-right); row 2 S (front toward viewer, visor visible), SW (front-left), W (left profile, forward points LEFT), NW (rear-left). Never rotate the bitmap plane. Real transparent alpha, no text, no labels, no grid, no ground plane, no floor shadows. Each complete component centered inside its cell with 15% empty margins, all eight equal scale. Output landscape 2:1. ONLY a detached anatomical RIGHT mech arm with spherical white armored shoulder, articulated elbow and very long thin precision sniper rifle with upper optic and long slender barrel. No torso, legs or other arm. Hand-specific shoulder inner socket faces toward torso: on front view S the right arm mounts on screen left, elbow/weapon extends forward. Muzzle points toward TOP for N, UPPER RIGHT for NE, RIGHT for E, LOWER RIGHT for SE, BOTTOM for S, LOWER LEFT for SW, LEFT for W, UPPER LEFT for NW. Keep shoulder above forearm; all parts disconnected from torso. Eight distinct views, fixed overhead camera.",
+    "path": "sources/m22/arm-sniper-right.png"
+  },
+  {
+    "id": "arm-rockets-left",
+    "prompt": "Use case: stylized-concept. Asset: production modular sprite sheet for SRO tactical mechs. Detailed worn ceramic armor and dark gunmetal 3D render, cyan player sensors or orange enemy sensors, fixed high orthographic camera 65 degrees above ground and fixed soft light upper left. Strict equal square-cell 4 columns x 2 rows grid, eight different views of ONE consistent component rotating vertically: row 1 N (REAR VIEW, only rear vents, NO face/visor/chest), NE (rear-right), E (right profile, forward points RIGHT), SE (front-right); row 2 S (front toward viewer, visor visible), SW (front-left), W (left profile, forward points LEFT), NW (rear-left). Never rotate the bitmap plane. Real transparent alpha, no text, no labels, no grid, no ground plane, no floor shadows. Each complete component centered inside its cell with 15% empty margins, all eight equal scale. Output landscape 2:1. ONLY a detached anatomical LEFT mech arm with spherical white armored shoulder, articulated elbow and rectangular six-tube missile pod with clearly visible rocket tips instead of a gun barrel. No torso, legs or other arm. Hand-specific shoulder inner socket faces toward torso: on front view S the left arm mounts on screen right, elbow/weapon extends forward. Muzzle points toward TOP for N, UPPER RIGHT for NE, RIGHT for E, LOWER RIGHT for SE, BOTTOM for S, LOWER LEFT for SW, LEFT for W, UPPER LEFT for NW. Keep shoulder above forearm; all parts disconnected from torso. Eight distinct views, fixed overhead camera.",
+    "path": "sources/m22/arm-rockets-left.png"
+  },
+  {
+    "id": "arm-rockets-right",
+    "prompt": "Use case: stylized-concept. Asset: production modular sprite sheet for SRO tactical mechs. Detailed worn ceramic armor and dark gunmetal 3D render, cyan player sensors or orange enemy sensors, fixed high orthographic camera 65 degrees above ground and fixed soft light upper left. Strict equal square-cell 4 columns x 2 rows grid, eight different views of ONE consistent component rotating vertically: row 1 N (REAR VIEW, only rear vents, NO face/visor/chest), NE (rear-right), E (right profile, forward points RIGHT), SE (front-right); row 2 S (front toward viewer, visor visible), SW (front-left), W (left profile, forward points LEFT), NW (rear-left). Never rotate the bitmap plane. Real transparent alpha, no text, no labels, no grid, no ground plane, no floor shadows. Each complete component centered inside its cell with 15% empty margins, all eight equal scale. Output landscape 2:1. ONLY a detached anatomical RIGHT mech arm with spherical white armored shoulder, articulated elbow and rectangular six-tube missile pod with clearly visible rocket tips instead of a gun barrel. No torso, legs or other arm. Hand-specific shoulder inner socket faces toward torso: on front view S the right arm mounts on screen left, elbow/weapon extends forward. Muzzle points toward TOP for N, UPPER RIGHT for NE, RIGHT for E, LOWER RIGHT for SE, BOTTOM for S, LOWER LEFT for SW, LEFT for W, UPPER LEFT for NW. Keep shoulder above forearm; all parts disconnected from torso. Eight distinct views, fixed overhead camera.",
+    "path": "sources/m22/arm-rockets-right.png"
+  },
+  {
+    "id": "arm-shotgun-right",
+    "prompt": "Use case: stylized-concept. Asset: production modular sprite sheet for SRO tactical mechs. Detailed worn ceramic armor and dark gunmetal 3D render, cyan player sensors or orange enemy sensors, fixed high orthographic camera 65 degrees above ground and fixed soft light upper left. Strict equal square-cell 4 columns x 2 rows grid, eight different views of ONE consistent component rotating vertically: row 1 N (REAR VIEW, only rear vents, NO face/visor/chest), NE (rear-right), E (right profile, forward points RIGHT), SE (front-right); row 2 S (front toward viewer, visor visible), SW (front-left), W (left profile, forward points LEFT), NW (rear-left). Never rotate the bitmap plane. Real transparent alpha, no text, no labels, no grid, no ground plane, no floor shadows. Each complete component centered inside its cell with 15% empty margins, all eight equal scale. Output landscape 2:1. ONLY a detached anatomical RIGHT mech arm with spherical white armored shoulder, articulated elbow and short wide double-barrel shotgun, two large horizontal bores and broad receiver. No torso, legs or other arm. Hand-specific shoulder inner socket faces toward torso: on front view S the right arm mounts on screen left, elbow/weapon extends forward. Muzzle points toward TOP for N, UPPER RIGHT for NE, RIGHT for E, LOWER RIGHT for SE, BOTTOM for S, LOWER LEFT for SW, LEFT for W, UPPER LEFT for NW. Keep shoulder above forearm; all parts disconnected from torso. Eight distinct views, fixed overhead camera.",
+    "path": "sources/m22/arm-shotgun-right.png"
+  },
+  {
+    "id": "arm-energy-left",
+    "prompt": "Use case: stylized-concept. Asset: production modular sprite sheet for SRO tactical mechs. Detailed worn ceramic armor and dark gunmetal 3D render, cyan player sensors or orange enemy sensors, fixed high orthographic camera 65 degrees above ground and fixed soft light upper left. Strict equal square-cell 4 columns x 2 rows grid, eight different views of ONE consistent component rotating vertically: row 1 N (REAR VIEW, only rear vents, NO face/visor/chest), NE (rear-right), E (right profile, forward points RIGHT), SE (front-right); row 2 S (front toward viewer, visor visible), SW (front-left), W (left profile, forward points LEFT), NW (rear-left). Never rotate the bitmap plane. Real transparent alpha, no text, no labels, no grid, no ground plane, no floor shadows. Each complete component centered inside its cell with 15% empty margins, all eight equal scale. Output landscape 2:1. ONLY a detached anatomical LEFT mech arm with spherical white armored shoulder, articulated elbow and plasma emitter with two steel prongs and bright cyan glowing coil, no conventional muzzle. No torso, legs or other arm. Hand-specific shoulder inner socket faces toward torso: on front view S the left arm mounts on screen right, elbow/weapon extends forward. Muzzle points toward TOP for N, UPPER RIGHT for NE, RIGHT for E, LOWER RIGHT for SE, BOTTOM for S, LOWER LEFT for SW, LEFT for W, UPPER LEFT for NW. Keep shoulder above forearm; all parts disconnected from torso. Eight distinct views, fixed overhead camera.",
+    "path": "sources/m22/arm-energy-left.png"
+  },
+  {
+    "id": "arm-sword-left",
+    "prompt": "Use case: stylized-concept. Asset: production modular sprite sheet for SRO tactical mechs. Detailed worn ceramic armor and dark gunmetal 3D render, cyan player sensors or orange enemy sensors, fixed high orthographic camera 65 degrees above ground and fixed soft light upper left. Strict equal square-cell 4 columns x 2 rows grid, eight different views of ONE consistent component rotating vertically: row 1 N (REAR VIEW, only rear vents, NO face/visor/chest), NE (rear-right), E (right profile, forward points RIGHT), SE (front-right); row 2 S (front toward viewer, visor visible), SW (front-left), W (left profile, forward points LEFT), NW (rear-left). Never rotate the bitmap plane. Real transparent alpha, no text, no labels, no grid, no ground plane, no floor shadows. Each complete component centered inside its cell with 15% empty margins, all eight equal scale. Output landscape 2:1. ONLY a detached anatomical LEFT mech arm with spherical white armored shoulder, articulated elbow and mechanical hand gripping a long pale steel sword, diagonal forward-pointing blade with cyan cutting edge. No torso, legs or other arm. Hand-specific shoulder inner socket faces toward torso: on front view S the left arm mounts on screen right, elbow/weapon extends forward. Muzzle points toward TOP for N, UPPER RIGHT for NE, RIGHT for E, LOWER RIGHT for SE, BOTTOM for S, LOWER LEFT for SW, LEFT for W, UPPER LEFT for NW. Keep shoulder above forearm; all parts disconnected from torso. Eight distinct views, fixed overhead camera.",
+    "path": "sources/m22/arm-sword-left.png"
+  },
+  {
+    "id": "arm-sword-right",
+    "prompt": "Use case: stylized-concept. Asset: production modular sprite sheet for SRO tactical mechs. Detailed worn ceramic armor and dark gunmetal 3D render, cyan player sensors or orange enemy sensors, fixed high orthographic camera 65 degrees above ground and fixed soft light upper left. Strict equal square-cell 4 columns x 2 rows grid, eight different views of ONE consistent component rotating vertically: row 1 N (REAR VIEW, only rear vents, NO face/visor/chest), NE (rear-right), E (right profile, forward points RIGHT), SE (front-right); row 2 S (front toward viewer, visor visible), SW (front-left), W (left profile, forward points LEFT), NW (rear-left). Never rotate the bitmap plane. Real transparent alpha, no text, no labels, no grid, no ground plane, no floor shadows. Each complete component centered inside its cell with 15% empty margins, all eight equal scale. Output landscape 2:1. ONLY a detached anatomical RIGHT mech arm with spherical white armored shoulder, articulated elbow and mechanical hand gripping a long pale steel sword, diagonal forward-pointing blade with cyan cutting edge. No torso, legs or other arm. Hand-specific shoulder inner socket faces toward torso: on front view S the right arm mounts on screen left, elbow/weapon extends forward. Muzzle points toward TOP for N, UPPER RIGHT for NE, RIGHT for E, LOWER RIGHT for SE, BOTTOM for S, LOWER LEFT for SW, LEFT for W, UPPER LEFT for NW. Keep shoulder above forearm; all parts disconnected from torso. Eight distinct views, fixed overhead camera.",
+    "path": "sources/m22/arm-sword-right.png"
+  },
+  {
+    "id": "arm-mg-left",
+    "prompt": "Use case: stylized-concept. Asset: production modular sprite sheet for SRO tactical mechs. Detailed worn ceramic armor and dark gunmetal 3D render, cyan player sensors or orange enemy sensors, fixed high orthographic camera 65 degrees above ground and fixed soft light upper left. Strict equal square-cell 4 columns x 2 rows grid, eight different views of ONE consistent component rotating vertically: row 1 N (REAR VIEW, only rear vents, NO face/visor/chest), NE (rear-right), E (right profile, forward points RIGHT), SE (front-right); row 2 S (front toward viewer, visor visible), SW (front-left), W (left profile, forward points LEFT), NW (rear-left). Never rotate the bitmap plane. Real transparent alpha, no text, no labels, no grid, no ground plane, no floor shadows. Each complete component centered inside its cell with 15% empty margins, all eight equal scale. Output landscape 2:1. ONLY a detached anatomical LEFT mech arm with spherical white armored shoulder, articulated elbow and multi-barrel rotary machine gun with six slim clustered barrels. No torso, legs or other arm. Hand-specific shoulder inner socket faces toward torso: on front view S the left arm mounts on screen right, elbow/weapon extends forward. Muzzle points toward TOP for N, UPPER RIGHT for NE, RIGHT for E, LOWER RIGHT for SE, BOTTOM for S, LOWER LEFT for SW, LEFT for W, UPPER LEFT for NW. Keep shoulder above forearm; all parts disconnected from torso. Eight distinct views, fixed overhead camera.",
+    "path": "sources/m22/arm-mg-left.png"
+  },
+  {
+    "id": "arm-mg-right",
+    "prompt": "Use case: stylized-concept. Asset: production modular sprite sheet for SRO tactical mechs. Detailed worn ceramic armor and dark gunmetal 3D render, cyan player sensors or orange enemy sensors, fixed high orthographic camera 65 degrees above ground and fixed soft light upper left. Strict equal square-cell 4 columns x 2 rows grid, eight different views of ONE consistent component rotating vertically: row 1 N (REAR VIEW, only rear vents, NO face/visor/chest), NE (rear-right), E (right profile, forward points RIGHT), SE (front-right); row 2 S (front toward viewer, visor visible), SW (front-left), W (left profile, forward points LEFT), NW (rear-left). Never rotate the bitmap plane. Real transparent alpha, no text, no labels, no grid, no ground plane, no floor shadows. Each complete component centered inside its cell with 15% empty margins, all eight equal scale. Output landscape 2:1. ONLY a detached anatomical RIGHT mech arm with spherical white armored shoulder, articulated elbow and multi-barrel rotary machine gun with six slim clustered barrels. No torso, legs or other arm. Hand-specific shoulder inner socket faces toward torso: on front view S the right arm mounts on screen left, elbow/weapon extends forward. Muzzle points toward TOP for N, UPPER RIGHT for NE, RIGHT for E, LOWER RIGHT for SE, BOTTOM for S, LOWER LEFT for SW, LEFT for W, UPPER LEFT for NW. Keep shoulder above forearm; all parts disconnected from torso. Eight distinct views, fixed overhead camera.",
+    "path": "sources/m22/arm-mg-right.png"
+  },
+  {
+    "id": "arm-energy-right",
+    "prompt": "Use case: stylized-concept. Asset: production modular sprite sheet for SRO tactical mechs. Detailed worn ceramic armor and dark gunmetal 3D render, cyan player sensors or orange enemy sensors, fixed high orthographic camera 65 degrees above ground and fixed soft light upper left. Strict equal square-cell 4 columns x 2 rows grid, eight different views of ONE consistent component rotating vertically: row 1 N (REAR VIEW, only rear vents, NO face/visor/chest), NE (rear-right), E (right profile, forward points RIGHT), SE (front-right); row 2 S (front toward viewer, visor visible), SW (front-left), W (left profile, forward points LEFT), NW (rear-left). Never rotate the bitmap plane. Real transparent alpha, no text, no labels, no grid, no ground plane, no floor shadows. Each complete component centered inside its cell with 15% empty margins, all eight equal scale. Output landscape 2:1. ONLY a detached anatomical RIGHT mech arm with spherical white armored shoulder, articulated elbow and plasma emitter with two steel prongs and bright cyan glowing coil, no conventional muzzle. No torso, legs or other arm. Hand-specific shoulder inner socket faces toward torso: on front view S the right arm mounts on screen left, elbow/weapon extends forward. Muzzle points toward TOP for N, UPPER RIGHT for NE, RIGHT for E, LOWER RIGHT for SE, BOTTOM for S, LOWER LEFT for SW, LEFT for W, UPPER LEFT for NW. Keep shoulder above forearm; all parts disconnected from torso. Eight distinct views, fixed overhead camera.",
+    "path": "sources/m22/arm-energy-right.png"
+  },
+  {
+    "id": "arm-experimental-left",
+    "prompt": "Use case: stylized-concept. Asset: production modular sprite sheet for SRO tactical mechs. Detailed worn ceramic armor and dark gunmetal 3D render, cyan player sensors or orange enemy sensors, fixed high orthographic camera 65 degrees above ground and fixed soft light upper left. Strict equal square-cell 4 columns x 2 rows grid, eight different views of ONE consistent component rotating vertically: row 1 N (REAR VIEW, only rear vents, NO face/visor/chest), NE (rear-right), E (right profile, forward points RIGHT), SE (front-right); row 2 S (front toward viewer, visor visible), SW (front-left), W (left profile, forward points LEFT), NW (rear-left). Never rotate the bitmap plane. Real transparent alpha, no text, no labels, no grid, no ground plane, no floor shadows. Each complete component centered inside its cell with 15% empty margins, all eight equal scale. Output landscape 2:1. ONLY a detached anatomical LEFT mech arm with spherical white armored shoulder, articulated elbow and experimental violet energy weapon with exposed ring emitter and violet coils. No torso, legs or other arm. Hand-specific shoulder inner socket faces toward torso: on front view S the left arm mounts on screen right, elbow/weapon extends forward. Muzzle points toward TOP for N, UPPER RIGHT for NE, RIGHT for E, LOWER RIGHT for SE, BOTTOM for S, LOWER LEFT for SW, LEFT for W, UPPER LEFT for NW. Keep shoulder above forearm; all parts disconnected from torso. Eight distinct views, fixed overhead camera.",
+    "path": "sources/m22/arm-experimental-left.png"
+  },
+  {
+    "id": "arm-experimental-right",
+    "prompt": "Use case: stylized-concept. Asset: production modular sprite sheet for SRO tactical mechs. Detailed worn ceramic armor and dark gunmetal 3D render, cyan player sensors or orange enemy sensors, fixed high orthographic camera 65 degrees above ground and fixed soft light upper left. Strict equal square-cell 4 columns x 2 rows grid, eight different views of ONE consistent component rotating vertically: row 1 N (REAR VIEW, only rear vents, NO face/visor/chest), NE (rear-right), E (right profile, forward points RIGHT), SE (front-right); row 2 S (front toward viewer, visor visible), SW (front-left), W (left profile, forward points LEFT), NW (rear-left). Never rotate the bitmap plane. Real transparent alpha, no text, no labels, no grid, no ground plane, no floor shadows. Each complete component centered inside its cell with 15% empty margins, all eight equal scale. Output landscape 2:1. ONLY a detached anatomical RIGHT mech arm with spherical white armored shoulder, articulated elbow and experimental violet energy weapon with exposed ring emitter and violet coils. No torso, legs or other arm. Hand-specific shoulder inner socket faces toward torso: on front view S the right arm mounts on screen left, elbow/weapon extends forward. Muzzle points toward TOP for N, UPPER RIGHT for NE, RIGHT for E, LOWER RIGHT for SE, BOTTOM for S, LOWER LEFT for SW, LEFT for W, UPPER LEFT for NW. Keep shoulder above forearm; all parts disconnected from torso. Eight distinct views, fixed overhead camera.",
+    "path": "sources/m22/arm-experimental-right.png"
+  },
+  {
+    "id": "shield-light-right",
+    "prompt": "Use case: stylized-concept. Asset: production modular sprite sheet for SRO tactical mechs. Detailed worn ceramic armor and dark gunmetal 3D render, cyan player sensors or orange enemy sensors, fixed high orthographic camera 65 degrees above ground and fixed soft light upper left. Strict equal square-cell 4 columns x 2 rows grid, eight different views of ONE consistent component rotating vertically: row 1 N (REAR VIEW, only rear vents, NO face/visor/chest), NE (rear-right), E (right profile, forward points RIGHT), SE (front-right); row 2 S (front toward viewer, visor visible), SW (front-left), W (left profile, forward points LEFT), NW (rear-left). Never rotate the bitmap plane. Real transparent alpha, no text, no labels, no grid, no ground plane, no floor shadows. Each complete component centered inside its cell with 15% empty margins, all eight equal scale. Output landscape 2:1. ONLY detached anatomical right arm with white shoulder and elbow carrying small rectangular steel shield with white rim. No torso, no legs, no weapons. All eight views show same right arm rotating, shield held in front; rear views show shield inner mechanical mounting, front views show armored face.",
+    "path": "sources/m22/shield-light-right.png"
+  },
+  {
+    "id": "shield-heavy-left",
+    "prompt": "Use case: stylized-concept. Asset: production modular sprite sheet for SRO tactical mechs. Detailed worn ceramic armor and dark gunmetal 3D render, cyan player sensors or orange enemy sensors, fixed high orthographic camera 65 degrees above ground and fixed soft light upper left. Strict equal square-cell 4 columns x 2 rows grid, eight different views of ONE consistent component rotating vertically: row 1 N (REAR VIEW, only rear vents, NO face/visor/chest), NE (rear-right), E (right profile, forward points RIGHT), SE (front-right); row 2 S (front toward viewer, visor visible), SW (front-left), W (left profile, forward points LEFT), NW (rear-left). Never rotate the bitmap plane. Real transparent alpha, no text, no labels, no grid, no ground plane, no floor shadows. Each complete component centered inside its cell with 15% empty margins, all eight equal scale. Output landscape 2:1. ONLY detached anatomical left arm with white shoulder and elbow carrying large thick reinforced hexagonal tower shield with steel rim. No torso, no legs, no weapons. All eight views show same left arm rotating, shield held in front; rear views show shield inner mechanical mounting, front views show armored face.",
+    "path": "sources/m22/shield-heavy-left.png"
+  },
+  {
+    "id": "shield-heavy-right",
+    "prompt": "Use case: stylized-concept. Asset: production modular sprite sheet for SRO tactical mechs. Detailed worn ceramic armor and dark gunmetal 3D render, cyan player sensors or orange enemy sensors, fixed high orthographic camera 65 degrees above ground and fixed soft light upper left. Strict equal square-cell 4 columns x 2 rows grid, eight different views of ONE consistent component rotating vertically: row 1 N (REAR VIEW, only rear vents, NO face/visor/chest), NE (rear-right), E (right profile, forward points RIGHT), SE (front-right); row 2 S (front toward viewer, visor visible), SW (front-left), W (left profile, forward points LEFT), NW (rear-left). Never rotate the bitmap plane. Real transparent alpha, no text, no labels, no grid, no ground plane, no floor shadows. Each complete component centered inside its cell with 15% empty margins, all eight equal scale. Output landscape 2:1. ONLY detached anatomical right arm with white shoulder and elbow carrying large thick reinforced hexagonal tower shield with steel rim. No torso, no legs, no weapons. All eight views show same right arm rotating, shield held in front; rear views show shield inner mechanical mounting, front views show armored face.",
+    "path": "sources/m22/shield-heavy-right.png"
+  },
+  {
+    "id": "pack-accuracy",
+    "prompt": "Use case: stylized-concept. Asset: production modular sprite sheet for SRO tactical mechs. Detailed worn ceramic armor and dark gunmetal 3D render, cyan player sensors or orange enemy sensors, fixed high orthographic camera 65 degrees above ground and fixed soft light upper left. Strict equal square-cell 4 columns x 2 rows grid, eight different views of ONE consistent component rotating vertically: row 1 N (REAR VIEW, only rear vents, NO face/visor/chest), NE (rear-right), E (right profile, forward points RIGHT), SE (front-right); row 2 S (front toward viewer, visor visible), SW (front-left), W (left profile, forward points LEFT), NW (rear-left). Never rotate the bitmap plane. Real transparent alpha, no text, no labels, no grid, no ground plane, no floor shadows. Each complete component centered inside its cell with 15% empty margins, all eight equal scale. Output landscape 2:1. ONLY small detachable mech backpack: compact aiming sensor module, folded aerial and cyan optical lens. No torso, head, arms or legs. Rear N shows outward working surface; front S shows inner attachment plate that normally attaches to back of torso. Gray metal and white ceramic, consistent same module in all eight views.",
+    "path": "sources/m22/pack-accuracy.png"
+  },
+  {
+    "id": "pack-armor",
+    "prompt": "Use case: stylized-concept. Asset: production modular sprite sheet for SRO tactical mechs. Detailed worn ceramic armor and dark gunmetal 3D render, cyan player sensors or orange enemy sensors, fixed high orthographic camera 65 degrees above ground and fixed soft light upper left. Strict equal square-cell 4 columns x 2 rows grid, eight different views of ONE consistent component rotating vertically: row 1 N (REAR VIEW, only rear vents, NO face/visor/chest), NE (rear-right), E (right profile, forward points RIGHT), SE (front-right); row 2 S (front toward viewer, visor visible), SW (front-left), W (left profile, forward points LEFT), NW (rear-left). Never rotate the bitmap plane. Real transparent alpha, no text, no labels, no grid, no ground plane, no floor shadows. Each complete component centered inside its cell with 15% empty margins, all eight equal scale. Output landscape 2:1. ONLY small detachable mech backpack: broad thick layered armor plate with white ceramic plating. No torso, head, arms or legs. Rear N shows outward working surface; front S shows inner attachment plate that normally attaches to back of torso. Gray metal and white ceramic, consistent same module in all eight views.",
+    "path": "sources/m22/pack-armor.png"
+  },
+  {
+    "id": "pack-mobility",
+    "prompt": "Use case: stylized-concept. Asset: production modular sprite sheet for SRO tactical mechs. Detailed worn ceramic armor and dark gunmetal 3D render, cyan player sensors or orange enemy sensors, fixed high orthographic camera 65 degrees above ground and fixed soft light upper left. Strict equal square-cell 4 columns x 2 rows grid, eight different views of ONE consistent component rotating vertically: row 1 N (REAR VIEW, only rear vents, NO face/visor/chest), NE (rear-right), E (right profile, forward points RIGHT), SE (front-right); row 2 S (front toward viewer, visor visible), SW (front-left), W (left profile, forward points LEFT), NW (rear-left). Never rotate the bitmap plane. Real transparent alpha, no text, no labels, no grid, no ground plane, no floor shadows. Each complete component centered inside its cell with 15% empty margins, all eight equal scale. Output landscape 2:1. ONLY small detachable mech backpack: twin small jet thrusters with blue exhaust apertures. No torso, head, arms or legs. Rear N shows outward working surface; front S shows inner attachment plate that normally attaches to back of torso. Gray metal and white ceramic, consistent same module in all eight views.",
+    "path": "sources/m22/pack-mobility.png"
+  },
+  {
+    "id": "pack-damage",
+    "prompt": "Use case: stylized-concept. Asset: production modular sprite sheet for SRO tactical mechs. Detailed worn ceramic armor and dark gunmetal 3D render, cyan player sensors or orange enemy sensors, fixed high orthographic camera 65 degrees above ground and fixed soft light upper left. Strict equal square-cell 4 columns x 2 rows grid, eight different views of ONE consistent component rotating vertically: row 1 N (REAR VIEW, only rear vents, NO face/visor/chest), NE (rear-right), E (right profile, forward points RIGHT), SE (front-right); row 2 S (front toward viewer, visor visible), SW (front-left), W (left profile, forward points LEFT), NW (rear-left). Never rotate the bitmap plane. Real transparent alpha, no text, no labels, no grid, no ground plane, no floor shadows. Each complete component centered inside its cell with 15% empty margins, all eight equal scale. Output landscape 2:1. ONLY small detachable mech backpack: power booster with two cylindrical amber capacitors. No torso, head, arms or legs. Rear N shows outward working surface; front S shows inner attachment plate that normally attaches to back of torso. Gray metal and white ceramic, consistent same module in all eight views.",
+    "path": "sources/m22/pack-damage.png"
+  },
+  {
+    "id": "pack-repair",
+    "prompt": "Use case: stylized-concept. Asset: production modular sprite sheet for SRO tactical mechs. Detailed worn ceramic armor and dark gunmetal 3D render, cyan player sensors or orange enemy sensors, fixed high orthographic camera 65 degrees above ground and fixed soft light upper left. Strict equal square-cell 4 columns x 2 rows grid, eight different views of ONE consistent component rotating vertically: row 1 N (REAR VIEW, only rear vents, NO face/visor/chest), NE (rear-right), E (right profile, forward points RIGHT), SE (front-right); row 2 S (front toward viewer, visor visible), SW (front-left), W (left profile, forward points LEFT), NW (rear-left). Never rotate the bitmap plane. Real transparent alpha, no text, no labels, no grid, no ground plane, no floor shadows. Each complete component centered inside its cell with 15% empty margins, all eight equal scale. Output landscape 2:1. ONLY small detachable mech backpack: small repair toolbox with manipulator arm folded and green indicator. No torso, head, arms or legs. Rear N shows outward working surface; front S shows inner attachment plate that normally attaches to back of torso. Gray metal and white ceramic, consistent same module in all eight views.",
+    "path": "sources/m22/pack-repair.png"
+  },
+  {
+    "id": "disabled-heavy-biped",
+    "prompt": "Use case: precise-object-edit. Edit target: attached eight-direction chassis sheet. Change ONLY damage condition: cracked white armor, exposed broken pistons and dark scorch marks. Keep exactly the same model silhouette, circular waist socket, number and type of feet, every direction and pose, fixed camera, scale, grid 4 columns x 2 rows and lighting. Biped legs retain normal FEET with toes, ABSOLUTELY NO TANK TREADS OR TRACKED FEET for a biped. Existing tracked chassis retains its tank treads with broken tread links. No additional objects, no torso, no head, no text, true transparent background. This is a disabled chassis supporting a torso, retain the original standing structure and waist attachment.",
+    "reference": "C:/Users/467/Documents/GitHub/sro/art/mechs/production/sources/m22/chassis-heavy-biped.png",
+    "path": "sources/m22/disabled-heavy-biped.png",
+    "revision": 2
+  },
+  {
+    "id": "disabled-light-biped",
+    "prompt": "Use case: precise-object-edit. Edit target: attached eight-direction chassis sheet. Change ONLY damage condition: cracked white armor, exposed broken pistons and dark scorch marks. Keep exactly the same model silhouette, circular waist socket, number and type of feet, every direction and pose, fixed camera, scale, grid 4 columns x 2 rows and lighting. Biped legs retain normal FEET with toes, ABSOLUTELY NO TANK TREADS OR TRACKED FEET for a biped. Existing tracked chassis retains its tank treads with broken tread links. No additional objects, no torso, no head, no text, true transparent background. This is a disabled chassis supporting a torso, retain the original standing structure and waist attachment.",
+    "reference": "C:/Users/467/Documents/GitHub/sro/art/mechs/production/sources/m22/chassis-light-biped.png",
+    "path": "sources/m22/disabled-light-biped.png",
+    "revision": 2
+  },
+  {
+    "id": "disabled-tracks",
+    "prompt": "Use case: precise-object-edit. Edit target: attached eight-direction chassis sheet. Change ONLY damage condition: cracked white armor, exposed broken pistons and dark scorch marks. Keep exactly the same model silhouette, circular waist socket, number and type of feet, every direction and pose, fixed camera, scale, grid 4 columns x 2 rows and lighting. Biped legs retain normal FEET with toes, ABSOLUTELY NO TANK TREADS OR TRACKED FEET for a biped. Existing tracked chassis retains its tank treads with broken tread links. No additional objects, no torso, no head, no text, true transparent background. This is a disabled chassis supporting a torso, retain the original standing structure and waist attachment.",
+    "reference": "C:/Users/467/Documents/GitHub/sro/art/mechs/production/sources/m22/chassis-tracks.png",
+    "path": "sources/m22/disabled-tracks.png",
+    "revision": 2
+  },
+  {
+    "id": "disabled-medium-biped",
+    "prompt": "Use case: precise-object-edit. Edit target: attached eight-direction chassis sheet. Change ONLY damage condition: cracked white armor, exposed broken pistons and dark scorch marks. Keep exactly the same model silhouette, circular waist socket, number and type of feet, every direction and pose, fixed camera, scale, grid 4 columns x 2 rows and lighting. Biped legs retain normal FEET with toes, ABSOLUTELY NO TANK TREADS OR TRACKED FEET for a biped. Existing tracked chassis retains its tank treads with broken tread links. No additional objects, no torso, no head, no text, true transparent background. This is a disabled chassis supporting a torso, retain the original standing structure and waist attachment.",
+    "reference": "C:/Users/467/Documents/GitHub/sro/art/mechs/production/sources/chassis-medium-biped-8dir-v2.png",
+    "path": "sources/m22/disabled-medium-biped.png",
+    "revision": 2
+  },
+  {
+    "id": "desert-ground-2",
+    "prompt": "Use case: stylized-concept. Seamless flat tile texture for tactical desert game terrain, dusty slightly darker ocher compacted sand with faint wind streaks and tiny grit, overhead orthographic, no shadows or objects, muted tan palette, fills entire square opaque image, opposite edges seamlessly repeat, no border or text.",
+    "path": "sources/m22/desert-ground-2.png"
+  },
+  {
+    "id": "desert-rough",
+    "prompt": "Use case: stylized-concept. Production desert tactical terrain sprite single object. Subject: low compact cluster of dusty tan rocks and broken stone slabs, obstacle for one tactical cell, genuine transparent alpha. Fixed high orthographic camera 65 degrees above ground, soft upper-left light, sees top and south face, realistic worn sand concrete and gray steel. Logical map axes align horizontal and vertical, avoid isometric diamonds. Whole object fits inside cell with 10% empty margin. No floor, no ground, no shadows outside object, no text or labels, truly transparent background.",
+    "path": "sources/m22/desert-rough.png"
+  },
+  {
+    "id": "desert-wall",
+    "prompt": "Use case: stylized-concept. Production desert tactical terrain sprite single object. Subject: straight raised sci-fi defensive concrete wall segment, sand-colored thick slab and dark steel supports, long axis EAST WEST horizontal screen, square 1x1 tactical tile footprint, no floor, consistent wide connection ends. Fixed high orthographic camera 65 degrees above ground, soft upper-left light, sees top and south face, realistic worn sand concrete and gray steel. Logical map axes align horizontal and vertical, avoid isometric diamonds. Whole object fits inside cell with 10% empty margin. No floor, no ground, no shadows outside object, no text or labels, truly transparent background.",
+    "path": "sources/m22/desert-wall.png"
+  },
+  {
+    "id": "desert-ground-1",
+    "prompt": "Use case: stylized-concept. Seamless flat tile texture for tactical desert game terrain, dusty tan sand with subtle fine stone grain and low contrast scattered tiny pebbles, overhead orthographic, no shadows or objects, uniform warm sand palette, fills entire square opaque image, opposite edges must seamlessly repeat, no border or text.",
+    "path": "sources/m22/desert-ground-1.png"
+  },
+  {
+    "id": "desert-crate",
+    "prompt": "Use case: stylized-concept. Production desert tactical terrain sprite single object. Subject: small rectangular sci-fi supply crate of gray steel with sand-colored top, orange corner brackets, tactical 1x1 cell footprint. Fixed high orthographic camera 65 degrees above ground, soft upper-left light, sees top and south face, realistic worn sand concrete and gray steel. Logical map axes align horizontal and vertical, avoid isometric diamonds. Whole object fits inside cell with 10% empty margin. No floor, no ground, no shadows outside object, no text or labels, truly transparent background.",
+    "path": "sources/m22/desert-crate.png"
+  },
+  {
+    "id": "desert-building",
+    "prompt": "Use case: stylized-concept. Production desert tactical terrain sprite single object. Subject: compact square sci-fi industrial desert building, sand-colored concrete walls and steel flat roof with vents, gray door on south face, tactical footprint 2x2 cells. Fixed high orthographic camera 65 degrees above ground, soft upper-left light, sees top and south face, realistic worn sand concrete and gray steel. Logical map axes align horizontal and vertical, avoid isometric diamonds. Whole object fits inside cell with 10% empty margin. No floor, no ground, no shadows outside object, no text or labels, truly transparent background.",
+    "path": "sources/m22/desert-building.png"
+  },
+  {
+    "id": "desert-high-ground",
+    "prompt": "Use case: stylized-concept. Production desert tactical terrain sprite single object. Subject: compact raised rocky sandstone ledge with nearly flat upper surface, block of desert rock, tactical 1x1 cell footprint. Fixed high orthographic camera 65 degrees above ground, soft upper-left light, sees top and south face, realistic worn sand concrete and gray steel. Logical map axes align horizontal and vertical, avoid isometric diamonds. Whole object fits inside cell with 10% empty margin. No floor, no ground, no shadows outside object, no text or labels, truly transparent background.",
+    "path": "sources/m22/desert-high-ground.png"
+  },
+  {
+    "id": "desert-wall-corner",
+    "prompt": "Use case: stylized-concept. Production desert tactical terrain sprite sheet. EXACTLY FOUR objects in strict 2x2 equal square cell grid, four different vertical-axis orientations of same object with fixed camera, never rotate the bitmap in screen plane. Subject: right-angle L shaped concrete defensive wall connecting N and E, E and S, S and W, W and N in that order. Fixed high orthographic camera 65 degrees above ground, soft upper-left light, sees top and south face, realistic worn sand concrete and gray steel. Logical map axes align horizontal and vertical, avoid isometric diamonds. Whole object fits inside cell with 10% empty margin. No floor, no ground, no shadows outside object, no text or labels, truly transparent background.",
+    "path": "sources/m22/desert-wall-corner.png"
+  },
+  {
+    "id": "desert-wall-end",
+    "prompt": "Use case: stylized-concept. Production desert tactical terrain sprite sheet. EXACTLY FOUR objects in strict 2x2 equal square cell grid, four different vertical-axis orientations of same object with fixed camera, never rotate the bitmap in screen plane. Subject: short defensive concrete wall segment with one capped end, other uncapped connection faces N, E, S, W in that order. Fixed high orthographic camera 65 degrees above ground, soft upper-left light, sees top and south face, realistic worn sand concrete and gray steel. Logical map axes align horizontal and vertical, avoid isometric diamonds. Whole object fits inside cell with 10% empty margin. No floor, no ground, no shadows outside object, no text or labels, truly transparent background.",
+    "path": "sources/m22/desert-wall-end.png"
+  },
+  {
+    "id": "desert-gate",
+    "prompt": "Use case: stylized-concept. Production desert tactical terrain sprite sheet. EXACTLY FOUR objects in strict 2x2 equal square cell grid, four different vertical-axis orientations of same object with fixed camera, never rotate the bitmap in screen plane. Subject: compact sci-fi steel gate supported by two sandy concrete pillars, closed barrier with orange indicator, four vertical rotations N E S W. Fixed high orthographic camera 65 degrees above ground, soft upper-left light, sees top and south face, realistic worn sand concrete and gray steel. Logical map axes align horizontal and vertical, avoid isometric diamonds. Whole object fits inside cell with 10% empty margin. No floor, no ground, no shadows outside object, no text or labels, truly transparent background.",
+    "path": "sources/m22/desert-gate.png"
+  },
+  {
+    "id": "desert-pipe-straight",
+    "prompt": "Use case: stylized-concept. Production desert tactical terrain sprite sheet. EXACTLY FOUR objects in strict 2x2 equal square cell grid, four different vertical-axis orientations of same object with fixed camera, never rotate the bitmap in screen plane. Subject: thick gray industrial pipe on two short metal supports, four vertical rotations N E S W. Fixed high orthographic camera 65 degrees above ground, soft upper-left light, sees top and south face, realistic worn sand concrete and gray steel. Logical map axes align horizontal and vertical, avoid isometric diamonds. Whole object fits inside cell with 10% empty margin. No floor, no ground, no shadows outside object, no text or labels, truly transparent background.",
+    "path": "sources/m22/desert-pipe-straight.png"
+  },
+  {
+    "id": "desert-pipe-corner",
+    "prompt": "Use case: stylized-concept. Production desert tactical terrain sprite sheet. EXACTLY FOUR objects in strict 2x2 equal square cell grid, four different vertical-axis orientations of same object with fixed camera, never rotate the bitmap in screen plane. Subject: thick gray industrial pipe bent at right angle, connections N E, E S, S W, W N in that order. Fixed high orthographic camera 65 degrees above ground, soft upper-left light, sees top and south face, realistic worn sand concrete and gray steel. Logical map axes align horizontal and vertical, avoid isometric diamonds. Whole object fits inside cell with 10% empty margin. No floor, no ground, no shadows outside object, no text or labels, truly transparent background.",
+    "path": "sources/m22/desert-pipe-corner.png"
+  },
+  {
+    "id": "desert-pipe-t",
+    "prompt": "Use case: stylized-concept. Production desert tactical terrain sprite sheet. EXACTLY FOUR objects in strict 2x2 equal square cell grid, four different vertical-axis orientations of same object with fixed camera, never rotate the bitmap in screen plane. Subject: thick gray industrial T junction pipe on short steel supports, connections N E S, E S W, S W N, W N E in that order. Fixed high orthographic camera 65 degrees above ground, soft upper-left light, sees top and south face, realistic worn sand concrete and gray steel. Logical map axes align horizontal and vertical, avoid isometric diamonds. Whole object fits inside cell with 10% empty margin. No floor, no ground, no shadows outside object, no text or labels, truly transparent background.",
+    "path": "sources/m22/desert-pipe-t.png"
+  },
+  {
+    "id": "desert-wall-broken",
+    "prompt": "Use case: stylized-concept. Production desert tactical terrain sprite sheet. EXACTLY FOUR objects in strict 2x2 equal square cell grid, four different vertical-axis orientations of same object with fixed camera, never rotate the bitmap in screen plane. Subject: broken concrete defensive wall with jagged breach and exposed reinforcement, four vertical rotations N E S W. Fixed high orthographic camera 65 degrees above ground, soft upper-left light, sees top and south face, realistic worn sand concrete and gray steel. Logical map axes align horizontal and vertical, avoid isometric diamonds. Whole object fits inside cell with 10% empty margin. No floor, no ground, no shadows outside object, no text or labels, truly transparent background.",
+    "path": "sources/m22/desert-wall-broken.png"
+  },
+  {
+    "id": "desert-debris",
+    "prompt": "Use case: stylized-concept. Production desert tactical terrain sprite single object. Subject: compact low pile of broken sandy concrete chunks and steel scraps on transparent background. Fixed high orthographic camera 65 degrees above ground, soft upper-left light, sees top and south face, realistic worn sand concrete and gray steel. Logical map axes align horizontal and vertical, avoid isometric diamonds. Whole object fits inside cell with 10% empty margin. No floor, no ground, no shadows outside object, no text or labels, truly transparent background.",
+    "path": "sources/m22/desert-debris.png"
+  },
+  {
+    "id": "desert-wall-corner",
+    "prompt": "Use case: precise-object-edit. Correct the attached production sprite sheet, maintaining worn concrete/steel materials. Make all FOUR L corners geometrically different. Position joint at center of each cell. TOP LEFT has one wall arm extending UP and one RIGHT (shape └). TOP RIGHT has one arm DOWN and one RIGHT (shape ┌). BOTTOM LEFT has one arm DOWN and one LEFT (shape ┐). BOTTOM RIGHT has one arm UP and one LEFT (shape ┘). Each pair perpendicular, exactly two arms. Same thickness, same height, fixed camera looking down 65 degrees and unchanged upper-left lighting, no duplicate corners. Strict 2 columns x 2 rows of equal square cells, each object fully within its own cell with transparent empty margin. Truly transparent alpha outside objects. No text, labels, drawn separator lines, matte, grid or ground shadow.",
+    "reference": "C:/Users/467/Documents/GitHub/sro/art/mechs/production/sources/m22/desert-wall-corner.png",
+    "path": "sources/m22/desert-wall-corner.png",
+    "revision": 2
+  },
+  {
+    "id": "desert-pipe-corner",
+    "prompt": "Use case: precise-object-edit. Correct the attached production sprite sheet, maintaining worn concrete/steel materials. Make FOUR clearly different right-angle pipe elbows with joint at center of each cell. TOP LEFT branches go UP and RIGHT (shape └). TOP RIGHT branches go DOWN and RIGHT (shape ┌). BOTTOM LEFT branches go DOWN and LEFT (shape ┐). BOTTOM RIGHT branches go UP and LEFT (shape ┘). Exactly two open ends per elbow, round pipe material, constant diameter, no duplicate frames. Fixed high camera and upper-left lighting. Strict 2 columns x 2 rows of equal square cells, each object fully within its own cell with transparent empty margin. Truly transparent alpha outside objects. No text, labels, drawn separator lines, matte, grid or ground shadow.",
+    "reference": "C:/Users/467/Documents/GitHub/sro/art/mechs/production/sources/m22/desert-pipe-corner.png",
+    "path": "sources/m22/desert-pipe-corner.png",
+    "revision": 2
+  },
+  {
+    "id": "desert-wall-end",
+    "prompt": "Use case: precise-object-edit. Correct the attached production sprite sheet, maintaining worn concrete/steel materials. Four single-ended wall modules centered in their cells. Every segment extends from center toward ONLY one edge, with capped center end. TOP LEFT segment extends UP toward N, TOP RIGHT extends RIGHT toward E, BOTTOM LEFT extends DOWN toward S, BOTTOM RIGHT extends LEFT toward W. The four wall ground axes MUST differ on screen (vertical/horizontal), same height, thickness and camera. Strict 2 columns x 2 rows of equal square cells, each object fully within its own cell with transparent empty margin. Truly transparent alpha outside objects. No text, labels, drawn separator lines, matte, grid or ground shadow.",
+    "reference": "C:/Users/467/Documents/GitHub/sro/art/mechs/production/sources/m22/desert-wall-end.png",
+    "path": "sources/m22/desert-wall-end.png",
+    "revision": 2
+  },
+  {
+    "id": "desert-wall-broken",
+    "prompt": "Use case: precise-object-edit. Correct the attached production sprite sheet, maintaining worn concrete/steel materials. Remove all drawn white grid/separator lines completely. Keep four separate broken concrete wall segments centered in strict 2x2 equal-cell grid, real alpha between them. TOP LEFT and BOTTOM LEFT horizontal EW walls, TOP RIGHT and BOTTOM RIGHT vertical NS walls. Fixed camera 65 degrees above ground, maintain roof visibility, worn concrete and exposed reinforcement. No borders, no grid, no text. Strict 2 columns x 2 rows of equal square cells, each object fully within its own cell with transparent empty margin. Truly transparent alpha outside objects. No text, labels, drawn separator lines, matte, grid or ground shadow.",
+    "reference": "C:/Users/467/Documents/GitHub/sro/art/mechs/production/sources/m22/desert-wall-broken.png",
+    "path": "sources/m22/desert-wall-broken.png",
+    "revision": 2
+  },
+  {
+    "id": "walk-light-biped",
+    "prompt": "Use case: stylized-concept. Production WALK ANIMATION sprite sheet. ONLY slender light biped white ceramic pelvis, thin armored legs, small feet. NO torso, head or arms. Strict grid of 8 columns x 4 rows, 32 equal square cells, 2:1 landscape sheet. Every row shows directions N rear, NE rear-right, E right-facing side, SE front-right, S front, SW front-left, W left-facing, NW rear-left. Four rows are four phases of the SAME small step cycle: left leg forward, passing neutral, right leg forward, passing neutral. For tracks instead animate tread progression around wheel path. All phases at same waist height and socket position. Fixed high orthographic 65 degree camera, unchanged upper-left light, worn white armor and dark gunmetal. Full objects inside cells with margin, constant size. Truly transparent background no text no grid no floor.",
+    "path": "sources/m22/walk-light-biped.png",
+    "transparent_background": true,
+    "revision": "initial",
+    "provenance": "original session generation specification"
+  },
+  {
+    "id": "disabled-light-biped",
+    "prompt": "Use case: stylized-concept. Asset: production modular sprite sheet for SRO tactical mechs. Detailed worn ceramic armor and dark gunmetal 3D render, cyan player sensors or orange enemy sensors, fixed high orthographic camera 65 degrees above ground and fixed soft light upper left. Strict equal square-cell 4 columns x 2 rows grid, eight different views of ONE consistent component rotating vertically: row 1 N (REAR VIEW, only rear vents, NO face/visor/chest), NE (rear-right), E (right profile, forward points RIGHT), SE (front-right); row 2 S (front toward viewer, visor visible), SW (front-left), W (left profile, forward points LEFT), NW (rear-left). Never rotate the bitmap plane. Real transparent alpha, no text, no labels, no grid, no ground plane, no floor shadows. Each complete component centered inside its cell with 15% empty margins, all eight equal scale. Output landscape 2:1. ONLY the disabled, battle-damaged slender light biped white ceramic pelvis, thin armored legs, small feet. Legs remain in standing position supporting torso, crushed knees, exposed snapped pistons, black scorched armor and broken joints. Tracked chassis has broken track links and crushed wheels. No torso, head, weapons or arms. Same eight views as static chassis.",
+    "path": "sources/m22/disabled-light-biped.png",
+    "transparent_background": true,
+    "revision": "initial",
+    "provenance": "original session generation specification"
+  },
+  {
+    "id": "walk-medium-biped",
+    "prompt": "Use case: stylized-concept. Production WALK ANIMATION sprite sheet. ONLY medium biped white ceramic pelvis, armored legs and feet. NO torso, head or arms. Strict grid of 8 columns x 4 rows, 32 equal square cells, 2:1 landscape sheet. Every row shows directions N rear, NE rear-right, E right-facing side, SE front-right, S front, SW front-left, W left-facing, NW rear-left. Four rows are four phases of the SAME small step cycle: left leg forward, passing neutral, right leg forward, passing neutral. For tracks instead animate tread progression around wheel path. All phases at same waist height and socket position. Fixed high orthographic 65 degree camera, unchanged upper-left light, worn white armor and dark gunmetal. Full objects inside cells with margin, constant size. Truly transparent background no text no grid no floor.",
+    "path": "sources/m22/walk-medium-biped.png",
+    "transparent_background": true,
+    "revision": "initial",
+    "provenance": "original session generation specification"
+  },
+  {
+    "id": "disabled-medium-biped",
+    "prompt": "Use case: stylized-concept. Asset: production modular sprite sheet for SRO tactical mechs. Detailed worn ceramic armor and dark gunmetal 3D render, cyan player sensors or orange enemy sensors, fixed high orthographic camera 65 degrees above ground and fixed soft light upper left. Strict equal square-cell 4 columns x 2 rows grid, eight different views of ONE consistent component rotating vertically: row 1 N (REAR VIEW, only rear vents, NO face/visor/chest), NE (rear-right), E (right profile, forward points RIGHT), SE (front-right); row 2 S (front toward viewer, visor visible), SW (front-left), W (left profile, forward points LEFT), NW (rear-left). Never rotate the bitmap plane. Real transparent alpha, no text, no labels, no grid, no ground plane, no floor shadows. Each complete component centered inside its cell with 15% empty margins, all eight equal scale. Output landscape 2:1. ONLY the disabled, battle-damaged medium biped white ceramic pelvis, armored legs and feet. Legs remain in standing position supporting torso, crushed knees, exposed snapped pistons, black scorched armor and broken joints. Tracked chassis has broken track links and crushed wheels. No torso, head, weapons or arms. Same eight views as static chassis.",
+    "path": "sources/m22/disabled-medium-biped.png",
+    "transparent_background": true,
+    "revision": "initial",
+    "provenance": "original session generation specification"
+  },
+  {
+    "id": "walk-heavy-biped",
+    "prompt": "Use case: stylized-concept. Production WALK ANIMATION sprite sheet. ONLY massive heavy biped white ceramic pelvis, broad reinforced legs and big feet. NO torso, head or arms. Strict grid of 8 columns x 4 rows, 32 equal square cells, 2:1 landscape sheet. Every row shows directions N rear, NE rear-right, E right-facing side, SE front-right, S front, SW front-left, W left-facing, NW rear-left. Four rows are four phases of the SAME small step cycle: left leg forward, passing neutral, right leg forward, passing neutral. For tracks instead animate tread progression around wheel path. All phases at same waist height and socket position. Fixed high orthographic 65 degree camera, unchanged upper-left light, worn white armor and dark gunmetal. Full objects inside cells with margin, constant size. Truly transparent background no text no grid no floor.",
+    "path": "sources/m22/walk-heavy-biped.png",
+    "transparent_background": true,
+    "revision": "initial",
+    "provenance": "original session generation specification"
+  },
+  {
+    "id": "disabled-heavy-biped",
+    "prompt": "Use case: stylized-concept. Asset: production modular sprite sheet for SRO tactical mechs. Detailed worn ceramic armor and dark gunmetal 3D render, cyan player sensors or orange enemy sensors, fixed high orthographic camera 65 degrees above ground and fixed soft light upper left. Strict equal square-cell 4 columns x 2 rows grid, eight different views of ONE consistent component rotating vertically: row 1 N (REAR VIEW, only rear vents, NO face/visor/chest), NE (rear-right), E (right profile, forward points RIGHT), SE (front-right); row 2 S (front toward viewer, visor visible), SW (front-left), W (left profile, forward points LEFT), NW (rear-left). Never rotate the bitmap plane. Real transparent alpha, no text, no labels, no grid, no ground plane, no floor shadows. Each complete component centered inside its cell with 15% empty margins, all eight equal scale. Output landscape 2:1. ONLY the disabled, battle-damaged massive heavy biped white ceramic pelvis, broad reinforced legs and big feet. Legs remain in standing position supporting torso, crushed knees, exposed snapped pistons, black scorched armor and broken joints. Tracked chassis has broken track links and crushed wheels. No torso, head, weapons or arms. Same eight views as static chassis.",
+    "path": "sources/m22/disabled-heavy-biped.png",
+    "transparent_background": true,
+    "revision": "initial",
+    "provenance": "original session generation specification"
+  },
+  {
+    "id": "walk-tracks",
+    "prompt": "Use case: stylized-concept. Production WALK ANIMATION sprite sheet. ONLY low armored tracked platform, twin tank treads, circular waist mounting socket. NO torso, head or arms. Strict grid of 8 columns x 4 rows, 32 equal square cells, 2:1 landscape sheet. Every row shows directions N rear, NE rear-right, E right-facing side, SE front-right, S front, SW front-left, W left-facing, NW rear-left. Four rows are four phases of the SAME small step cycle: left leg forward, passing neutral, right leg forward, passing neutral. For tracks instead animate tread progression around wheel path. All phases at same waist height and socket position. Fixed high orthographic 65 degree camera, unchanged upper-left light, worn white armor and dark gunmetal. Full objects inside cells with margin, constant size. Truly transparent background no text no grid no floor.",
+    "path": "sources/m22/walk-tracks.png",
+    "transparent_background": true,
+    "revision": "initial",
+    "provenance": "original session generation specification"
+  },
+  {
+    "id": "disabled-tracks",
+    "prompt": "Use case: stylized-concept. Asset: production modular sprite sheet for SRO tactical mechs. Detailed worn ceramic armor and dark gunmetal 3D render, cyan player sensors or orange enemy sensors, fixed high orthographic camera 65 degrees above ground and fixed soft light upper left. Strict equal square-cell 4 columns x 2 rows grid, eight different views of ONE consistent component rotating vertically: row 1 N (REAR VIEW, only rear vents, NO face/visor/chest), NE (rear-right), E (right profile, forward points RIGHT), SE (front-right); row 2 S (front toward viewer, visor visible), SW (front-left), W (left profile, forward points LEFT), NW (rear-left). Never rotate the bitmap plane. Real transparent alpha, no text, no labels, no grid, no ground plane, no floor shadows. Each complete component centered inside its cell with 15% empty margins, all eight equal scale. Output landscape 2:1. ONLY the disabled, battle-damaged low armored tracked platform, twin tank treads, circular waist mounting socket. Legs remain in standing position supporting torso, crushed knees, exposed snapped pistons, black scorched armor and broken joints. Tracked chassis has broken track links and crushed wheels. No torso, head, weapons or arms. Same eight views as static chassis.",
+    "path": "sources/m22/disabled-tracks.png",
+    "transparent_background": true,
+    "revision": "initial",
+    "provenance": "original session generation specification"
+  },
+  {
+    "id": "broken-socket-left",
+    "prompt": "Use case: stylized-concept. Asset: production modular sprite sheet for SRO tactical mechs. Detailed worn ceramic armor and dark gunmetal 3D render, cyan player sensors or orange enemy sensors, fixed high orthographic camera 65 degrees above ground and fixed soft light upper left. Strict equal square-cell 4 columns x 2 rows grid, eight different views of ONE consistent component rotating vertically: row 1 N (REAR VIEW, only rear vents, NO face/visor/chest), NE (rear-right), E (right profile, forward points RIGHT), SE (front-right); row 2 S (front toward viewer, visor visible), SW (front-left), W (left profile, forward points LEFT), NW (rear-left). Never rotate the bitmap plane. Real transparent alpha, no text, no labels, no grid, no ground plane, no floor shadows. Each complete component centered inside its cell with 15% empty margins, all eight equal scale. Output landscape 2:1. ONLY a small destroyed left shoulder stump with torn circular metal socket, exposed cable ends and ragged white ceramic armor. No intact arm, no weapon, no torso, no legs. Compact attachment component in eight views.",
+    "path": "sources/m22/broken-socket-left.png",
+    "transparent_background": true,
+    "revision": "initial",
+    "provenance": "original session generation specification"
+  },
+  {
+    "id": "broken-socket-right",
+    "prompt": "Use case: stylized-concept. Asset: production modular sprite sheet for SRO tactical mechs. Detailed worn ceramic armor and dark gunmetal 3D render, cyan player sensors or orange enemy sensors, fixed high orthographic camera 65 degrees above ground and fixed soft light upper left. Strict equal square-cell 4 columns x 2 rows grid, eight different views of ONE consistent component rotating vertically: row 1 N (REAR VIEW, only rear vents, NO face/visor/chest), NE (rear-right), E (right profile, forward points RIGHT), SE (front-right); row 2 S (front toward viewer, visor visible), SW (front-left), W (left profile, forward points LEFT), NW (rear-left). Never rotate the bitmap plane. Real transparent alpha, no text, no labels, no grid, no ground plane, no floor shadows. Each complete component centered inside its cell with 15% empty margins, all eight equal scale. Output landscape 2:1. ONLY a small destroyed right shoulder stump with torn circular metal socket, exposed cable ends and ragged white ceramic armor. No intact arm, no weapon, no torso, no legs. Compact attachment component in eight views.",
+    "path": "sources/m22/broken-socket-right.png",
+    "transparent_background": true,
+    "revision": "initial",
+    "provenance": "original session generation specification"
+  },
+  {
+    "id": "wreck-light",
+    "prompt": "Use case: stylized-concept. Single production game sprite, a collapsed destroyed slim white light scout mech wreck with broken torso, dislocated legs and detached arm debris forming a compact horizontal heap. Fixed high orthographic camera 65 degrees, top-left light, detailed scorched armor and exposed dark steel. No standing robot, no flames, no floor or ground shadow, no text, completely transparent background. Complete compact wreck centered with generous margins.",
+    "path": "sources/m22/wreck-light.png",
+    "transparent_background": true,
+    "revision": "initial",
+    "provenance": "original session generation specification"
+  },
+  {
+    "id": "wreck-medium",
+    "prompt": "Use case: stylized-concept. Single production game sprite, a collapsed destroyed white medium military mech wreck with broken torso, dislocated legs and detached arm debris forming a compact horizontal heap. Fixed high orthographic camera 65 degrees, top-left light, detailed scorched armor and exposed dark steel. No standing robot, no flames, no floor or ground shadow, no text, completely transparent background. Complete compact wreck centered with generous margins.",
+    "path": "sources/m22/wreck-medium.png",
+    "transparent_background": true,
+    "revision": "initial",
+    "provenance": "original session generation specification"
+  },
+  {
+    "id": "wreck-heavy",
+    "prompt": "Use case: stylized-concept. Single production game sprite, a collapsed destroyed massive white heavy armored mech wreck with broken torso, dislocated legs and detached arm debris forming a compact horizontal heap. Fixed high orthographic camera 65 degrees, top-left light, detailed scorched armor and exposed dark steel. No standing robot, no flames, no floor or ground shadow, no text, completely transparent background. Complete compact wreck centered with generous margins.",
+    "path": "sources/m22/wreck-heavy.png",
+    "transparent_background": true,
+    "revision": "initial",
+    "provenance": "original session generation specification"
+  },
+  {
+    "id": "wreck-sniper",
+    "prompt": "Use case: stylized-concept. Single production game sprite, a collapsed destroyed narrow white sniper with optic mech wreck with broken torso, dislocated legs and detached arm debris forming a compact horizontal heap. Fixed high orthographic camera 65 degrees, top-left light, detailed scorched armor and exposed dark steel. No standing robot, no flames, no floor or ground shadow, no text, completely transparent background. Complete compact wreck centered with generous margins.",
+    "path": "sources/m22/wreck-sniper.png",
+    "transparent_background": true,
+    "revision": "initial",
+    "provenance": "original session generation specification"
+  },
+  {
+    "id": "wreck-bandit",
+    "prompt": "Use case: stylized-concept. Single production game sprite, a collapsed destroyed rust red salvaged bandit mech wreck with broken torso, dislocated legs and detached arm debris forming a compact horizontal heap. Fixed high orthographic camera 65 degrees, top-left light, detailed scorched armor and exposed dark steel. No standing robot, no flames, no floor or ground shadow, no text, completely transparent background. Complete compact wreck centered with generous margins.",
+    "path": "sources/m22/wreck-bandit.png",
+    "transparent_background": true,
+    "revision": "initial",
+    "provenance": "original session generation specification"
+  },
+  {
+    "id": "wreck-militia",
+    "prompt": "Use case: stylized-concept. Single production game sprite, a collapsed destroyed olive green militia mech wreck with broken torso, dislocated legs and detached arm debris forming a compact horizontal heap. Fixed high orthographic camera 65 degrees, top-left light, detailed scorched armor and exposed dark steel. No standing robot, no flames, no floor or ground shadow, no text, completely transparent background. Complete compact wreck centered with generous margins.",
+    "path": "sources/m22/wreck-militia.png",
+    "transparent_background": true,
+    "revision": "initial",
+    "provenance": "original session generation specification"
+  },
+  {
+    "id": "wreck-enemy-heavy",
+    "prompt": "Use case: stylized-concept. Single production game sprite, a collapsed destroyed black and crimson heavy enemy mech wreck with broken torso, dislocated legs and detached arm debris forming a compact horizontal heap. Fixed high orthographic camera 65 degrees, top-left light, detailed scorched armor and exposed dark steel. No standing robot, no flames, no floor or ground shadow, no text, completely transparent background. Complete compact wreck centered with generous margins.",
+    "path": "sources/m22/wreck-enemy-heavy.png",
+    "transparent_background": true,
+    "revision": "initial",
+    "provenance": "original session generation specification"
+  },
+  {
+    "id": "terminal-on",
+    "prompt": "Use case: stylized-concept. Single production tactical game object sprite: small upright tactical computer terminal on steel pedestal with bright cyan active screen. Fixed high orthographic 65 degree camera, sees roof and south face, light upper left, worn realistic 3D steel materials. Entire object centered with 12% empty margins. No terrain, no floor, no shadow outside object, no text, truly transparent background.",
+    "path": "sources/m22/terminal-on.png",
+    "transparent_background": true,
+    "revision": "initial",
+    "provenance": "original session generation specification"
+  },
+  {
+    "id": "terminal-off",
+    "prompt": "Use case: stylized-concept. Single production tactical game object sprite: small upright tactical computer terminal on steel pedestal with dark inactive cracked screen. Fixed high orthographic 65 degree camera, sees roof and south face, light upper left, worn realistic 3D steel materials. Entire object centered with 12% empty margins. No terrain, no floor, no shadow outside object, no text, truly transparent background.",
+    "path": "sources/m22/terminal-off.png",
+    "transparent_background": true,
+    "revision": "initial",
+    "provenance": "original session generation specification"
+  },
+  {
+    "id": "generator-intact",
+    "prompt": "Use case: stylized-concept. Single production tactical game object sprite: compact industrial mine power generator, sturdy square sand-gray armor housing, two metal cylindrical coils and amber energy lights. Fixed high orthographic 65 degree camera, sees roof and south face, light upper left, worn realistic 3D steel materials. Entire object centered with 12% empty margins. No terrain, no floor, no shadow outside object, no text, truly transparent background.",
+    "path": "sources/m22/generator-intact.png",
+    "transparent_background": true,
+    "revision": "initial",
+    "provenance": "original session generation specification"
+  },
+  {
+    "id": "generator-destroyed",
+    "prompt": "Use case: stylized-concept. Single production tactical game object sprite: destroyed industrial mine power generator, smashed sand-gray square housing, broken cylindrical coils and dark lamps. Fixed high orthographic 65 degree camera, sees roof and south face, light upper left, worn realistic 3D steel materials. Entire object centered with 12% empty margins. No terrain, no floor, no shadow outside object, no text, truly transparent background.",
+    "path": "sources/m22/generator-destroyed.png",
+    "transparent_background": true,
+    "revision": "initial",
+    "provenance": "original session generation specification"
+  },
+  {
+    "id": "relay-intact",
+    "prompt": "Use case: stylized-concept. Single production tactical game object sprite: compact communication relay on sand-gray base, upright metal antenna dish with cyan indicators. Fixed high orthographic 65 degree camera, sees roof and south face, light upper left, worn realistic 3D steel materials. Entire object centered with 12% empty margins. No terrain, no floor, no shadow outside object, no text, truly transparent background.",
+    "path": "sources/m22/relay-intact.png",
+    "transparent_background": true,
+    "revision": "initial",
+    "provenance": "original session generation specification"
+  },
+  {
+    "id": "relay-destroyed",
+    "prompt": "Use case: stylized-concept. Single production tactical game object sprite: destroyed communication relay on sand-gray base, bent broken antenna dish and dark indicators. Fixed high orthographic 65 degree camera, sees roof and south face, light upper left, worn realistic 3D steel materials. Entire object centered with 12% empty margins. No terrain, no floor, no shadow outside object, no text, truly transparent background.",
+    "path": "sources/m22/relay-destroyed.png",
+    "transparent_background": true,
+    "revision": "initial",
+    "provenance": "original session generation specification"
+  },
+  {
+    "id": "rescue-pod-closed",
+    "prompt": "Use case: stylized-concept. Single production tactical game object sprite: closed oval rescue capsule with white armor, orange markings and sealed hatch. Fixed high orthographic 65 degree camera, sees roof and south face, light upper left, worn realistic 3D steel materials. Entire object centered with 12% empty margins. No terrain, no floor, no shadow outside object, no text, truly transparent background.",
+    "path": "sources/m22/rescue-pod-closed.png",
+    "transparent_background": true,
+    "revision": "initial",
+    "provenance": "original session generation specification"
+  },
+  {
+    "id": "rescue-pod-open",
+    "prompt": "Use case: stylized-concept. Single production tactical game object sprite: open oval white rescue capsule, hatch folded aside, visible empty seat and green interior lamp. Fixed high orthographic 65 degree camera, sees roof and south face, light upper left, worn realistic 3D steel materials. Entire object centered with 12% empty margins. No terrain, no floor, no shadow outside object, no text, truly transparent background.",
+    "path": "sources/m22/rescue-pod-open.png",
+    "transparent_background": true,
+    "revision": "initial",
+    "provenance": "original session generation specification"
+  },
+  {
+    "id": "tractor-intact",
+    "prompt": "Use case: stylized-concept. Single production tactical game object sprite: small industrial tracked tow tractor, wide gray armored chassis, orange cab and tow hook, no weapons. Fixed high orthographic 65 degree camera, sees roof and south face, light upper left, worn realistic 3D steel materials. Entire object centered with 12% empty margins. No terrain, no floor, no shadow outside object, no text, truly transparent background.",
+    "path": "sources/m22/tractor-intact.png",
+    "transparent_background": true,
+    "revision": "initial",
+    "provenance": "original session generation specification"
+  },
+  {
+    "id": "tractor-destroyed",
+    "prompt": "Use case: stylized-concept. Single production tactical game object sprite: destroyed small industrial tracked tow tractor, collapsed orange cab, broken tracks and tow hook. Fixed high orthographic 65 degree camera, sees roof and south face, light upper left, worn realistic 3D steel materials. Entire object centered with 12% empty margins. No terrain, no floor, no shadow outside object, no text, truly transparent background.",
+    "path": "sources/m22/tractor-destroyed.png",
+    "transparent_background": true,
+    "revision": "initial",
+    "provenance": "original session generation specification"
+  }
+]

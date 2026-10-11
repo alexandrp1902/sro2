@@ -344,6 +344,12 @@ describe('M20a story missions', () => {
     expect(activeHint(here.active!, 'sol', false, names)).toBe('летите в Nova');
   });
 
+  it('points collected story cargo to its hand-in dock instead of the guarded wreck', () => {
+    const active = { offer: offer({ kind: 'collect', item: 'driveBlock', count: 4, system: 'nova', place: 'pl:novaPrime', story: story() }), progress: 4 };
+    expect(activeHint(active, 'barnard', false, names)).toBe(`доставьте груз в ${names.place('pl:novaPrime')}`);
+    expect(activeHint(active, 'nova', true, names)).toBe(`сдайте груз в ${names.place('pl:novaPrime')} на вкладке «Задания»`);
+  });
+
   it('does not count a delivery: there is nothing to count', () => {
     const run = withActive({ offer: offer({ kind: 'deliver', count: 1, system: 'nova', place: 'st:nova', story: story({ objective: 'Довезите секции' }) }), progress: 0 });
     expect(activeLine(run.active!, names)).toBe('Довезите секции');
@@ -457,6 +463,16 @@ describe('M20b: кампания пройдена', () => {
     expect(storyJournal(passed)).toEqual([
       'Машину мы собрали. Пилота — нет.',
       'Часть первая пройдена. Продолжение следует.',
+    ]);
+  });
+
+  it('points to the available sortie instead of asking the pilot to wait for continuation', () => {
+    expect(storyJournal({
+      ...passed,
+      next: { mission: 'relay', title: 'Ретранслятор', giver: 'Ева Морен', role: 'инженер рудника', place: 'pl:novaPrime', system: 'nova' },
+    }, () => 'Нова-Прайм')).toEqual([
+      'Машину мы собрали. Пилота — нет.',
+      'Первая вылазка: подключитесь к ретранслятору — Нова-Прайм.',
     ]);
   });
 });

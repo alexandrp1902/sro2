@@ -15,6 +15,7 @@ import {
   type MechEventsMsg,
   type MechRefusedMsg,
   type MechStateMsg,
+  type WorkshopStateMsg,
   type MissionsMsg,
   type NameFreeMsg,
   type NoticeMsg,
@@ -114,6 +115,8 @@ export class Connection {
   onInvasion: ((message: InvasionMsg) => void) | null = null;
   /** Наземный бой мехов (M21): поле, события хода, итог и отказы. */
   onMech: ((message: MechMessage) => void) | null = null;
+  onTerritory: ((message: import('../mech/territoryRules').TerritoryStateMsg) => void) | null = null;
+  onWorkshop: ((message: WorkshopStateMsg) => void) | null = null;
 
   private ws: WebSocket | null = null;
   private credentials: Credentials | null = null;
@@ -357,6 +360,12 @@ export class Connection {
         break;
       case 'invasion':
         this.onInvasion?.(message);
+        break;
+      case 'workshopState':
+        this.onWorkshop?.(message);
+        break;
+      case 'territoryState':
+        this.onTerritory?.(message);
         break;
       case 'mechState':
       case 'mechEvents':

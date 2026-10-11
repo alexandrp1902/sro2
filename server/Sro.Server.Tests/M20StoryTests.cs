@@ -36,6 +36,7 @@ public sealed class M20StoryTests : IDisposable
             ["pirate"] = new("Пират", "light", "pulse", Hp: 300, Shield: 100, Damage: 0.45, Bounty: 60),
             // Повстанец — пират по механике: именно поэтому за него и надо отдельно не платить.
             ["rebel"] = new("Повстанец", "light", "pulse", Hp: 200, Shield: 50, Damage: 0.3, Bounty: 60),
+            ["ranger"] = new("Рейнджер", "light", "pulse", Hp: 200, Shield: 50, Damage: 0.3, Faction: NpcType.RangerFaction),
         });
 
     private static readonly LootRules Loot = new(
@@ -88,12 +89,13 @@ public sealed class M20StoryTests : IDisposable
                     Reward: 300,
                     Finish: StoryRules.FinishChoice,
                     Point: new StoryPoint(-1000, 1000),
+                    Spawns: [new StorySpawn(StoryRules.OnPickup, "ranger", 1, 2, "Патруль")],
                     Choice: new StoryChoice(
                         "Отдадите?",
                         [
                             new StoryOption("Отдать", "given", ["Принято."], Take: true),
-                            new StoryOption("Оставить", "kept", ["Мы вас не нашли."]),
-                        ])),
+                            new StoryOption("Оставить", "kept", ["Отказ принят."], Hostile: true),
+                        ], HoldRadius: 350, EscapeFlag: "kept")),
             ]),
     });
 
@@ -505,5 +507,180 @@ public sealed class M20StoryTests : IDisposable
         Dock(a);
         Do(a, r => r.Mission(a, Protocol.CompleteMission, null));
         Assert.Null(Missions_(a).StoryActive);
+    }
+
+    private FakeConnection AtInspectionCargo()
+    {
+        var a = Pilot();
+        MakeFriend(a);
+        Finish(a);
+        Dock(a);
+        TakeStory(a);
+        Undock(a);
+        JumpTo(a, "port");
+        Dock(a);
+        TakeStory(a);
+        Undock(a);
+        var drop = Assert.Single(RoomOf(a).Drops, d => d.Owner == IdOf(a));
+        Place(a, drop.X, drop.Y);
+        RoomOf(a).SetLootTarget(a, drop.Id);
+        return a;
+    }
+
+    [Fact]
+    public void InspectionStopsTheShipAndWaitsWithoutATimerOrOldThrottle()
+    {
+        var a = AtInspectionCargo();
+        var player = PlayerOf(a);
+        player.Ship.Vx = 300;
+        player.Ship.Vy = -200;
+        RoomOf(a).Input(a, 1, new MoveInput(1, 0, 1));
+        RoomOf(a).Input(a, 2, new MoveInput(1, 0, 1));
+        a.Messages.Clear();
+        RoomOf(a).Grab(a);
+        var origin = player.Ship;
+        Assert.True(a.Last<DialogMsg>().Stop);
+        Assert.DoesNotContain(a.Messages, m => m is NoticeMsg { Code: Protocol.AmbushNotice });
+        Assert.Equal(0, origin.Vx);
+        Assert.Equal(0, origin.Vy);
+        // Вход с прежней тягой мог быть в сети, когда сервер начал досмотр.
+        RoomOf(a).Input(a, 3, new MoveInput(1, 0, 1));
+        var health = player.Hp + player.Shield;
+        Steps(60 * SimConfig.TickRate);
+        Assert.Equal((origin.X, origin.Y), (player.Ship.X, player.Ship.Y));
+        Assert.Equal(health, player.Hp + player.Shield);
+        Assert.All(RoomOf(a).Pirates.Where(n => n.Story), n =>
+        {
+            Assert.True(n.AwaitingStoryChoice);
+            Assert.False(n.FireHeld);
+            Assert.Equal(0, n.TargetId);
+        });
+        Assert.Empty(player.StoryOf(Campaign).Flags);
+        Assert.NotNull(player.Missions.Story);
+    }
+
+    [Fact]
+    public void GivingTheRecordsEndsInspectionPeacefully()
+    {
+        var a = AtInspectionCargo();
+        RoomOf(a).Grab(a);
+        Do(a, r => r.Mission(a, Protocol.ChooseStory, "given"));
+        Assert.All(RoomOf(a).Pirates.Where(n => n.Story), n =>
+        {
+            Assert.False(n.AwaitingStoryChoice);
+            Assert.Equal(PirateState.Leave, n.State);
+            Assert.False(n.FireHeld);
+        });
+        Assert.Null(PlayerOf(a).Missions.Story);
+        Assert.Equal(0, PlayerOf(a).Cargo.Count("relic"));
+    }
+
+    [Fact]
+    public void RefusingTheRecordsStartsARealFightAfterTheChoice()
+    {
+        var a = AtInspectionCargo();
+        RoomOf(a).Grab(a);
+        Do(a, r => r.Mission(a, Protocol.ChooseStory, "ransom"));
+        Assert.All(RoomOf(a).Pirates.Where(n => n.Story), n => Assert.True(n.AwaitingStoryChoice));
+        Do(a, r => r.Mission(a, Protocol.ChooseStory, "kept"));
+        var player = PlayerOf(a);
+        Assert.All(RoomOf(a).Pirates.Where(n => n.Story), n =>
+        {
+            Assert.False(n.AwaitingStoryChoice);
+            Assert.Equal(PirateState.Attack, n.State);
+            Assert.Equal(player.Id, n.TargetId);
+        });
+        var health = player.Hp + player.Shield;
+        Steps(10 * SimConfig.TickRate);
+        Assert.True(player.Hp + player.Shield < health);
+        Assert.Contains("kept", player.StoryOf(Campaign).Flags);
+        Assert.Equal(1, player.Cargo.Count("relic"));
+        Assert.Null(player.Missions.Story);
+    }
+
+    [Fact]
+    public void LeavingTheInspectionRadiusCountsAsRefusalAndCannotBeChangedLater()
+    {
+        var a = AtInspectionCargo();
+        RoomOf(a).Grab(a);
+        var player = PlayerOf(a);
+        var x = player.Ship.X;
+        var y = player.Ship.Y;
+        Place(a, x + 349, y);
+        Steps(1);
+        Assert.NotNull(player.Missions.Story);
+        Place(a, x + 351, y);
+        Steps(1);
+        Assert.Contains("kept", player.StoryOf(Campaign).Flags);
+        Assert.Null(player.Missions.Story);
+        Assert.All(RoomOf(a).Pirates.Where(n => n.Story), n => Assert.False(n.AwaitingStoryChoice));
+        Do(a, r => r.Mission(a, Protocol.ChooseStory, "given"));
+        Assert.DoesNotContain("given", player.StoryOf(Campaign).Flags);
+        Assert.Equal(1, player.Cargo.Count("relic"));
+    }
+
+    [Fact]
+    public void InspectionAllowsFlyingAwayAfterTheClientAcknowledgesTheStop()
+    {
+        var a = AtInspectionCargo();
+        RoomOf(a).Grab(a);
+        RoomOf(a).Input(a, 1, new MoveInput(1, 0, 0));
+        RoomOf(a).Input(a, 2, new MoveInput(1, 0, 1));
+        Steps(1);
+        RoomOf(a).Input(a, 3, new MoveInput(1, 0, 1));
+        Steps(5 * SimConfig.TickRate);
+        Assert.Contains("kept", PlayerOf(a).StoryOf(Campaign).Flags);
+    }
+
+    [Fact]
+    public void ReconnectingDuringInspectionRestoresTheQuestionWithoutAttacking()
+    {
+        var a = AtInspectionCargo();
+        RoomOf(a).Grab(a);
+        _galaxy.Disconnect(a);
+        Steps(10);
+        var login = _accounts.Login("Alice", Password);
+        var back = new FakeConnection(++_nextConnection);
+        _galaxy.JoinAccount(back, login.Id, login.Name);
+        Assert.True(back.Last<DialogMsg>().Stop);
+        Assert.Equal(["given", "kept"], back.Last<DialogMsg>().Options!.Select(o => o.Flag));
+        Assert.All(RoomOf(back).Pirates.Where(n => n.Story), n => Assert.True(n.AwaitingStoryChoice));
+        Do(back, r => r.Mission(back, Protocol.ChooseStory, "given"));
+        Assert.Contains("given", PlayerOf(back).StoryOf(Campaign).Flags);
+    }
+
+    [Fact]
+    public void AfterServerRestartTheRecordsStillLeadToAnInspection()
+    {
+        var a = AtInspectionCargo();
+        RoomOf(a).Grab(a);
+        _galaxy.Disconnect(a);
+        _accounts.Flush();
+        _galaxy = New();
+        var login = _accounts.Login("Alice", Password);
+        var back = new FakeConnection(++_nextConnection);
+        _galaxy.JoinAccount(back, login.Id, login.Name);
+        Assert.Equal(1, PlayerOf(back).Cargo.Count("relic"));
+        Undock(back);
+        Assert.True(back.Last<DialogMsg>().Stop);
+        Assert.Equal(2, RoomOf(back).Pirates.Count(n => n.AwaitingStoryChoice));
+        Do(back, r => r.Mission(back, Protocol.ChooseStory, "given"));
+        Assert.Null(PlayerOf(back).Missions.Story);
+    }
+
+    [Fact]
+    public void LeavingTheSystemEndsTheInspectionPursuit()
+    {
+        var a = AtInspectionCargo();
+        RoomOf(a).Grab(a);
+        Do(a, r => r.Mission(a, Protocol.ChooseStory, "kept"));
+        var guards = RoomOf(a).Pirates.Where(n => n.Story).ToArray();
+        JumpTo(a, "home");
+        Assert.All(guards, n =>
+        {
+            Assert.Equal(PirateState.Leave, n.State);
+            Assert.Equal(0, n.TargetId);
+            Assert.False(n.FireHeld);
+        });
     }
 }

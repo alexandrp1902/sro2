@@ -1,67 +1,64 @@
 namespace Sro.Sim.Mech;
 
-/// <summary>
-/// ИИ налётчика (M21): цель — ближайший мех другой стороны; из всех клеток, куда можно дойти (и своей), выбирается та,
-/// откуда шанс попасть по ней выше всего — дальность, стоял ли, сторона цели уже учтены в шансе, поэтому
-/// налётчик сам держит оптимум и заходит во фланг. Выстрелить неоткуда — идёт к цели кратчайшим путём.
-/// Ничьи решаются числом шагов и индексом клетки: бой по одному сиду всегда один и тот же.
-/// </summary>
+/// <summary>Stable search over legal cells, targets and both hands. Objective actors are real targets.</summary>
 public static class MechAi
 {
     public static List<MechCommand> Decide(MechBattle battle)
     {
-        var commands = new List<MechCommand>();
-        if (battle.Current is not { } u) return commands;
-        // Сторона цели — противоположная, а не всегда игрок: тем же ИИ тесты и смоук доигрывают бой за игрока.
-        var enemies = u.Side == MechBattle.PlayerSide ? MechBattle.EnemySide : MechBattle.PlayerSide;
-        var target = battle.Living(enemies)
-            .OrderBy(t => MechField.Distance(u.X, u.Y, t.X, t.Y))
-            .ThenBy(t => t.Id, StringComparer.Ordinal)
-            .FirstOrDefault();
-        if (target is null)
-        {
-            commands.Add(new MechCommand(MechCommand.EndAct));
-            return commands;
-        }
-
+        if (battle.Current is not { } u) return [];
+        var side = u.Side == MechBattle.PlayerSide ? MechBattle.EnemySide : MechBattle.PlayerSide;
+        var targets = battle.Living(side).OrderBy(t => t.Id, StringComparer.Ordinal).ToArray();
         var field = battle.Field;
         var here = field.Index(u.X, u.Y);
-        var reach = battle.Reach();
-        var cells = new List<(int Cell, int Steps)> { (here, 0) };
-        cells.AddRange(reach.OrderBy(p => p.Key).Select(p => (p.Key, p.Value)));
-
-        (int Cell, int Steps, int Chance)? best = null;
+        var cells = new[] { (Cell: here, Steps: 0) }.Concat(battle.Reach().OrderBy(p => p.Key).Select(p => (Cell: p.Key, Steps: p.Value))).ToArray();
+        var ai = battle.Rules.AiDef;
+        bool Capture(int cell) => battle.Mission.Objective?.Kind == "capture" && battle.Mission.Objective.Zone!.Any(p => field.Index(p.X, p.Y) == cell);
+        (int Cell, int Steps, string Target, string Hand, string? Part, double Score)? best = null;
         foreach (var (cell, steps) in cells)
+        foreach (var target in targets)
+        foreach (var hand in new[] { "right", "left" })
         {
-            var chance = battle.Chance(u, cell % field.Width, cell / field.Width, steps, battle.MoveRange, target, aimed: false);
-            if (chance is not { } c) continue;
-            if (best is null || c > best.Value.Chance || (c == best.Value.Chance && steps < best.Value.Steps))
-                best = (cell, steps, c);
+            if (battle.Gun(u, hand) is not { } gun) continue;
+            var x = cell % field.Width; var y = cell / field.Width;
+            if (battle.Chance(u, x, y, steps, battle.MoveRange, target, false, hand) is not { } chance) continue;
+            var from = MechCombat.Side(x, y, target.X, target.Y, target.Dir);
+            var block = battle.ShieldOf(target) is { } shield ? MechCombat.BlockChance(battle.Rules.CombatDef, shield.Shield,
+                shield.Arm, target.PartAlive(shield.Arm), from) : 0;
+            var score = chance * gun.Weapon.Damage / 100.0 - block * ai.ShieldPenalty;
+            score += (battle.Gun(target)?.Weapon.Damage ?? 0) * ai.ThreatPriority;
+            if (from != MechSide.Front) score += ai.FlankScore;
+            if (target == battle.ObjectiveUnit) score += ai.ObjectivePriority;
+            if (Capture(cell)) score += ai.CapturePriority;
+            string? part = null;
+            foreach (var arm in new[] { MechPart.Right, MechPart.Left })
+            {
+                var id = arm == MechPart.Right ? target.Def.Right : target.Def.Left;
+                if (target.PartAlive(arm) && battle.Rules.Weapon(id) is not null && target.Hp[(int)arm] <= MechCombat.Damage(gun.Weapon.Damage, battle.Armor(target, arm)))
+                { part = MechCombat.Name(arm); score += ai.FinishArmScore; break; }
+            }
+            if (best is null || score > best.Value.Score || score == best.Value.Score && steps < best.Value.Steps)
+                best = (cell, steps, target.Id, hand, part, score);
         }
-
+        var commands = new List<MechCommand>();
         if (best is { } shot)
         {
-            if (shot.Cell != here) commands.Add(new MechCommand(MechCommand.MoveAct, shot.Cell % field.Width, shot.Cell / field.Width));
-            commands.Add(new MechCommand(MechCommand.AttackAct, Target: target.Id));
+            if (shot.Cell != here) commands.Add(new("move", shot.Cell % field.Width, shot.Cell / field.Width));
+            commands.Add(new("attack", Target: shot.Target, Part: shot.Part, Hand: shot.Hand));
             return commands;
         }
-
-        // Выстрелить неоткуда: ближе к цели по земле, а не по прямой — иначе упрётся в стену.
-        var toTarget = field.Distances(target.X, target.Y, battle.Occupied(u));
-        var bestCell = here;
-        var bestDist = toTarget.GetValueOrDefault(here, int.MaxValue);
-        foreach (var (cell, _) in reach.OrderBy(p => p.Key))
+        MechPoint? goal = battle.Mission.Objective?.Kind == "capture"
+            ? battle.Mission.Objective.Zone!.OrderBy(p => MechField.Distance(u.X, u.Y, p.X, p.Y)).ThenBy(p => field.Index(p.X, p.Y)).First()
+            : null;
+        var preferred = targets.OrderBy(t => t == battle.ObjectiveUnit ? 0 : 1)
+            .ThenBy(t => MechField.Distance(u.X, u.Y, t.X, t.Y)).ThenBy(t => t.Id, StringComparer.Ordinal).FirstOrDefault();
+        goal ??= preferred is not null ? new(preferred.X, preferred.Y) : null;
+        if (goal is not null)
         {
-            var d = toTarget.GetValueOrDefault(cell, int.MaxValue);
-            if (d < bestDist)
-            {
-                bestDist = d;
-                bestCell = cell;
-            }
+            var dist = field.Distances(goal.X, goal.Y, battle.Occupied(u));
+            var cell = cells.OrderBy(c => dist.GetValueOrDefault(c.Cell, int.MaxValue)).ThenBy(c => c.Steps).ThenBy(c => c.Cell).First().Cell;
+            if (cell != here) commands.Add(new("move", cell % field.Width, cell / field.Width));
         }
-        var (x, y) = (bestCell % field.Width, bestCell / field.Width);
-        if (bestCell != here) commands.Add(new MechCommand(MechCommand.MoveAct, x, y));
-        commands.Add(new MechCommand(MechCommand.EndAct, Dir: MechField.Direction(target.X - x, target.Y - y)));
+        commands.Add(new("end"));
         return commands;
     }
 }

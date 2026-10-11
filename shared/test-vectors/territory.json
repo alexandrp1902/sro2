@@ -1,0 +1,6 @@
+{
+  "reset": [{"control":100,"start":0,"expected":67},{"control":0,"start":100,"expected":33},{"control":75,"start":0,"expected":50},{"control":25,"start":100,"expected":50}],
+  "service": [{"lost":0,"max":100,"discount":false,"titanium":0,"energy":0},{"lost":1,"max":100,"discount":true,"titanium":1,"energy":1},{"lost":100,"max":100,"discount":false,"titanium":4,"energy":2},{"lost":65,"max":100,"discount":true,"titanium":3,"energy":2}],
+  "distribution": [{"pool":7,"contributions":{"a":1,"b":1,"zero":0},"expected":{"a":4,"b":3}},{"pool":8,"contributions":{"a":1,"b":2,"c":3},"expected":{"a":1,"b":3,"c":4}},{"pool":12,"contributions":{},"expected":{}}],
+  "cargo": [{"hull":"dropship","resource":"titanium","volume":6,"expected":5},{"hull":"dropship","resource":"food","volume":6,"expected":6},{"hull":"light","resource":"energy","volume":6,"expected":6}]
+}

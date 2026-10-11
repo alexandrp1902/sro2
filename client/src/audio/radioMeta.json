@@ -1,6 +1,6 @@
 {
   "engine": "edge",
-  "revision": "8fa3809e30f41a15",
+  "revision": "15789ec0ea2f479e",
   "lines": {
     "traderHail-1": {
       "ms": 3313,
@@ -59,7 +59,7 @@
       "category": "traderHail"
     },
     "traderHail-15": {
-      "ms": 3972,
+      "ms": 4597,
       "category": "traderHail"
     },
     "traderHail-16": {
@@ -119,7 +119,7 @@
       "category": "traderIdle"
     },
     "traderIdle-12": {
-      "ms": 3871,
+      "ms": 5010,
       "category": "traderIdle"
     },
     "traderIdle-13": {
@@ -147,7 +147,7 @@
       "category": "traderIdle"
     },
     "traderIdle-19": {
-      "ms": 3231,
+      "ms": 3312,
       "category": "traderIdle"
     },
     "traderIdle-20": {
@@ -155,7 +155,7 @@
       "category": "traderIdle"
     },
     "traderIdle-21": {
-      "ms": 4369,
+      "ms": 3176,
       "category": "traderIdle"
     },
     "traderIdle-22": {
@@ -235,7 +235,7 @@
       "category": "rangerHail"
     },
     "rangerHail-16": {
-      "ms": 3704,
+      "ms": 3168,
       "category": "rangerHail"
     },
     "rangerWarn-1": {
@@ -243,7 +243,7 @@
       "category": "rangerWarn"
     },
     "rangerWarn-2": {
-      "ms": 3692,
+      "ms": 4466,
       "category": "rangerWarn"
     },
     "rangerWarn-3": {
@@ -251,27 +251,27 @@
       "category": "rangerWarn"
     },
     "rangerWarn-4": {
-      "ms": 3193,
+      "ms": 3762,
       "category": "rangerWarn"
     },
     "rangerWarn-5": {
-      "ms": 3447,
+      "ms": 4090,
       "category": "rangerWarn"
     },
     "rangerWarn-6": {
-      "ms": 3628,
+      "ms": 3907,
       "category": "rangerWarn"
     },
     "rangerWarn-7": {
-      "ms": 3103,
+      "ms": 3882,
       "category": "rangerWarn"
     },
     "rangerWarn-8": {
-      "ms": 4280,
+      "ms": 4786,
       "category": "rangerWarn"
     },
     "rangerWarn-9": {
-      "ms": 3240,
+      "ms": 4271,
       "category": "rangerWarn"
     },
     "rangerWarn-10": {
@@ -279,11 +279,11 @@
       "category": "rangerWarn"
     },
     "rangerWarn-11": {
-      "ms": 4032,
+      "ms": 5369,
       "category": "rangerWarn"
     },
     "rangerWarn-12": {
-      "ms": 3442,
+      "ms": 5106,
       "category": "rangerWarn"
     },
     "rangerWarn-13": {
@@ -463,7 +463,7 @@
       "category": "pirateTaunt"
     },
     "pirateTaunt-13": {
-      "ms": 3494,
+      "ms": 3681,
       "category": "pirateTaunt"
     },
     "pirateTaunt-14": {
@@ -511,7 +511,7 @@
       "category": "beg"
     },
     "beg-11": {
-      "ms": 3635,
+      "ms": 4864,
       "category": "beg"
     },
     "beg-12": {
@@ -547,7 +547,7 @@
       "category": "lastWords"
     },
     "lastWords-5": {
-      "ms": 3431,
+      "ms": 3753,
       "category": "lastWords"
     },
     "lastWords-6": {

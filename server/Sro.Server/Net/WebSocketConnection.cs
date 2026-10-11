@@ -201,6 +201,12 @@ public sealed class WebSocketConnection(WebSocket socket, ILogger log) : IClient
                 case MechActMsg mech when joined:
                     room.Mech(this, mech);
                     break;
+                case WorkshopActMsg workshop when joined:
+                    room.Workshop(this, workshop);
+                    break;
+                case TerritoryActMsg territory when joined:
+                    room.Territory(this,territory);
+                    break;
                 case InputMsg input when joined:
                     room.Input(this, input);
                     break;

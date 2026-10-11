@@ -1,3 +1,6 @@
+import { WorkshopPanel } from '../mech/workshop';
+import { TerritoryPanel } from '../mech/territory';
+import { cargoVolume } from '../mech/territoryRules';
 import type {
   BuyKind,
   DemandQuoteDto,
@@ -102,7 +105,7 @@ export function offerState(
 /** Ниже этого остатка срок письма краснеет (M14). */
 const LOW_TIMER_SECONDS = 60;
 
-export type Tab = 'missions' | 'cargo' | 'hulls' | 'ships' | 'fitting';
+export type Tab = 'missions' | 'cargo' | 'hulls' | 'ships' | 'fitting' | 'workshop' | 'territory';
 
 const TABS: { id: Tab; label: string }[] = [
   { id: 'missions', label: 'Задания' },
@@ -112,6 +115,8 @@ const TABS: { id: Tab; label: string }[] = [
   // Ярлык короткий: пять вкладок с «Мой ангар» не влезают в 360 px. Полное имя стоит в теле вкладки.
   { id: 'ships', label: 'Ангар' },
   { id: 'fitting', label: 'Модули' },
+  { id: 'workshop', label: 'Мастерская' },
+  { id: 'territory', label: 'Территория' },
 ];
 
 /** Где стоит корабль: станция или поселение на планете — от этого фон сцены (M15). */
@@ -141,6 +146,8 @@ const SCENES: Record<Tab, Scene> = {
   hulls: { art: 'shipyard', who: 'hulls', ship: true },
   ships: { art: 'hangar', who: 'ships', ship: true },
   fitting: { art: 'hangar', who: null, ship: true },
+  workshop: { art: 'hangar', who: null, ship: false },
+  territory: { art: 'hangar', who: null, ship: false },
 };
 
 /**
@@ -288,8 +295,9 @@ export function maxBuyable(
   quote: MarketItemDto,
   credits: number,
   freeVolume: number,
+  hull = '',
 ): number {
-  const volume = lootItem(loot, quote.id)?.volume ?? 1;
+  const volume = cargoVolume(hull,quote.id,lootItem(loot, quote.id)?.volume ?? 1);
   const fits = volume > 0 ? Math.floor((freeVolume + 1e-9) / volume) : quote.stock;
   const room = Math.max(0, Math.min(quote.stock, fits));
   if (room <= 0) return 0;
@@ -348,6 +356,9 @@ export interface DockHandlers {
   onSkipTutorial(): void;
   /** «Ретранслятор» (M20b): кампания пройдена — наземный бой мехов (M21). */
   onRelay(): void;
+  /** Тренировочная вылазка: тот же бой без сюжетного допуска. */
+  onMechTraining(): void;
+  onWorkshop?(message: import('../net/protocol').ClientMessage): void;
 }
 
 /** Подпись под ретранслятором: что там ждёт и пройдено ли. */
@@ -459,6 +470,11 @@ export function repGateNote(rules: ReputationRules, level: string | null | undef
  * покупают и меняют корпуса и пушки, чинятся. Рисуется по событиям сервера, а не каждый кадр.
  */
 export class DockScreen {
+  private readonly workshopPanel = new WorkshopPanel(message => this.handlers.onWorkshop?.(message),()=>{this.tab='territory';this.handlers.onWorkshop?.({t:'territoryAct',act:'read'});this.render();});
+  readonly territoryPanel = new TerritoryPanel(message => this.handlers.onWorkshop?.(message));
+  setWorkshop(message: import('../net/protocol').WorkshopStateMsg): void { this.workshopPanel.set(message); this.territoryPanel.setWorkshop(message); this.render(); }
+  setTerritory(message: import('../mech/territoryRules').TerritoryStateMsg): void { this.territoryPanel.set(message); }
+  setWorkshopOnline(online: boolean): void { this.workshopPanel.online(online); this.territoryPanel.online(online); }
   private tab: Tab = 'cargo';
   private hangar: HangarMsg | null = null;
   private cargo: CargoState | null = null;
@@ -660,6 +676,7 @@ export class DockScreen {
     }
     // Сели там, где верфи нет, а открыта была она: уводим на оснащение, иначе экран пустой.
     if (this.tab === 'hulls' && !this.shipyard) this.tab = 'fitting';
+    if (this.tab === 'workshop' && this.placeKey !== 'pl:novaPrime') this.tab = 'missions';
     this.render();
   }
 
@@ -722,8 +739,12 @@ export class DockScreen {
     for (const { id, label } of TABS) {
       // Верфь есть не в каждом поселении (M15): нет — нет и вкладки, менять корабль тут негде.
       if (id === 'hulls' && !this.shipyard) continue;
+      if (id === 'workshop' && this.placeKey !== 'pl:novaPrime') continue;
+      if (id === 'territory' && this.placeKey !== 'pl:novaPrime') continue;
       const tab = button(label, 'dock-tab sro-tab', () => {
         this.tab = id;
+        if (id === 'workshop') this.handlers.onWorkshop?.({t: 'workshopAct', act: 'read'});
+        if (id === 'territory') {this.handlers.onWorkshop?.({t:'territoryAct',act:'read'});this.handlers.onWorkshop?.({t:'workshopAct',act:'read'});}
         this.armedSellGear = false; // ушли с рынка — «Точно?» не должно ждать возвращения
         this.render();
       });
@@ -738,6 +759,8 @@ export class DockScreen {
     else if (this.tab === 'cargo') this.renderCargo(body);
     else if (this.tab === 'hulls') this.renderHulls(body, hangar, credits);
     else if (this.tab === 'ships') this.renderShips(body, hangar, credits);
+    else if (this.tab === 'workshop') this.workshopPanel.render(body);
+    else if (this.tab === 'territory') this.territoryPanel.render(body);
     else this.renderFitting(body, hangar, credits);
     card.append(body);
 
@@ -852,13 +875,26 @@ export class DockScreen {
       ship.className = 'dock-scene-ship';
       view.append(ship);
     }
-    if (scene.who) {
-      const person = this.staff(scene.who, this.tab);
+    const training = this.missions?.mechTraining === true;
+    if (training) view.classList.add('dock-scene--training');
+    if (scene.who || training) {
       const caption = el('div', 'dock-scene-caption');
-      // Торговец и мастер верфи вместо приветствия рассказывают, что слышали: подсказка ценнее вежливости.
-      const heard = this.tab === 'cargo' ? this.rumour() : this.tab === 'hulls' ? this.yardRumour() : null;
-      const line = heard ?? person.line;
-      caption.append(el('div', 'dock-scene-who sro-label', `${person.name} · ${person.role}`), el('div', 'dock-scene-line', line));
+      if (scene.who) {
+        const person = this.staff(scene.who, this.tab);
+        // Торговец и мастер верфи вместо приветствия рассказывают, что слышали: подсказка ценнее вежливости.
+        const heard = this.tab === 'cargo' ? this.rumour() : this.tab === 'hulls' ? this.yardRumour() : null;
+        const line = heard ?? person.line;
+        caption.append(el('div', 'dock-scene-who sro-label', `${person.name} · ${person.role}`), el('div', 'dock-scene-line', line));
+      }
+      if (training) {
+        const invitation = el('div', 'dock-training');
+        invitation.append(
+          el('div', 'sro-row__name', 'Полигон мехов · Тренировочная вылазка'),
+          el('div', 'dock-training-note sro-muted', 'Прототип против двух налётчиков. Можно начать без прохождения сюжета и повторять бесплатно.'),
+          button('Начать вылазку', 'sro-btn sro-btn--primary sro-btn--sm', () => this.handlers.onMechTraining()),
+        );
+        caption.append(invitation);
+      }
       view.append(caption);
     }
     return view;
@@ -918,7 +954,7 @@ export class DockScreen {
     return ids.map((id) => {
       const quote = quotes.get(id) ?? null;
       const have = cargo.items[id] ?? 0;
-      const maxBuy = quote && sellsHere(quote) ? maxBuyable(this.local, rules, quote, credits, free) : 0;
+      const maxBuy = quote && sellsHere(quote) ? maxBuyable(this.local, rules, quote, credits, free,this.hangar?.hull??'') : 0;
       const maxSell = quote ? have : 0;
       return {
         id,
@@ -1185,7 +1221,7 @@ export class DockScreen {
     // бой (M21). Бой повторяемый — кнопка остаётся и после победы, меняется только подпись.
     if (story?.relay) {
       const box = el('div', 'dock-mission dock-tutorial');
-      const head = el('div', 'dock-mission-head sro-label sro-warn', `${story.name} · часть первая пройдена`);
+      const head = el('div', 'dock-mission-head sro-label sro-warn', `${story.name} · ${story.groundComplete ? 'пройдена' : 'наземные операции'}`);
       const mark = campaignIcon(story.campaign);
       if (mark) head.prepend(mark);
       box.append(head);
@@ -1193,9 +1229,12 @@ export class DockScreen {
       const ground = missionIcon('ground');
       if (ground) relay.prepend(ground);
       box.append(relay);
-      box.append(el('div', 'dock-stats sro-row__meta', relayLine(story.sortieWon === true)));
+      box.append(el('div', 'dock-stats sro-row__meta', story.sortieWon ? 'Ева ждёт в мастерской. Соберите отряд и выберите следующую операцию или повторный бой.' : relayLine(false)));
       const actions = el('div', 'dock-mission-actions');
-      actions.append(button(story.sortieWon ? 'Ещё раз' : 'На связь', 'dock-buy sro-btn sro-btn--sm', () => this.handlers.onRelay()));
+      actions.append(button(story.sortieWon ? 'В мастерскую' : 'На связь', 'dock-buy sro-btn sro-btn--sm', () => {
+        if (story.sortieWon) { this.tab = 'workshop'; this.handlers.onWorkshop?.({t: 'workshopAct', act: 'read'}); this.render(); }
+        else this.handlers.onRelay();
+      }));
       box.append(actions);
       body.append(box);
     }

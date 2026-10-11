@@ -3,7 +3,7 @@
  * экран дока перерисовывается целиком после каждой покупки, и меню внутри него умирало бы на полуслове.
  */
 
-export type MenuAction = 'audio' | 'controls' | 'story' | 'tips' | 'password' | 'dev' | 'logout';
+export type MenuAction = 'audio' | 'controls' | 'story' | 'tips' | 'password' | 'dev' | 'logout' | 'territory';
 
 export interface MenuItem {
   id: MenuAction;
@@ -28,6 +28,7 @@ export function menuItems(coarse: boolean, account = false, story = false): Menu
   if (story) items.push({ id: 'story', label: 'Кампания' });
   // «Что дальше» после обучения (M18) — перечитать. Гостю обучения нет, и советы ему не показывали.
   if (account) items.push({ id: 'tips', label: 'Советы' });
+  if (account) items.push({id:'territory',label:'Территория Нова-Прайм'});
   if (account) items.push({ id: 'password', label: 'Сменить пароль' });
   if (coarse) items.push({ id: 'dev', label: 'Отладка' });
   items.push({ id: 'logout', label: 'Выход' });

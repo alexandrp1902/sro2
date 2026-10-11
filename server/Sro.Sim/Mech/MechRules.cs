@@ -4,7 +4,7 @@ using System.Text.Json.Serialization;
 namespace Sro.Sim.Mech;
 
 /// <summary>Корпус или шасси меха (баланс мехов §3–4). У корпуса хода нет — он 0.</summary>
-public sealed record MechFrame(string Name, int Hp, int Armor, int Move = 0);
+public sealed record MechFrame(string Name, int Hp, int Armor, int Move = 0, int Weight = 0, int MaxLoad = 0, string? Art = null);
 
 /// <summary>
 /// Оружие руки (§16–17). Дальность — в клетках по Чебышёву, как и ход: «4 клетки хода» и «дальность 4»
@@ -12,13 +12,31 @@ public sealed record MechFrame(string Name, int Hp, int Armor, int Move = 0);
 /// </summary>
 public sealed record MechWeapon(
     string Name, int Damage, int Accuracy, int MinRange, int OptimalMin, int OptimalMax, int MaxRange, int Hp, int Armor,
-    string Sound = "bolt");
+    string Sound = "bolt", int Weight = 0, string? Art = null);
 
 /// <summary>Щит руки (§37–38): Block — базовый шанс блока в процентах.</summary>
-public sealed record MechShield(string Name, int Hp, int Armor, int Block);
+public sealed record MechShield(string Name, int Hp, int Armor, int Block, int Weight = 0, string? Art = null);
+
+public sealed record MechBackpack(string Name, string Effect, int Weight, double Value, string Art);
+public sealed record MechRecipe(string Category, string Part, int Credits, IReadOnlyDictionary<string, int> Resources, int WorkshopLevel = 1);
+public sealed record MechSkill(string Name, int Chance, int Bonus = 0, int Cooldown = 0, string? Requires = null,
+    string[]? Bodies = null, string[]? Chassis = null, int Weight = 1, int AccuracyPenalty = 0, int BlockBonus = 0,
+    string[]? PoolBodies = null, string[]? PoolChassis = null);
+public sealed record MechProgression(int KillXp = 50, int VictoryXp = 25, double LevelFactor = 0.15,
+    double FactorMin = 0.5, double FactorMax = 1.75, int UnlockBase = 10, int UnlockPerLevel = 2,
+    int UnlockMax = 40, int SkillLimit = 6);
+public sealed record MechPoint(int X, int Y);
+public sealed record MechWave(int Round, MechSpawn[] Enemies);
+public sealed record MechObjective(string Kind = "eliminate", int Rounds = 0, MechSpawn? Object = null,
+    MechPoint[]? Route = null, MechPoint[]? Zone = null, MechPoint[]? FiringCells = null, MechPoint[]? Evacuation = null, bool FullRounds = false);
+public sealed record MechWorkshopConfig(string Place, string Campaign, string PrototypeMission,
+    string PrototypeUnit, string[] StarterParts, string[] MissionOrder);
+public sealed record MechAiConfig(int ObjectivePriority = 300, int FlankScore = 10, int ShieldPenalty = 1,
+    int FinishArmScore = 20, int CapturePriority = 1000, double ThreatPriority = 0);
 
 /// <summary>Сборка меха: корпус, шасси и что стоит в каждой руке (оружие или щит; null — пусто).</summary>
-public sealed record MechUnitDef(string Name, string Body, string Chassis, string? Left = null, string? Right = null);
+public sealed record MechUnitDef(string Name, string Body, string Chassis, string? Left = null, string? Right = null,
+    string? Backpack = null, int Level = 1);
 
 /// <summary>
 /// Числа боя (§17–27, §39–40). Всё в процентных пунктах. Таблицы частей — в порядке
@@ -71,7 +89,8 @@ public sealed record MechMission(
     int Reward = 0,
     MechLines? Intro = null,
     MechLines? Win = null,
-    MechLines? Lose = null);
+    MechLines? Lose = null, MechSpawn[]? Allies = null, MechWave[]? Waves = null,
+    MechObjective? Objective = null, string[]? RewardParts = null, int ObjectiveXp = 0, string? Biome = null);
 
 /// <summary>
 /// Мехи из shared/mechs.json (M21): детали, сборки, числа боя и наземные миссии. Здесь только данные и проверки,
@@ -84,7 +103,12 @@ public sealed record MechRules(
     IReadOnlyDictionary<string, MechShield>? Shields = null,
     IReadOnlyDictionary<string, MechUnitDef>? Units = null,
     MechCombatDef? Combat = null,
-    IReadOnlyDictionary<string, MechMission>? Missions = null)
+    IReadOnlyDictionary<string, MechMission>? Missions = null,
+    string? TrainingPlace = null,
+    IReadOnlyDictionary<string, MechBackpack>? Backpacks = null,
+    IReadOnlyDictionary<string, MechRecipe>? Recipes = null,
+    IReadOnlyDictionary<string, MechSkill>? Skills = null,
+    MechProgression? Progression = null, MechWorkshopConfig? Workshop = null, MechAiConfig? Ai = null)
 {
     public const string File = "mechs.json";
 
@@ -106,6 +130,11 @@ public sealed record MechRules(
     [JsonIgnore] public IReadOnlyDictionary<string, MechUnitDef> UnitMap => Units ?? new Dictionary<string, MechUnitDef>();
     [JsonIgnore] public MechCombatDef CombatDef => Combat ?? new MechCombatDef();
     [JsonIgnore] public IReadOnlyDictionary<string, MechMission> MissionMap => Missions ?? new Dictionary<string, MechMission>();
+    [JsonIgnore] public IReadOnlyDictionary<string, MechBackpack> BackpackMap => Backpacks ?? new Dictionary<string, MechBackpack>();
+    [JsonIgnore] public IReadOnlyDictionary<string, MechRecipe> RecipeMap => Recipes ?? new Dictionary<string, MechRecipe>();
+    [JsonIgnore] public IReadOnlyDictionary<string, MechSkill> SkillMap => Skills ?? new Dictionary<string, MechSkill>();
+    [JsonIgnore] public MechProgression ProgressionDef => Progression ?? new();
+    [JsonIgnore] public MechAiConfig AiDef => Ai ?? new();
 
     public MechMission? Mission(string? id) => id is not null && MissionMap.TryGetValue(id, out var m) ? m : null;
 
@@ -119,6 +148,8 @@ public sealed record MechRules(
 
     public string? Validate()
     {
+        if (TrainingPlace is not null && (string.IsNullOrWhiteSpace(TrainingPlace) || Mission(FirstSortie) is null))
+            return "trainingPlace needs a place and the firstSortie mission";
         foreach (var (id, f) in BodyMap)
             if (Frame(f) is { } p) return $"bodies.{id}: {p}";
         foreach (var (id, f) in ChassisMap)
@@ -147,8 +178,9 @@ public sealed record MechRules(
         {
             if (u is null) return $"units.{id}: is null";
             if (string.IsNullOrWhiteSpace(u.Name)) return $"units.{id}: name is empty";
-            if (!BodyMap.ContainsKey(u.Body)) return $"units.{id}: unknown body '{u.Body}'";
-            if (!ChassisMap.ContainsKey(u.Chassis)) return $"units.{id}: unknown chassis '{u.Chassis}'";
+            if (u.Body is null || !BodyMap.ContainsKey(u.Body)) return $"units.{id}: unknown body '{u.Body}'";
+            if (u.Chassis is null || !ChassisMap.ContainsKey(u.Chassis)) return $"units.{id}: unknown chassis '{u.Chassis}'";
+            if (u.Level < 1 || u.Backpack is { } backpack && !BackpackMap.ContainsKey(backpack)) return $"units.{id}: invalid level or backpack";
             if (u.Left is { } l && Arm(l).Hp == 0) return $"units.{id}: unknown left arm '{l}'";
             if (u.Right is { } r && Arm(r).Hp == 0) return $"units.{id}: unknown right arm '{r}'";
             // Щит в двух руках сразу — это две таблицы блока, а правило одно (§39): не бывает.
@@ -157,6 +189,7 @@ public sealed record MechRules(
         if (Combat is { } c && CheckCombat(c) is { } cp) return $"combat: {cp}";
         foreach (var (id, m) in MissionMap)
             if (CheckMission(m) is { } p) return $"missions.{id}: {p}";
+        if (MechCatalog.Validate(this) is { } extra) return extra;
         return null;
     }
 
@@ -186,8 +219,9 @@ public sealed record MechRules(
     {
         if (m is null) return "is null";
         if (string.IsNullOrWhiteSpace(m.Name)) return "name is empty";
-        if (m.Reward < 0) return "reward must not be negative";
+        if (m.Reward < 0 || m.ObjectiveXp is < 0 or > 50) return "reward or objective XP is invalid";
         if (m.Map is null || m.Map.Length == 0) return "map is empty";
+        if (m.Map.Any(row => row is null)) return "map row is null";
         var width = m.Map[0].Length;
         if (width == 0 || width > MaxSide || m.Map.Length > MaxSide) return $"map must be 1..{MaxSide} cells on each side";
         if (m.Map.Any(row => row.Length != width)) return "map rows must have the same length";
@@ -197,10 +231,10 @@ public sealed record MechRules(
         if (field.Buildings() is null) return "every building must be a whole 2x2 block of 'b'";
         if (m.Player is not { Length: > 0 } || m.Enemy is not { Length: > 0 }) return "both sides need at least one mech";
         var taken = new HashSet<int>();
-        foreach (var s in m.Player.Concat(m.Enemy))
+        foreach (var s in m.Player.Concat(m.Enemy).Concat(m.Allies ?? []).Concat(m.Objective?.Object is { } o ? [o] : []))
         {
             if (s is null) return "spawn is null";
-            if (!UnitMap.ContainsKey(s.Unit)) return $"unknown unit '{s.Unit}'";
+            if (s.Unit is null || !UnitMap.ContainsKey(s.Unit)) return $"unknown unit '{s.Unit}'";
             if (!field.Inside(s.X, s.Y)) return $"spawn ({s.X},{s.Y}) is off the map";
             if (!field.Passable(s.X, s.Y)) return $"spawn ({s.X},{s.Y}) stands on a blocked cell";
             if (s.Dir is < 0 or > 7) return $"spawn ({s.X},{s.Y}): dir must be within 0..7";

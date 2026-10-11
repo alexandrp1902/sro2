@@ -1,4 +1,4 @@
-using Microsoft.Extensions.Logging.Abstractions;
+﻿using Microsoft.Extensions.Logging.Abstractions;
 using Sro.Server.Game;
 using Sro.Server.Net;
 using Sro.Sim;
@@ -640,7 +640,7 @@ public class LootTests
     }
 
     [Fact]
-    public void SmallerHull_KeepsTheCargoButBlocksNewItems()
+    public void SmallerHull_RefusesSwitchWhenCargoWouldOverflow()
     {
         _room = NewRoom(Loot(items: BulkyItems));
         var a = Connect(weapon: "doom");
@@ -657,10 +657,11 @@ public class LootTests
         Grab(a, drop.Id);
         Assert.Equal(2, PlayerOf(a).Cargo.Items["metal"]); // 60 из 60
 
-        // Пересели на лёгкий (20): груз не выбрасывается (GDD §24), но это перегруз.
+        // Переход на лёгкий (20) отклонён: груз остаётся в тяжёлом трюме без перегруза.
         _room.SetHull(a, "light");
         var cargo = a.Last<CargoMsg>();
-        Assert.Equal((60.0, 20.0), (cargo.Used, cargo.Max));
+        Assert.Equal((60.0, 60.0), (cargo.Used, cargo.Max));
+        Assert.Equal("heavy",PlayerOf(a).HullId);
         Assert.Equal(2, PlayerOf(a).Cargo.Items["metal"]);
     }
 

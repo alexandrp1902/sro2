@@ -354,6 +354,32 @@ public sealed class M20bStoryTests : IDisposable
     }
 
     [Fact]
+    public void FourDrivesCanBeStolenAndHandedInWithoutKillingThreeGuards()
+    {
+        var chain=Story.CampaignMap[Campaign];
+        var missions=chain.MissionList.Select(m=>m.Id=="far" ? m with
+        {Count=4,Spawns=[new(StoryRules.OnArrive,"guard",3,3,"Патруль",At:new StoryPoint(-800,400),Hold:true)]}:m).ToArray();
+        _galaxy.ApplyBalance(_galaxy.Balance with {StorySet=new StoryRules(new Dictionary<string,StoryCampaign>
+        {{Campaign,chain with {Missions=missions}}})});
+        var a=Pilot();Passed(a,"pay","ask","hunt");TakeStory(a);Undock(a);JumpTo(a,"port");
+        var field=RoomOf(a);var guards=field.Pirates.Where(p=>p.Story).ToArray();Assert.Equal(3,guards.Length);
+        foreach(var drop in field.Drops.Where(d=>d.Item=="cores").ToArray())
+        {Place(a,drop.X,drop.Y);field.SetLootTarget(a,drop.Id);field.Grab(a);}
+        Assert.Equal(4,PlayerOf(a).Cargo.Count("cores"));Assert.All(guards,g=>Assert.False(g.IsDead));
+        Assert.Equal(4,Missions_(a).StoryActive!.Progress);
+        Assert.Equal("home",Missions_(a).StoryActive!.Offer.System);Assert.Null(Missions_(a).StoryMark);
+        Dock(a);var before=PlayerOf(a).Credits;
+        Do(a,r=>r.Mission(a,Protocol.CompleteMission,Missions_(a).StoryActive!.Offer.Id));
+        Assert.NotNull(Missions_(a).StoryActive);Assert.Equal(4,PlayerOf(a).Cargo.Count("cores"));
+        Undock(a);JumpTo(a,"home");Dock(a);
+        var id=Missions_(a).StoryActive!.Offer.Id;Do(a,r=>r.Mission(a,Protocol.CompleteMission,id));
+        Assert.Null(Missions_(a).StoryActive);Assert.Equal(0,PlayerOf(a).Cargo.Count("cores"));
+        Assert.Equal(before+100,PlayerOf(a).Credits);Assert.Contains("far",PlayerOf(a).StoryOf(Campaign).Done);
+        Assert.All(guards,g=>Assert.False(g.IsDead));
+        Do(a,r=>r.Mission(a,Protocol.CompleteMission,id));Assert.Equal(before+100,PlayerOf(a).Credits);
+    }
+
+    [Fact]
     public void TheGuardComesOutOnceHoweverOftenThePilotDocks()
     {
         var a = Pilot();

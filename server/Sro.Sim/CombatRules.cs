@@ -645,10 +645,23 @@ public sealed record Balance(
         }
         if (sources.Mechs is not null)
         {
-            // Мехи ни на что в космосе не ссылаются: их каталог замкнут в себе.
+            // Каталог боя замкнут в себе; тренировочный полигон находится в доке галактики.
             if (!MechRules.TryParse(sources.Mechs, out var mechs, out error))
             {
                 error = $"{MechsFile}: {error}";
+                return false;
+            }
+            if (mechs.TrainingPlace is { } training && !parsed.Galaxy.HasPlace(training))
+            {
+                error = $"{MechsFile}: unknown trainingPlace '{training}'";
+                return false;
+            }
+
+            if (mechs.Workshop is { } w && (!parsed.Galaxy.HasPlace(w.Place) || parsed.Story.Campaign(w.Campaign) is not { } campaign
+                || campaign.Mission(w.PrototypeMission) is null || campaign.GroundMissions is null || !campaign.GroundMissions.SequenceEqual(w.MissionOrder)
+                || MechCatalog.ResourceIds.Any(id => !parsed.Loot.ItemMap.ContainsKey(id))))
+            {
+                error = $"{MechsFile}: workshop place, campaign, prototype, ground mission order or resource ids are invalid";
                 return false;
             }
             parsed = parsed with { MechSet = mechs };

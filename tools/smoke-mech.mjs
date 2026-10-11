@@ -1,4 +1,4 @@
-// Сквозная проверка наземного боя мехов (M21) без браузера: пилот долетает до Нова-Прайм, садится на неё,
+// Сквозная проверка мастерской и четырёх наземных миссий (M22) без браузера: пилот долетает до Нова-Прайм, садится на неё,
 // где кончилась «Тихая война», и через ретранслятор начинает «Первую вылазку». Проверяется, что из дока
 // посреди боя не улететь, что мусорная команда отвергается кодом, что после обрыва связи бой ждёт и продолжается
 // с того же места, и что бой доигрывается до конца — а награда платится ровно та, что объявлена.
@@ -9,6 +9,7 @@
 //   node tools/smoke-mech.mjs [ws://localhost:5000/ws]
 
 import { aroundSun, openSocket, orbitAt } from './wire.mjs';
+import { mechPlan } from './mech-bot.mjs';
 
 const url = process.argv[2] ?? 'ws://localhost:5000/ws';
 const INPUT_INTERVAL_MS = 50;
@@ -33,8 +34,10 @@ class Client {
     this.mech = null;
     this.rules = null;
     this.mechStates = 0;
+    this.session = null; this.revision = 0; this.workshop = null; this.workshopStates = 0;
     this.refusals = [];
     this.end = null;
+    this.mechEnds = 0;
     this.seq = 0;
     this.timer = 0;
     this.steer = () => [0, -1, 0];
@@ -71,6 +74,7 @@ class Client {
           case 'welcome':
             this.welcome = message;
             this.snapshots = [];
+            this.seq = 0;
             resolve(message);
             break;
           case 'hangar':
@@ -82,13 +86,18 @@ class Client {
           case 'dialog': this.dialogs.push(message); break;
           case 'notice': this.notices.push(message.code); break;
           case 'denied': reject(new Error(`denied: ${message.code}`)); break;
+          case 'workshopState': this.workshop = message; this.workshopStates++; break;
           case 'mechState':
+            this.session=message.session;this.revision=message.revision;
             this.mech = message.battle;
             if (message.rules) this.rules = message.rules;
             this.mechStates++;
             break;
           case 'mechRefused': this.refusals.push(message.code); break;
-          case 'mechEnd': this.end = message; break;
+          case 'mechEnd':
+            this.mechEnds++;
+            if(!message.result || message.result.session===this.session)this.end=message;
+            break;
           case 'snapshot':
             this.snapshots.push(message);
             if (this.snapshots.length > 2000) this.snapshots.splice(0, 1000);
@@ -172,7 +181,7 @@ class Client {
         await this.until(() => this.welcome.system.id === to, 12000, `jump to ${to}`);
         break;
       } catch (error) {
-        if (attempt >= 3) throw new Error(`${error.message} (notices: ${this.notices.join(', ') || 'none'})`);
+        if (attempt >= 3) throw new Error(`${error.message} (notices: ${this.notices.join(', ') || 'none'}; system: ${this.welcome.system.id}; ship: ${JSON.stringify(this.me)}; hangar: ${JSON.stringify(this.hangar)})`);
       }
     }
     await this.until(() => this.me, 4000, 'own ship after the jump');
@@ -194,8 +203,11 @@ class Client {
   async act(message) {
     const states = this.mechStates;
     const refusals = this.refusals.length;
-    this.send({ t: 'mechAct', ...message });
-    await this.until(() => this.mechStates > states || this.refusals.length > refusals || this.end, 6000, `answer to ${message.act}`);
+    const ends=this.mechEnds;
+    const continuing = message.act !== 'start' && message.act !== 'train';
+    this.send({ t: 'mechAct', ...(continuing ? {session:this.session, revision:this.revision, unit:this.mech?.current} : {}), request:crypto.randomUUID(), ...message });
+    await this.until(() => this.mechStates > states || this.refusals.length > refusals || this.mechEnds>ends, 6000, `answer to ${message.act}`);
+    if(this.mech?.winner && !this.end && continuing)await this.until(()=>this.end,6000,'committed terminal result');
     return this.refusals.length > refusals ? this.refusals[this.refusals.length - 1] : null;
   }
 
@@ -205,120 +217,68 @@ class Client {
   }
 }
 
-const results = [];
 
-function check(text, pass) {
-  results.push(pass);
-  console.log(`${pass ? 'OK  ' : 'FAIL'} ${text}`);
-}
-
-const cheb = (a, b) => Math.max(Math.abs(a.x - b.x), Math.abs(a.y - b.y));
-
-/**
- * Один ход бота: подойти к ближайшему налётчику на оптимум автопушки и выстрелить; не вышло — по второму;
- * не вышло и так — завершить ход. Бот нарочно простой: смоук проверяет сервер, а не тактику.
- */
-async function playTurn(c) {
-  const s = c.mech;
-  const me = s.units.find((u) => u.id === s.current);
-  const enemies = s.units.filter((u) => u.side === 'enemy' && u.hp[0] > 0).sort((a, b) => cheb(me, a) - cheb(me, b));
-  if (!me || enemies.length === 0) return;
-  const foe = enemies[0];
-  const d = cheb(me, foe);
-  if (!s.moved && (d > 5 || d < 3)) {
-    const sx = Math.sign(foe.x - me.x) * (d > 5 ? 1 : -1);
-    const sy = Math.sign(foe.y - me.y) * (d > 5 ? 1 : -1);
-    for (let k = s.moveRange; k >= 1; k--) {
-      const x = me.x + sx * k;
-      const y = me.y + sy * k;
-      if (x < 0 || y < 0 || x >= s.map[0].length || y >= s.map.length) continue;
-      if ((await c.act({ act: 'move', x, y })) === null) break;
+const results=[];
+function check(text,pass){results.push(pass);console.log(`${pass?'OK  ':'FAIL'} ${text}`);if(!pass)throw new Error(text);}
+async function workshop(c,message){const count=c.workshopStates;c.send({t:'workshopAct',revision:c.workshop?.state.revision,request:crypto.randomUUID(),...message});await c.until(()=>c.workshopStates>count,6000,'workshop response');return c.workshop;}
+async function play(c,mission){
+  c.end=null;const squad=c.workshop.state.mechs.slice(0,mission==='firstSortie'?1:2).map(m=>m.id);
+  const refused=await c.act({act:'start',mission,squad});if(refused)throw new Error(`start ${mission}: ${refused}`);
+  for(let turn=0;turn<140&&!c.end;turn++){
+    for(const command of mechPlan(c.mech,c.rules)){
+      if(c.end)break;
+      const code=await c.act(command);if(code)throw new Error(`${mission} ${command.act}: ${code}`);
     }
-    if (c.end || c.mech.turn !== 'player') return;
   }
-  for (const target of enemies) {
-    if ((await c.act({ act: 'attack', target: target.id })) === null) return;
-  }
-  await c.act({ act: 'end' });
+  await c.until(()=>c.end,6000,`result ${mission}`);
+  await c.until(()=>c.workshop?.state.results.some(r=>r.session===c.end.result?.session),6000,`saved workshop ${mission}`);
+  console.log(`${mission}: ${c.end.won?'win':'loss'} in ${c.mech.round} rounds`);
+  return c.end;
 }
-
-async function main() {
-  const name = `smk-mech-${RUN}`;
-  const a = new Client({ name, password: PASSWORD, create: true });
-  await a.connect();
-  a.start();
-  a.send({ t: 'mission', action: 'skip' });
-  await a.until(() => a.missions && !a.missions.tutorial, 4000, 'tutorial skipped');
-
-  await a.undock();
-  for (const to of ROUTE) await a.jump(to);
-  await a.land(PRIME);
-  await a.until(() => a.story, 4000, 'the campaign journal');
-  check(`кампания пройдена (SRO_STORY_SKIP): ${a.story?.done} из ${a.story?.total}`, a.story?.done === a.story?.total);
-  check('на Нова-Прайм открыт ретранслятор', a.story?.relay === true);
-  if (!a.story?.relay) return;
-  const creditsBefore = a.cargo?.credits ?? 0;
-
-  // ------------------------------------------------------------------ старт
-  a.dialogs.length = 0;
-  await a.act({ act: 'start' });
-  check(`бой начался: раунд ${a.mech?.round}, мехов ${a.mech?.units.length}`, a.mech?.units.length === 3);
-  check('каталог мехов приехал со стартом', !!a.rules?.missions?.firstSortie);
-  check(`первый ход — игрока: ${a.mech?.current}`, a.mech?.turn === 'player' && a.mech?.current === 'p1');
-  await a.until(() => a.dialogs.length > 0, 3000, 'Eva before the battle');
-  check(`Ева на связи: «${a.dialogs[0]?.lines[0] ?? '—'}»`, a.dialogs[0]?.who === 'Ева Морен');
-
-  a.notices.length = 0;
-  a.send({ t: 'dock', on: false });
-  await a.until(() => a.notices.includes('mechBusy'), 3000, 'undock refused during the battle');
-  check('посреди боя из дока не улететь', a.hangar?.docked === true);
-  check(`мусорная команда отвергнута: ${await a.act({ act: 'teleport' })}`, a.refusals.at(-1) === 'badAct');
-
-  // ------------------------------------------------------------------ обрыв связи
-  await playTurn(a);
-  const round = a.mech.round;
-  const at = a.mech.units.find((u) => u.id === 'p1');
-  a.close();
-  const b = new Client({ name, password: PASSWORD });
-  await b.connect();
-  await b.until(() => b.mech, 5000, 'the battle after reconnecting');
-  const back = b.mech.units.find((u) => u.id === 'p1');
-  check(`после обрыва связи бой тот же: раунд ${b.mech.round}, мех на (${back.x}, ${back.y})`,
-    b.mech.round === round && back.x === at.x && back.y === at.y);
-  check('с возвращением снова приехал каталог', !!b.rules);
-
-  // ------------------------------------------------------------------ до конца
-  for (let turn = 0; turn < MAX_TURNS && !b.end; turn++) {
-    if (b.mech.turn !== 'player') await b.until(() => b.mech.turn === 'player' || b.end, 6000, 'our turn');
-    if (b.end) break;
-    await playTurn(b);
-  }
-  check(`бой окончен за ${b.mech?.round ?? '?'} раундов: ${b.end ? (b.end.won ? 'победа' : 'поражение') : 'не окончен'}`, !!b.end);
-  if (!b.end) return;
-  await b.until(() => b.cargo, 3000, 'cargo');
-  const gained = (b.cargo?.credits ?? 0) - creditsBefore;
-  const reward = a.rules.missions.firstSortie.reward ?? 0;
-  if (b.end.won) {
-    check(`первая победа оплачена: +${gained} кр, объявлено ${b.end.reward}`, b.end.first && b.end.reward === reward && gained === reward);
-  } else {
-    check(`поражение не платит: +${gained} кр`, b.end.reward === 0 && gained === 0);
-  }
-  await b.until(() => b.story?.sortieWon === b.end.won, 3000, 'the journal after the battle');
-  check(`журнал знает итог: sortieWon = ${b.story?.sortieWon}`, b.story?.sortieWon === b.end.won);
-  b.notices.length = 0;
-  b.send({ t: 'dock', on: false });
-  await b.until(() => b.hangar && !b.hangar.docked, 4000, 'undocking after the battle');
-  check('после боя вылет снова открыт', b.hangar.docked === false);
-  b.close();
+async function win(c,mission){for(let attempt=0;attempt<12;attempt++){const result=await play(c,mission);if(result.won)return result;}throw new Error(`${mission}: no victory in 12 ordinary attempts`);}
+async function equip(c,index,keys){
+  const state=c.workshop.state,mech=state.mechs[index];
+  const used=new Set(state.mechs.filter(m=>m.id!==mech.id).flatMap(m=>Object.values(m.assembly)));
+  const assembly={};
+  for(const [slot,key]of Object.entries(keys)){const [category,part]=key.split(':');const found=state.parts.find(p=>p.category===category&&p.part===part&&!used.has(p.id));if(!found)throw new Error(`missing guaranteed ${key}`);assembly[slot]=found.id;used.add(found.id);}
+  await workshop(c,{act:'save',mech:mech.id,assembly});if(c.workshop.refused)throw new Error(`equip: ${c.workshop.refused}`);
 }
-
-main()
-  .then(() => {
-    const failed = results.filter((ok) => !ok).length;
-    console.log(failed === 0 ? `\nall ${results.length} checks passed` : `\n${failed} of ${results.length} checks failed`);
-    process.exit(failed === 0 ? 0 : 1);
-  })
-  .catch((error) => {
-    console.error(`\n${error.message}`);
-    process.exit(1);
-  });
+async function main(){
+  const name=process.argv[3]??`smk-mech-${RUN}`;let c=new Client({name,password:PASSWORD,create:!process.argv[3]});await c.connect();c.start();c.send({t:'mission',action:'skip'});
+  console.log(`pilot ${name}: ${c.welcome.system.id}, travelling to ${PRIME}`);
+  await c.until(()=>c.missions&&!c.missions.tutorial&&c.hangar,4000,'tutorial skipped');
+  if(!c.hangar.docked || c.hangar.place?.key!==PRIME){await c.undock();for(const to of c.welcome.system.id==='nova'?[]:ROUTE)await c.jump(to);await c.land(PRIME);}
+  check('space story opens the first sortie, ground finale remains unfinished',c.story.relay&&c.story.done<c.story.total);
+  await workshop(c,{act:'read'});check('space completion grants exactly one persistent prototype',c.workshop.state.mechs.length===1&&!c.workshop.open);
+  await c.act({act:'start',mission:'firstSortie'});const session=c.session,round=c.mech.round;
+  c.send({t:'dock',on:false});await c.until(()=>c.notices.includes('mechBusy'),3000,'undock blocked');check('undock blocked during battle',c.hangar.docked);
+  check('invalid action rejected',await c.act({act:'teleport'})==='badAct');
+  c.close();c=new Client({name,password:PASSWORD});await c.connect();await c.until(()=>c.mech,5000,'resumed battle');
+  check('second connection resumes the same session and revision',c.session===session&&c.mech.round===round);
+  await c.act({act:'quit'});check('retreat repairs without campaign progress',!c.end.won&&c.end.reward===0);
+  await workshop(c,{act:'read'});
+  const before=c.cargo.credits;const first=await win(c,'firstSortie');check('first victory pays 1500 and opens workshop',first.reward===1500&&c.workshop.open&&c.cargo.credits===before+1500);
+  check('starter parts granted once',c.workshop.state.grants.filter(g=>g==='starter').length===1);
+  const request=crypto.randomUUID(),oldRev=c.workshop.state.revision;
+  await workshop(c,{act:'create',name:'Вторая',request});await workshop(c,{act:'create',name:'Вторая',request,revision:oldRev});
+  check('duplicate create does not duplicate machine',c.workshop.state.mechs.length===2);
+  const state=c.workshop.state,second=state.mechs[1],installed=new Set(Object.values(state.mechs[0].assembly));
+  const free=state.parts.filter(p=>!installed.has(p.id));const find=(category,part)=>free.find(p=>p.category===category&&p.part===part).id;
+  await workshop(c,{act:'save',mech:second.id,assembly:{body:find('body','light'),chassis:find('chassis','lightBiped'),left:find('shield','light'),right:find('weapon','pistol-cannon')}});
+  check('second ready machine needs no purchase or random loot',!c.workshop.refused);
+  for(const mission of ['mineDefense','primeEscort','majorAssault']){
+    const end=await win(c,mission);check(`${mission}: victory commits XP, first reward and parts`,end.first&&end.result.parts.length>0&&end.result.experience.length===2);
+    if(mission==='mineDefense')await equip(c,1,{body:'body:medium',chassis:'chassis:mediumBiped',left:'shield:light',right:'weapon:autocannon',backpack:'backpack:armor'});
+    if(mission==='primeEscort')await equip(c,0,{body:'body:sniper',chassis:'chassis:lightBiped',left:'weapon:pistol-cannon',right:'weapon:sniper'});
+  }
+  check('quietWar finale is complete',c.story.groundComplete&&c.workshop.state.completed.length===4);
+  const credits=c.cargo.credits,parts=c.workshop.state.parts.length,xp=c.workshop.state.mechs[0].xp;
+  const repeat=await win(c,'mineDefense');check('replay grants XP and no repeated credits or parts',repeat.reward===0&&!repeat.first&&c.cargo.credits===credits&&c.workshop.state.parts.length===parts&&repeat.result.experience.some(e=>e.gained>0));
+  const saved=JSON.stringify(c.workshop.state);c.end=null;await c.act({act:'train'});await c.act({act:'quit'});
+  check('training does not mutate workshop, XP, credits or story',c.end.training&&c.cargo.credits===credits&&JSON.stringify(c.workshop.state)===saved);
+  const oldSession=repeat.result.session;await c.act({act:'end',session:oldSession,revision:0});check('redelivered old result does not pay again',c.cargo.credits===credits);
+  c.close();const back=new Client({name,password:PASSWORD});await back.connect();await workshop(back,{act:'read'});
+  check('progress and inventory survive another device',JSON.stringify(back.workshop.state)===saved);
+  back.send({t:'dock',on:false});await back.until(()=>!back.hangar.docked,4000,'undock after battle');check('undock allowed after result',!back.hangar.docked);back.close();
+}
+main().then(()=>{console.log(`all ${results.length} checks passed`);process.exit(0);}).catch(e=>{console.error(e.stack);process.exit(1);});

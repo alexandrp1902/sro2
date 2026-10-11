@@ -301,7 +301,7 @@ public sealed partial class Room
             return;
         }
         // Сколько влезет в трюм: объём у товаров разный, и «макс» у тяжёлого меньше, чем кажется.
-        var volume = loot.Volume(item);
+        var volume = player.Cargo.Volume(loot,item);
         var free = player.Effective(Balance).Cargo - player.Cargo.Used(loot);
         var fits = volume > 0 ? (int)Math.Floor((free + 1e-9) / volume) : want;
         if (fits <= 0)

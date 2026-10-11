@@ -1,4 +1,4 @@
-using System.Globalization;
+﻿using System.Globalization;
 using System.Text;
 using Sro.Server.Accounts;
 using Sro.Server.Net;
@@ -340,6 +340,9 @@ public sealed partial class Room
         // Сюжет (M20a): что пройдено и как пилот выбирал. Живое сюжетное задание, как и обычное живое,
         // в комнату не возвращается — но выполненное и флаги переживают всё.
         LoadStory(player, profile);
+        player.Workshop = profile?.Workshop ?? Sro.Sim.Mech.MechWorkshopState.Empty;
+        player.Territory = profile?.Territory ?? new();
+        MigrateMechs(player);
         // Репутация тает по часам: распад за время отсутствия применяется прямо здесь, на входе.
         player.Rep.Load(profile?.Reputation, profile?.RepAt, NowSeconds, Balance.Reputation);
         // Первое отношение мира — строго после Load: он ставит очки с нуля и затёр бы прибавку.
@@ -482,6 +485,7 @@ public sealed partial class Room
         }
         SendMissions(player);
         SendRep(player);
+        ResumeStoryChoice(player);
         _log.LogInformation("Player {Id} '{Name}' resumed, online {Count}", player.Id, player.Name, OnlineCount);
     }
 
@@ -673,7 +677,7 @@ public sealed partial class Room
     public void Input(IClientConnection connection, int seq, MoveInput input)
 
     {
-        if (_byConnection.TryGetValue(connection.Id, out var player)) player.Inputs.Enqueue(seq, input);
+        if (_byConnection.TryGetValue(connection.Id, out var player)) player.Inputs.Enqueue(seq, StoryInput(player, input));
     }
 
     /// <summary>
@@ -772,6 +776,8 @@ public sealed partial class Room
             connection.Send(new NoticeMsg(FitNotice(problem)));
             return;
         }
+        if(player.Cargo.Used(Balance.Loot)>Fitting.Effective(player.Hull(Hulls),player.Fit.With(slot,id),Balance.Modules).Cargo+1e-9)
+        {connection.Send(new NoticeMsg(Protocol.CargoFullNotice));return;}
         if (!player.IsGuest)
         {
             if (id is not null) player.Unstore(id);
@@ -804,6 +810,7 @@ public sealed partial class Room
             StripParked(connection, player, mode, hullId);
             return;
         }
+        var storedBefore=new Dictionary<string,int>(player.Storage);
         var changed = mode switch
         {
             Protocol.StripFit => Strip(player, player.Hull(Hulls), player.Fit) is var (fit, taken) && taken > 0 ? fit : null,
@@ -814,6 +821,11 @@ public sealed partial class Room
         {
             connection.Send(new NoticeMsg(Protocol.NothingToFitNotice));
             return;
+        }
+        if(player.Cargo.Used(Balance.Loot)>Fitting.Effective(player.Hull(Hulls),changed,Balance.Modules).Cargo+1e-9)
+        {
+            player.Storage.Clear();foreach(var item in storedBefore) player.Storage[item.Key]=item.Value;
+            connection.Send(new NoticeMsg(Protocol.CargoFullNotice));return;
         }
         Refit(player, changed);
         SendCargo(player);
@@ -1166,6 +1178,7 @@ public sealed partial class Room
     public void Step()
     {
         foreach (var player in _players.Values) Move(player);
+        StepStoryInspections();
         // Дроны пришвартованы к станции: сначала их сносит вместе с ней, потом они летят сами.
         foreach (var drone in _drones) drone.Carry(DroneAnchor(drone.Spec, OrbitSeconds + SimConfig.Dt));
         foreach (var drone in _drones)
@@ -1897,6 +1910,12 @@ public sealed partial class Room
     private void ChangeHull(Player player, string hullId)
     {
         if (player.HullId == hullId) return;
+        var targetFit=player.IsGuest?player.Fit:player.HullFits.GetValueOrDefault(hullId,Fitting.Empty);
+        targetFit=Fitting.Refit(Hulls[hullId],targetFit,Balance.Weapons,Balance.Modules);
+        var target=Fitting.Effective(Hulls[hullId],targetFit,Balance.Modules);
+        if(player.Cargo.Used(Balance.Loot,hullId)>target.Cargo+1e-9)
+        {player.Connection?.Send(new NoticeMsg(Protocol.CargoFullNotice));return;}
+
         // Единственное место, где меняется корабль под пилотом, — здесь же и бухгалтерия ангара (M15.6):
         // тот, из которого вышли, остаётся стоять в этом месте; тот, в который сели, больше нигде не стоит.
         if (PlaceOf(player) is { } here) player.HullPlaces[player.HullId] = here.Key;
@@ -2318,8 +2337,8 @@ public sealed partial class Room
         {
             var loot = Balance.Loot;
             var used = player.Cargo.Used(loot);
-            foreach (var (item, count) in gives.Items) used -= loot.Volume(item) * count;
-            foreach (var (item, count) in takes.Items) used += loot.Volume(item) * count;
+            foreach (var (item, count) in gives.Items) used -= player.Cargo.Volume(loot,item) * count;
+            foreach (var (item, count) in takes.Items) used += player.Cargo.Volume(loot,item) * count;
             return used <= player.Effective(Balance).Cargo;
         }
 
@@ -2356,6 +2375,7 @@ public sealed partial class Room
             SendHangar(player);
             return;
         }
+        var wasTraining = MechTrainingHere(player);
         if (on)
         {
             if (player.IsDead) return;
@@ -2425,7 +2445,8 @@ public sealed partial class Room
         // Шаг «остановиться» (M18) начинается заново с каждым вылетом: разгон и остановка — уже в космосе.
         player.Missions.Moved = false;
         player.Missions.StillSince = null;
-        Advance(player, new TutorialEvent(MissionRules.UndockStep));
+        if (!Advance(player, new TutorialEvent(MissionRules.UndockStep)) && wasTraining)
+            SendMissions(player); // приглашение снимается, уведомление шага обучения сохраняется
         StartRun(player); // конвой и звено выходят вместе с пилотом, а не ждут его в космосе (M14)
         StoryUndock(player); // сюжет раскладывает ящики и высылает тех, кто ждёт именно вылета (M20a)
     }
@@ -2502,6 +2523,8 @@ public sealed partial class Room
             return;
         }
 
+        if(kind==Protocol.ItemKind&&slot is not null&&player.Cargo.Used(Balance.Loot)>Fitting.Effective(player.Hull(Hulls),player.Fit.With(slot,id),Balance.Modules).Cargo+1e-9)
+        {connection.Send(new NoticeMsg(Protocol.CargoFullNotice));return;}
         player.Credits -= cost;
         if (kind == Protocol.HullItem)
         {
@@ -2632,7 +2655,10 @@ public sealed partial class Room
         if (_accounts is null || player.AccountId is null) return;
         // Все аргументы по именам: полей много, среди них соседние строки и словари, и позиционный
         // вызов молча переживал бы перестановку или удаление поля профиля.
-        _accounts.Save(player.AccountId, new AccountProfile(
+        _accounts.Save(player.AccountId, ProfileOf(player));
+    }
+
+    public AccountProfile ProfileOf(Player player) => new AccountProfile(
             Credits: player.Credits,
             Hull: player.HullId,
             Weapon: player.WeaponId ?? "",
@@ -2654,8 +2680,7 @@ public sealed partial class Room
             Ships: player.HullPlaces.Count == 0 ? null : new SortedDictionary<string, string>(player.HullPlaces, StringComparer.Ordinal),
             Fits: player.HullFits.Count == 0 ? null : new SortedDictionary<string, ShipFit>(player.HullFits, StringComparer.Ordinal),
             Hp: player.Hp,
-            Story: SaveStory(player)));
-    }
+            Story: SaveStory(player), Workshop: player.Workshop, Territory: player.Territory);
 
     /// <summary>Очки в профиль: сперва догоняем их до «сейчас», иначе на диск уехало бы вчерашнее число.</summary>
     private Dictionary<string, double>? SaveRep(Player player)
@@ -2997,17 +3022,22 @@ public sealed partial class Room
             MarkOf(player, MissionSlot.Board),
             StoryState(player),
             Shown(player, player.Missions.Story),
-            MarkOf(player, MissionSlot.Story)));
+            MarkOf(player, MissionSlot.Story),
+            MechTrainingHere(player)));
     }
 
     /// <summary>Задание глазами клиента: у «собрать» прогресс — сколько такого в трюме.</summary>
-    private static ActiveMission? Shown(Player player, ActiveMission? active)
+    private ActiveMission? Shown(Player player, ActiveMission? active)
     {
         if (active?.Offer is not { Kind: MissionRules.CollectKind, Item: { } item } collect) return active;
         // Обычное «собрать» считает добытое, но не больше, чем в трюме: продал или выбросил — счёт упал.
         var held = player.Cargo.Items.GetValueOrDefault(item);
         var count = collect.Story is null ? Math.Min(held, active.Gathered) : held;
-        return active with { Progress = Math.Min(active.Offer.Count, count) };
+        // Collected story cargo now leads home, even when its guards are still alive.
+        var offer = collect.Story is not null && count >= collect.Count
+            ? collect with { System = Balance.Galaxy.SystemOfPlace(collect.Destination) ?? collect.System }
+            : collect;
+        return active with { Offer = offer, Progress = Math.Min(collect.Count, count) };
     }
 
     /// <summary>Трюм — личное дело игрока: снапшот один на всех, места для него там нет.</summary>

@@ -32,6 +32,51 @@ public sealed partial class Room
     /// <summary>Кто сейчас стоит перед выбором в диалоге: id пилота → миссия, которая спросила.</summary>
     private readonly Dictionary<int, StoryRef> _storyAsked = [];
 
+    private sealed class StoryInspection(double x, double y, double radius, string escapeFlag)
+    {
+        public double X { get; } = x;
+        public double Y { get; } = y;
+        public double Radius { get; } = radius;
+        public string EscapeFlag { get; } = escapeFlag;
+        public bool WaitingForStop = true;
+    }
+
+    private readonly Dictionary<int, StoryInspection> _storyInspections = [];
+    // После отказа миссия завершена, но патруль продолжает погоню до ухода пилота из комнаты.
+    private readonly Dictionary<int, int> _storyPursuers = [];
+
+    private MoveInput StoryInput(Player player, MoveInput input)
+    {
+        if (!_storyInspections.TryGetValue(player.Id, out var inspection) || !inspection.WaitingForStop) return input;
+        if (input.Throttle == 0) inspection.WaitingForStop = false;
+        return input with { Throttle = 0 };
+    }
+
+    private void ResumeStoryChoice(Player player)
+    {
+        if (!_storyAsked.TryGetValue(player.Id, out var story) || StoryMissionOf(story) is not { Choice: { } choice } mission) return;
+        if (_storyInspections.TryGetValue(player.Id, out var inspection))
+        {
+            inspection.WaitingForStop = true;
+            player.Ship.Vx = player.Ship.Vy = 0;
+            player.Inputs.Stop();
+        }
+        Ask(player, story, mission, choice.Trigger);
+    }
+
+    private void StepStoryInspections()
+    {
+        foreach (var (id, inspection) in _storyInspections.ToArray())
+        {
+            if (!_players.TryGetValue(id, out var player) || player.IsDead || player.Connection is null) continue;
+            var dx = player.Ship.X - inspection.X;
+            var dy = player.Ship.Y - inspection.Y;
+            var attacked = _pirates.Any(n => n.OwnerId == id && n.AwaitingStoryChoice && n.LastAttackerId == id);
+            if (dx * dx + dy * dy > inspection.Radius * inspection.Radius || attacked)
+                StoryChoose(player, inspection.EscapeFlag);
+        }
+    }
+
     /// <summary>Миссия из баланса по нагрузке предложения; null — её убрала горячая правка story.json.</summary>
     private StoryMission? StoryMissionOf(StoryRef? story) =>
         story is null ? null : Balance.Story.Mission(story.Campaign, story.Mission);
@@ -55,6 +100,12 @@ public sealed partial class Room
             foreach (var flag in progress.Flags ?? []) log.Flags.Add(flag);
             log.Lines = [.. progress.Lines ?? []];
         }
+    }
+    public void SyncTerritoryStory(Player player, AccountProfile profile) => LoadStory(player,profile);
+    public void TerritorySay(Player player, StoryMission mission, bool completed)
+    {
+        Say(player,"novaFront",mission.Id,completed?mission.Lines?.Done:mission.Lines?.Accept,mission.Giver,mission.Role);
+        SendMissions(player);
     }
 
     /// <summary>Кампании в профиль; null — пилот сюжета не касался, и писать в файл нечего.</summary>
@@ -113,14 +164,15 @@ public sealed partial class Room
                 campaign.Name,
                 // Считаем только то, что в файле и есть: id, оставшийся в профиле от убранной миссии,
                 // не должен превращать «3 из 14» в «4 из 14». Пролог у ветерана — пройден.
-                campaign.Count(passed),
-                campaign.Length,
+                campaign.Count(passed) + (Balance.Mechs.Workshop?.Campaign == id ? player.Workshop.Completed.Length : 0),
+                campaign.Length + (Balance.Mechs.Workshop?.Campaign == id ? Balance.Mechs.Workshop.MissionOrder.Length : 0),
                 log?.Lines ?? [],
                 offer,
-                offer is null && player.Missions.Story is null && campaign.Next(passed) is null,
+                offer is null && player.Missions.Story is null && campaign.Next(passed) is null
+                    && (Balance.Mechs.Workshop?.Campaign != id || Balance.Mechs.Workshop.MissionOrder.All(player.Workshop.Completed.Contains)),
                 RelayOpen(player, campaign, passed),
                 log?.Flags.Contains(Protocol.SortieWonFlag) == true,
-                pointer);
+                pointer, Balance.Mechs.Workshop?.Campaign == id && Balance.Mechs.Workshop.MissionOrder.All(player.Workshop.Completed.Contains));
         }
     }
 
@@ -138,6 +190,13 @@ public sealed partial class Room
     private StoryNextDto? RelayPointer(Player player, string id, StoryCampaign campaign)
     {
         if (campaign.MissionList.Count == 0) return null;
+        if (Balance.Mechs.Workshop is { } w && w.Campaign == id)
+        {
+            var next = w.MissionOrder.FirstOrDefault(m => !player.Workshop.Completed.Contains(m));
+            if (next is null) return null;
+            var mission = Balance.Mechs.MissionMap[next];
+            return new(next, mission.Name, "Ева Морен", "инженер Нова-Прайм", w.Place, Balance.Galaxy.SystemOfPlace(w.Place) ?? SystemId);
+        }
         if (player.Story.GetValueOrDefault(id)?.Flags.Contains(Protocol.SortieWonFlag) == true) return null;
         var last = campaign.MissionList[^1];
         var system = Balance.Galaxy.SystemOfPlace(last.Place) ?? SystemId;
@@ -284,7 +343,8 @@ public sealed partial class Room
             choice.Who ?? mission.Giver,
             choice.Role ?? mission.Role,
             [choice.Question],
-            [.. choice.OptionList.Select(o => new DialogOptionDto(o.Label, o.Flag))]));
+            [.. choice.OptionList.Select(o => new DialogOptionDto(o.Label, o.Flag))],
+            Stop: _storyInspections.ContainsKey(player.Id)));
     }
 
     /// <summary>Сюжетная работа сдана: записать её, заплатить отношением и договорить.</summary>
@@ -293,7 +353,7 @@ public sealed partial class Room
         var log = player.StoryOf(story.Campaign);
         log.Done.Add(story.Mission);
         var mission = StoryMissionOf(story);
-        StoryEnd(player);
+        StoryEnd(player, keepPursuit: true);
         if (mission is not null)
         {
             // Гружёное этой миссией уезжает вместе с ней: дальше оно не нужно, а трюм занимает.
@@ -318,6 +378,7 @@ public sealed partial class Room
             if (mission.RepReward != 0)
                 AddRep(player, mission.RepPlace ?? mission.Place, mission.RepReward, Protocol.RepMissionDone);
         }
+        MigrateMechs(player);
         Save(player);
         _log.LogInformation("Player {Id} finished story {Campaign}/{Mission}", player.Id, story.Campaign, story.Mission);
     }
@@ -349,16 +410,21 @@ public sealed partial class Room
     }
 
     /// <summary>Убрать всё, что кампания положила и вызвала для этого пилота в этой комнате.</summary>
-    private void StoryEnd(Player player)
+    private void StoryEnd(Player player, bool keepPursuit = false)
     {
+        _storyInspections.Remove(player.Id);
         _storyAsked.Remove(player.Id);
         _storyDrops.Remove(player.Id);
         _storyStaged.Remove(player.Id);
         if (_loot.RemoveOwned(player.Id)) ClearMissingLootTargets();
-        if (!_storyActors.Remove(player.Id, out var runId)) return;
+        var runs = new HashSet<int>();
+        if (_storyActors.Remove(player.Id, out var runId)) runs.Add(runId);
+        if (!keepPursuit && _storyPursuers.Remove(player.Id, out var pursuit)) runs.Add(pursuit);
+        if (runs.Count == 0) return;
         foreach (var npc in _pirates)
         {
-            if (npc.MissionId != runId) continue;
+            if (!runs.Contains(npc.MissionId)) continue;
+            npc.AwaitingStoryChoice = false;
             npc.MissionId = 0;
             if (npc.IsDead || npc.State == PirateState.Leave) continue;
             npc.State = PirateState.Leave;
@@ -389,6 +455,11 @@ public sealed partial class Room
         if (player.Missions.Story?.Offer.Story is not { } story) return;
         if (StoryMissionOf(story) is not { } mission) return;
         if (StorySystemOf(mission) is { } where && where != SystemId) return;
+        // Журнал переживает перезапуск сервера и гибель: повторный подбор уже не нужен,
+        // но вопрос всё равно должен появиться после вылета с грузом на руках.
+        if (!player.Docked && mission.Choice is { HoldRadius: > 0 } && mission.Item is { } item &&
+            player.Cargo.Count(item) >= mission.Count && !_storyAsked.ContainsKey(player.Id))
+            StoryPickupReady(player, story, mission);
         if (_storyStaged.GetValueOrDefault(player.Id) == mission.Id) return;
         _storyStaged[player.Id] = mission.Id;
         StorySpawn(player, mission, StoryRules.OnArrive);
@@ -434,6 +505,23 @@ public sealed partial class Room
         if (StoryMissionOf(story) is not { Item: { } item } mission || drop.Item != item) return;
         if (player.Cargo.Count(item) < mission.Count) return;
 
+        StoryPickupReady(player, story, mission);
+    }
+
+    private void StoryPickupReady(Player player, StoryRef story, StoryMission mission)
+    {
+        if (_storyAsked.ContainsKey(player.Id)) return;
+
+        if (mission.Choice is { HoldRadius: > 0, EscapeFlag: { } escape } inspection)
+        {
+            _storyInspections[player.Id] = new StoryInspection(player.Ship.X, player.Ship.Y, inspection.HoldRadius, escape);
+            player.Ship.Vx = player.Ship.Vy = 0;
+            player.Inputs.Stop();
+            player.FireHeld = false;
+            player.JumpTo = null;
+            player.JumpAtTick = 0;
+        }
+
         StorySpawn(player, mission, StoryRules.OnPickup);
         if (mission.Choice is not { Trigger: StoryRules.OnPickup })
         {
@@ -454,6 +542,23 @@ public sealed partial class Room
         if (player.Missions.Story?.Offer.Story is not { } active || active.Mission != story.Mission) return;
         if (StoryMissionOf(story) is not { Choice: { } choice } mission) return;
         if (choice.OptionList.FirstOrDefault(o => o.Flag == flag) is not { } option) return;
+
+        if (_storyInspections.Remove(player.Id) && _storyActors.TryGetValue(player.Id, out var runId))
+        {
+            foreach (var npc in _pirates.Where(n => n.MissionId == runId && n.AwaitingStoryChoice))
+            {
+                npc.AwaitingStoryChoice = false;
+                if (!option.Hostile || npc.IsDead) continue;
+                npc.State = PirateState.Attack;
+                npc.TargetId = player.Id;
+                npc.FireHeld = true;
+            }
+            if (option.Hostile)
+            {
+                _storyActors.Remove(player.Id);
+                _storyPursuers[player.Id] = runId;
+            }
+        }
 
         _storyAsked.Remove(player.Id);
         var log = player.StoryOf(story.Campaign);
@@ -497,7 +602,8 @@ public sealed partial class Room
                 [new InvasionGroup(spawn.Npc, spawn.Level, spawn.Count)],
                 point, invasionId: 0, missionId: runId, onSite: spawn.Gate is null || spawn.Flee,
                 storyName: spawn.Name, touch: npc => Tune(npc, player, spawn), fixedLevel: true);
-            if (sent > 0) player.Connection?.Send(new NoticeMsg(Protocol.AmbushNotice));
+            if (sent > 0 && !_storyInspections.ContainsKey(player.Id))
+                player.Connection?.Send(new NoticeMsg(Protocol.AmbushNotice));
             _log.LogInformation(
                 "Story {Mission} sent {Count} × {Npc} to player {Id} on {Trigger}",
                 mission.Id, sent, spawn.Npc, player.Id, trigger);
@@ -512,6 +618,7 @@ public sealed partial class Room
     private void Tune(Pirate npc, Player player, StorySpawn spawn)
     {
         npc.OwnerId = player.Id;
+        npc.AwaitingStoryChoice = spawn.Trigger == StoryRules.OnPickup && _storyInspections.ContainsKey(player.Id);
         npc.HoldsGround = spawn.Hold;
         npc.StoryDrop = spawn.Drop;
         if (!spawn.Flee || spawn.Gate is not { } to || Balance.SystemDef.GateTo(to) is not { } gate) return;
@@ -587,6 +694,11 @@ public sealed partial class Room
         }
         return null;
     }
+
+    /// <summary>Полигон открыт в своём доке без прохождения кампании; null в балансе скрывает его.</summary>
+    public bool MechTrainingHere(Player player) => player.AccountId is not null && player.Docked &&
+        Balance.Mechs.TrainingPlace is { } place && player.DockedPlace == place &&
+        Balance.Mechs.Mission(MechRules.FirstSortie) is not null;
 
     /// <summary>Отладка (SRO_STORY_SKIP): отметить все миссии кампании пройденными.</summary>
     public void SkipStory(Player player, string campaign)

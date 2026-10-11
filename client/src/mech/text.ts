@@ -30,6 +30,19 @@ const REFUSAL_TEXT: Record<MechRefusal, string> = {
   badPart: 'Эта часть уже выведена из строя',
   badAct: 'Команда не распознана',
   over: 'Бой уже окончен',
+  staleRevision: 'Состояние изменилось — данные обновлены',
+  mechBusy: 'Идёт наземный бой',
+  workshopLocked: 'Мастерская откроется после первой сюжетной победы на Нова-Прайм',
+  ownership: 'Деталь или машина недоступна: проверьте владельца и установленные экземпляры',
+  overweight: 'Масса превышает грузоподъёмность шасси',
+  incomplete: 'Нужны корпус, шасси, обе руки и хотя бы одно оружие',
+  mechLimit: 'Можно хранить не больше четырёх мехов',
+  resources: 'Недостаточно кредитов или ресурсов',
+  badAssembly: 'Недопустимая сборка или имя',
+  squadRequired: 'Выберите требуемое число готовых машин',
+  cargoFull: 'В трюме недостаточно места',
+  saveFailed: 'Не удалось сохранить результат. Повторите запрос',
+  badRepair: 'Ремонт недоступен: нужна живая повреждённая часть и неиспользованный ремонтный модуль',
 };
 
 export function refusalText(code: MechRefusal | string): string {
@@ -69,7 +82,10 @@ export function endTitle(won: boolean): string {
   return won ? 'Противник уничтожен' : 'Ретранслятор потерял связь';
 }
 
-export function endText(won: boolean, reward: number, first: boolean, rewardText: string): string {
+export function endText(won: boolean, reward: number, first: boolean, rewardText: string, training = false): string {
+  if (training) return won
+    ? 'Тренировка пройдена. Можно повторить бесплатно и попробовать другую тактику.'
+    : 'Тренировка завершена. Прототип восстановлен — можно попробовать снова бесплатно.';
   if (!won) return 'Машину вытащили, повреждения чинятся сами. Повтор — бесплатно.';
   if (first && reward > 0) return `Первая вылазка удалась. Награда: ${rewardText}.`;
   return 'Бой выигран. Награда за вылазку уже выплачена.';

@@ -6,7 +6,7 @@ namespace Sro.Server.Game;
 /// Грузовой отсек (GDD §21): у игрока и у пирата, который подбирает груз. Ёмкость берётся у корпуса (боевой
 /// документ §46). При уничтожении корабля весь груз высыпается в космос (§24); обрыв связи его не трогает.
 /// </summary>
-public sealed class Cargo
+public sealed class Cargo(Func<string>? hull = null)
 {
     private readonly Dictionary<string, int> _items = new(StringComparer.Ordinal);
 
@@ -22,10 +22,11 @@ public sealed class Cargo
     public int Reserved;
 
     /// <summary>Занятый объём, включая груз доставки.</summary>
-    public double Used(LootRules loot)
+    public double Volume(LootRules loot,string item,string? targetHull=null) => Sro.Sim.Mech.TerritoryRules.CargoVolume(targetHull??hull?.Invoke()??"",item,loot.Volume(item));
+    public double Used(LootRules loot,string? targetHull=null)
     {
         var used = (double)Reserved;
-        foreach (var (item, count) in _items) used += loot.Volume(item) * count;
+        foreach (var (item, count) in _items) used += Volume(loot,item,targetHull) * count;
         return used;
     }
 
@@ -34,7 +35,7 @@ public sealed class Cargo
     /// состояние и мигание снапшота ради выигрыша в один-два предмета.
     /// </summary>
     public bool Fits(string item, int count, double capacity, LootRules loot) =>
-        Used(loot) + loot.Volume(item) * count <= capacity;
+        Used(loot) + Volume(loot,item) * count <= capacity + 1e-9;
 
     public void Add(string item, int count) => _items[item] = _items.GetValueOrDefault(item) + count;
 

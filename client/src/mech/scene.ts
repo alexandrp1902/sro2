@@ -1,6 +1,6 @@
 import { Application, Container, Graphics, Sprite, Text } from 'pixi.js';
 import { type FxName, MechRig, fxTextures, mechTexture } from './rig';
-import { MechField, PARTS, STEPS, alive, type MechPart, type MechUnitView } from './rules';
+import { DEFAULT_RULES, MechField, PARTS, STEPS, alive, unitDef, type MechBattleView, type MechMission, type MechPart, type MechRules, type MechUnitView } from './rules';
 
 /** Клетка поля на экране при зуме 1 (план M21: 72 px). */
 export const CELL_PX = 72;
@@ -63,10 +63,12 @@ export class MechScene {
 
   private readonly ground = new Container();
   private readonly marks = new Graphics();
+  private readonly objective = new Graphics();
   private readonly objects = new Container();
   private readonly fx = new Container();
   private readonly units = new Map<string, UnitView>();
   private field = new MechField([]);
+  private biome = 'desert';
   private zoom = 1;
   private cx = 0;
   private cy = 0;
@@ -75,7 +77,7 @@ export class MechScene {
 
   constructor(private readonly app: Application) {
     this.objects.sortableChildren = true;
-    this.root.addChild(this.ground, this.marks, this.objects, this.fx);
+    this.root.addChild(this.ground, this.objective, this.marks, this.objects, this.fx);
     app.stage.addChild(this.root);
     this.bindInput();
     const onResize = () => this.applyCamera();
@@ -90,7 +92,8 @@ export class MechScene {
 
   // ------------------------------------------------------------------ поле
 
-  setMap(map: readonly string[]): void {
+  setMap(map: readonly string[],biome='desert'): void {
+    this.biome=biome;
     this.field = new MechField(map);
     this.ground.removeChildren().forEach((c) => c.destroy());
     for (const child of [...this.objects.children]) {
@@ -131,7 +134,7 @@ export class MechScene {
   }
 
   private tile(name: string, x: number, y: number, span: number): Sprite {
-    const sprite = new Sprite(mechTexture(`tile-${name}`));
+    const sprite = new Sprite(mechTexture(this.biome==='desert'?`tile-${name}`:`tile-${this.biome}-${name}`));
     sprite.position.set(x * CELL_PX, y * CELL_PX);
     sprite.width = CELL_PX * span;
     sprite.height = CELL_PX * span;
@@ -147,7 +150,19 @@ export class MechScene {
 
   // ------------------------------------------------------------------ мехи
 
-  setUnits(units: readonly MechUnitView[]): void {
+  setObjective(mission:MechMission | undefined,state:MechBattleView):void {
+    const g=this.objective;g.clear();const o=mission?.objective;if(!o)return;
+    for(const p of o.zone ?? [])g.rect(p.x*CELL_PX+3,p.y*CELL_PX+3,CELL_PX-6,CELL_PX-6).fill({color:0xd9c08a,alpha:.18}).stroke({color:0xd9c08a,width:3});
+    for(const p of o.route ?? [])g.circle((p.x+.5)*CELL_PX,(p.y+.5)*CELL_PX,6).fill({color:0x7fd08f,alpha:.75});
+    for(const p of o.evacuation??[])g.rect(p.x*CELL_PX+3,p.y*CELL_PX+3,CELL_PX-6,CELL_PX-6).fill({color:0x6fcad6,alpha:.2}).stroke({color:0x6fcad6,width:3});
+    const last=o.route?.at(-1);if(last)g.rect(last.x*CELL_PX+4,last.y*CELL_PX+4,CELL_PX-8,CELL_PX-8).stroke({color:0x7fd08f,width:4});
+    const object=state.units.find(u=>u.id===state.objectiveUnit);
+    if(object)g.rect(object.x*CELL_PX+2,object.y*CELL_PX+2,CELL_PX-4,CELL_PX-4).stroke({color:alive(object)?0xd9c08a:0xe0524a,width:4});
+  }
+
+  setUnits(units: readonly MechUnitView[], rules: MechRules = DEFAULT_RULES): void {
+    const ids=new Set(units.map(u=>u.id));
+    for(const [id,view] of this.units) if(!ids.has(id)){view.holder.destroy({children:true});this.units.delete(id);}
     for (const unit of units) {
       let view = this.units.get(unit.id);
       if (!view) {
@@ -161,10 +176,11 @@ export class MechScene {
         this.units.set(unit.id, view);
       }
       view.unit = unit;
+      view.rig.configure(unitDef(rules,unit),rules,unit.control==='objective',unit.unit==='tractor'?'tractor':'generator');
       this.place(view, unit.x, unit.y);
       this.pose(view, unit.dir);
       const dead = !alive(unit);
-      view.holder.alpha = dead ? 0.35 : 1;
+      view.holder.alpha = dead ? 0.8 : 1;
       view.base.visible = !dead;
     }
   }
@@ -176,7 +192,7 @@ export class MechScene {
 
   private pose(view: UnitView, dir: number): void {
     const broken = new Set<MechPart>(PARTS.filter((_, i) => i > 0 && view.unit.max[i] > 0 && view.unit.hp[i] <= 0));
-    view.rig.set(dir, broken);
+    view.rig.set(dir, broken, !alive(view.unit));
     // Кольцо под мехом и стрелка взгляда: направление должно читаться и без картинки.
     const color = view.unit.side === 'enemy' ? COLOR.enemy : COLOR.player;
     const [fx, fy] = STEPS[dir];
@@ -282,7 +298,11 @@ export class MechScene {
       if (dir >= 0) this.pose(view, dir);
       const fx = x;
       const fy = y;
-      await this.tween(150, (k) => this.place(view, fx + (nx - fx) * k, fy + (ny - fy) * k));
+      await this.tween(240, (k) => {
+        this.place(view, fx + (nx - fx) * k, fy + (ny - fy) * k);
+        const broken=new Set<MechPart>(PARTS.filter((_,i)=>i>0&&view.unit.max[i]>0&&view.unit.hp[i]<=0));
+        view.rig.set(dir>=0?dir:finalDir,broken,false,Math.min(3,Math.floor(k*4)));
+      });
       x = nx;
       y = ny;
     }
@@ -359,7 +379,7 @@ export class MechScene {
     if (part === 'body' && hp <= 0) {
       view.base.visible = false;
       void this.burst(view, 'explosion');
-      void this.tween(400, (k) => (view.holder.alpha = 1 - 0.65 * k));
+      void this.tween(400, (k) => (view.holder.alpha = 1 - 0.2 * k));
     }
   }
 

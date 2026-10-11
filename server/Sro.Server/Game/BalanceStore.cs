@@ -18,6 +18,7 @@ public sealed class BalanceStore : IDisposable
     private readonly FileSystemWatcher _watcher;
     private readonly Timer _debounce;
     private string[] _lastTexts;
+    private string? _territoryText;
 
     public BalanceStore(IConfiguration configuration, IHostEnvironment environment, ILogger<BalanceStore> log)
     {
@@ -46,6 +47,9 @@ public sealed class BalanceStore : IDisposable
         };
         _watcher.Filters.Clear();
         foreach (var file in Files) _watcher.Filters.Add(file);
+        _watcher.Filters.Add("mech-territory.json");
+        var territoryPath = Path.Combine(_dir, "mech-territory.json");
+        if (File.Exists(territoryPath)) _territoryText = File.ReadAllText(territoryPath);
         _watcher.Changed += OnFileEvent;
         _watcher.Created += OnFileEvent;
         _watcher.Renamed += OnFileEvent;
@@ -53,14 +57,33 @@ public sealed class BalanceStore : IDisposable
     }
 
     public Balance Balance { get; private set; }
+    public string DirectoryPath => _dir;
 
     /// <summary>Вызывается из потока таймера; подписчик сам переносит изменение в свой поток.</summary>
     public event Action<Balance>? Changed;
+    public event Action<Sro.Sim.Mech.TerritoryConfig>? TerritoryChanged;
 
     private void OnFileEvent(object sender, FileSystemEventArgs e) => _debounce.Change(DebounceMs, Timeout.Infinite);
 
     private void Reload()
     {
+        var territoryPath = Path.Combine(_dir, "mech-territory.json");
+        if (File.Exists(territoryPath))
+        {
+            try
+            {
+                var text = File.ReadAllText(territoryPath);
+                if (text != _territoryText)
+                {
+                    var territory = Sro.Sim.Mech.TerritoryConfig.Load(territoryPath);
+                    if (territory.ValidateRules(Balance.Mechs) is { } territoryError) throw new InvalidDataException(territoryError);
+                    _territoryText = text;
+                    TerritoryChanged?.Invoke(territory);
+                }
+            }
+            catch (Exception e) when (e is IOException or System.Text.Json.JsonException or InvalidDataException)
+            { _log.LogWarning(e, "Territory configuration rejected; keeping previous values"); }
+        }
         var texts = new string[Files.Length];
         for (var i = 0; i < Files.Length; i++)
         {

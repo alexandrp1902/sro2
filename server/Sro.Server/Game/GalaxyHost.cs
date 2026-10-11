@@ -35,12 +35,15 @@ public sealed class GalaxyHost : BackgroundService
         AccountStore accounts,
         ILogger<GalaxyHost> log,
         ILogger<Room> roomLog,
-        IConfiguration configuration)
+        IConfiguration configuration, IHostEnvironment environment)
     {
         _log = log;
         var idleTimeoutSeconds = configuration.GetValue("Simulation:IdleTimeoutSeconds", 600);
         _idleTimeout = idleTimeoutSeconds > 0 ? TimeSpan.FromSeconds(idleTimeoutSeconds) : Timeout.InfiniteTimeSpan;
-        _galaxy = new Galaxy(balance.Balance, roomLog, accounts);
+        var territory=Sro.Sim.Mech.TerritoryConfig.Load(Path.Combine(balance.DirectoryPath,"mech-territory.json"));
+        if(territory.ValidateRules(balance.Balance.Mechs) is { } territoryError) throw new InvalidDataException(territoryError);
+        var territoryStore=new TerritoryStore(Path.GetFullPath(Path.Combine(environment.ContentRootPath,configuration["DataDir"]!,"world")),territory,accounts,log,DateTimeOffset.UtcNow);
+        _galaxy = new Galaxy(balance.Balance, roomLog, accounts,territory:territory,territoryStore:territoryStore);
         // Отладка M21: проставить кампанию целиком каждому входящему, чтобы попасть к ретранслятору без
         // четырнадцати миссий. Только явной переменной окружения, и громко: на проде её быть не должно.
         if (Environment.GetEnvironmentVariable("SRO_STORY_SKIP") is { Length: > 0 } skip)
@@ -50,6 +53,7 @@ public sealed class GalaxyHost : BackgroundService
         }
         _roomMs = new double[_galaxy.Rooms.Count];
         balance.Changed += b => Enqueue(() => _galaxy.ApplyBalance(b));
+        balance.TerritoryChanged += c => Enqueue(() => _galaxy.ApplyTerritoryConfig(c));
     }
 
     public long Tick => Interlocked.Read(ref _tick);
@@ -135,6 +139,9 @@ public sealed class GalaxyHost : BackgroundService
     /// <summary>Наземный бой (M21) — галактике: сессия переживает комнату, которая забыла бы пилота без связи.</summary>
     public void Mech(IClientConnection connection, MechActMsg message) =>
         Enqueue(() => _galaxy.Mech(connection, message));
+    public void Workshop(IClientConnection connection, WorkshopActMsg message) =>
+        Enqueue(() => _galaxy.With(connection, r => r.Workshop(connection, message)));
+    public void Territory(IClientConnection connection,TerritoryActMsg message) => Enqueue(()=>_galaxy.Territory(connection,message));
 
     /// <summary>Комната выбирается в потоке тика: к моменту выполнения корабль мог уже перелететь в другую систему.</summary>
     private void With(IClientConnection connection, Action<Room> command) =>

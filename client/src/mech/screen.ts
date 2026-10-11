@@ -13,6 +13,7 @@ import {
   armItem,
   forecast,
   gunOf,
+  packEffect,
   reachOf,
   unitDef,
   type MechBattleView,
@@ -21,6 +22,7 @@ import {
   type MechUnitView,
 } from './rules';
 import { MechScene } from './scene';
+import {partName} from './workshop';
 import {
   PART_LABEL,
   SIDE_LABEL,
@@ -63,6 +65,13 @@ export class MechScreen {
   private state: MechBattleView | null = null;
   private chain: Promise<void> = Promise.resolve();
   private waiting = false;
+  private online = true;
+  private session: string | undefined;
+  private savePending = false;
+  private revision = 0;
+  private yourAccount: string | null=null;
+  private deadline: string | null=null;
+  private hand: string | null = null;
   private playing = false;
   private ended: MechEndMsg | null = null;
   private selected: string | null = null;
@@ -116,6 +125,7 @@ export class MechScreen {
   /** Сообщение сервера — в очередь: анимация предыдущего хода должна доиграть. */
   apply(message: MechMessage): void {
     if (message.t === 'mechRefused') {
+      if (message.code === 'saveFailed') this.savePending = true;
       this.waiting = false;
       this.say(refusalText(message.code));
       this.render();
@@ -138,9 +148,17 @@ export class MechScreen {
   private async handle(message: Exclude<MechMessage, { t: 'mechRefused' }>): Promise<void> {
     switch (message.t) {
       case 'mechState':
+        if (message.session === this.session && (message.revision ?? 0) < this.revision) return;
+        if (message.session !== this.session) this.savePending = false;
+        this.session = message.session;
+        this.revision = message.revision ?? 0;
+        this.yourAccount=message.yourAccount??null;
+        this.root.dataset.territory=String(!!this.yourAccount);
+        this.deadline=message.deadline??null;
         await this.show();
         if (message.rules) this.rules = message.rules;
         this.setState(message.battle);
+        if (!gunOf(this.rules, this.me()!, this.hand)) this.hand = null;
         return;
       case 'mechEvents':
         this.playing = true;
@@ -152,7 +170,9 @@ export class MechScreen {
         }
         return;
       case 'mechEnd':
+        if (message.result && this.session && message.result.session !== this.session) return;
         this.ended = message;
+        this.savePending = false;
         this.waiting = false;
         this.select(null);
         this.showEnd(message);
@@ -188,9 +208,10 @@ export class MechScreen {
     this.pendingDir = null;
     if (mapChanged) {
       this.map = [...state.map];
-      scene.setMap(state.map);
+      scene.setMap(state.map,state.biome??'desert');
     }
-    scene.setUnits(state.units);
+    scene.setUnits(state.units,this.rules);
+    scene.setObjective(this.rules.missions?.[state.mission],state);
     if (first || mapChanged) {
       scene.fit(coarse() ? 46 : 56);
       const me = this.me();
@@ -228,6 +249,13 @@ export class MechScreen {
           void scene.float(e.target ?? '', 'Промах', 'miss');
           await sleep(420);
           break;
+        case 'skill':
+        case 'skillFailed':
+          this.say(`${this.rules.skills?.[e.weapon ?? '']?.name ?? e.weapon}: ${e.kind === 'skill' ? 'сработал' : 'движение потрачено'}`, false);
+          await sleep(180); break;
+        case 'repair':
+          if (e.part) { const u=this.state?.units.find(u=>u.id===e.unit); if (u) {const i=PARTS.indexOf(e.part);u.hp[i]=Math.min(u.max[i],u.hp[i]+e.dmg);this.scene?.wound(u.id,e.part,u.hp[i]);} }
+          this.say(`Ремонт +${e.dmg} HP`, false); break;
         case 'block':
           this.hurt(e);
           void scene.float(e.unit, `Блок щитом −${e.dmg}`, 'block');
@@ -271,7 +299,8 @@ export class MechScreen {
 
   private get interactive(): boolean {
     const s = this.state;
-    return !!s && this.open && s.turn === 'player' && !s.winner && !this.waiting && !this.playing && this.ended === null;
+    return this.online && !!s && this.open && s.turn === 'player' && !s.winner && !this.waiting && !this.playing && this.ended === null
+      && (!this.yourAccount || s.units.find(u=>u.id===s.current)?.accountOwner===this.yourAccount);
   }
 
   private tap(x: number, y: number): void {
@@ -285,13 +314,15 @@ export class MechScreen {
       return;
     }
     if (unit) {
+      if (unit.side === 'player' && unit.control !== 'ai' && unit.control !== 'objective' && !unit.activated && this.interactive && !s.moved)
+        this.send({t:'mechAct',act:'select',unit:unit.id});
       this.select(null);
       this.preview = null;
       this.render();
       return;
     }
     if (!this.interactive) return;
-    const reach = reachOf(s);
+    const reach = reachOf(s, true);
     if (!reach.has(cell)) {
       this.preview = null;
       this.render();
@@ -299,7 +330,8 @@ export class MechScreen {
     }
     // Телефон: первый тап — предпросмотр пути, второй — ход. Мышь: путь видно наведением, клик — ход.
     if (this.preview === cell || !coarse()) {
-      this.send({ t: 'mechAct', act: 'move', x, y });
+      if (!reachOf(s).has(cell)) this.handlers.confirm({title:'Нужен рывок / прыжок',text:'При неудаче движение будет потрачено. Атаковать после попытки можно.',yes:'Попробовать',no:'Отмена'},()=>this.send({t:'mechAct',act:'move',x,y}));
+      else this.send({ t: 'mechAct', act: 'move', x, y });
       return;
     }
     this.preview = cell;
@@ -310,7 +342,7 @@ export class MechScreen {
     const s = this.state;
     if (!s || !this.interactive) return;
     const cell = new MechField(s.map).index(x, y);
-    const next = reachOf(s).has(cell) ? cell : null;
+    const next = reachOf(s,true).has(cell) ? cell : null;
     if (next === this.preview) return;
     this.preview = next;
     this.renderMarks();
@@ -329,15 +361,16 @@ export class MechScreen {
   }
 
   private send(message: MechActMessage): void {
+    if (!this.online) return;
     this.waiting = true;
     this.preview = null;
-    this.handlers.send(message);
+    this.handlers.send({...message,session:this.session,revision:this.revision,unit:message.unit ?? this.state?.current ?? undefined,request:crypto.randomUUID()});
     this.render();
   }
 
   private attack(): void {
     if (!this.selected) return;
-    this.send({ t: 'mechAct', act: 'attack', target: this.selected, part: this.aimed && this.part ? this.part : undefined });
+    this.send({ t: 'mechAct', act: 'attack', target: this.selected, part: this.aimed && this.part ? this.part : undefined, hand:this.hand ?? undefined });
   }
 
   private endTurn(): void {
@@ -356,12 +389,16 @@ export class MechScreen {
 
   private quit(): void {
     this.handlers.confirm(
-      { title: 'Отступить?', text: 'Связь с машиной оборвётся — это поражение. Повтор бесплатный.', yes: 'Отступить', no: 'Остаться' },
+      { title: 'Отступить?', text: this.yourAccount ? 'Поражение уменьшает контроль. Обслуживание машин потребуется после боя. В совместном бою второй игрок должен подтвердить отступление.' : 'Связь с машиной оборвётся — это поражение. Повтор бесплатный.', yes: 'Отступить', no: 'Остаться' },
       () => this.send({ t: 'mechAct', act: 'quit' }),
     );
   }
 
   // ------------------------------------------------------------------ отрисовка
+
+  private owns(unit: MechUnitView | null): boolean {
+    return !!unit && (!this.yourAccount || unit.accountOwner === this.yourAccount);
+  }
 
   private me(): MechUnitView | null {
     const s = this.state;
@@ -386,18 +423,18 @@ export class MechScreen {
     const s = this.state;
     if (!s || !this.scene) return;
     const interactive = this.interactive;
-    const reach = interactive ? reachOf(s) : new Map<number, number>();
+    const reach = interactive ? reachOf(s,true) : new Map<number, number>();
     const me = this.me();
     const field = new MechField(s.map);
     const path = interactive && me && this.preview !== null
-      ? field.path(me.x, me.y, this.preview % field.width, Math.floor(this.preview / field.width), s.moveRange, occupiedExcept(s, me))
+      ? field.path(me.x, me.y, this.preview % field.width, Math.floor(this.preview / field.width), s.moveRange+(me.dashRange ?? 0), occupiedExcept(s, me)) ?? [this.preview]
       : null;
     const targets = new Set<string>();
     if (me && interactive) {
-      for (const u of s.units) if (u.side === 'enemy' && alive(u) && forecast(this.rules, s, me, u, null).ok) targets.add(u.id);
+      for (const u of s.units) if (u.side === 'enemy' && alive(u) && forecast(this.rules, s, me, u, null, this.hand).ok) targets.add(u.id);
     }
     const selected = s.units.find((u) => u.id === this.selected);
-    const line = me && selected ? { from: me.id, to: selected.id, ok: forecast(this.rules, s, me, selected, null).ok } : null;
+    const line = me && selected ? { from: me.id, to: selected.id, ok: forecast(this.rules, s, me, selected, null, this.hand).ok } : null;
     this.scene.setMarks({ reach, path, targets, selected: this.selected, line, current: s.turn === 'player' ? (s.current ?? null) : null });
   }
 
@@ -406,16 +443,24 @@ export class MechScreen {
     const mission = this.rules.missions?.[s.mission];
     const enemies = s.units.filter((u) => u.side === 'enemy');
     const killed = enemies.filter((u) => !alive(u)).length;
+    const object = s.units.find(u=>u.id===s.objectiveUnit);
     this.head.replaceChildren(
       el('div', 'mech-head-title', [el('span', 'sro-label', 'Наземная операция'), el('strong', '', mission?.name ?? 'Вылазка')]),
-      el('span', 'mech-chip sro-pane sro-pane--pill', roundChip(s.round, s.turn, !!s.winner || this.ended !== null)),
-      el('span', 'mech-goal', objectiveLine(mission?.goal ?? 'Уничтожить противников', killed, enemies.length)),
+      el('span', 'mech-chip sro-pane sro-pane--pill', this.yourAccount && s.turn === 'player' && !this.owns(this.me()!) ? `Раунд ${s.round} · ход напарника` : roundChip(s.round, s.turn, !!s.winner || this.ended !== null)),
+      el('span', 'mech-goal', objectiveLine(s.goal ?? mission?.goal ?? 'Уничтожить противников', mission?.objective?.kind && mission.objective.kind !== 'eliminate' ? s.progress ?? 0 : killed, mission?.objective?.kind && mission.objective.kind !== 'eliminate' ? s.required ?? 0 : enemies.length)+(object ? ` · ${object.name}: ${object.hp[0]}/${object.max[0]} HP` : '')),
       el('div', 'mech-head-actions', [
         button('−', 'sro-btn sro-btn--icon sro-btn--ghost', () => this.scene?.zoomBy(1 / 1.2), 'Отдалить'),
         button('+', 'sro-btn sro-btn--icon sro-btn--ghost', () => this.scene?.zoomBy(1.2), 'Приблизить'),
-        button('Отступить', 'sro-btn sro-btn--sm sro-btn--danger', () => this.quit(), undefined, this.ended !== null),
+        button('Отступить', 'sro-btn sro-btn--sm sro-btn--danger', () => this.quit(), undefined, this.ended !== null || this.savePending || !!s.winner),
       ]),
     );
+    if(this.deadline&&!s.winner) {
+      const timer=el('span','mech-timer sro-num');
+      const update=()=>{const left=Math.max(0,Math.ceil((new Date(this.deadline!).getTime()-Date.now())/1000));timer.textContent=`Активация: ${left} с${left<=15?' · завершите ход':''}`;timer.classList.toggle('sro-warn',left<=15);};
+      update();const interval=window.setInterval(()=>{if(!timer.isConnected){clearInterval(interval);return;}update();},1000);this.head.append(timer);
+    }
+    if(this.yourAccount&&!this.interactive&&!s.winner)this.head.append(el('span','sro-muted','Сейчас управляет напарник'));
+    this.root.style.setProperty('--mech-head-height', `${this.head.getBoundingClientRect().height}px`);
   }
 
   private renderOwn(): void {
@@ -430,7 +475,7 @@ export class MechScreen {
       ? (s.moved ? 'Уже переместился' : `Ход: ${cells(s.moveRange)}`)
       : 'Ждёт своего хода';
     this.own.replaceChildren(
-      el('div', 'mech-panel-head', [el('span', 'sro-label', 'Ваш мех'), el('strong', '', me.name)]),
+      el('div', 'mech-panel-head', [el('span', 'sro-label', this.owns(me) ? 'Ваш мех' : 'Мех напарника'), el('strong', '', me.name)]),
       partBars(me, null),
       el('div', 'mech-gear', [
         gearRow('Левая', armItem(this.rules, def?.left)?.name ?? '—', me.hp[1] <= 0 && me.max[1] > 0),
@@ -438,6 +483,11 @@ export class MechScreen {
       ]),
       el('div', 'mech-move sro-num', moving),
     );
+    this.own.append(el('div','mech-squad', s.units.filter(u=>u.side==='player').map(u=>button(
+      `${u.name} · ${u.control === 'ai' ? 'союзник · ИИ' : u.control === 'objective' ? 'цель миссии' : this.owns(u) ? 'ваш' : 'напарника'}${u.activated ? ' · ход использован' : ''}`,
+      'sro-btn sro-btn--xs',()=>this.send({t:'mechAct',act:'select',unit:u.id}),undefined,
+      !this.interactive || s.moved || !alive(u) || u.activated || u.control==='ai' || u.control==='objective' || !!this.yourAccount&&u.accountOwner!==this.yourAccount))));
+    this.own.append(el('div','sro-muted',`Навыки: ${(me.skills ?? []).map(id=>this.rules.skills?.[id]?.name ?? id).join(', ') || 'нет'}`));
   }
 
   private renderTarget(): void {
@@ -446,7 +496,7 @@ export class MechScreen {
     const me = this.me();
     this.target.hidden = !target || this.ended !== null;
     if (!target || !me) return;
-    const f = forecast(this.rules, s, me, target, this.aimed ? this.part : null);
+    const f = forecast(this.rules, s, me, target, this.aimed ? this.part : null, this.hand);
     const myTurn = this.interactive && s.current === me.id;
     const canFire = myTurn && f.ok && (!this.aimed || this.part !== null);
     const blocker = !myTurn ? (s.turn === 'enemy' ? 'Ход противника' : null)
@@ -500,6 +550,15 @@ export class MechScreen {
         button('Отмена', 'sro-btn sro-btn--ghost', () => this.select(null)),
       ]),
     );
+    const hands = el('div','mech-mode');
+    for (const hand of ['left','right']) {
+      const gun = gunOf(this.rules,me,hand);
+      if (!gun) continue;
+      const b=button(`${hand==='left'?'Левая':'Правая'} · ${gun.weapon.name}`,'sro-btn sro-btn--xs',()=>{this.hand=hand;this.render();});
+      b.setAttribute('aria-pressed',String(this.hand===hand));hands.append(b);
+    }
+    this.target.prepend(hands);
+    if ((me.skills ?? []).length) this.target.append(el('p','sro-muted','Прогноз — обычная атака. Автоматические навыки могут изменить её результат.'));
   }
 
   private renderTray(): void {
@@ -518,24 +577,47 @@ export class MechScreen {
         button('Завершить ход', 'sro-btn sro-btn--primary mech-end-turn', () => this.endTurn(), undefined, !can),
       ]),
     );
+    if (me && packEffect(this.rules,me,'repair') > 0 && !me.repaired) for (const [i,part] of PARTS.entries())
+      if (me.hp[i]>0 && me.hp[i]<me.max[i]) this.tray.append(button(`Ремонт: ${PART_LABEL[part]}`,'sro-btn sro-btn--xs',()=>this.send({t:'mechAct',act:'repair',part}),undefined,!can));
+    if (this.savePending) this.tray.append(button('Повторить сохранение итога','sro-btn sro-btn--primary',()=>this.send({t:'mechAct',act:'end',unit:this.state?.units.find(u=>u.control==='player')?.id}),undefined,!this.online || this.waiting || this.playing));
+    if(s.actions?.includes('interact'))this.tray.append(button(s.interacted?'Объект открыт — эвакуируйтесь':'Взаимодействовать с объектом','sro-btn',()=>this.send({t:'mechAct',act:'interact'}),undefined,!can||!!s.interacted));
   }
 
   private showEnd(end: MechEndMsg): void {
     this.endCard.hidden = false;
     this.endCard.dataset.won = String(end.won);
     this.endCard.replaceChildren(
-      el('div', 'sro-dialog__title', endTitle(end.won)),
-      el('p', 'sro-dialog__text', endText(end.won, end.reward, end.first, formatCredits(end.reward))),
+      el('div', 'sro-dialog__title', end.result && end.won ? 'Операция завершена' : endTitle(end.won)),
+      el('p', 'sro-dialog__text', end.result?.territory ? `${end.won?'Победа':'Поражение'} · награда ${formatCredits(end.reward)}.` : end.result && end.won ? `${this.rules.missions?.[end.result.mission]?.name ?? 'Операция'}: победа. ${end.first ? `Награда: ${formatCredits(end.reward)}.` : 'Первая награда уже получена.'}` : endText(end.won, end.reward, end.first, formatCredits(end.reward), end.training)),
       el('div', 'sro-dialog__actions', [
-        button('Ещё раз', 'sro-btn', () => {
+        ...end.result?.territory?[]:[button('Ещё раз', 'sro-btn', () => {
           this.endCard.hidden = true;
           this.ended = null;
           this.state = null;
-          this.handlers.send({ t: 'mechAct', act: 'start' });
-        }),
+          this.handlers.send({ t: 'mechAct', act: end.training ? 'train' : 'start',mission:end.result?.mission,
+            squad: end.result?.experience.map(e=>e.id), request:crypto.randomUUID() });
+        })],
         button('В док', 'sro-btn sro-btn--primary', () => this.close()),
       ]),
     );
+    this.endCard.append(el('p','sro-muted',end.result?.territory?'HP машин восстановлены. Перед следующей вылазкой погасите долг обслуживания в мастерской.':'Все машины и детали восстановлены бесплатно.'));
+    if(end.result?.territory) {
+      const t=end.result.territory;
+      this.endCard.append(el('p','',`${t.objectName}: контроль ${t.oldControl} → ${t.control} · ${t.owner==='resistance'?'Сопротивление':'Корпорация'} · ваш вклад +${t.contribution}`));
+      for(const [id,debt] of Object.entries(t.debts))this.endCard.append(el('p','',`${end.result.experience.find(e=>e.id===id)?.name??'Машина'}: долг ${debt.titanium} титана + ${debt.energy} энергии`));
+    }
+    if (end.result) {
+      if (!end.won) this.endCard.append(el('p','sro-warn', ({retreat:'Отступление',squadDestroyed:'Отряд уничтожен',tractorDestroyed:'Тягач уничтожен',objectDestroyed:'Объект уничтожен'} as Record<string,string>)[end.result.reason] ?? end.result.reason));
+      if (end.result.parts.length) this.endCard.append(el('p','',`Детали: ${end.result.parts.map(key=>{const [category,part]=key.split(':');return partName(this.rules,{category,part});}).join(', ')}`));
+      for (const xp of end.result.experience) this.endCard.append(el('p','',`${xp.name}: +${xp.gained} XP · уровень ${xp.level} · ${xp.xp} XP${xp.newSkills.length ? ` · Новый навык: ${xp.newSkills.map(id=>this.rules.skills?.[id]?.name ?? id).join(', ')}` : ''}`));
+    }
+  }
+
+  setOnline(online: boolean): void {
+    if (online === this.online) return;
+    this.online=online;
+    if (!online && this.open) this.say('Связь потеряна. Восстанавливаем состояние сервера…');
+    this.render();
   }
 
   private say(text: string, warn = true): void {

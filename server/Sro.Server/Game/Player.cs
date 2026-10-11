@@ -49,13 +49,16 @@ public sealed class Player(int id, string? token, string name, string hullId, st
     public bool PvpOn { get; set; } = true;
 
     /// <summary>Трюм (GDD §21). Переживает уничтожение корабля (§24) и обрыв связи — он у игрока, а не у корабля.</summary>
-    public Cargo Cargo { get; } = new();
+    private Cargo? _cargo;
+    public Cargo Cargo => _cargo ??= new Cargo(()=>HullId);
 
     /// <summary>До этого тика про полный трюм молчим: иначе сообщение повторялось бы каждый тик у обломков.</summary>
     public long CargoFullUntilTick;
 
     /// <summary>Кредиты (GDD §27).</summary>
     public int Credits;
+    public Sro.Sim.Mech.MechWorkshopState Workshop { get; set; } = Sro.Sim.Mech.MechWorkshopState.Empty;
+    public Sro.Sim.Mech.TerritoryProfile Territory { get; set; } = new();
 
     /// <summary>Купленные корпуса — ангар (GDD §51). Стартовый есть всегда.</summary>
     public HashSet<string> Hulls { get; } = new(StringComparer.Ordinal) { SimConfig.DefaultHull };

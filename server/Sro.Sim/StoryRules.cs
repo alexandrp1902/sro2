@@ -23,6 +23,7 @@ public sealed record StoryLines(
 /// <param name="Flag">Уникален в пределах кампании: по нему M20b и узнает, как пилот тогда поступил.</param>
 /// <param name="Lines">Что скажут в ответ; пусто — карточка просто закроется.</param>
 /// <param name="Take">Забрать сюжетный предмет миссии из трюма: «отдать» — это отдать.</param>
+/// <param name="Hostile">Отказ при досмотре: встречающий патруль начинает бой после ответа.</param>
 /// <param name="Decline">
 /// Отказ (M20b): работа тут же бросается, и цепочка остаётся стоять на этой же миссии. Так сделан ответ
 /// «не сейчас» в седьмой: Ева раскрылась, но пилот не обязан соглашаться в ту же минуту.
@@ -32,7 +33,8 @@ public sealed record StoryOption(
     string Flag,
     IReadOnlyList<string>? Lines = null,
     bool Take = false,
-    bool Decline = false);
+    bool Decline = false,
+    bool Hostile = false);
 
 /// <summary>
 /// Выбор посреди миссии (M20a): карточка с вопросом и двумя кнопками. Ответ пишет флаг и, если
@@ -43,12 +45,16 @@ public sealed record StoryOption(
 /// в тот же миг, когда работу взяли (M20b).
 /// </param>
 /// <param name="Who">Кто спрашивает; null — тот же, кто выдал работу.</param>
+/// <param name="HoldRadius">Досмотр: радиус от точки подбора, за которым отлёт считается отказом; 0 — обычный диалог.</param>
+/// <param name="EscapeFlag">Какой враждебный ответ засчитать при отлёте без ответа.</param>
 public sealed record StoryChoice(
     string Question,
     IReadOnlyList<StoryOption>? Options = null,
     string Trigger = StoryRules.OnPickup,
     string? Who = null,
-    string? Role = null)
+    string? Role = null,
+    double HoldRadius = 0,
+    string? EscapeFlag = null)
 {
     [JsonIgnore] public IReadOnlyList<StoryOption> OptionList => Options ?? [];
 }
@@ -200,7 +206,7 @@ public sealed record StoryMission(
 /// Сколько миссий в задуманной кампании. Журнал пишет «миссия 3 из 14» ещё тогда, когда в файле их шесть:
 /// игрок должен понимать, что впереди, а не решать, что история кончилась на полуслове.
 /// </param>
-public sealed record StoryCampaign(string Name, IReadOnlyList<StoryMission>? Missions = null, int Total = 0)
+public sealed record StoryCampaign(string Name, IReadOnlyList<StoryMission>? Missions = null, int Total = 0, string[]? GroundMissions = null)
 {
     [JsonIgnore] public IReadOnlyList<StoryMission> MissionList => Missions ?? [];
 
@@ -457,6 +463,11 @@ public sealed record StoryRules(IReadOnlyDictionary<string, StoryCampaign>? Camp
         }
         if (mission.Choice is { } choice)
         {
+            if (!double.IsFinite(choice.HoldRadius) || choice.HoldRadius < 0)
+                return "choice.holdRadius must be finite and nonnegative";
+            if (choice.HoldRadius > 0 && (choice.Trigger != OnPickup || mission.Finish != FinishChoice ||
+                !choice.OptionList.Any(o => o is { Hostile: true } && o.Flag == choice.EscapeFlag)))
+                return "inspection needs an onPickup choice finish and a hostile escapeFlag";
             if (string.IsNullOrWhiteSpace(choice.Question)) return "choice.question is empty";
             if (Array.IndexOf(Triggers, choice.Trigger) < 0)
                 return $"choice: unknown trigger '{choice.Trigger}'";
@@ -474,6 +485,7 @@ public sealed record StoryRules(IReadOnlyDictionary<string, StoryCampaign>? Camp
                 if (!flags.Add(option.Flag)) return $"choice: duplicate flag '{option.Flag}'";
                 // Отказ бросает работу целиком: забирать при этом предмет не у кого и незачем.
                 if (option.Decline && option.Take) return "choice: a declining option takes nothing";
+                if (option.Hostile && option.Decline) return "choice: a hostile option cannot decline the mission";
             }
         }
         else if (mission.Finish == FinishChoice)

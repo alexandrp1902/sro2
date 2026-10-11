@@ -31,6 +31,21 @@ public class StoryRulesTests
         Assert.Equal("prototype", quiet.MissionList[^1].Id);
     }
 
+    [Theory]
+    [InlineData("missing", true)]
+    [InlineData("kept", false)]
+    public void InspectionRejectsAnEscapeFlagWithoutAHostileAnswer(string escapeFlag, bool hostile)
+    {
+        var error = Error($$"""
+        { "campaigns": { "c": { "name": "К", "missions": [
+          { "id": "a", "title": "Т", "place": "st:home", "giver": "Г", "role": "р", "kind": "collect", "item": "secret",
+            "finish": "choice", "choice": { "question": "Отдадите?", "holdRadius": 350, "escapeFlag": "{{escapeFlag}}",
+              "options": [ { "label": "Оставить", "flag": "kept", "hostile": {{hostile.ToString().ToLowerInvariant()}} } ] } }
+        ] } } }
+        """);
+        Assert.Contains("hostile escapeFlag", error);
+    }
+
     [Fact]
     public void SharedFile_QuotaLeadsStraightToThePlatform()
     {

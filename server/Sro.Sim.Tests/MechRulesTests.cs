@@ -55,6 +55,19 @@ public class MechRulesTests
         Assert.Single(mission.Player);
         Assert.Equal(2, mission.Enemy.Length);
         Assert.Equal(12, mission.Map.Length);
+        Assert.Equal("pl:novaPrime", balance.Mechs.TrainingPlace);
+        Assert.True(balance.Galaxy.HasPlace(balance.Mechs.TrainingPlace));
+    }
+
+    [Fact]
+    public void TrainingCannotBeConfiguredAtAnUnknownPlace()
+    {
+        var sources = TestHulls.SharedSources();
+        Assert.False(Balance.TryParse(sources with
+        {
+            Mechs = sources.Mechs!.Replace("pl:novaPrime", "pl:missing"),
+        }, out _, out var error));
+        Assert.Contains("unknown trainingPlace", error);
     }
 
     /// <summary>Пример §21: 82 + 10 (стоял) + 10 (бок) − 10 (на две клетки дальше оптимума) = 92.</summary>

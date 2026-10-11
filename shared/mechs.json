@@ -1,41 +1,436 @@
 {
+  "trainingPlace": "pl:novaPrime",
   "bodies": {
-    "medium": { "name": "Средний корпус", "hp": 2200, "armor": 25 }
+    "light": {
+      "name": "Лёгкий корпус",
+      "hp": 1400,
+      "armor": 15,
+      "weight": 20,
+      "art": "body-light",
+      "move": 0,
+      "maxLoad": 0
+    },
+    "medium": {
+      "name": "Средний корпус",
+      "hp": 2200,
+      "armor": 25,
+      "weight": 32,
+      "art": "body-medium",
+      "move": 0,
+      "maxLoad": 0
+    },
+    "heavy": {
+      "name": "Тяжёлый корпус",
+      "hp": 3200,
+      "armor": 40,
+      "weight": 50,
+      "art": "body-heavy",
+      "move": 0,
+      "maxLoad": 0
+    },
+    "sniper": {
+      "name": "Снайперский корпус",
+      "hp": 1600,
+      "armor": 18,
+      "weight": 24,
+      "art": "body-sniper",
+      "move": 0,
+      "maxLoad": 0
+    },
+    "bandit": {
+      "name": "Корпус налётчика",
+      "hp": 1400,
+      "armor": 15,
+      "weight": 20,
+      "art": "body-bandit",
+      "move": 0,
+      "maxLoad": 0
+    },
+    "militia": {
+      "name": "Корпус ополчения",
+      "hp": 2200,
+      "armor": 25,
+      "weight": 32,
+      "art": "body-militia",
+      "move": 0,
+      "maxLoad": 0
+    },
+    "enemy-heavy": {
+      "name": "Корпус штурмовика",
+      "hp": 3200,
+      "armor": 40,
+      "weight": 50,
+      "art": "body-enemy-heavy",
+      "move": 0,
+      "maxLoad": 0
+    },
+    "bandit-worn": {
+      "name": "Изношенный корпус налётчика",
+      "hp": 700,
+      "armor": 10,
+      "weight": 20,
+      "art": "body-bandit"
+    },
+    "assault-heavy": {
+      "name": "Изношенный корпус защитника",
+      "hp": 1200,
+      "armor": 15,
+      "weight": 50,
+      "art": "body-enemy-heavy"
+    },
+    "assault-militia": {
+      "name": "Изношенный корпус гарнизона",
+      "hp": 900,
+      "armor": 10,
+      "weight": 32,
+      "art": "body-militia"
+    }
   },
   "chassis": {
-    "mediumBiped": { "name": "Среднее двуногое шасси", "hp": 1100, "armor": 20, "move": 4 }
+    "lightBiped": {
+      "name": "Лёгкое двуногое шасси",
+      "hp": 700,
+      "armor": 10,
+      "weight": 0,
+      "art": "chassis-light-biped",
+      "move": 6,
+      "maxLoad": 75
+    },
+    "mediumBiped": {
+      "name": "Среднее двуногое шасси",
+      "hp": 1100,
+      "armor": 20,
+      "weight": 0,
+      "art": "chassis-medium-biped",
+      "move": 4,
+      "maxLoad": 110
+    },
+    "heavyBiped": {
+      "name": "Тяжёлое двуногое шасси",
+      "hp": 1800,
+      "armor": 35,
+      "weight": 0,
+      "art": "chassis-heavy-biped",
+      "move": 3,
+      "maxLoad": 160
+    },
+    "tracked": {
+      "name": "Гусеничное шасси",
+      "hp": 1600,
+      "armor": 30,
+      "weight": 0,
+      "art": "chassis-tracks",
+      "move": 3,
+      "maxLoad": 150
+    }
   },
   "weapons": {
+    "pistol-cannon": {
+      "name": "Пистолет-пушка",
+      "damage": 170,
+      "accuracy": 90,
+      "minRange": 1,
+      "optimalMin": 1,
+      "optimalMax": 3,
+      "maxRange": 5,
+      "hp": 650,
+      "armor": 15,
+      "weight": 15,
+      "sound": "bolt",
+      "art": "arm-pistol-cannon"
+    },
     "autocannon": {
-      "name": "Автопушка", "damage": 240, "accuracy": 82,
-      "minRange": 2, "optimalMin": 3, "optimalMax": 5, "maxRange": 7,
-      "hp": 600, "armor": 15, "sound": "bolt"
+      "name": "Автопушка",
+      "damage": 240,
+      "accuracy": 82,
+      "minRange": 2,
+      "optimalMin": 3,
+      "optimalMax": 5,
+      "maxRange": 7,
+      "hp": 600,
+      "armor": 15,
+      "weight": 22,
+      "sound": "bolt",
+      "art": "arm-autocannon"
+    },
+    "heavy-cannon": {
+      "name": "Тяжёлая пушка",
+      "damage": 480,
+      "accuracy": 70,
+      "minRange": 3,
+      "optimalMin": 4,
+      "optimalMax": 6,
+      "maxRange": 8,
+      "hp": 500,
+      "armor": 25,
+      "weight": 42,
+      "sound": "bolt",
+      "art": "arm-heavy-cannon"
     },
     "shotgun": {
-      "name": "Дробовик", "damage": 330, "accuracy": 85,
-      "minRange": 1, "optimalMin": 1, "optimalMax": 2, "maxRange": 4,
-      "hp": 700, "armor": 20, "sound": "flak"
+      "name": "Дробовик",
+      "damage": 330,
+      "accuracy": 85,
+      "minRange": 1,
+      "optimalMin": 1,
+      "optimalMax": 2,
+      "maxRange": 4,
+      "hp": 700,
+      "armor": 20,
+      "weight": 25,
+      "sound": "flak",
+      "art": "arm-shotgun"
+    },
+    "sniper": {
+      "name": "Снайперская пушка",
+      "damage": 390,
+      "accuracy": 78,
+      "minRange": 4,
+      "optimalMin": 6,
+      "optimalMax": 8,
+      "maxRange": 10,
+      "hp": 420,
+      "armor": 10,
+      "weight": 30,
+      "sound": "rail",
+      "art": "arm-sniper"
+    },
+    "rockets": {
+      "name": "Ракетная установка",
+      "damage": 520,
+      "accuracy": 68,
+      "minRange": 4,
+      "optimalMin": 6,
+      "optimalMax": 9,
+      "maxRange": 12,
+      "hp": 350,
+      "armor": 10,
+      "weight": 38,
+      "sound": "missile",
+      "art": "arm-rockets"
+    },
+    "energy": {
+      "name": "Энергетическая пушка",
+      "damage": 300,
+      "accuracy": 88,
+      "minRange": 2,
+      "optimalMin": 3,
+      "optimalMax": 6,
+      "maxRange": 8,
+      "hp": 450,
+      "armor": 10,
+      "weight": 28,
+      "sound": "plasma",
+      "art": "arm-energy"
+    },
+    "sword": {
+      "name": "Меч",
+      "damage": 430,
+      "accuracy": 95,
+      "minRange": 1,
+      "optimalMin": 1,
+      "optimalMax": 1,
+      "maxRange": 1,
+      "hp": 850,
+      "armor": 25,
+      "weight": 26,
+      "sound": "flak",
+      "art": "arm-sword"
     }
   },
   "shields": {
-    "light": { "name": "Лёгкий щит", "hp": 1100, "armor": 25, "block": 30 }
+    "light": {
+      "name": "Лёгкий щит",
+      "hp": 1100,
+      "armor": 25,
+      "block": 30,
+      "weight": 20,
+      "art": "shield-light"
+    },
+    "heavy": {
+      "name": "Тяжёлый щит",
+      "hp": 2300,
+      "armor": 50,
+      "block": 60,
+      "weight": 48,
+      "art": "shield-heavy"
+    }
   },
   "units": {
-    "prototype": { "name": "Прототип", "body": "medium", "chassis": "mediumBiped", "left": "light", "right": "autocannon" },
-    "raider": { "name": "Налётчик", "body": "medium", "chassis": "mediumBiped", "left": "light", "right": "autocannon" },
-    "raiderShotgun": { "name": "Налётчик с дробовиком", "body": "medium", "chassis": "mediumBiped", "left": "light", "right": "shotgun" }
+    "prototype": {
+      "name": "Прототип",
+      "body": "medium",
+      "chassis": "mediumBiped",
+      "left": "light",
+      "right": "autocannon"
+    },
+    "raider": {
+      "name": "Налётчик",
+      "body": "medium",
+      "chassis": "mediumBiped",
+      "left": "light",
+      "right": "autocannon"
+    },
+    "raiderShotgun": {
+      "name": "Налётчик с дробовиком",
+      "body": "medium",
+      "chassis": "mediumBiped",
+      "left": "light",
+      "right": "shotgun"
+    },
+    "banditSword": {
+      "name": "Рубака",
+      "body": "bandit",
+      "chassis": "lightBiped",
+      "left": "light",
+      "right": "sword"
+    },
+    "banditShotgun": {
+      "name": "Дробовик",
+      "body": "bandit",
+      "chassis": "lightBiped",
+      "left": "light",
+      "right": "shotgun"
+    },
+    "militiaRifle": {
+      "name": "Стрелок",
+      "body": "militia",
+      "chassis": "mediumBiped",
+      "left": "light",
+      "right": "autocannon"
+    },
+    "banditSniper": {
+      "name": "Снайпер",
+      "body": "bandit",
+      "chassis": "lightBiped",
+      "left": "pistol-cannon",
+      "right": "sniper"
+    },
+    "militiaRockets": {
+      "name": "Ракетчик",
+      "body": "militia",
+      "chassis": "mediumBiped",
+      "left": "light",
+      "right": "rockets"
+    },
+    "militiaEnergy": {
+      "name": "Энергострелок",
+      "body": "militia",
+      "chassis": "mediumBiped",
+      "left": "light",
+      "right": "energy"
+    },
+    "enemyShield": {
+      "name": "Щитоносец",
+      "body": "enemy-heavy",
+      "chassis": "heavyBiped",
+      "left": "heavy",
+      "right": "pistol-cannon"
+    },
+    "enemyAssault": {
+      "name": "Штурмовик",
+      "body": "enemy-heavy",
+      "chassis": "heavyBiped",
+      "left": "autocannon",
+      "right": "heavy-cannon"
+    },
+    "allyGuard": {
+      "name": "Союзник · Страж",
+      "body": "heavy",
+      "chassis": "heavyBiped",
+      "left": "heavy",
+      "right": "heavy-cannon",
+      "backpack": "damage"
+    },
+    "allySword": {
+      "name": "Союзник · Клинок",
+      "body": "heavy",
+      "chassis": "heavyBiped",
+      "left": "heavy",
+      "right": "sword",
+      "backpack": "armor"
+    },
+    "mine": {
+      "name": "Шахтный генератор",
+      "body": "heavy",
+      "chassis": "tracked",
+      "left": null,
+      "right": null
+    },
+    "tractor": {
+      "name": "Тягач",
+      "body": "heavy",
+      "chassis": "tracked",
+      "left": null,
+      "right": null
+    },
+    "assaultShield": {
+      "name": "Щитоносец гарнизона",
+      "body": "assault-heavy",
+      "chassis": "heavyBiped",
+      "left": "heavy",
+      "right": "pistol-cannon"
+    },
+    "assaultEnergy": {
+      "name": "Энергострелок гарнизона",
+      "body": "assault-militia",
+      "chassis": "mediumBiped",
+      "left": "light",
+      "right": "energy"
+    },
+    "banditRecruit": {
+      "name": "Налётчик-новобранец",
+      "body": "bandit-worn",
+      "chassis": "lightBiped",
+      "right": "pistol-cannon"
+    },
+    "frontGunner": {
+      "name": "Дробовик",
+      "body": "bandit-worn",
+      "chassis": "lightBiped",
+      "left": "pistol-cannon",
+      "right": "shotgun"
+    },
+    "frontSniper": {
+      "name": "Снайпер",
+      "body": "bandit-worn",
+      "chassis": "lightBiped",
+      "left": "pistol-cannon",
+      "right": "sniper"
+    }
   },
   "combat": {
-    "rangeStep": 5, "rangeFloor": 25,
-    "stillBonus": 10, "farMovePenalty": 10,
-    "flankBonus": 10, "rearBonus": 15,
+    "rangeStep": 5,
+    "rangeFloor": 25,
+    "stillBonus": 10,
+    "farMovePenalty": 10,
+    "flankBonus": 10,
+    "rearBonus": 15,
     "aimedPenalty": 25,
-    "hitMin": 20, "hitMax": 95,
-    "rollMin": 0.9, "rollMax": 1.1,
-    "partsFront": [45, 20, 20, 15],
-    "partsLeft": [35, 35, 10, 20],
-    "partsRear": [55, 15, 15, 15],
-    "shieldSame": 15, "shieldOpposite": -25,
+    "hitMin": 20,
+    "hitMax": 95,
+    "rollMin": 0.9,
+    "rollMax": 1.1,
+    "partsFront": [
+      45,
+      20,
+      20,
+      15
+    ],
+    "partsLeft": [
+      35,
+      35,
+      10,
+      20
+    ],
+    "partsRear": [
+      55,
+      15,
+      15,
+      15
+    ],
+    "shieldSame": 15,
+    "shieldOpposite": -25,
     "blockMax": 85
   },
   "missions": {
@@ -57,17 +452,33 @@
         "..,........."
       ],
       "player": [
-        { "unit": "prototype", "x": 1, "y": 10, "dir": 1 }
+        {
+          "unit": "prototype",
+          "x": 1,
+          "y": 10,
+          "dir": 1
+        }
       ],
       "enemy": [
-        { "unit": "raider", "x": 10, "y": 1, "dir": 5 },
-        { "unit": "raiderShotgun", "x": 9, "y": 2, "dir": 5 }
+        {
+          "unit": "banditRecruit",
+          "x": 10,
+          "y": 1,
+          "dir": 5
+        },
+        {
+          "unit": "banditRecruit",
+          "x": 9,
+          "y": 2,
+          "dir": 5
+        }
       ],
       "reward": 1500,
       "intro": {
         "who": "Ева Морен",
         "role": "инженер рудника",
         "lines": [
+          "Вы управляете машиной удалённо. Корпус держит мех в бою, шасси даёт ход, в руках оружие и щит.",
           "Связь держится. Машина на окраине, у старых складов.",
           "Двое налётчиков корпорации прочёсывают квартал. Один с дробовиком — к нему близко не подходите.",
           "Щит у прототипа слева. Держите его к врагу, а спину — к стене."
@@ -89,6 +500,901 @@
           "Попробуем ещё раз, когда будете готовы."
         ]
       }
+    },
+    "mineDefense": {
+      "name": "Защита шахты",
+      "goal": "Сохранить генератор до конца шестого раунда",
+      "map": [
+        "................",
+        "................",
+        "...c......c.....",
+        "................",
+        ".....ww.........",
+        "................",
+        "............ww..",
+        "...r............",
+        "..........r.....",
+        "...ww...........",
+        "................",
+        ".....c..........",
+        "........ww......",
+        "................",
+        "................",
+        "................"
+      ],
+      "player": [
+        {
+          "unit": "prototype",
+          "x": 1,
+          "y": 13,
+          "dir": 1
+        },
+        {
+          "unit": "prototype",
+          "x": 2,
+          "y": 14,
+          "dir": 1
+        }
+      ],
+      "enemy": [
+        {
+          "unit": "banditSword",
+          "x": 13,
+          "y": 1,
+          "dir": 5
+        },
+        {
+          "unit": "banditShotgun",
+          "x": 14,
+          "y": 2,
+          "dir": 5
+        }
+      ],
+      "allies": [],
+      "waves": [
+        {
+          "round": 3,
+          "enemies": [
+            {
+              "unit": "militiaRifle",
+              "x": 13,
+              "y": 1,
+              "dir": 5
+            },
+            {
+              "unit": "banditShotgun",
+              "x": 14,
+              "y": 2,
+              "dir": 5
+            }
+          ]
+        },
+        {
+          "round": 5,
+          "enemies": [
+            {
+              "unit": "enemyAssault",
+              "x": 13,
+              "y": 1,
+              "dir": 5
+            },
+            {
+              "unit": "militiaRockets",
+              "x": 14,
+              "y": 2,
+              "dir": 5
+            }
+          ]
+        }
+      ],
+      "objective": {
+        "kind": "defend",
+        "rounds": 6,
+        "object": {
+          "unit": "mine",
+          "x": 7,
+          "y": 8,
+          "dir": 0
+        },
+        "firingCells": [
+          {
+            "x": 7,
+            "y": 3
+          },
+          {
+            "x": 12,
+            "y": 8
+          },
+          {
+            "x": 7,
+            "y": 13
+          },
+          {
+            "x": 2,
+            "y": 8
+          }
+        ]
+      },
+      "reward": 2000,
+      "rewardParts": [
+        "body:medium",
+        "chassis:mediumBiped",
+        "shield:light",
+        "weapon:autocannon",
+        "backpack:armor"
+      ],
+      "objectiveXp": 25,
+      "intro": {
+        "who": "Ева Морен",
+        "role": "инженер Нова-Прайм",
+        "lines": [
+          "Сохранить генератор до конца шестого раунда",
+          "Выберите порядок активаций. После каждой вашей машины действует противник."
+        ]
+      },
+      "win": {
+        "who": "Ева Морен",
+        "role": "инженер Нова-Прайм",
+        "lines": [
+          "Задача выполнена. Все машины и детали восстановим бесплатно."
+        ]
+      },
+      "lose": {
+        "who": "Ева Морен",
+        "role": "инженер Нова-Прайм",
+        "lines": [
+          "Связь потеряна. Машины эвакуированы; ремонт бесплатный, можете повторить операцию."
+        ]
+      }
+    },
+    "primeEscort": {
+      "name": "Сопровождение",
+      "goal": "Довести тягач до эвакуации",
+      "map": [
+        "................",
+        "................",
+        "...c......c.....",
+        "................",
+        ".....ww.........",
+        "................",
+        "............ww..",
+        "...r............",
+        "..........r.....",
+        "...ww...........",
+        "................",
+        ".....c..........",
+        "........ww......",
+        "................",
+        "................",
+        "................"
+      ],
+      "player": [
+        {
+          "unit": "prototype",
+          "x": 1,
+          "y": 13,
+          "dir": 1
+        },
+        {
+          "unit": "prototype",
+          "x": 2,
+          "y": 14,
+          "dir": 1
+        }
+      ],
+      "enemy": [
+        {
+          "unit": "banditSniper",
+          "x": 12,
+          "y": 2,
+          "dir": 5
+        },
+        {
+          "unit": "militiaRifle",
+          "x": 13,
+          "y": 4,
+          "dir": 5
+        },
+        {
+          "unit": "banditSword",
+          "x": 12,
+          "y": 11,
+          "dir": 6
+        }
+      ],
+      "allies": [],
+      "waves": [],
+      "objective": {
+        "kind": "escort",
+        "object": {
+          "unit": "tractor",
+          "x": 2,
+          "y": 10,
+          "dir": 2
+        },
+        "route": [
+          {
+            "x": 3,
+            "y": 10
+          },
+          {
+            "x": 4,
+            "y": 10
+          },
+          {
+            "x": 5,
+            "y": 10
+          },
+          {
+            "x": 6,
+            "y": 10
+          },
+          {
+            "x": 7,
+            "y": 10
+          },
+          {
+            "x": 8,
+            "y": 10
+          },
+          {
+            "x": 9,
+            "y": 10
+          },
+          {
+            "x": 10,
+            "y": 10
+          }
+        ]
+      },
+      "reward": 2500,
+      "rewardParts": [
+        "body:sniper",
+        "weapon:sniper",
+        "backpack:accuracy"
+      ],
+      "objectiveXp": 35,
+      "intro": {
+        "who": "Ева Морен",
+        "role": "инженер Нова-Прайм",
+        "lines": [
+          "Тягач движется на одну клетку в конце полного раунда. Освободите ему дорогу и прикройте от огня."
+        ]
+      },
+      "win": {
+        "who": "Ева Морен",
+        "role": "инженер Нова-Прайм",
+        "lines": [
+          "Задача выполнена. Все машины и детали восстановим бесплатно."
+        ]
+      },
+      "lose": {
+        "who": "Ева Морен",
+        "role": "инженер Нова-Прайм",
+        "lines": [
+          "Связь потеряна. Машины эвакуированы; ремонт бесплатный, можете повторить операцию."
+        ]
+      }
+    },
+    "majorAssault": {
+      "name": "Первый крупный бой",
+      "goal": "Удержать точку два полных раунда подряд",
+      "map": [
+        "................",
+        "................",
+        "...c......c.....",
+        "................",
+        ".....ww.........",
+        "................",
+        "............ww..",
+        "...r............",
+        "..........r.....",
+        "...ww...........",
+        "................",
+        ".....c..........",
+        "........ww......",
+        "................",
+        "................",
+        "................"
+      ],
+      "player": [
+        {
+          "unit": "prototype",
+          "x": 3,
+          "y": 11,
+          "dir": 1
+        },
+        {
+          "unit": "prototype",
+          "x": 4,
+          "y": 12,
+          "dir": 1
+        }
+      ],
+      "enemy": [
+        {
+          "unit": "assaultShield",
+          "x": 12,
+          "y": 2,
+          "dir": 5
+        },
+        {
+          "unit": "banditSword",
+          "x": 13,
+          "y": 3,
+          "dir": 5
+        },
+        {
+          "unit": "banditSniper",
+          "x": 14,
+          "y": 4,
+          "dir": 5
+        },
+        {
+          "unit": "assaultEnergy",
+          "x": 12,
+          "y": 5,
+          "dir": 5
+        }
+      ],
+      "allies": [
+        {
+          "unit": "allyGuard",
+          "x": 6,
+          "y": 10,
+          "dir": 1
+        },
+        {
+          "unit": "allySword",
+          "x": 6,
+          "y": 11,
+          "dir": 1
+        }
+      ],
+      "waves": [],
+      "objective": {
+        "kind": "capture",
+        "rounds": 2,
+        "zone": [
+          {
+            "x": 7,
+            "y": 7
+          },
+          {
+            "x": 8,
+            "y": 7
+          },
+          {
+            "x": 9,
+            "y": 7
+          },
+          {
+            "x": 7,
+            "y": 8
+          },
+          {
+            "x": 8,
+            "y": 8
+          },
+          {
+            "x": 9,
+            "y": 8
+          },
+          {
+            "x": 7,
+            "y": 9
+          },
+          {
+            "x": 8,
+            "y": 9
+          },
+          {
+            "x": 9,
+            "y": 9
+          }
+        ]
+      },
+      "reward": 4000,
+      "rewardParts": [
+        "body:heavy",
+        "chassis:heavyBiped",
+        "weapon:sword",
+        "shield:heavy",
+        "backpack:damage"
+      ],
+      "objectiveXp": 50,
+      "intro": {
+        "who": "Ева Морен",
+        "role": "инженер Нова-Прайм",
+        "lines": [
+          "Союзными машинами управляет ИИ. Займите точку: без врага внутри её нужно удержать два полных раунда подряд."
+        ]
+      },
+      "win": {
+        "who": "Ева Морен",
+        "role": "инженер Нова-Прайм",
+        "lines": [
+          "Тихая война пройдена. Шахта свободна. Я остаюсь в мастерской: собирайте отряд и возвращайтесь на вылазки."
+        ]
+      },
+      "lose": {
+        "who": "Ева Морен",
+        "role": "инженер Нова-Прайм",
+        "lines": [
+          "Связь потеряна. Машины эвакуированы; ремонт бесплатный, можете повторить операцию."
+        ]
+      }
     }
+  },
+  "backpacks": {
+    "accuracy": {
+      "name": "Модуль точности",
+      "effect": "accuracy",
+      "weight": 8,
+      "value": 10,
+      "art": "pack-accuracy"
+    },
+    "armor": {
+      "name": "Модуль брони",
+      "effect": "armor",
+      "weight": 12,
+      "value": 15,
+      "art": "pack-armor"
+    },
+    "damage": {
+      "name": "Усилитель оружия",
+      "effect": "damage",
+      "weight": 10,
+      "value": 1.1,
+      "art": "pack-damage"
+    },
+    "mobility": {
+      "name": "Ускоритель шасси",
+      "effect": "mobility",
+      "weight": 8,
+      "value": 1,
+      "art": "pack-mobility"
+    },
+    "repair": {
+      "name": "Ремонтный модуль",
+      "effect": "repair",
+      "weight": 10,
+      "value": 0.3,
+      "art": "pack-repair"
+    },
+    "armorMk2": {
+      "name": "Усиленный бронемодуль",
+      "effect": "armor",
+      "weight": 12,
+      "value": 16.5,
+      "art": "pack-armor"
+    },
+    "accuracyMk2": {
+      "name": "Усиленный модуль точности",
+      "effect": "accuracy",
+      "weight": 8,
+      "value": 11.0,
+      "art": "pack-accuracy"
+    },
+    "repairMk3": {
+      "name": "Усиленный ремонтный рюкзак",
+      "effect": "repair",
+      "weight": 10,
+      "value": 0.345,
+      "art": "pack-repair"
+    },
+    "damageMk3": {
+      "name": "Усиленный усилитель оружия",
+      "effect": "damage",
+      "weight": 10,
+      "value": 1.265,
+      "art": "pack-damage"
+    }
+  },
+  "skills": {
+    "doubleAttack": {
+      "name": "Двойная атака",
+      "chance": 20,
+      "bonus": 0,
+      "cooldown": 1,
+      "requires": "twoWeapons",
+      "weight": 2,
+      "poolBodies": [
+        "medium",
+        "heavy"
+      ]
+    },
+    "counterAttack": {
+      "name": "Контратака",
+      "chance": 20,
+      "bonus": 0,
+      "cooldown": 1,
+      "requires": "weapon",
+      "weight": 2,
+      "poolBodies": [
+        "medium",
+        "heavy"
+      ]
+    },
+    "jump": {
+      "name": "Прыжок",
+      "chance": 30,
+      "bonus": 3,
+      "cooldown": 0,
+      "requires": "biped",
+      "weight": 2,
+      "poolBodies": [
+        "light",
+        "medium",
+        "sniper"
+      ],
+      "poolChassis": [
+        "lightBiped",
+        "mediumBiped",
+        "heavyBiped"
+      ]
+    },
+    "dash": {
+      "name": "Рывок",
+      "chance": 30,
+      "bonus": 2,
+      "cooldown": 0,
+      "requires": "biped",
+      "weight": 2,
+      "accuracyPenalty": 10,
+      "poolBodies": [
+        "light",
+        "medium"
+      ],
+      "poolChassis": [
+        "lightBiped",
+        "mediumBiped",
+        "heavyBiped"
+      ]
+    },
+    "evade": {
+      "name": "Уклонение",
+      "chance": 20,
+      "bonus": 0,
+      "cooldown": 0,
+      "requires": null,
+      "weight": 1,
+      "poolBodies": [
+        "light",
+        "sniper"
+      ]
+    },
+    "defensiveStance": {
+      "name": "Защитная стойка",
+      "chance": 35,
+      "bonus": 20,
+      "cooldown": 0,
+      "requires": null,
+      "weight": 2,
+      "blockBonus": 15,
+      "poolBodies": [
+        "medium",
+        "heavy"
+      ]
+    },
+    "targetingExpert": {
+      "name": "Мастер прицеливания",
+      "chance": 35,
+      "bonus": 15,
+      "cooldown": 0,
+      "requires": "weapon",
+      "weight": 2,
+      "poolBodies": [
+        "medium",
+        "sniper"
+      ]
+    },
+    "shieldMastery": {
+      "name": "Мастер щита",
+      "chance": 35,
+      "bonus": 15,
+      "cooldown": 0,
+      "requires": "shield",
+      "weight": 2,
+      "poolBodies": [
+        "medium",
+        "heavy"
+      ]
+    }
+  },
+  "progression": {
+    "killXp": 50,
+    "victoryXp": 25,
+    "levelFactor": 0.15,
+    "factorMin": 0.5,
+    "factorMax": 1.75,
+    "unlockBase": 10,
+    "unlockPerLevel": 2,
+    "unlockMax": 40,
+    "skillLimit": 6
+  },
+  "ai": {
+    "objectivePriority": 300,
+    "flankScore": 10,
+    "shieldPenalty": 1,
+    "finishArmScore": 20,
+    "capturePriority": 1000,
+    "threatPriority": 1
+  },
+  "recipes": {
+    "body:light": {
+      "category": "body",
+      "part": "light",
+      "credits": 600,
+      "resources": {
+        "titanium": 4,
+        "energy": 2
+      }
+    },
+    "body:medium": {
+      "category": "body",
+      "part": "medium",
+      "credits": 900,
+      "resources": {
+        "titanium": 4,
+        "energy": 2,
+        "rareMetal": 1
+      }
+    },
+    "body:heavy": {
+      "category": "body",
+      "part": "heavy",
+      "credits": 1400,
+      "resources": {
+        "titanium": 4,
+        "energy": 2,
+        "rareMetal": 1
+      }
+    },
+    "body:sniper": {
+      "category": "body",
+      "part": "sniper",
+      "credits": 900,
+      "resources": {
+        "titanium": 4,
+        "energy": 2,
+        "rareMetal": 1
+      }
+    },
+    "chassis:lightBiped": {
+      "category": "chassis",
+      "part": "lightBiped",
+      "credits": 500,
+      "resources": {
+        "titanium": 4,
+        "energy": 2
+      }
+    },
+    "chassis:mediumBiped": {
+      "category": "chassis",
+      "part": "mediumBiped",
+      "credits": 700,
+      "resources": {
+        "titanium": 4,
+        "energy": 2
+      }
+    },
+    "chassis:heavyBiped": {
+      "category": "chassis",
+      "part": "heavyBiped",
+      "credits": 1000,
+      "resources": {
+        "titanium": 4,
+        "energy": 2,
+        "rareMetal": 1
+      }
+    },
+    "chassis:tracked": {
+      "category": "chassis",
+      "part": "tracked",
+      "credits": 900,
+      "resources": {
+        "titanium": 4,
+        "energy": 2,
+        "rareMetal": 1
+      }
+    },
+    "weapon:pistol-cannon": {
+      "category": "weapon",
+      "part": "pistol-cannon",
+      "credits": 500,
+      "resources": {
+        "titanium": 4,
+        "energy": 2
+      }
+    },
+    "weapon:autocannon": {
+      "category": "weapon",
+      "part": "autocannon",
+      "credits": 500,
+      "resources": {
+        "titanium": 4,
+        "energy": 2
+      }
+    },
+    "weapon:heavy-cannon": {
+      "category": "weapon",
+      "part": "heavy-cannon",
+      "credits": 1000,
+      "resources": {
+        "titanium": 4,
+        "energy": 2,
+        "rareMetal": 1
+      }
+    },
+    "weapon:shotgun": {
+      "category": "weapon",
+      "part": "shotgun",
+      "credits": 500,
+      "resources": {
+        "titanium": 4,
+        "energy": 2
+      }
+    },
+    "weapon:sniper": {
+      "category": "weapon",
+      "part": "sniper",
+      "credits": 850,
+      "resources": {
+        "titanium": 4,
+        "energy": 2,
+        "rareMetal": 1
+      }
+    },
+    "weapon:rockets": {
+      "category": "weapon",
+      "part": "rockets",
+      "credits": 1000,
+      "resources": {
+        "titanium": 4,
+        "energy": 2,
+        "rareMetal": 1
+      }
+    },
+    "weapon:energy": {
+      "category": "weapon",
+      "part": "energy",
+      "credits": 500,
+      "resources": {
+        "titanium": 4,
+        "energy": 2
+      }
+    },
+    "weapon:sword": {
+      "category": "weapon",
+      "part": "sword",
+      "credits": 700,
+      "resources": {
+        "titanium": 4,
+        "energy": 2
+      }
+    },
+    "shield:light": {
+      "category": "shield",
+      "part": "light",
+      "credits": 400,
+      "resources": {
+        "titanium": 4,
+        "energy": 2
+      }
+    },
+    "shield:heavy": {
+      "category": "shield",
+      "part": "heavy",
+      "credits": 900,
+      "resources": {
+        "titanium": 4,
+        "energy": 2,
+        "rareMetal": 1
+      }
+    },
+    "backpack:accuracy": {
+      "category": "backpack",
+      "part": "accuracy",
+      "credits": 600,
+      "resources": {
+        "titanium": 4,
+        "energy": 2
+      }
+    },
+    "backpack:armor": {
+      "category": "backpack",
+      "part": "armor",
+      "credits": 600,
+      "resources": {
+        "titanium": 4,
+        "energy": 2
+      }
+    },
+    "backpack:damage": {
+      "category": "backpack",
+      "part": "damage",
+      "credits": 600,
+      "resources": {
+        "titanium": 4,
+        "energy": 2
+      }
+    },
+    "backpack:mobility": {
+      "category": "backpack",
+      "part": "mobility",
+      "credits": 600,
+      "resources": {
+        "titanium": 4,
+        "energy": 2
+      }
+    },
+    "backpack:repair": {
+      "category": "backpack",
+      "part": "repair",
+      "credits": 600,
+      "resources": {
+        "titanium": 4,
+        "energy": 2
+      }
+    },
+    "backpack:armorMk2": {
+      "category": "backpack",
+      "part": "armorMk2",
+      "credits": 1200,
+      "resources": {
+        "titanium": 8,
+        "energy": 4
+      },
+      "workshopLevel": 2
+    },
+    "backpack:accuracyMk2": {
+      "category": "backpack",
+      "part": "accuracyMk2",
+      "credits": 1200,
+      "resources": {
+        "titanium": 8,
+        "energy": 4
+      },
+      "workshopLevel": 2
+    },
+    "backpack:repairMk3": {
+      "category": "backpack",
+      "part": "repairMk3",
+      "credits": 2000,
+      "resources": {
+        "titanium": 12,
+        "energy": 6
+      },
+      "workshopLevel": 3
+    },
+    "backpack:damageMk3": {
+      "category": "backpack",
+      "part": "damageMk3",
+      "credits": 2000,
+      "resources": {
+        "titanium": 12,
+        "energy": 6
+      },
+      "workshopLevel": 3
+    }
+  },
+  "workshop": {
+    "place": "pl:novaPrime",
+    "campaign": "quietWar",
+    "prototypeMission": "prototype",
+    "prototypeUnit": "prototype",
+    "starterParts": [
+      "body:light",
+      "chassis:lightBiped",
+      "shield:light",
+      "weapon:pistol-cannon"
+    ],
+    "missionOrder": [
+      "firstSortie",
+      "mineDefense",
+      "primeEscort",
+      "majorAssault"
+    ]
   }
 }
