@@ -48,6 +48,7 @@ try {
     assert.equal(await evaluate(`bench.opponents.racers.length`),3,'three computer opponents join each race');
     assert.equal(await evaluate(`bench.scene.rivals.children.length`),3,'opponent pods render during countdown');
     assert(await evaluate(`bench.root.querySelector('.race-hud').textContent.includes('Место')`),'HUD displays race position');
+    assert(await evaluate(`Math.abs(bench.scene.world.scale.x - Math.min(innerWidth,innerHeight)/27.5)<.001`),'camera is zoomed in twice at rest');
     assert(await evaluate(`bench.opponents.racers.every(r=>r.run.state==='COUNTDOWN')`),'opponents wait for the shared start');
     const bounds=await evaluate(`(()=>{const box=s=>{const r=document.querySelector(s).getBoundingClientRect();return{x:r.x,y:r.y,w:r.width,h:r.height}};return {stick:box('.race-stick'),brake:box('.race-brake'),hud:box('.race-hud')}})()`);
     for(const box of Object.values(bounds)){assert(box.x>=0&&box.y>=0&&box.x+box.w<=width+1&&box.y+box.h<=height+1,JSON.stringify({width,height,box}));}
@@ -97,12 +98,13 @@ try {
     assert(await evaluate(`bench.menuOpen&&bench.input.value.controlActive&&bench.input.value.throttle===0`));
     await evaluate(`bench.exitMenu()`);await sleep(100);
     const shot=await cdp('Page.captureScreenshot',{format:'png'});writeFileSync(`${out}/${width}x${height}.png`,Buffer.from(shot.result.data,'base64'));
-    await evaluate(`window.raceOnline=false;const p=bench.body.position;bench.config.track.obstacles.push({id:'local-crash',center:{x:p.x+4,y:p.y},radius:1,reason:'COLUMN'});bench.body.velocity={x:600,y:0};bench.body.heading=0`);
+    await evaluate(`window.raceOnline=false;const p=bench.body.position;const rival=bench.opponents.racers[0].run;rival.body.position={x:p.x+5,y:p.y};rival.body.velocity={x:0,y:0};bench.body.velocity={x:600,y:0};bench.body.heading=0`);
     await sleep(200);assert(await evaluate(`bench.run.state==='CRASHED'&&bench.mode==='results'`),'local physics produces crash without server');
+    assert.equal(await evaluate(`bench.run.reason`),'BOLIDE','player can crash into a computer opponent');
     assert.equal(await evaluate(`sent.filter(m=>m.act==='finish').length`),0,'offline finish is queued');
     await evaluate(`window.raceOnline=true`);await sleep(100);
     assert.equal(await evaluate(`sent.filter(m=>m.act==='finish').length`),1,'reconnect submits one finish');
-    await evaluate(`bench.apply({t:'raceEvent',event:'result',sessionId:'fixture',validationStatus:'CONFIRMED',result:{sessionId:'fixture',playerId:null,name:'Guest',rankingKey:config.rankingKey,status:'CRASHED',reason:'WALL',elapsedMs:1534,totalMs:null,lapTimesMs:[],finishedAt:new Date().toISOString()}})`);
+    await evaluate(`bench.apply({t:'raceEvent',event:'result',sessionId:'fixture',validationStatus:'CONFIRMED',result:{sessionId:'fixture',playerId:null,name:'Guest',rankingKey:config.rankingKey,status:'CRASHED',reason:'BOLIDE',elapsedMs:1534,totalMs:null,lapTimesMs:[],finishedAt:new Date().toISOString()}})`);
     await sleep(750);
     assert(await evaluate(`bench.root.textContent.includes('DNF')`));
     assert(await evaluate(`bench.root.textContent.includes('Шакал')&&bench.root.textContent.includes('Искра')&&bench.root.textContent.includes('Кочевник')`),'results include all opponents');

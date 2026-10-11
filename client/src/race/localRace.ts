@@ -1,4 +1,4 @@
-import { body, crossing, DT, step, type Body, type Impact } from './physics';
+import { body, crossing, damage, DT, step, type Body, type Impact } from './physics';
 import type { Config, Input, Vec } from './types';
 
 /** Browser owns movement, gates and damage; the server only measures the attempt. */
@@ -28,36 +28,55 @@ export class LocalRace {
     if (!this.active || now < this.startsAt) return;
     this.state = 'RUNNING'; this.elapsedMs = Math.max(0, Math.round(now - this.startsAt));
     this.accumulator += Math.min(.25, Math.max(0, (now - this.lastNow) / 1000)); this.lastNow = now;
-    const { track, rules } = this.config;
     while (this.accumulator >= DT && this.active) {
       const stepStart = now - this.startsAt - this.accumulator * 1000;
-      const motion = step(this.body, typeof input === 'function' ? input() : input, track, rules);
-      for (const segment of motion.segments) {
-        const gates = [...track.checkpoints, track.finishLine].map((gate, index) => ({ index, t: crossing(segment.from, segment.to, gate) }))
-          .filter(g => g.t !== null).sort((a, b) => a.t! - b.t!);
-        for (const gate of gates) {
-          const fraction = segment.startFraction + (segment.endFraction - segment.startFraction) * gate.t!;
-          if (motion.fatalReason && fraction >= motion.fatalFraction - rules.eventEpsilon) break;
-          if (gate.index !== this.nextCp) continue;
-          if (this.nextCp < track.checkpoints.length) { this.nextCp++; continue; }
-          const ms = Math.max(this.lastLapMs + 1, Math.round(stepStart + fraction * DT * 1000));
-          this.lapTimesMs.push(ms - this.lastLapMs); this.lastLapMs = ms; this.nextCp = 0;
-          if (this.lapTimesMs.length === track.lapCount) {
-            this.state = 'FINISHED'; this.elapsedMs = ms;
-            if (motion.hpBeforeFatal !== undefined) this.body.hp = motion.hpBeforeFatal;
-            this.body.position = { x: segment.from.x + (segment.to.x - segment.from.x) * gate.t!, y: segment.from.y + (segment.to.y - segment.from.y) * gate.t! };
-            this.body.velocity = { x: 0, y: 0 }; return;
-          }
+      this.accumulator -= DT;
+      this.advanceStep(stepStart, typeof input === 'function' ? input() : input);
+    }
+    if (this.active) this.elapsedMs = Math.max(0, Math.round(now - this.startsAt));
+    if (this.elapsedMs >= this.config.rules.timeLimitSeconds * 1000) this.abort('TIME_LIMIT');
+  }
+  collide(speed: number, position: Vec, normal: Vec, elapsedMs: number): void {
+    if (this.state !== 'RUNNING') return;
+    this.impacts.push({ position: { ...position }, normal: { ...normal }, velocity: { ...this.body.velocity }, speed });
+    if (this.impacts.length > 24) this.impacts.splice(0, this.impacts.length - 24);
+    this.body.hp -= damage(speed);
+    if (speed >= this.config.rules.fatalSpeed || this.body.hp <= 0) {
+      this.body.hp = 0; this.state = 'CRASHED'; this.reason = 'BOLIDE';
+      this.elapsedMs = Math.max(0, Math.round(elapsedMs)); this.crashVelocity = { ...this.body.velocity };
+      this.body.velocity = { x: 0, y: 0 };
+    }
+  }
+  /** One shared fixed tick for a field of racers, with time measured from the start. */
+  advanceStep(stepStart: number, input: Input): void {
+    if (!this.active) return;
+    this.state = 'RUNNING'; this.elapsedMs = Math.max(0, Math.round(stepStart + DT * 1000));
+    const { track, rules } = this.config;
+    const motion = step(this.body, input, track, rules);
+    for (const segment of motion.segments) {
+      const gates = [...track.checkpoints, track.finishLine].map((gate, index) => ({ index, t: crossing(segment.from, segment.to, gate) }))
+        .filter(g => g.t !== null).sort((a, b) => a.t! - b.t!);
+      for (const gate of gates) {
+        const fraction = segment.startFraction + (segment.endFraction - segment.startFraction) * gate.t!;
+        if (motion.fatalReason && fraction >= motion.fatalFraction - rules.eventEpsilon) break;
+        if (gate.index !== this.nextCp) continue;
+        if (this.nextCp < track.checkpoints.length) { this.nextCp++; continue; }
+        const ms = Math.max(this.lastLapMs + 1, Math.round(stepStart + fraction * DT * 1000));
+        this.lapTimesMs.push(ms - this.lastLapMs); this.lastLapMs = ms; this.nextCp = 0;
+        if (this.lapTimesMs.length === track.lapCount) {
+          this.state = 'FINISHED'; this.elapsedMs = ms;
+          if (motion.hpBeforeFatal !== undefined) this.body.hp = motion.hpBeforeFatal;
+          this.body.position = { x: segment.from.x + (segment.to.x - segment.from.x) * gate.t!, y: segment.from.y + (segment.to.y - segment.from.y) * gate.t! };
+          this.body.velocity = { x: 0, y: 0 }; return;
         }
       }
-      this.impacts.push(...motion.impacts); if (this.impacts.length > 24) this.impacts.splice(0, this.impacts.length - 24);
-      this.accumulator -= DT;
-      if (motion.fatalReason) {
-        this.state = 'CRASHED'; this.reason = motion.fatalReason;
-        this.elapsedMs = Math.max(0, Math.round(stepStart + motion.fatalFraction * DT * 1000));
-        this.crashVelocity = { ...this.body.velocity };
-        this.body.velocity = { x: 0, y: 0 }; return;
-      }
+    }
+    this.impacts.push(...motion.impacts); if (this.impacts.length > 24) this.impacts.splice(0, this.impacts.length - 24);
+    if (motion.fatalReason) {
+      this.state = 'CRASHED'; this.reason = motion.fatalReason;
+      this.elapsedMs = Math.max(0, Math.round(stepStart + motion.fatalFraction * DT * 1000));
+      this.crashVelocity = { ...this.body.velocity };
+      this.body.velocity = { x: 0, y: 0 }; return;
     }
     if (this.elapsedMs >= rules.timeLimitSeconds * 1000) this.abort('TIME_LIMIT');
   }

@@ -84,7 +84,7 @@ public sealed partial class Galaxy
                 if (finish is null || finish.Status is not ("FINISHED" or "CRASHED" or "ABORTED") ||
                     laps.Length > own.Config.Track.LapCount || laps.Any(t => t <= 0 || t > own.Config.Rules.TimeLimitSeconds * 1000) ||
                     (finish.Status == "FINISHED" && laps.Length != own.Config.Track.LapCount) ||
-                    (finish.Status == "CRASHED" && finish.Reason is not ("WALL" or "COLUMN" or "ROCK")))
+                    (finish.Status == "CRASHED" && finish.Reason is not ("WALL" or "COLUMN" or "ROCK" or "BOLIDE")))
                 { Error("INVALID_INPUT"); return; }
                 var elapsed = Elapsed(own);
                 if (laps.Length > 0 && elapsed < laps.Length * own.Config.Track.Length / own.Config.Rules.EngineLimit * 500)

@@ -13,7 +13,7 @@ export class RaceScene {
   private track = new Graphics();
   private vehicle = new Container();
   private rivals = new Container();
-  private rivalViews: { view: Container; flames: Sprite[] }[] = [];
+  private rivalViews: { view: Container; flames: Sprite[]; wasCrashed: boolean }[] = [];
   private hull = new Sprite();
   private pilot = new Graphics();
   private link = new Sprite();
@@ -214,7 +214,7 @@ export class RaceScene {
   frame(now: number, width: number, height: number, b: Body, input: Input, crashed: boolean, crashVelocity?: Vec, impacts: Impact[] = [], racers: readonly Racer[] = []): void {
     this.background.clear().rect(0, 0, width, height).fill(0x503527);
     const speed = Math.hypot(b.velocity.x, b.velocity.y);
-    const scale = Math.min(width, height) / (55 + Math.min(45, speed * .8));
+    const scale = 2 * Math.min(width, height) / (55 + Math.min(45, speed * .8));
     const lookX = Math.max(-width / scale * .27, Math.min(width / scale * .27, b.velocity.x * 1.05));
     const lookY = Math.max(-height / scale * .2, Math.min(height / scale * .2, b.velocity.y * 1.05));
     const target = { x: b.position.x + lookX, y: b.position.y + lookY };
@@ -235,9 +235,16 @@ export class RaceScene {
         });
         const pilot = new Graphics().circle((layout.seat - .5) * 3.65, 0, .12).fill(0xd7c7a2);
         view.addChild(pilot); this.rivals.addChild(view);
-        rival = { view, flames }; this.rivalViews[index] = rival;
+        rival = { view, flames, wasCrashed: false }; this.rivalViews[index] = rival;
       }
       const body = racer.run.body;
+      for (const impact of racer.run.impacts.splice(0)) this.particles.hit(impact.position, impact.velocity, impact.normal, impact.speed);
+      if (racer.run.state === 'CRASHED' && !rival.wasCrashed) {
+        const layout = podLayout[racer.livery];
+        this.particles.explode(body.position, racer.run.crashVelocity ?? body.velocity, body.heading,
+          layout.engineY * 3.65, ((layout.engineStart + 1) / 2 - .5) * 3.65);
+        rival.wasCrashed = true;
+      }
       rival.view.position.set(body.position.x, body.position.y); rival.view.rotation = body.heading;
       rival.view.visible = racer.run.state !== 'CRASHED' && racer.run.state !== 'ABORTED';
       for (const flame of rival.flames) {

@@ -14,7 +14,7 @@ export function raceTime(ms: number, precise = true): string {
     (precise ? value % 1000 : Math.floor(value % 1000 / 10)).toString().padStart(precise ? 3 : 2, '0')}`;
 }
 const TEXT: Record<string, string> = {
-  WALL: 'Удар о стену', COLUMN: 'Удар о колонну', ROCK: 'Удар о скалу', USER_ABORT: 'Отмена пилотом',
+  WALL: 'Удар о стену', COLUMN: 'Удар о колонну', ROCK: 'Удар о скалу', BOLIDE: 'Столкновение с болидом', USER_ABORT: 'Отмена пилотом',
   CONTROL_LOST: 'Управление потеряно', SERVER_OVERLOAD: 'Сервер не успел обработать заезд',
   LOAD_TIMEOUT: 'Истекло время загрузки', TIME_LIMIT: 'Истекло время заезда',
   NOT_DOCKED_AT_RACE_PORT: 'Гонки доступны только в доке Тау-Прима', RACE_ALREADY_ACTIVE: 'Уже идёт другая попытка',
@@ -37,7 +37,7 @@ export class RaceScreen {
   readonly root = node('div', 'race-screen');
   open = false;
   private mode: 'terminal' | 'loading' | 'race' | 'results' = 'terminal';
-  private config: Config = { track, rules, hash: '', rankingKey: `${track.id}:${track.version}:${rules.id}:${rules.vehicleVersion}:${track.lapCount}:browser-v1}` };
+  private config: Config = { track, rules, hash: '', rankingKey: `${track.id}:${track.version}:${rules.id}:${rules.vehicleVersion}:${track.lapCount}:browser-v2}` };
   private run: LocalRace | null = null;
   private opponents: RaceOpponents | null = null;
   private finishSubmission: Finish | null = null;
@@ -300,8 +300,8 @@ export class RaceScreen {
     this.input.update(dt);
     if (this.mode === 'race' && this.run) {
       const laps = this.run.lapTimesMs.length;
-      this.opponents?.advance(now);
-      this.run.advance(now, this.input.value);
+      if (this.opponents) this.opponents.advance(now, this.input.value);
+      else this.run.advance(now, this.input.value);
       if (this.run.lapTimesMs.length > laps) {
         this.showLap(this.run.lapTimesMs.length, this.run.lapTimesMs.at(-1)!);
       }

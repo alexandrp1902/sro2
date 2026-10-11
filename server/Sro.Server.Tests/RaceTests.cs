@@ -108,6 +108,26 @@ public sealed class RaceTests : IDisposable
         Assert.Equal(60000, new RaceResultStore(_dir).Get(joined.SessionId!)!.TotalMs);
     }
 
+    [Theory]
+    [InlineData("WALL")]
+    [InlineData("BOLIDE")]
+    public void CollisionCrashIsAccepted(string reason)
+    {
+        var galaxy = new Galaxy(TestBalance.Create(), NullLogger.Instance);
+        var repo = new DirectoryInfo(AppContext.BaseDirectory);
+        while (repo is not null && !Directory.Exists(Path.Combine(repo.FullName, "shared"))) repo = repo.Parent;
+        var config = RaceConfig.Load(Path.Combine(repo!.FullName, "shared", "race"));
+        var clock = new RaceClock(); galaxy.ConfigureRace(config, _store, clock);
+        var c = new FakeConnection(1); galaxy.Join(c, null, "Alice", null);
+        var p = galaxy.RoomOf(c)!.PlayerOf(c)!; p.Docked = true; p.DockedPlace = "pl:tauPrima";
+        galaxy.Race(c, new("join", "collision")); var id = c.Last<RaceEventMsg>().SessionId;
+        galaxy.Race(c, new("ready", SessionId: id, ConfigHash: config.Hash)); clock.Advance(10);
+        galaxy.Race(c, new("finish", SessionId: id, Finish: new("CRASHED", reason, [])));
+        var result = c.Last<RaceEventMsg>().Result!;
+        Assert.Equal("CRASHED", result.Status); Assert.Equal(reason, result.Reason);
+        Assert.False(galaxy.InRace(p));
+    }
+
     [Fact] public void ImmediateFakeFinishIsRejectedButCountdownCanBeCancelled()
     {
         var galaxy = new Galaxy(TestBalance.Create(), NullLogger.Instance);
