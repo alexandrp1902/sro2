@@ -1,0 +1,51 @@
+// Production client + real isolated server, no UI fixtures. Requires client and server builds.
+import {spawn} from 'node:child_process';
+import {existsSync,mkdtempSync,mkdirSync,writeFileSync,cpSync} from 'node:fs';
+import {tmpdir} from 'node:os';
+import {resolve,join} from 'node:path';
+import {randomBytes,pbkdf2Sync} from 'node:crypto';
+import net from 'node:net';
+import assert from 'node:assert/strict';
+const root=resolve(import.meta.dirname,'..'),dir=mkdtempSync(join(tmpdir(),'sro-race-live-'));
+const accounts=join(dir,'data/accounts');mkdirSync(accounts,{recursive:true});
+const salt=randomBytes(16),id=randomBytes(16).toString('hex'),password='isolated-live-password';
+writeFileSync(join(accounts,id+'.json'),JSON.stringify({id,name:'race-live',password:`pbkdf2-sha256$1000$${salt.toString('base64')}$${pbkdf2Sync(password,salt,1000,32,'sha256').toString('base64')}`,keys:[],created:new Date().toISOString(),profile:{system:'tau',place:'pl:tauPrima',hull:'light',weapon:'pulse',hulls:['light'],weapons:[],credits:1234,cargo:{metal:2},career:'ranger',tutorialStep:'done'}}));
+const port=await new Promise(r=>{const s=net.createServer();s.listen(0,'127.0.0.1',()=>{const p=s.address().port;s.close(()=>r(p));});});
+const runtime=join(dir,'runtime');cpSync(join(root,'server/Sro.Server/bin/Debug/net10.0'),runtime,{recursive:true});
+const env={...process.env};delete env.SRO_STORY_SKIP;
+const server=spawn('dotnet',[join(runtime,'Sro.Server.dll'),'--urls',`http://127.0.0.1:${port}`,'--SharedDir',join(root,'shared'),'--DataDir',join(dir,'data'),'--ClientDist',join(root,'client/dist')],{cwd:join(root,'server/Sro.Server'),env,stdio:'ignore',windowsHide:true});
+const edge=['C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe','C:/Program Files/Microsoft/Edge/Application/msedge.exe'].find(existsSync);assert(edge);
+const debug=10100+Math.floor(Math.random()*100),browser=spawn(edge,['--headless=new','--no-first-run',`--remote-debugging-port=${debug}`,`--user-data-dir=${dir}/browser`,'about:blank'],{stdio:'ignore',windowsHide:true});
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));let ws;
+async function until(test,label,ms=15000){const end=Date.now()+ms;while(Date.now()<end){try{if(await test())return;}catch{}await sleep(100);}throw new Error(`${label} timed out`);}
+try {
+  await until(async()=>{try{return(await fetch(`http://127.0.0.1:${port}/health`)).ok;}catch{return false;}},'server');
+  let version;await until(async()=>{version=await(await fetch(`http://127.0.0.1:${debug}/json/version`)).json();return !!version;},'browser');
+  ws=new WebSocket(version.webSocketDebuggerUrl);await new Promise(r=>ws.onopen=r);
+  let request=0;const pending=new Map(),errors=[];
+  ws.onmessage=e=>{const m=JSON.parse(e.data);if(m.id){pending.get(m.id)?.(m);pending.delete(m.id);}if(m.method==='Runtime.exceptionThrown')errors.push(m.params.exceptionDetails);};
+  const send=(method,params={},sessionId)=>new Promise(r=>{const id=++request;pending.set(id,r);ws.send(JSON.stringify({id,method,params,sessionId}));});
+  const target=await send('Target.createTarget',{url:'about:blank'}),attach=await send('Target.attachToTarget',{targetId:target.result.targetId,flatten:true});
+  const cdp=(method,params)=>send(method,params,attach.result.sessionId);
+  const evaluate=async expression=>{const r=await cdp('Runtime.evaluate',{expression,returnByValue:true,awaitPromise:true});assert(!r.error&&!r.result.exceptionDetails,JSON.stringify(r));return r.result.result.value;};
+  const click=label=>evaluate(`(()=>{const b=[...document.querySelectorAll('button')].find(b=>b.textContent.trim()===${JSON.stringify(label)}&&b.getBoundingClientRect().width>0);if(!b)return false;b.click();return true;})()`);
+  await cdp('Runtime.enable');await cdp('Emulation.setDeviceMetricsOverride',{width:390,height:844,deviceScaleFactor:1,mobile:false});
+  await cdp('Page.navigate',{url:`http://127.0.0.1:${port}`});
+  await until(()=>evaluate(`!document.querySelector('#connect').hidden&&!!document.querySelector('#race')`),'login form');
+  await click('Вход');
+  await evaluate(`(()=>{const f=document.querySelector('#connect');f.querySelector('input[name=name]').value='race-live';f.querySelector('input[name=name]').dispatchEvent(new Event('input',{bubbles:true}));f.querySelector('input[name=password]').value='${password}';f.querySelector('form').requestSubmit();})()`);
+  await until(()=>evaluate(`!document.querySelector('#dock').hidden&&document.querySelector('#dock').textContent.includes('Тау-Прима')`),'Tau dock');
+  assert(await click('Гонки'));await until(()=>evaluate(`!document.querySelector('#race').hidden`),'terminal');
+  assert(await click('Заезд на время'));await until(()=>evaluate(`!!document.querySelector('.race-countdown')`),'countdown');
+  await sleep(3600);assert(await evaluate(`document.querySelector('.race-hud').textContent.includes('Круг 1/3')`));
+  await cdp('Input.dispatchKeyEvent',{type:'keyDown',code:'KeyW',key:'w'});await sleep(500);await cdp('Input.dispatchKeyEvent',{type:'keyUp',code:'KeyW',key:'w'});
+  assert(await click('Выход'));assert(await evaluate(`document.querySelector('.race-exit').textContent.includes('Заезд продолжается')`));
+  assert(await click('Прервать заезд'));await until(()=>evaluate(`document.querySelector('#race').textContent.includes('ABORT')`),'abort result');
+  assert(await click('Повторить'));await until(()=>evaluate(`!!document.querySelector('.race-countdown')`),'retry');await sleep(500);
+  assert(await click('Выход'));assert(await click('Прервать заезд'));await until(()=>evaluate(`document.querySelector('#race').textContent.includes('ABORT')`),'retry abort');
+  assert(await click('В терминал'));assert(await click('Назад в док'));assert(await evaluate(`!document.body.classList.contains('race-open')`));
+  assert(await click('Вылет'));await until(()=>evaluate(`document.querySelector('#dock').hidden`),'undock');
+  assert.equal(errors.length,0,JSON.stringify(errors));mkdirSync('.artifacts/race',{recursive:true});
+  const result={browser:version.Browser,viewport:'390x844',login:'PASS',dockEntry:'PASS',countdown:'PASS',keyboard:'PASS',abort:'PASS',retry:'PASS',returnToDock:'PASS',undock:'PASS',consoleExceptions:0};
+  writeFileSync('.artifacts/race/live-browser.json',JSON.stringify(result,null,2));console.log(JSON.stringify(result,null,2));
+} finally {ws?.close();browser.kill();server.kill();}

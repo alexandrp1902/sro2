@@ -3,6 +3,8 @@ import './design/tokens.css';
 import './design/components.css';
 import './style.css';
 import './mech/territory.css';
+import './race/race.css';
+import { RaceScreen } from './race/screen';
 import { Container } from 'pixi.js';
 import { createApp } from './render/app';
 import { SPAWN, STATION } from './game/layout';
@@ -459,6 +461,7 @@ async function main(): Promise<void> {
     // бой мог уже идти (вернулись после обрыва связи), и тогда сервер пришлёт его, а не новый.
     onRelay: () => send({ t: 'mechAct', act: 'start', request: crypto.randomUUID() }),
     onMechTraining: () => send({ t: 'mechAct', act: 'train', request: crypto.randomUUID() }),
+    onRace: () => race.show(),
     onWorkshop: (message) => send(message),
     // Карточка вопроса живёт вне дока (тот перерисовывается целиком) и создаётся ниже: к моменту
     // первого вопроса она уже есть.
@@ -478,6 +481,14 @@ async function main(): Promise<void> {
   // Наземный бой мехов (M21): поверх дока. Решает всё сервер; экран показывает поле, прогноз и ход.
   // Звук идёт через тот же фасад, что в космосе: из дока его не слышно, поэтому бой — «не в доке», а по центру.
   const MECH_EAR = { x: 0, y: 0 };
+  const race = new RaceScreen({
+    send: message => send(message),
+    online: () => connection?.state === 'online',
+    registered: () => menu.account,
+    resetSpace: () => { keyboard.blur(); controls.release(); fire.release(); stick.reset(); setTarget(0); setLoot(0); setMark(0); },
+    sound: cue => audio.race(cue),
+  });
+  app.stage.addChild(race.scene.view);
   const mechSound = (sound: MechSound) => {
     const now = performance.now();
     const me = ownId();
@@ -1186,6 +1197,7 @@ async function main(): Promise<void> {
       refreshGalaxyMap();
     };
     connection.onMech = (message) => mech.apply(message);
+    connection.onRace = (message) => race.apply(message);
     connection.onWorkshop = (message) => dockScreen.setWorkshop(message);
     connection.onTerritory = (message) => dockScreen.setTerritory(message);
     connection.onDialog = (message) => {
@@ -1482,13 +1494,14 @@ async function main(): Promise<void> {
     // выстрелы и наведённые на меня пушки, а кончает семь секунд тишины (audio/mood.ts).
     // Наземный бой (M21) слышен из дока: для звука это «не в доке», слушатель в центре, угроза — сам бой.
     const inMech = mech.open;
+    race.frame(now, app.screen.width, app.screen.height);
     mech.setOnline(connection?.state === 'online');
     dockScreen.setWorkshopOnline(connection?.state === 'online');
     app.stage.visible = !inMech;
-    audio.frame(inMech
+    audio.frame(inMech || race.open
       ? {
         now, camera: { ...MECH_EAR, zoom: 1 }, threats: mech.inCombat ? 1 : 0, incoming: 0, docked: false, dead: false,
-        ships: [], me: { id: me, ...MECH_EAR }, myHp: 1, throttle: 0,
+        ships: [], me: { id: me, ...MECH_EAR }, myHp: 1, throttle: race.open ? race.throttle : 0,
       }
       : {
         now,

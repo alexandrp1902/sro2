@@ -208,6 +208,7 @@ public sealed partial class Galaxy : IRoomHost
         StepTrades();
         StepMech();
         StepTerritory();
+        StepRace();
 
         // «Онлайн» в статусе — по всей галактике: вошли в одной системе — узнают и в остальных.
         var total = OnlineTotal;

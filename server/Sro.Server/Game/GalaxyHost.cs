@@ -44,6 +44,8 @@ public sealed class GalaxyHost : BackgroundService
         if(territory.ValidateRules(balance.Balance.Mechs) is { } territoryError) throw new InvalidDataException(territoryError);
         var territoryStore=new TerritoryStore(Path.GetFullPath(Path.Combine(environment.ContentRootPath,configuration["DataDir"]!,"world")),territory,accounts,log,DateTimeOffset.UtcNow);
         _galaxy = new Galaxy(balance.Balance, roomLog, accounts,territory:territory,territoryStore:territoryStore);
+        _galaxy.ConfigureRace(Sro.Sim.Race.RaceConfig.Load(Path.Combine(balance.DirectoryPath, "race")),
+            new RaceResultStore(Path.GetFullPath(Path.Combine(environment.ContentRootPath, configuration["DataDir"]!, "race", "results"))));
         // Отладка M21: проставить кампанию целиком каждому входящему, чтобы попасть к ретранслятору без
         // четырнадцати миссий. Только явной переменной окружения, и громко: на проде её быть не должно.
         if (Environment.GetEnvironmentVariable("SRO_STORY_SKIP") is { Length: > 0 } skip)
@@ -142,6 +144,7 @@ public sealed class GalaxyHost : BackgroundService
     public void Workshop(IClientConnection connection, WorkshopActMsg message) =>
         Enqueue(() => _galaxy.With(connection, r => r.Workshop(connection, message)));
     public void Territory(IClientConnection connection,TerritoryActMsg message) => Enqueue(()=>_galaxy.Territory(connection,message));
+    public void Race(IClientConnection connection, RaceActMsg message) => Enqueue(() => _galaxy.Race(connection, message));
 
     /// <summary>Комната выбирается в потоке тика: к моменту выполнения корабль мог уже перелететь в другую систему.</summary>
     private void With(IClientConnection connection, Action<Room> command) =>

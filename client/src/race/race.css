@@ -1,0 +1,28 @@
+body.race-open > :not(#game):not(#race) { visibility: hidden !important; pointer-events: none !important; }
+.race-screen { position: fixed; inset: 0; z-index: 2000; display: grid; place-items: center; background: #1b1916e8; color: #f2e9d9; padding: max(12px, env(safe-area-inset-top)) max(12px, env(safe-area-inset-right)) max(12px, env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left)); overflow: auto; overscroll-behavior: contain; }
+.race-screen[hidden] { display: none; }
+.race-screen--driving { background: transparent; overflow: hidden; touch-action: none; user-select: none; }
+.race-card { width: min(100%, 620px); max-height: 100%; overflow: auto; padding: 20px; box-sizing: border-box; background: #171c21f5; border: 1px solid #927455; border-radius: 12px; }
+.race-card h1 { font-size: clamp(22px, 4vw, 32px); margin: 8px 0 16px; }
+.race-card p { line-height: 1.5; }
+.race-card button { margin: 4px; min-height: 44px; }
+.race-eyebrow { color: #d7ac76; font-size: 12px; letter-spacing: 2px; }
+.race-best { color: #79ddd4; }
+.race-muted { color: #a9afb6; }
+.race-error { color: #ffbc91; }
+.race-actions { display: flex; gap: 8px; }
+.race-ranking { width: 100%; border-collapse: collapse; margin-top: 12px; }
+.race-ranking td { padding: 8px; border-bottom: 1px solid #ffffff18; }
+.race-ranking td:last-child { text-align: right; }
+.race-hud { position: absolute; top: max(8px, env(safe-area-inset-top)); left: max(8px, env(safe-area-inset-left)); right: max(8px, env(safe-area-inset-right)); padding: 9px; text-align: center; white-space: pre-line; background: #141b20db; font-size: clamp(12px, 2vw, 17px); pointer-events: none; }
+.race-countdown { position: absolute; top: 32%; left: 0; width: 100%; text-align: center; font-size: clamp(48px, 10vw, 100px); font-weight: 800; text-shadow: 0 3px 10px #000; pointer-events: none; }
+.race-lap-notice { position: absolute; top: 22%; left: 0; width: 100%; text-align: center; font-size: 18px; color: #b4fff4; text-shadow: 0 2px 6px #000; pointer-events: none; }
+.race-menu { position: absolute; right: max(10px, env(safe-area-inset-right)); top: calc(76px + env(safe-area-inset-top)); min-height: 44px; }
+.race-stick { position: absolute; bottom: max(20px, env(safe-area-inset-bottom)); left: max(20px, env(safe-area-inset-left)); width: 120px; height: 120px; border-radius: 50%; background: #0e2027b5; border: 2px solid #82b5bd; touch-action: none; }
+.race-knob { position: absolute; left: 42px; top: 42px; width: 32px; height: 32px; border-radius: 50%; background: #89d3d9; border: 2px solid #d0edf0; pointer-events: none; }
+.race-brake { position: absolute; bottom: max(20px, env(safe-area-inset-bottom)); right: max(20px, env(safe-area-inset-right)); width: 96px; height: 96px; border-radius: 50%; font-size: 15px; font-weight: 800; background: #713d24e6; border: 2px solid #e9b47a; touch-action: none; }
+.race-brake[aria-pressed="true"] { background: #e2a566; color: #111; }
+.race-boost { position: absolute; bottom: calc(128px + env(safe-area-inset-bottom)); right: max(20px, env(safe-area-inset-right)); width: 96px; min-height: 48px; font-size: 11px; background: linear-gradient(to right, #495765 var(--cooldown, 0%), #214348 var(--cooldown, 0%)); border: 1px solid #80c4c9; touch-action: none; }
+.race-exit { position: absolute; z-index: 3; }
+.race-boost::before { content: ''; position: absolute; left: 5px; top: 5px; width: 12px; height: 12px; border-radius: 50%; background: conic-gradient(#b7ede9 var(--cooldown, 0%), #223536 var(--cooldown, 0%)); border: 1px solid #80c4c9; }
+@media (max-height: 420px) { .race-stick { width: 100px; height: 100px; bottom: max(12px, env(safe-area-inset-bottom)); } .race-knob { left: 32px; top: 32px; } .race-brake { width: 88px; height: 88px; bottom: max(12px, env(safe-area-inset-bottom)); } .race-boost { bottom: calc(112px + env(safe-area-inset-bottom)); } .race-card { padding: 12px; } .race-card h1 { margin: 4px 0; } }

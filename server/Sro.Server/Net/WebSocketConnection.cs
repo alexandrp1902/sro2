@@ -198,6 +198,9 @@ public sealed class WebSocketConnection(WebSocket socket, ILogger log) : IClient
                 case TradeMsg trade when joined:
                     room.Trade(this, trade);
                     break;
+                case RaceActMsg race when joined:
+                    room.Race(this, race);
+                    break;
                 case MechActMsg mech when joined:
                     room.Mech(this, mech);
                     break;

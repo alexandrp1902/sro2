@@ -358,6 +358,7 @@ export interface DockHandlers {
   onRelay(): void;
   /** Тренировочная вылазка: тот же бой без сюжетного допуска. */
   onMechTraining(): void;
+  onRace?(): void;
   onWorkshop?(message: import('../net/protocol').ClientMessage): void;
 }
 
@@ -752,6 +753,7 @@ export class DockScreen {
       tabs.append(tab);
     }
     card.append(tabs);
+    if (this.placeKey === 'pl:tauPrima') tabs.append(button('Гонки', 'dock-tab sro-tab', () => this.handlers.onRace?.()));
 
     const body = el('div', 'dock-body');
     body.dataset.tab = this.tab;

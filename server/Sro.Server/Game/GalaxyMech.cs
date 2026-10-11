@@ -39,7 +39,7 @@ public sealed partial class Galaxy
     /// <summary>Идущий бой аккаунта; null — боя нет.</summary>
     public MechSession? MechOf(string? account) => account is not null ? _mechs.GetValueOrDefault(account) : null;
 
-    public bool InMech(Player player) => MechOf(player.AccountId) is not null || TerritoryOf(player.AccountId) is not null;
+    public bool InMech(Player player) => MechOf(player.AccountId) is not null || TerritoryOf(player.AccountId) is not null || InRace(player);
 
     /// <summary>Действие наземного боя от игрока.</summary>
     public void Mech(IClientConnection connection, MechActMsg message)

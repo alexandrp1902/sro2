@@ -12,6 +12,7 @@ import {mechPlan} from './mech-bot.mjs';
 const root=resolve(import.meta.dirname,'..'),dir=mkdtempSync(join(tmpdir(),'sro-m23-smoke-')),shared=join(dir,'shared'),accounts=join(dir,'data','accounts');
 mkdirSync(shared,{recursive:true});mkdirSync(accounts,{recursive:true});
 for(const file of readdirSync(join(root,'shared'),{withFileTypes:true}).filter(f=>f.isFile()))copyFileSync(join(root,'shared',file.name),join(shared,file.name));
+cpSync(join(root,'shared/race'),join(shared,'race'),{recursive:true});
 const rules=JSON.parse(readFileSync(join(shared,'mechs.json'),'utf8'));
 const config=JSON.parse(readFileSync(join(shared,'mech-territory.json'),'utf8'));
 config.seasonEpoch=new Date().toISOString();config.seasonSeconds=120;config.daySeconds=10;config.strikeSeconds=5;config.transitionSeconds=20;

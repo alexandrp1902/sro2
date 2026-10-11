@@ -39,9 +39,13 @@ namespace Sro.Server.Net;
 [JsonDerivedType(typeof(PvpMsg), "pvp")]
 [JsonDerivedType(typeof(PasswordMsg), "password")]
 [JsonDerivedType(typeof(MechActMsg), "mechAct")]
+[JsonDerivedType(typeof(RaceActMsg), "raceAct")]
 [JsonDerivedType(typeof(TerritoryActMsg), "territoryAct")]
 [JsonDerivedType(typeof(WorkshopActMsg), "workshopAct")]
 public abstract record ClientMessage;
+
+public sealed record RaceActMsg(string Act, string? RequestId = null, string? SessionId = null,
+    string? ConfigHash = null, Sro.Sim.Race.RaceInput? Input = null, string? Kind = null) : ClientMessage;
 
 /// <summary>
 /// Вход. С паролем или ключом — пилот с аккаунтом (GDD §61): корпус, пушку, кредиты и трюм сервер берёт из аккаунта,
@@ -284,12 +288,17 @@ public sealed record TerritoryActMsg(string Act, string? RequestId = null, int? 
 [JsonDerivedType(typeof(RepMsg), "rep")]
 [JsonDerivedType(typeof(DialogMsg), "dialog")]
 [JsonDerivedType(typeof(MechStateMsg), "mechState")]
+[JsonDerivedType(typeof(RaceEventMsg), "raceEvent")]
 [JsonDerivedType(typeof(TerritoryStateMsg), "territoryState")]
 [JsonDerivedType(typeof(MechEventsMsg), "mechEvents")]
 [JsonDerivedType(typeof(MechEndMsg), "mechEnd")]
 [JsonDerivedType(typeof(MechRefusedMsg), "mechRefused")]
 [JsonDerivedType(typeof(WorkshopStateMsg), "workshopState")]
 public abstract record ServerMessage;
+
+public sealed record RaceEventMsg(string Event, string? RequestId = null, string? SessionId = null,
+    Sro.Sim.Race.RaceConfig? Config = null, RaceSnapshot? Snapshot = null, RaceResult? Result = null,
+    RaceBoard? Board = null, string? ValidationStatus = null, string? Code = null) : ServerMessage;
 
 /// <summary>
 /// Наземный бой целиком (M21): поле маленькое, и проще прислать его всё, чем склеивать приращения.
@@ -1037,7 +1046,7 @@ public static class Protocol
     /// hpMul и speedMul — и предсказывал бы и движение, и прочность своего корабля мимо сервера.
     /// Зеркало PROTOCOL_VERSION в client/src/net/protocol.ts.
     /// </summary>
-    public const int Version = 39;
+    public const int Version = 40;
 
     public const string DroneKind = "drone";
     public const string PirateKind = "pirate";

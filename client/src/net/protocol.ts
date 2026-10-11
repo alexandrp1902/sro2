@@ -15,12 +15,14 @@ import type { TerritoryAct, TerritoryStateMsg } from '../mech/territoryRules';
 /** Версия протокола; зеркало Protocol.Version на сервере. Сервер другой версии (или старый, без поля) — не играем. */
 // 38: M22 — workshop, squad, revisions, hands, XP and ground campaign finale.
 // 39: M23 — shared territory, durable seasons and cooperative ownership/timers.
-export const PROTOCOL_VERSION = 39;
+// 40: authoritative solo gravity races, versioned configuration and persistent rankings.
+export const PROTOCOL_VERSION = 40;
 
 /** Состояние ИИ пирата: патруль, бой, возврат в логово (налётчик — полёт от врат к точке), уход из системы. */
 export type AiState = 'patrol' | 'attack' | 'return' | 'leave';
 
 export type ClientMessage =
+  | import('../race/types').RaceCommand
   /**
    * Вход. С паролем или ключом устройства — пилот с аккаунтом: корабль, кредиты и трюм сервер берёт из аккаунта.
    * Без них — гость без сохранения (тесты, смоук-скрипты); hull, weapon и token нужны только гостю.
@@ -1106,6 +1108,7 @@ export interface InvasionMsg {
 }
 
 export type ServerMessage =
+  | import('../race/types').RaceEvent
   | WelcomeMsg
   | { t: 'pong'; c: number; tick: number }
   | PlayersMsg

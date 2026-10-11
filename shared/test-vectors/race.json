@@ -1,0 +1,500 @@
+{
+  "rules": {
+    "id": "gravity-v1",
+    "physicsVersion": "1",
+    "vehicleVersion": "scrap-1",
+    "radius": 0.9,
+    "hp": 100,
+    "engineAccel": 18,
+    "engineLimit": 46,
+    "dragK": 0.07142857142857142,
+    "lateralK": 1.2,
+    "brakeAccel": 30,
+    "turnFast": 1.9198621771937625,
+    "turnSlow": 2.6179938779914944,
+    "angularAccel": 4.1887902047863905,
+    "headingGain": 4,
+    "boostAccel": 16,
+    "boostLimit": 70,
+    "boostSeconds": 1.5,
+    "cooldownSeconds": 8,
+    "fatalSpeed": 18,
+    "restitution": 0.05,
+    "tangentLoss": 0.1,
+    "eventEpsilon": 1E-06,
+    "contactSlop": 0.0001,
+    "maxContacts": 8,
+    "countdownSeconds": 3,
+    "inputTimeoutSeconds": 0.25,
+    "abortTimeoutSeconds": 3,
+    "loadTimeoutSeconds": 30,
+    "timeLimitSeconds": 600,
+    "overloadSeconds": 0.25
+  },
+  "track": {
+    "id": "test",
+    "version": "1",
+    "name": "Test",
+    "lapCount": 1,
+    "spawn": {
+      "x": 0,
+      "y": 0,
+      "length": 0
+    },
+    "spawnHeading": 0,
+    "environment": "desert",
+    "isActive": true,
+    "centerline": [],
+    "walls": [
+      {
+        "id": "thin",
+        "a": {
+          "x": 50,
+          "y": -1000,
+          "length": 1001.2492197250393
+        },
+        "b": {
+          "x": 50,
+          "y": 1000,
+          "length": 1001.2492197250393
+        },
+        "reason": "WALL"
+      }
+    ],
+    "obstacles": [],
+    "checkpoints": [
+      {
+        "a": {
+          "x": 0.1,
+          "y": -10,
+          "length": 10.000499987500625
+        },
+        "b": {
+          "x": 0.1,
+          "y": 10,
+          "length": 10.000499987500625
+        },
+        "normal": {
+          "x": 1,
+          "y": 0,
+          "length": 1
+        }
+      },
+      {
+        "a": {
+          "x": 0.2,
+          "y": -10,
+          "length": 10.00199980003999
+        },
+        "b": {
+          "x": 0.2,
+          "y": 10,
+          "length": 10.00199980003999
+        },
+        "normal": {
+          "x": 1,
+          "y": 0,
+          "length": 1
+        }
+      }
+    ],
+    "finishLine": {
+      "a": {
+        "x": 1000,
+        "y": -10,
+        "length": 1000.0499987500625
+      },
+      "b": {
+        "x": 1000,
+        "y": 10,
+        "length": 1000.0499987500625
+      },
+      "normal": {
+        "x": 1,
+        "y": 0,
+        "length": 1
+      }
+    },
+    "length": 1
+  },
+  "cases": [
+    {
+      "name": "engine-and-coast",
+      "initial": {
+        "position": {
+          "x": 0,
+          "y": 0,
+          "length": 0
+        },
+        "velocity": {
+          "x": 0,
+          "y": 0,
+          "length": 0
+        },
+        "heading": 0,
+        "omega": 0,
+        "hp": 100,
+        "boostRemaining": 0,
+        "cooldownRemaining": 0,
+        "boostPressId": 0
+      },
+      "phases": [
+        {
+          "ticks": 120,
+          "input": {
+            "seq": 1,
+            "steerMode": "turn",
+            "heading": 0,
+            "turn": 0,
+            "throttle": 1,
+            "brake": false,
+            "boostPressId": 0,
+            "controlActive": true,
+            "valid": true
+          }
+        },
+        {
+          "ticks": 60,
+          "input": {
+            "seq": 2,
+            "steerMode": "turn",
+            "heading": 0,
+            "turn": 0,
+            "throttle": 0,
+            "brake": false,
+            "boostPressId": 0,
+            "controlActive": true,
+            "valid": true
+          }
+        }
+      ],
+      "expected": {
+        "position": {
+          "x": 49.1,
+          "y": 0,
+          "length": 49.1
+        },
+        "velocity": {
+          "x": 27.15675131448243,
+          "y": 0,
+          "length": 27.15675131448243
+        },
+        "heading": 0,
+        "omega": 0,
+        "hp": 0,
+        "boostRemaining": 0,
+        "cooldownRemaining": 0,
+        "boostPressId": 0
+      },
+      "fatalReason": "WALL"
+    },
+    {
+      "name": "steering-inertia",
+      "initial": {
+        "position": {
+          "x": 0,
+          "y": 0,
+          "length": 0
+        },
+        "velocity": {
+          "x": 42,
+          "y": 0,
+          "length": 42
+        },
+        "heading": 0,
+        "omega": 0,
+        "hp": 100,
+        "boostRemaining": 0,
+        "cooldownRemaining": 0,
+        "boostPressId": 0
+      },
+      "phases": [
+        {
+          "ticks": 30,
+          "input": {
+            "seq": 1,
+            "steerMode": "heading",
+            "heading": 1.5707963267948966,
+            "turn": 0,
+            "throttle": 1,
+            "brake": false,
+            "boostPressId": 0,
+            "controlActive": true,
+            "valid": true
+          }
+        }
+      ],
+      "expected": {
+        "position": {
+          "x": 20.90191078111126,
+          "y": 0.6119726500245934,
+          "length": 20.910867624895747
+        },
+        "velocity": {
+          "x": 40.99860085655442,
+          "y": 4.225133149434672,
+          "length": 41.21573755649068
+        },
+        "heading": 0.5387390715844669,
+        "omega": 1.9908339646842224,
+        "hp": 100,
+        "boostRemaining": 0,
+        "cooldownRemaining": 0,
+        "boostPressId": 0
+      },
+      "fatalReason": null
+    },
+    {
+      "name": "brake-and-resume",
+      "initial": {
+        "position": {
+          "x": 0,
+          "y": 0,
+          "length": 0
+        },
+        "velocity": {
+          "x": 42,
+          "y": 0,
+          "length": 42
+        },
+        "heading": 0,
+        "omega": 0,
+        "hp": 100,
+        "boostRemaining": 0,
+        "cooldownRemaining": 0,
+        "boostPressId": 0
+      },
+      "phases": [
+        {
+          "ticks": 100,
+          "input": {
+            "seq": 1,
+            "steerMode": "turn",
+            "heading": 0,
+            "turn": 0,
+            "throttle": 1,
+            "brake": true,
+            "boostPressId": 0,
+            "controlActive": true,
+            "valid": true
+          }
+        },
+        {
+          "ticks": 30,
+          "input": {
+            "seq": 2,
+            "steerMode": "turn",
+            "heading": 0,
+            "turn": 0,
+            "throttle": 1,
+            "brake": false,
+            "boostPressId": 0,
+            "controlActive": true,
+            "valid": true
+          }
+        }
+      ],
+      "expected": {
+        "position": {
+          "x": 29.494481265922776,
+          "y": 0,
+          "length": 29.494481265922776
+        },
+        "velocity": {
+          "x": 8.742194964901111,
+          "y": 0,
+          "length": 8.742194964901111
+        },
+        "heading": 0,
+        "omega": 0,
+        "hp": 100,
+        "boostRemaining": 0,
+        "cooldownRemaining": 0,
+        "boostPressId": 0
+      },
+      "fatalReason": null
+    },
+    {
+      "name": "boost-and-cancel",
+      "initial": {
+        "position": {
+          "x": 0,
+          "y": 0,
+          "length": 0
+        },
+        "velocity": {
+          "x": 0,
+          "y": 0,
+          "length": 0
+        },
+        "heading": 0,
+        "omega": 0,
+        "hp": 100,
+        "boostRemaining": 0,
+        "cooldownRemaining": 0,
+        "boostPressId": 0
+      },
+      "phases": [
+        {
+          "ticks": 30,
+          "input": {
+            "seq": 1,
+            "steerMode": "turn",
+            "heading": 0,
+            "turn": 0,
+            "throttle": 1,
+            "brake": false,
+            "boostPressId": 1,
+            "controlActive": true,
+            "valid": true
+          }
+        },
+        {
+          "ticks": 20,
+          "input": {
+            "seq": 2,
+            "steerMode": "turn",
+            "heading": 0,
+            "turn": 0,
+            "throttle": 1,
+            "brake": true,
+            "boostPressId": 1,
+            "controlActive": true,
+            "valid": true
+          }
+        }
+      ],
+      "expected": {
+        "position": {
+          "x": 7.872513033700303,
+          "y": 0,
+          "length": 7.872513033700303
+        },
+        "velocity": {
+          "x": 5.937233065508134,
+          "y": 0,
+          "length": 5.937233065508134
+        },
+        "heading": 0,
+        "omega": 0,
+        "hp": 100,
+        "boostRemaining": 0,
+        "cooldownRemaining": 7.666666666666668,
+        "boostPressId": 1
+      },
+      "fatalReason": null
+    },
+    {
+      "name": "ccd-fatal",
+      "initial": {
+        "position": {
+          "x": 49,
+          "y": 0,
+          "length": 49
+        },
+        "velocity": {
+          "x": 1200,
+          "y": 0,
+          "length": 1200
+        },
+        "heading": 0,
+        "omega": 0,
+        "hp": 100,
+        "boostRemaining": 0,
+        "cooldownRemaining": 0,
+        "boostPressId": 0
+      },
+      "phases": [
+        {
+          "ticks": 1,
+          "input": {
+            "seq": 1,
+            "steerMode": "turn",
+            "heading": 0,
+            "turn": 0,
+            "throttle": 0,
+            "brake": false,
+            "boostPressId": 0,
+            "controlActive": true,
+            "valid": true
+          }
+        }
+      ],
+      "expected": {
+        "position": {
+          "x": 49.1,
+          "y": 0,
+          "length": 49.1
+        },
+        "velocity": {
+          "x": 1198.5714285714287,
+          "y": 0,
+          "length": 1198.5714285714287
+        },
+        "heading": 0,
+        "omega": 0,
+        "hp": 0,
+        "boostRemaining": 0,
+        "cooldownRemaining": 0,
+        "boostPressId": 0
+      },
+      "fatalReason": "WALL"
+    },
+    {
+      "name": "glancing-wall",
+      "initial": {
+        "position": {
+          "x": 49,
+          "y": 0,
+          "length": 49
+        },
+        "velocity": {
+          "x": 5,
+          "y": 30,
+          "length": 30.4138126514911
+        },
+        "heading": 0,
+        "omega": 0,
+        "hp": 100,
+        "boostRemaining": 0,
+        "cooldownRemaining": 0,
+        "boostPressId": 0
+      },
+      "phases": [
+        {
+          "ticks": 3,
+          "input": {
+            "seq": 1,
+            "steerMode": "turn",
+            "heading": 0,
+            "turn": 0,
+            "throttle": 0,
+            "brake": false,
+            "boostPressId": 0,
+            "controlActive": true,
+            "valid": true
+          }
+        }
+      ],
+      "expected": {
+        "position": {
+          "x": 49.09242973829123,
+          "y": 1.3521908705690435,
+          "length": 49.11104842863275
+        },
+        "velocity": {
+          "x": -0.24910820536051723,
+          "y": 25.319686454446064,
+          "length": 25.320911852645384
+        },
+        "heading": 0,
+        "omega": 0,
+        "hp": 92.02379535147392,
+        "boostRemaining": 0,
+        "cooldownRemaining": 0,
+        "boostPressId": 0
+      },
+      "fatalReason": null
+    }
+  ]
+}

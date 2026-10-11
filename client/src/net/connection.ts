@@ -115,6 +115,7 @@ export class Connection {
   onInvasion: ((message: InvasionMsg) => void) | null = null;
   /** Наземный бой мехов (M21): поле, события хода, итог и отказы. */
   onMech: ((message: MechMessage) => void) | null = null;
+  onRace: ((message: import('../race/types').RaceEvent) => void) | null = null;
   onTerritory: ((message: import('../mech/territoryRules').TerritoryStateMsg) => void) | null = null;
   onWorkshop: ((message: WorkshopStateMsg) => void) | null = null;
 
@@ -366,6 +367,9 @@ export class Connection {
         break;
       case 'territoryState':
         this.onTerritory?.(message);
+        break;
+      case 'raceEvent':
+        this.onRace?.(message);
         break;
       case 'mechState':
       case 'mechEvents':

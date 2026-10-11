@@ -687,6 +687,7 @@ public sealed partial class Room
     public void SetHull(IClientConnection connection, string? hullId)
     {
         if (hullId is null || !Hulls.ContainsKey(hullId) || !_byConnection.TryGetValue(connection.Id, out var player)) return;
+        if (_host?.InMech(player) == true) return;
         if (!player.IsGuest && (!player.Docked || !player.OwnsHull(hullId))) return;
         if (PlaceOf(player) is { Shipyard: false })
         {

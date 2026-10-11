@@ -209,6 +209,21 @@ export class GameAudio {
     this.cue(cue, null, 0, now);
   }
 
+  /** Short race signals share the existing audio context, volume settings and lifecycle. */
+  race(cue: string): void {
+    if (!this.engine || this.engine.ctx.state !== 'running') return;
+    if (cue === 'crash') { this.kill({ x: 0, y: 0 }, 40, true, performance.now()); return; }
+    const ctx = this.engine.ctx, at = ctx.currentTime;
+    const oscillator = ctx.createOscillator(), gain = ctx.createGain();
+    oscillator.type = cue === 'countdown' ? 'sine' : 'triangle';
+    oscillator.frequency.setValueAtTime(cue === 'countdown' ? 440 : cue === 'start' ? 880 : 660, at);
+    oscillator.frequency.exponentialRampToValueAtTime(cue === 'finish' ? 1320 : 600, at + .15);
+    gain.gain.setValueAtTime(.12, at); gain.gain.exponentialRampToValueAtTime(.001, at + .22);
+    oscillator.connect(gain); gain.connect(this.engine.sfxBus);
+    oscillator.onended = () => { oscillator.disconnect(); gain.disconnect(); };
+    oscillator.start(at); oscillator.stop(at + .24);
+  }
+
   /**
    * Накопление прыжка: один длинный звук, растянутый под время прыжка этой системы.
    * Второй вызов ничего не делает — прыжок уже гудит.
