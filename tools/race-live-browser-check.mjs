@@ -35,7 +35,13 @@ try {
   await click('Вход');
   await evaluate(`(()=>{const f=document.querySelector('#connect');f.querySelector('input[name=name]').value='race-live';f.querySelector('input[name=name]').dispatchEvent(new Event('input',{bubbles:true}));f.querySelector('input[name=password]').value='${password}';f.querySelector('form').requestSubmit();})()`);
   await until(()=>evaluate(`!document.querySelector('#dock').hidden&&document.querySelector('#dock').textContent.includes('Тау-Прима')`),'Tau dock');
-  assert(await click('Гонки'));await until(()=>evaluate(`!document.querySelector('#race').hidden`),'terminal');
+  assert(await evaluate(`![...document.querySelectorAll('.dock-tab')].some(b=>b.textContent.trim()==='Гонки')`));
+  assert(await evaluate(`document.querySelector('.dock-training').textContent.includes('Гравигонки · Красный каньон')`));
+  for (const [width,height] of [[1280,720],[390,844]]) {
+    await cdp('Emulation.setDeviceMetricsOverride',{width,height,deviceScaleFactor:1,mobile:false});
+    assert(await evaluate(`(()=>{const b=[...document.querySelectorAll('.dock-training button')].find(b=>b.textContent.trim()==='К гонкам');const r=b?.getBoundingClientRect();return !!r&&r.width>0&&r.height>0&&r.left>=0&&r.right<=innerWidth;})()`),'Race invitation is visible');
+  }
+  assert(await click('К гонкам'));await until(()=>evaluate(`!document.querySelector('#race').hidden`),'terminal');
   assert(await click('Заезд на время'));await until(()=>evaluate(`!!document.querySelector('.race-countdown')`),'countdown');
   await sleep(3600);assert(await evaluate(`document.querySelector('.race-hud').textContent.includes('Круг 1/3')`));
   await cdp('Input.dispatchKeyEvent',{type:'keyDown',code:'KeyW',key:'w'});await sleep(500);await cdp('Input.dispatchKeyEvent',{type:'keyUp',code:'KeyW',key:'w'});

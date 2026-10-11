@@ -753,7 +753,6 @@ export class DockScreen {
       tabs.append(tab);
     }
     card.append(tabs);
-    if (this.placeKey === 'pl:tauPrima') tabs.append(button('Гонки', 'dock-tab sro-tab', () => this.handlers.onRace?.()));
 
     const body = el('div', 'dock-body');
     body.dataset.tab = this.tab;
@@ -878,8 +877,9 @@ export class DockScreen {
       view.append(ship);
     }
     const training = this.missions?.mechTraining === true;
-    if (training) view.classList.add('dock-scene--training');
-    if (scene.who || training) {
+    const racing = this.placeKey === 'pl:tauPrima';
+    if (training || racing) view.classList.add('dock-scene--training');
+    if (scene.who || training || racing) {
       const caption = el('div', 'dock-scene-caption');
       if (scene.who) {
         const person = this.staff(scene.who, this.tab);
@@ -894,6 +894,15 @@ export class DockScreen {
           el('div', 'sro-row__name', 'Полигон мехов · Тренировочная вылазка'),
           el('div', 'dock-training-note sro-muted', 'Прототип против двух налётчиков. Можно начать без прохождения сюжета и повторять бесплатно.'),
           button('Начать вылазку', 'sro-btn sro-btn--primary sro-btn--sm', () => this.handlers.onMechTraining()),
+        );
+        caption.append(invitation);
+      }
+      if (racing) {
+        const invitation = el('div', 'dock-training');
+        invitation.append(
+          el('div', 'sro-row__name', 'Гравигонки · Красный каньон'),
+          el('div', 'dock-training-note sro-muted', 'Испытайте гоночный болид: три круга на время, форсаж и таблица рекордов. Участие бесплатное.'),
+          button('К гонкам', 'sro-btn sro-btn--primary sro-btn--sm', () => this.handlers.onRace?.()),
         );
         caption.append(invitation);
       }
