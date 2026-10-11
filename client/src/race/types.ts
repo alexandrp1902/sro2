@@ -11,7 +11,7 @@ export interface Rules {
   id: string; physicsVersion: string; vehicleVersion: string;
   radius: number; hp: number; engineAccel: number; engineLimit: number; dragK: number; lateralK: number;
   brakeAccel: number; turnFast: number; turnSlow: number; angularAccel: number; headingGain: number;
-  boostAccel: number; boostLimit: number; boostSeconds: number; cooldownSeconds: number;
+  coastBrakeAccel: number;
   fatalSpeed: number; restitution: number; tangentLoss: number; eventEpsilon: number;
   contactSlop: number; maxContacts: number; countdownSeconds: number; inputTimeoutSeconds: number;
   abortTimeoutSeconds: number; loadTimeoutSeconds: number; timeLimitSeconds: number; overloadSeconds: number;
@@ -19,12 +19,12 @@ export interface Rules {
 export interface Config { track: Track; rules: Rules; hash: string; rankingKey: string }
 export interface Input {
   seq: number; steerMode: 'turn' | 'heading'; heading: number; turn: number; throttle: number;
-  brake: boolean; boostPressId: number; controlActive: boolean;
+  brake: boolean; controlActive: boolean;
 }
 export interface Snapshot {
   sessionId: string; tick: number; ackSeq: number; state: string; position: Vec; velocity: Vec;
-  heading: number; omega: number; hp: number; boostState: string; boostRemainingMs: number;
-  countdownMs: number; lap: number; nextCp: number; elapsedMs: number; lapElapsedMs: number; lapTimesMs: number[]; boostPressId: number;
+  heading: number; omega: number; hp: number;
+  countdownMs: number; lap: number; nextCp: number; elapsedMs: number; lapElapsedMs: number; lapTimesMs: number[];
 }
 export interface Result {
   sessionId: string; playerId: string | null; name: string; rankingKey: string; status: string;

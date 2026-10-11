@@ -5,8 +5,8 @@ using Sro.Sim.Race;
 namespace Sro.Server.Game;
 
 public sealed record RaceSnapshot(string SessionId, int Tick, long AckSeq, string State, RaceVec Position,
-    RaceVec Velocity, double Heading, double Omega, double Hp, string BoostState, int BoostRemainingMs,
-    int CountdownMs, int Lap, int NextCp, int ElapsedMs, int LapElapsedMs, int[] LapTimesMs, long BoostPressId);
+    RaceVec Velocity, double Heading, double Omega, double Hp,
+    int CountdownMs, int Lap, int NextCp, int ElapsedMs, int LapElapsedMs, int[] LapTimesMs);
 
 public sealed partial class Galaxy
 {
@@ -88,10 +88,9 @@ public sealed partial class Galaxy
             Config: e.Session.Config, Snapshot: Snapshot(e.Session)));
     }
     private static RaceSnapshot Snapshot(RaceSession s) => new(s.Id, s.Tick, s.Input.Seq, s.State,
-        s.Body.Position, s.Body.Velocity, s.Body.Heading, s.Body.Omega, s.Body.Hp, s.Body.BoostState,
-        (int)Math.Ceiling((s.Body.BoostRemaining > 0 ? s.Body.BoostRemaining : s.Body.CooldownRemaining) * 1000),
+        s.Body.Position, s.Body.Velocity, s.Body.Heading, s.Body.Omega, s.Body.Hp,
         s.CountdownMs, Math.Min(s.Config.Track.LapCount, s.LapTimesMs.Count + 1), s.NextCp,
-        s.ElapsedMs, s.ElapsedMs - s.LapTimesMs.Sum(), s.LapTimesMs.ToArray(), s.Body.BoostPressId);
+        s.ElapsedMs, s.ElapsedMs - s.LapTimesMs.Sum(), s.LapTimesMs.ToArray());
     private void Publish(RaceEntry e)
     {
         e.Player.Connection?.Send(new RaceEventMsg("result", SessionId: e.Session.Id, Result: e.Result,

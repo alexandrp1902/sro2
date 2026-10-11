@@ -1,8 +1,8 @@
 /**
- * Где прокрутка — дело списка, а не игры: тело дока, карта галактики и окно управления.
+ * Где прокрутка — дело списка, а не игры: док, карта, управление, меню и терминал гонок.
  * Сюда же смотрит обработчик колеса в keyboard.ts: колесо над списком крутит список, а не тягу.
  */
-export const SCROLLABLE = '.dock-body, .galaxy-card, .controls-card';
+export const SCROLLABLE = '.dock-body, .galaxy-card, .controls-card, .menu-card, .race-card, .race-screen:not(.race-screen--driving)';
 
 /** Событие пришло из прокручиваемого окна (или из поля ввода) — браузер должен обработать его сам. */
 export function insideScrollable(target: EventTarget | null): boolean {

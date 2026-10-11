@@ -30,8 +30,6 @@ public sealed class RaceSession(RaceConfig config)
     public bool Apply(RaceInput input)
     {
         if (!Active || !input.Valid || input.Seq <= Input.Seq) return false;
-        // A pre-start boost press is consumed, never buffered.
-        if (State != "RUNNING") Body.BoostPressId = Math.Max(Body.BoostPressId, input.BoostPressId);
         Input = input with { Heading = RacePhysics.Angle(input.Heading) };
         _lastInputTick = Tick;
         if (input.ControlActive) _lastControlTick = Tick;

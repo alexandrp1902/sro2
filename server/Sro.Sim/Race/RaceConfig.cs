@@ -34,10 +34,7 @@ public sealed record RaceRules
     public double TurnSlow { get; init; } = 150 * Math.PI / 180;
     public double AngularAccel { get; init; } = 240 * Math.PI / 180;
     public double HeadingGain { get; init; } = 4;
-    public double BoostAccel { get; init; } = 16;
-    public double BoostLimit { get; init; } = 70;
-    public double BoostSeconds { get; init; } = 1.5;
-    public double CooldownSeconds { get; init; } = 8;
+    public double CoastBrakeAccel { get; init; } = 10;
     public double FatalSpeed { get; init; } = 18;
     public double Restitution { get; init; } = .05;
     public double TangentLoss { get; init; } = .1;

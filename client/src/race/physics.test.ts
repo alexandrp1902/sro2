@@ -13,7 +13,7 @@ describe('shared C#/TypeScript race vectors', () => {
       if (fatal) break;
     }
     expect(fatal).toBe(v.fatalReason);
-    for (const key of ['heading', 'omega', 'hp', 'boostRemaining', 'cooldownRemaining'] as const) expect(b[key]).toBeCloseTo(v.expected[key], 9);
+    for (const key of ['heading', 'omega', 'hp'] as const) expect(b[key]).toBeCloseTo(v.expected[key], 9);
     for (const key of ['position', 'velocity'] as const) {
       expect(b[key].x).toBeCloseTo(v.expected[key].x, 9); expect(b[key].y).toBeCloseTo(v.expected[key].y, 9);
     }

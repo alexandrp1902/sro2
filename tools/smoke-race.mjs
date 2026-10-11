@@ -40,7 +40,7 @@ try {
   a.send({t:'raceAct',act:'ready',sessionId:joined.sessionId,configHash:'wrong'});await a.wait(m=>m.code==='CONFIG_MISMATCH');
   a.send({t:'raceAct',act:'ready',sessionId:joined.sessionId,configHash:joined.config.hash});
   let seq=0;
-  heartbeat=setInterval(()=>a.send({t:'raceAct',act:'input',sessionId:joined.sessionId,input:{seq:++seq,steerMode:'turn',heading:0,turn:0,throttle:1,brake:false,boostPressId:0,controlActive:true}}),50);
+  heartbeat=setInterval(()=>a.send({t:'raceAct',act:'input',sessionId:joined.sessionId,input:{seq:++seq,steerMode:'turn',heading:0,turn:0,throttle:1,brake:false,controlActive:true}}),50);
   await a.wait(m=>m.snapshot?.state==='COUNTDOWN');await sleep(700);
   assert.equal(a.snapshot.position.x,joined.config.track.spawn.x);assert.equal(a.snapshot.elapsedMs,0);
   a.send({t:'dock',on:false});await sleep(100);assert(!a.messages.some(m=>m.t==='hangar'&&!m.docked));

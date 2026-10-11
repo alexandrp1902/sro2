@@ -1,36 +1,41 @@
-import { keymap } from '../input/keymap';
+﻿import { keymap } from '../input/keymap';
 import type { Input } from './types';
 
+/** Throttle is selected speed, independent of steering. */
 export class RaceInput {
-  value: Input = { seq: 0, steerMode: 'turn', heading: 0, turn: 0, throttle: 0, brake: false, boostPressId: 0, controlActive: true };
+  value: Input = { seq: 0, steerMode: 'turn', heading: 0, turn: 0, throttle: 0, brake: false, controlActive: true };
   private held = new Set<string>();
-  private brakePointer: number | null = null;
   private stickPointer: number | null = null;
-  private keyboardBrake = false;
+  private speedPointer: number | null = null;
+  private brakePointer: number | null = null;
   private abort: AbortController | null = null;
   private captures = new Map<number, HTMLElement>();
+  private speed: HTMLInputElement | null = null;
+  private knob: HTMLElement | null = null;
   constructor(private changed: () => void, private menu: () => void, private running: () => boolean) {}
-  bind(root: HTMLElement, stick: HTMLElement, knob: HTMLElement, brake: HTMLButtonElement, boost: HTMLButtonElement): void {
-    this.unbind(); this.abort = new AbortController(); const signal = this.abort.signal;
-    const reset = (active: boolean) => { this.safe(active); this.release(); knob.style.transform = ''; this.changed(); };
+  private holds(action: 'thrust' | 'brake' | 'left' | 'right', code: string): boolean {
+    const defaults = { thrust: ['KeyW', 'ArrowUp'], brake: ['KeyS', 'ArrowDown'], left: ['KeyA', 'ArrowLeft'], right: ['KeyD', 'ArrowRight'] };
+    return defaults[action].includes(code) || keymap.holds(action, code);
+  }
+  bind(root: HTMLElement, stick: HTMLElement, knob: HTMLElement, speed: HTMLInputElement, brake: HTMLButtonElement): void {
+    this.unbind(); this.speed = speed; this.knob = knob;
+    this.abort = new AbortController(); const signal = this.abort.signal;
+    const reset = (active: boolean) => { this.safe(active); this.changed(); };
     window.addEventListener('keydown', e => {
       e.stopImmediatePropagation();
+      if (e.code !== 'Escape' && e.code !== 'Space' && !(['thrust', 'brake', 'left', 'right'] as const).some(a => this.holds(a, e.code))) return;
       if (e.code === 'Escape') { e.preventDefault(); if (!e.repeat) this.menu(); return; }
-      if (e.target instanceof HTMLElement && e.target.closest('button,input')) {
-        if (e.code === 'Enter') return;
-      }
       e.preventDefault(); if (!this.running()) return;
       this.value.controlActive = true;
-      this.held.add(e.code);
-      if (keymap.holds('thrust', e.code)) this.value.throttle = 1;
-      if (keymap.holds('brake', e.code)) this.value.throttle = 0;
-      if (e.code === 'Space' || keymap.holds('fire', e.code)) this.keyboardBrake = true;
-      if (e.code === 'ShiftLeft' || e.code === 'ShiftRight') { if (!e.repeat && !this.value.brake) this.value.boostPressId++; }
-      this.value.steerMode = 'turn'; this.updateKeys(); this.changed();
+      const first = !this.held.has(e.code); this.held.add(e.code);
+      if (first && this.holds('thrust', e.code)) this.setSpeed(this.value.throttle + .06);
+      if (first && this.holds('brake', e.code)) this.setSpeed(this.value.throttle - .06);
+      if (this.holds('left', e.code) || this.holds('right', e.code)) this.value.steerMode = 'turn';
+      this.updateKeys(); this.changed();
     }, { capture: true, signal });
     window.addEventListener('keyup', e => {
-      e.stopImmediatePropagation(); this.held.delete(e.code);
-      if (e.code === 'Space' || keymap.holds('fire', e.code)) this.keyboardBrake = false;
+      if (!this.held.has(e.code)) return;
+      e.stopImmediatePropagation(); e.preventDefault(); this.held.delete(e.code);
       this.updateKeys(); this.changed();
     }, { capture: true, signal });
     window.addEventListener('blur', () => reset(false), { signal });
@@ -39,59 +44,77 @@ export class RaceInput {
     window.addEventListener('resize', () => reset(document.hasFocus()), { signal });
     root.addEventListener('wheel', e => e.preventDefault(), { passive: false, signal });
     root.addEventListener('contextmenu', e => e.preventDefault(), { signal });
+    root.addEventListener('pointerdown', e => { if (e.pointerType === 'touch') root.classList.add('race-touch'); }, { signal });
     const capture = (e: PointerEvent, node: HTMLElement) => {
       node.setPointerCapture(e.pointerId); this.captures.set(e.pointerId, node); e.preventDefault();
       this.value.controlActive = true;
     };
-    const move = (e: PointerEvent) => {
+    const moveStick = (e: PointerEvent) => {
       if (e.pointerId !== this.stickPointer || !this.running()) return;
       const box = stick.getBoundingClientRect(), radius = box.width * .4;
       const x = e.clientX - box.left - box.width / 2, y = e.clientY - box.top - box.height / 2;
       const magnitude = Math.hypot(x, y), scale = magnitude > radius ? radius / magnitude : 1;
-      this.value.throttle = Math.min(1, magnitude / radius);
       if (magnitude > 4) this.value.heading = Math.atan2(y, x);
       this.value.steerMode = 'heading'; this.value.turn = 0;
       knob.style.transform = `translate(${x * scale}px, ${y * scale}px)`; this.changed();
     };
     stick.addEventListener('pointerdown', e => {
       if (!this.running() || this.stickPointer !== null) return;
-      this.stickPointer = e.pointerId; capture(e, stick); move(e);
+      this.stickPointer = e.pointerId; capture(e, stick); moveStick(e);
     }, { signal });
-    stick.addEventListener('pointermove', move, { signal });
-    stick.addEventListener('pointerup', e => { if (e.pointerId === this.stickPointer) { this.stickPointer = null; this.captures.delete(e.pointerId); } }, { signal });
-    stick.addEventListener('dblclick', () => { this.value.throttle = 0; knob.style.transform = ''; this.changed(); }, { signal });
+    stick.addEventListener('pointermove', moveStick, { signal });
+    const moveSpeed = (e: PointerEvent) => {
+      if (e.pointerId !== this.speedPointer || !this.running()) return;
+      const box = speed.getBoundingClientRect();
+      this.setSpeed(1 - (e.clientY - box.top - 12) / (box.height - 24)); this.changed();
+    };
+    speed.addEventListener('pointerdown', e => {
+      if (!this.running() || this.speedPointer !== null) return;
+      this.speedPointer = e.pointerId; capture(e, speed); moveSpeed(e);
+    }, { signal });
+    speed.addEventListener('pointermove', moveSpeed, { signal });
+    speed.addEventListener('input', () => {
+      if (!this.running()) { speed.value = String(this.value.throttle * 100); return; }
+      this.setSpeed(Number(speed.value) / 100); this.changed();
+    }, { signal });
     brake.addEventListener('pointerdown', e => {
       if (!this.running() || this.brakePointer !== null) return;
-      this.brakePointer = e.pointerId; capture(e, brake); this.value.brake = true; this.changed();
+      this.brakePointer = e.pointerId; capture(e, brake); this.updateKeys(); this.changed();
     }, { signal });
-    brake.addEventListener('pointerup', e => {
-      if (e.pointerId !== this.brakePointer) return;
-      this.brakePointer = null; this.captures.delete(e.pointerId); this.value.brake = this.keyboardBrake; this.changed();
-    }, { signal });
-    for (const node of [stick, brake]) {
-      node.addEventListener('pointercancel', () => reset(false), { signal });
-      node.addEventListener('lostpointercapture', e => {
-        if (this.captures.has(e.pointerId)) reset(false);
+    for (const node of [stick, speed, brake]) {
+      node.addEventListener('pointerup', e => {
+        if (e.pointerId === this.stickPointer) { this.stickPointer = null; knob.style.transform = ''; }
+        if (e.pointerId === this.speedPointer) this.speedPointer = null;
+        if (e.pointerId === this.brakePointer) { this.brakePointer = null; this.updateKeys(); this.changed(); }
+        this.captures.delete(e.pointerId);
       }, { signal });
+      node.addEventListener('pointercancel', () => reset(false), { signal });
+      node.addEventListener('lostpointercapture', e => { if (this.captures.has(e.pointerId)) reset(false); }, { signal });
     }
-    boost.addEventListener('pointerdown', e => {
-      e.preventDefault(); if (!this.running() || this.value.brake || boost.disabled) return;
-      this.value.boostPressId++; this.changed();
-    }, { signal });
+  }
+  update(dt: number): void {
+    if (!this.running()) return;
+    const up = [...this.held].some(k => this.holds('thrust', k));
+    const down = [...this.held].some(k => this.holds('brake', k));
+    if (up !== down) this.setSpeed(this.value.throttle + (up ? 1 : -1) * dt * .55);
+  }
+  private setSpeed(value: number): void {
+    this.value.throttle = Math.max(0, Math.min(1, value));
+    if (this.speed) this.speed.value = String(this.value.throttle * 100);
   }
   private updateKeys(): void {
-    this.value.brake = this.keyboardBrake || this.brakePointer !== null;
-    this.value.turn = Number([...this.held].some(k => keymap.holds('right', k))) - Number([...this.held].some(k => keymap.holds('left', k)));
+    this.value.brake = this.held.has('Space') || this.brakePointer !== null;
+    this.value.turn = Number([...this.held].some(k => this.holds('right', k))) - Number([...this.held].some(k => this.holds('left', k)));
   }
   safe(active: boolean): void {
-    this.held.clear(); this.keyboardBrake = false;
-    this.release();
-    this.value = { ...this.value, throttle: 0, turn: 0, steerMode: 'turn', brake: false, controlActive: active };
+    this.held.clear(); this.release(); this.setSpeed(0);
+    if (this.knob) this.knob.style.transform = '';
+    this.value = { ...this.value, turn: 0, steerMode: 'turn', brake: false, controlActive: active };
   }
   private release(): void {
-    this.brakePointer = this.stickPointer = null;
+    this.stickPointer = this.speedPointer = this.brakePointer = null;
     const captures = [...this.captures]; this.captures.clear();
     for (const [id, node] of captures) if (node.hasPointerCapture(id)) node.releasePointerCapture(id);
   }
-  unbind(): void { this.abort?.abort(); this.abort = null; this.safe(true); this.release(); }
+  unbind(): void { this.abort?.abort(); this.abort = null; this.safe(true); this.speed = this.knob = null; }
 }

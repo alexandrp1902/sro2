@@ -1,4 +1,4 @@
-import { Container, Graphics } from 'pixi.js';
+import { Assets, Container, Graphics, Sprite, type Texture } from 'pixi.js';
 import type { Body } from './physics';
 import type { Config, Input } from './types';
 
@@ -10,7 +10,8 @@ export class RaceScene {
   private track = new Graphics();
   private marker = new Graphics();
   private vehicle = new Container();
-  private hull = new Graphics();
+  private hull = new Sprite();
+  private textures = new Map<string, Texture>();
   private exhaust = new Graphics();
   private effects = new Graphics();
   private lastHp = 100;
@@ -20,16 +21,18 @@ export class RaceScene {
     this.view.addChild(this.background, this.world);
     this.world.addChild(this.track, this.effects, this.marker, this.vehicle);
     this.vehicle.addChild(this.exhaust, this.hull); this.view.visible = false;
-    // Two forward engines, patched frame, visible cables and an open rear pilot platform.
-    this.hull.moveTo(-.55, -.25).lineTo(.38, -.45).moveTo(-.55, .25).lineTo(.38, .45).stroke({ color: 0x343d43, width: .13 });
-    this.hull.rect(-.82, -.3, .55, .6).fill(0xa4a3a0).stroke({ color: 0x293238, width: .05 });
-    for (const y of [-.45, .45]) {
-      this.hull.roundRect(.05, y - .17, .68, .34, .09).fill(0x747d82).stroke({ color: 0xced8d9, width: .04 });
-      this.hull.rect(.4, y - .17, .18, .34).fill(0xdcb45d);
-      this.hull.circle(.68, y, .11).fill(0x273b40);
+    this.hull.anchor.set(.5);
+  }
+  async prepare(livery: 'copper' | 'blue'): Promise<void> {
+    const url = `${import.meta.env.BASE_URL}race/bolide-${livery}.png`;
+    let texture = this.textures.get(url);
+    if (!texture) {
+      texture = await Assets.load<Texture>({ src: url, data: { autoGenerateMipmaps: true } });
+      this.textures.set(url, texture);
     }
-    this.hull.circle(-.52, 0, .13).fill(0x50d6e0);
-    this.hull.moveTo(-.4, -.26).quadraticCurveTo(0, -.1, .16, -.45).stroke({ color: 0xc38a52, width: .035 });
+    this.hull.texture = texture;
+    this.hull.width = 3.65;
+    this.hull.height = 3.65 * texture.height / texture.width;
   }
   load(config: Config): void {
     this.track.clear(); const t = config.track;
@@ -40,14 +43,23 @@ export class RaceScene {
       this.track.ellipse(x, y, radius * 1.8, radius).fill({ color: i % 3 ? 0x654332 : 0x765137, alpha: .7 });
       if (i % 5 === 0) this.track.circle(x, y, radius * .7).fill(0x8c6247);
     }
-    // Broad rock bank behind the clear, enclosed racing surface.
-    for (const width of [13, 8]) {
-      this.track.moveTo(t.centerline[0].x, t.centerline[0].y);
-      for (const p of t.centerline.slice(1)) this.track.lineTo(p.x, p.y);
-      this.track.closePath().stroke({ color: width === 13 ? 0x704632 : 0x34312c, width, join: 'round' });
+    // The racing surface follows the exact collision banks, including every rock spur.
+    const outer = t.walls.filter(w => w.id.startsWith('wall-0-'));
+    const inner = t.walls.filter(w => w.id.startsWith('wall-1-'));
+    for (const [width, color] of [[9, 0x3b291f], [6, 0x704632], [3.8, 0x986748]]) {
+      for (const bank of [outer, inner]) {
+        this.track.moveTo(bank[0].a.x, bank[0].a.y);
+        for (const w of bank) this.track.lineTo(w.b.x, w.b.y);
+        this.track.closePath().stroke({ color, width, join: 'round' });
+      }
     }
-    for (const w of t.walls) this.track.moveTo(w.a.x, w.a.y).lineTo(w.b.x, w.b.y).stroke({ color: 0xd69d69, width: .28 });
-    for (let i = 0; i < t.centerline.length; i += 4) {
+    for (let i = 0; i < outer.length; i++) {
+      const a = outer[i], b = inner[i];
+      this.track.poly([a.a.x, a.a.y, a.b.x, a.b.y, b.b.x, b.b.y, b.a.x, b.a.y]).fill(0x34312c);
+    }
+    for (const w of t.walls) this.track.moveTo(w.a.x, w.a.y).lineTo(w.b.x, w.b.y)
+      .stroke({ color: 0x211b17, width: 1.2 }).stroke({ color: 0xd69d69, width: .35 });
+    for (let i = 0; i < t.centerline.length; i += 10) {
       const p = t.centerline[i], next = t.centerline[(i + 1) % t.centerline.length];
       const h = Math.atan2(next.y - p.y, next.x - p.x);
       const f = { x: Math.cos(h), y: Math.sin(h) }, n = { x: -f.y, y: f.x };
@@ -55,9 +67,9 @@ export class RaceScene {
         .lineTo(p.x - f.x - n.x * .7, p.y - f.y - n.y * .7).stroke({ color: 0xa08c68, width: .13 });
     }
     for (const cp of t.checkpoints) this.track.moveTo(cp.a.x, cp.a.y).lineTo(cp.b.x, cp.b.y).stroke({ color: 0x497274, width: .09, alpha: .7 });
-    for (let i = 2; i < t.centerline.length; i += 13) {
-      const p = t.centerline[i], n = t.centerline[(i + 1) % t.centerline.length];
-      const h = Math.atan2(n.y - p.y, n.x - p.x), x = p.x + Math.sin(h) * 6, y = p.y - Math.cos(h) * 6;
+    for (let i = 2; i < outer.length; i += 30) {
+      const w = outer[i], p = w.a, n = w.b;
+      const h = Math.atan2(n.y - p.y, n.x - p.x), x = p.x + Math.sin(h) * 2, y = p.y - Math.cos(h) * 2;
       this.track.rect(x - 1, y - .7, 2, 1.4).fill(0xd8a556).stroke({ color: 0x302b24, width: .15 });
       this.track.moveTo(x - .5, y - .35).lineTo(x, y).lineTo(x - .5, y + .35).stroke({ color: 0x332c23, width: .18 });
     }
@@ -83,13 +95,12 @@ export class RaceScene {
     this.vehicle.position.set(b.position.x, b.position.y); this.vehicle.rotation = b.heading;
     this.vehicle.visible = !crashed;
     this.marker.clear();
-    if (!crashed) this.marker.circle(b.position.x, b.position.y, 1.3).stroke({ color: 0x92f4ee, width: .12, alpha: .7 });
+    if (!crashed) this.marker.circle(b.position.x, b.position.y, 2.3).stroke({ color: 0x92f4ee, width: .12, alpha: .7 });
     this.exhaust.clear();
-    const boost = b.boostRemaining > 0;
-    const power = input.brake ? 0 : input.throttle + (boost ? .8 : 0);
-    for (const y of [-.45, .45]) if (power > 0) {
-      this.exhaust.moveTo(.05, y - .12).lineTo(-.1 - power * (.65 + .12 * Math.sin(now / 42)), y)
-        .lineTo(.05, y + .12).closePath().fill({ color: boost ? 0xf5d67b : 0x58e4f0, alpha: .8 });
+    const power = input.brake ? 0 : input.throttle;
+    for (const y of [-.7, .7]) if (power > 0) {
+      this.exhaust.moveTo(-1.4, y - .2).lineTo(-1.55 - power * (1.3 + .24 * Math.sin(now / 42)), y)
+        .lineTo(-1.4, y + .2).closePath().fill({ color: 0x58e4f0, alpha: .8 });
     }
     if (b.hp < this.lastHp) this.hitAt = now;
     this.lastHp = b.hp; this.effects.clear();

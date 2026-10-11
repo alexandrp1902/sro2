@@ -71,6 +71,7 @@ export class BurgerMenu {
     this.root.hidden = false;
     // Карточка прижимается к правому краю кнопки: так она не уезжает за край узкого экрана.
     this.card.style.top = `${Math.round(anchor.bottom + 6)}px`;
+    this.card.style.setProperty('--menu-top', this.card.style.top);
     this.card.style.right = `${Math.max(8, Math.round(window.innerWidth - anchor.right))}px`;
   }
 

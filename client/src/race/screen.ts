@@ -40,6 +40,7 @@ export class RaceScreen {
   private validation = 'PENDING';
   private boards: Partial<Record<'total' | 'lap', Board>> = {};
   private boardKind: 'total' | 'lap' = 'total';
+  private livery: 'copper' | 'blue' = 'copper';
   private previousBest: number | null = null;
   private message = '';
   private body: Body = body(track, rules);
@@ -51,7 +52,8 @@ export class RaceScreen {
   private menuOpen = false;
   private hud: HTMLElement | null = null;
   private countdown: HTMLElement | null = null;
-  private boost: HTMLButtonElement | null = null;
+  private speed: HTMLInputElement | null = null;
+  private speedLabel: HTMLElement | null = null;
   private brake: HTMLButtonElement | null = null;
   private lapNotice: HTMLElement | null = null;
   private lapUntil = 0;
@@ -61,7 +63,6 @@ export class RaceScreen {
   private onlineBefore = true;
   private resultShowAt = 0;
   private resultRendered = false;
-  private lastBoostState = 'READY';
   get throttle(): number { return this.mode === 'race' && this.snapshot?.state === 'RUNNING' && !this.input.value.brake ? this.input.value.throttle : 0; }
   constructor(private options: Options) {
     this.root.id = 'race'; this.root.hidden = true; document.body.append(this.root);
@@ -96,13 +97,21 @@ export class RaceScreen {
     const card = node('section', 'race-card sro-pane');
     card.append(node('p', 'race-eyebrow', 'ТАУ-ПРИМА · ПЫЛЬНАЯ ГАВАНЬ'), node('h1', '', this.config.track.name));
     card.append(node('p', '', `${this.config.track.length} ед. · ${this.config.track.lapCount} круга · Сложная трасса`));
-    card.append(node('p', '', 'Инерция, позднее торможение и опасный форсаж. Сильный удар уничтожает болид. Участие бесплатно.'));
+    card.append(node('p', '', 'Инерция, плавный разгон и торможение. Сильный удар уничтожает болид. Участие бесплатно.'));
+    const vehicles = node('div', 'race-vehicles');
+    for (const [livery, label] of [['copper', 'Медный болид'], ['blue', 'Синий болид']] as const) {
+      const pick = button(label, () => { this.livery = livery; this.renderTerminal(); });
+      pick.setAttribute('aria-pressed', String(this.livery === livery));
+      const image = node('img', ''); image.src = `${import.meta.env.BASE_URL}race/bolide-${livery}.png`; image.alt = ''; image.width = 160; image.height = 96;
+      pick.prepend(image); vehicles.append(pick);
+    }
+    card.append(vehicles);
     const best = this.boards.total?.self, lap = this.boards.lap?.self;
     card.append(node('p', 'race-best', `Личный заезд: ${best ? raceTime(best.timeMs) : 'Рекорд пока не установлен'}`),
       node('p', 'race-best', `Лучший круг: ${lap ? raceTime(lap.timeMs) : 'Рекорд пока не установлен'}`));
     if (!this.options.registered?.()) card.append(node('p', 'race-muted', 'Тестовый заезд — общий рекорд не сохраняется. Для рейтинга нужен зарегистрированный аккаунт.'));
     const start = button('Заезд на время', () => this.start()); start.classList.add('sro-btn--primary'); start.disabled = !this.options.online(); card.append(start);
-    card.append(node('p', '', 'W / ↑ — тяга · S / ↓ — инерция · A / D — поворот · удерживать Пробел — тормоз · Shift — форсаж. На телефоне: стик и две правые кнопки.'));
+    card.append(node('p', '', 'W / ↑ — повысить скорость · S / ↓ — снизить скорость · A / D / ← / → — поворот · Пробел — тормоз, пока зажат. На телефоне: стик задаёт направление, шкала — скорость; кнопка тормоза действует, пока зажата.'));
     const tabs = node('div', 'race-actions');
     for (const [kind, label] of [['total', `${this.config.track.lapCount} круга`], ['lap', 'Лучший круг']] as const) {
       const b = button(label, () => { this.boardKind = kind; this.renderTerminal(); }); b.setAttribute('aria-pressed', String(this.boardKind === kind)); tabs.append(b);
@@ -123,14 +132,22 @@ export class RaceScreen {
     card.append(button('Обновить рекорды', () => this.fetchBoards()), button('Назад в док', () => this.close()));
     this.root.replaceChildren(card);
   }
-  private start(): void {
+  private async start(): Promise<void> {
     if (!this.options.online()) return;
     this.previousBest = this.boards.total?.self?.timeMs ?? null;
     this.mode = 'loading'; this.message = ''; this.result = null; this.snapshot = null; this.pending = [];
-    this.resultShowAt = 0; this.resultRendered = false; this.lastBoostState = 'READY';
+    this.resultShowAt = 0; this.resultRendered = false;
     this.input.unbind(); this.root.replaceChildren(node('section', 'race-card sro-pane', 'Загружаем трассу…'));
     this.joinRequest = crypto.randomUUID();
-    this.options.send({ t: 'raceAct', act: 'join', requestId: this.joinRequest });
+    const requestId = this.joinRequest;
+    try {
+      await this.scene.prepare(this.livery);
+      if (!this.open || this.mode !== 'loading' || this.joinRequest !== requestId) return;
+      this.options.send({ t: 'raceAct', act: 'join', requestId });
+    } catch {
+      if (!this.open || this.mode !== 'loading' || this.joinRequest !== requestId) return;
+      this.mode = 'terminal'; this.message = 'Не удалось загрузить болид. Повторите попытку.'; this.renderTerminal();
+    }
   }
   apply(m: RaceEvent): void {
     if (!this.open) return;
@@ -149,7 +166,7 @@ export class RaceScreen {
     if (m.event === 'joined' && m.config && m.snapshot && m.requestId === this.joinRequest) {
       this.session = m.sessionId!; this.config = m.config; this.body = body(this.config.track, this.config.rules);
       this.scene.load(this.config); this.snapshot = m.snapshot; this.mode = 'race'; this.menuOpen = false;
-      this.input.value.heading = this.config.track.spawnHeading; this.input.value.seq = 0; this.input.value.boostPressId = 0;
+      this.input.value.heading = this.config.track.spawnHeading; this.input.value.seq = 0;
       this.renderRace(); this.lastFrame = 0; this.accumulator = 0; this.lastCountdown = '';
       this.options.send({ t: 'raceAct', act: 'ready', sessionId: this.session, configHash: this.config.hash }); return;
     }
@@ -163,9 +180,7 @@ export class RaceScreen {
       }
       this.snapshot = s;
       this.body = { position: { ...s.position }, velocity: { ...s.velocity }, heading: s.heading, omega: s.omega,
-        hp: s.hp, boostRemaining: s.boostState === 'ACTIVE' ? s.boostRemainingMs / 1000 : 0,
-        cooldownRemaining: s.boostState === 'COOLDOWN' ? s.boostRemainingMs / 1000 : 0,
-        boostPressId: s.boostPressId, contacts: this.body.contacts };
+        hp: s.hp, contacts: this.body.contacts };
       this.pending = this.pending.filter(p => p.input.seq > s.ackSeq);
       if (s.state === 'RUNNING') for (const p of this.pending) step(this.body, p.input, this.config.track, this.config.rules);
     }
@@ -195,13 +210,18 @@ export class RaceScreen {
     this.hud = node('div', 'race-hud sro-pane sro-num');
     this.countdown = node('div', 'race-countdown'); this.countdown.setAttribute('aria-live', 'polite');
     this.lapNotice = node('div', 'race-lap-notice'); this.lapNotice.setAttribute('aria-live', 'polite');
-    const stick = node('div', 'race-stick'), knob = node('div', 'race-knob'); stick.append(knob);
-    stick.setAttribute('aria-label', 'Направление и тяга');
-    this.brake = button('ТОРМОЗ', () => {}); this.brake.classList.add('race-brake');
-    this.boost = button('ФОРСАЖ', () => {}); this.boost.classList.add('race-boost');
+    const stick = node('div', 'race-stick race-mobile'), knob = node('div', 'race-knob'); stick.append(knob);
+    stick.setAttribute('aria-label', 'Целевое направление');
+    this.brake = button('ТОРМОЗ', () => {}); this.brake.classList.add('race-brake', 'race-mobile');
+    const speedControl = node('label', 'race-speed race-mobile');
+    this.speedLabel = node('span', 'race-speed-label', '0 ед./с');
+    this.speed = node('input', 'race-speed-range'); this.speed.type = 'range';
+    this.speed.min = '0'; this.speed.max = '100'; this.speed.step = '0.1'; this.speed.value = '0';
+    this.speed.setAttribute('aria-label', 'Заданная скорость');
+    speedControl.append(this.speedLabel, this.speed, node('span', 'race-speed-title', 'СКОРОСТЬ'));
     const menu = button('Выход', () => this.exitMenu()); menu.classList.add('race-menu');
-    this.root.append(this.hud, this.countdown, this.lapNotice, stick, this.brake, this.boost, menu);
-    this.input.bind(this.root, stick, knob, this.brake, this.boost);
+    this.root.append(this.hud, this.countdown, this.lapNotice, stick, speedControl, this.brake, menu);
+    this.input.bind(this.root, stick, knob, this.speed, this.brake);
   }
   private exitMenu(): void {
     if (this.mode !== 'race') return;
@@ -255,8 +275,9 @@ export class RaceScreen {
       if (this.mode === 'loading') { this.mode = 'terminal'; this.renderTerminal(); }
     }
     this.onlineBefore = online;
-    if (this.mode === 'race' && now - this.lastSend >= 50) this.sendInput();
     const dt = this.lastFrame ? Math.min(.1, (now - this.lastFrame) / 1000) : 0; this.lastFrame = now;
+    this.input.update(dt);
+    if (this.mode === 'race' && now - this.lastSend >= 50) this.sendInput();
     if (this.mode === 'race' && this.snapshot?.state === 'RUNNING') {
       this.accumulator += dt;
       while (this.accumulator >= 1 / 60) {
@@ -269,18 +290,13 @@ export class RaceScreen {
     if (this.mode === 'results' && !this.resultRendered && now >= this.resultShowAt) this.renderResults();
     if (this.mode !== 'race' || !this.snapshot) return;
     const s = this.snapshot;
-    if (s.boostState !== this.lastBoostState) this.options.sound?.(s.boostState === 'ACTIVE' ? 'boost' : s.boostState === 'READY' ? 'ready' : 'coast');
-    this.lastBoostState = s.boostState;
-    if (this.hud) this.hud.textContent = `${raceTime(s.elapsedMs, false)}  ·  Круг ${s.lap}/${this.config.track.lapCount}  ·  ${raceTime(s.lapElapsedMs, false)}\n${Math.ceil(s.hp)} HP  ·  ${Math.hypot(this.body.velocity.x, this.body.velocity.y).toFixed(0)} ед./с${!online ? ' · Нет связи' : ''}`;
+    if (this.hud) this.hud.textContent = `${raceTime(s.elapsedMs, false)}  ·  Круг ${s.lap}/${this.config.track.lapCount}  ·  ${raceTime(s.lapElapsedMs, false)}\n${Math.ceil(s.hp)} HP  ·  ${Math.hypot(this.body.velocity.x, this.body.velocity.y).toFixed(0)} → ${(this.input.value.throttle * this.config.rules.engineLimit).toFixed(0)} ед./с${!online ? ' · Нет связи' : ''}`;
     const count = s.state === 'COUNTDOWN' ? String(Math.ceil(s.countdownMs / 1000)) : s.state === 'RUNNING' && s.elapsedMs < 700 ? 'СТАРТ' : '';
     if (count && count !== this.lastCountdown) this.options.sound?.(count === 'СТАРТ' ? 'start' : 'countdown');
     this.lastCountdown = count; if (this.countdown) this.countdown.textContent = count;
     if (this.lapNotice) this.lapNotice.hidden = now > this.lapUntil;
     if (this.brake) this.brake.setAttribute('aria-pressed', String(this.input.value.brake));
-    if (this.boost) {
-      this.boost.disabled = s.state !== 'RUNNING' || s.boostState !== 'READY' || this.input.value.brake;
-      this.boost.textContent = s.boostState === 'READY' ? 'ФОРСАЖ' : `${s.boostState === 'ACTIVE' ? 'АКТИВЕН' : 'ЗАРЯД'} ${(s.boostRemainingMs / 1000).toFixed(1)} с`;
-      this.boost.style.setProperty('--cooldown', `${s.boostState === 'COOLDOWN' ? s.boostRemainingMs / (this.config.rules.cooldownSeconds * 10) : 0}%`);
-    }
+    if (this.speedLabel) this.speedLabel.textContent = `${(this.input.value.throttle * this.config.rules.engineLimit).toFixed(0)} ед./с`;
+    if (this.speed) this.speed.setAttribute('aria-valuetext', `${(this.input.value.throttle * this.config.rules.engineLimit).toFixed(0)} единиц в секунду`);
   }
 }

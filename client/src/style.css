@@ -2647,6 +2647,10 @@ body.ui-hidden #ability {
 
 .menu-card {
   position: absolute;
+  max-height: calc(100dvh - var(--menu-top, 70px) - 12px);
+  overflow-y: auto;
+  touch-action: pan-y;
+  overscroll-behavior: contain;
   /* Меню — окно на мгновение: сквозь него не смотрят, поэтому оно плотное, а не стеклянное. */
   background: var(--bg-window);
   backdrop-filter: none;

@@ -5,26 +5,26 @@ namespace Sro.Sim.Tests;
 
 public class RaceTests
 {
-    private static readonly RaceRules Rules = new() { DragK = 0, LateralK = 0, CountdownSeconds = 0 };
+    private static readonly RaceRules Rules = new() { DragK = 0, LateralK = 0, CoastBrakeAccel = 0, CountdownSeconds = 0 };
     private static RaceGate Gate(double x) => new(new(x, -10), new(x, 10), new(1, 0));
     public static RaceTrack Straight(int laps = 1, double finish = .3, RaceWall[]? walls = null) =>
         new("test", "1", "Test", laps, new(0, 0), 0, "desert", true, [], walls ?? [], [], [Gate(.1), Gate(.2)], Gate(finish), 1);
-    private static RaceInput Input(long seq = 1, double throttle = 0, bool brake = false, long boost = 0) =>
-        new(seq, Throttle: throttle, Brake: brake, BoostPressId: boost);
+    private static RaceInput Input(long seq = 1, double throttle = 0, bool brake = false) =>
+        new(seq, Throttle: throttle, Brake: brake);
     private static RaceSession Session(RaceTrack? track = null)
     {
         var session = new RaceSession(new(track ?? Straight(), Rules, "hash"));
         Assert.True(session.Ready("hash")); session.Step(); return session;
     }
-    [Fact] public void CountdownLocksPositionHeadingAndConsumesBoost()
+    [Fact] public void CountdownLocksPositionAndHeading()
     {
         var s = new RaceSession(new(Straight(), new(), "hash"));
-        s.Apply(new(1, "heading", Math.PI, Throttle: 1, BoostPressId: 1)); s.Ready("hash");
+        s.Apply(new(1, "heading", Math.PI, Throttle: 1)); s.Ready("hash");
         for (var i = 0; i < 180; i++) s.Step();
         Assert.Equal("RUNNING", s.State); Assert.Equal(new RaceVec(0, 0), s.Body.Position);
-        Assert.Equal(0, s.Body.Heading); Assert.Equal(0, s.ElapsedMs); Assert.Equal(0, s.Body.BoostRemaining);
-        s.Apply(new(2, Throttle: 1, BoostPressId: 1)); s.Step();
-        Assert.True(s.Body.Position.X > 0); Assert.Equal(0, s.Body.BoostRemaining);
+        Assert.Equal(0, s.Body.Heading); Assert.Equal(0, s.ElapsedMs);
+        s.Apply(new(2, Throttle: 1)); s.Step();
+        Assert.True(s.Body.Position.X > 0);
     }
     [Fact] public void BrakeStopsWithoutReverseAndRestoresThrust()
     {
@@ -39,15 +39,23 @@ public class RaceTests
         RacePhysics.Step(b, new(1, "heading", Math.PI / 2, Throttle: 1), Straight(), new());
         Assert.InRange(b.Heading, 0, .01); Assert.True(b.Velocity.X > 40); Assert.InRange(b.Velocity.Y, 0, .01);
     }
-    [Fact] public void BoostCancelsToFullCooldownAndDuplicatePressCannotReactivate()
+    [Fact] public void SelectedSpeedDeceleratesGraduallyAndIsRestoredAfterBrake()
     {
-        var b = new RaceBody(); RacePhysics.Step(b, Input(boost: 1), Straight(), Rules);
-        Assert.True(b.BoostRemaining > 1.4);
-        RacePhysics.Step(b, Input(brake: true, boost: 1), Straight(), Rules);
-        Assert.Equal(0, b.BoostRemaining); Assert.InRange(b.CooldownRemaining, 7.9, 8);
-        for (var i = 0; i < 500; i++) RacePhysics.Step(b, Input(boost: 1), Straight(), Rules);
-        Assert.Equal(0, b.BoostRemaining); Assert.Equal(0, b.CooldownRemaining);
-        RacePhysics.Step(b, Input(boost: 2), Straight(), Rules); Assert.True(b.BoostRemaining > 0);
+        var rules = new RaceRules { DragK = 0, LateralK = 0 };
+        var track = Straight(finish: 10000);
+        var b = new RaceBody { Velocity = new(30, 0) };
+        var selected = Input(throttle: 10.0 / rules.EngineLimit);
+        RacePhysics.Step(b, selected, track, rules);
+        Assert.InRange(b.Velocity.Length, 29.8, 30);
+        for (var i = 0; i < 360; i++) RacePhysics.Step(b, selected, track, rules);
+        Assert.InRange(b.Velocity.Length, 9.99, 10.01);
+        var cruising = Input(throttle: 20.0 / rules.EngineLimit);
+        for (var i = 0; i < 240; i++) RacePhysics.Step(b, cruising, track, rules);
+        Assert.InRange(b.Velocity.Length, 19.99, 20.01);
+        for (var i = 0; i < 60; i++) RacePhysics.Step(b, cruising with { Brake = true }, track, rules);
+        Assert.Equal(0, b.Velocity.Length);
+        for (var i = 0; i < 240; i++) RacePhysics.Step(b, cruising, track, rules);
+        Assert.InRange(b.Velocity.Length, 19.99, 20.01);
     }
     [Theory] [InlineData(17.999, false)] [InlineData(18, true)] [InlineData(1200, true)]
     public void SweptThinWallHonorsFatalThreshold(double speed, bool fatal)
@@ -114,24 +122,23 @@ public class RaceTests
         Assert.Equal("ABORTED", lost.State); Assert.Equal("RUNNING", menu.State);
     }
 
-    private sealed record State(RaceVec Position, RaceVec Velocity, double Heading, double Omega, double Hp,
-        double BoostRemaining, double CooldownRemaining, long BoostPressId);
+    private sealed record State(RaceVec Position, RaceVec Velocity, double Heading, double Omega, double Hp);
     private sealed record Phase(int Ticks, RaceInput Input);
     private sealed record Vector(string Name, State Initial, Phase[] Phases, State Expected, string? FatalReason);
     private sealed record Vectors(RaceRules Rules, RaceTrack Track, Vector[] Cases);
-    private static State StateOf(RaceBody b) => new(b.Position, b.Velocity, b.Heading, b.Omega, b.Hp, b.BoostRemaining, b.CooldownRemaining, b.BoostPressId);
+    private static State StateOf(RaceBody b) => new(b.Position, b.Velocity, b.Heading, b.Omega, b.Hp);
     [Fact] public void SharedVectorsMatchServerAndCanBeRegenerated()
     {
         var repo = new DirectoryInfo(AppContext.BaseDirectory);
         while (repo is not null && !Directory.Exists(Path.Combine(repo.FullName, "shared"))) repo = repo.Parent;
         var path = Path.Combine(repo!.FullName, "shared", "test-vectors", "race.json");
         var rules = new RaceRules(); var track = Straight(finish: 1000, walls: [new("thin", new(50, -1000), new(50, 1000), "WALL")]);
-        var seed = new State(new(0, 0), new(0, 0), 0, 0, 100, 0, 0, 0);
+        var seed = new State(new(0, 0), new(0, 0), 0, 0, 100);
         var definitions = new[] {
             new Vector("engine-and-coast", seed, [new(120, Input(1, 1)), new(60, Input(2))], seed, null),
             new Vector("steering-inertia", seed with { Velocity = new(42, 0) }, [new(30, new(1, "heading", Math.PI / 2, Throttle: 1))], seed, null),
             new Vector("brake-and-resume", seed with { Velocity = new(42, 0) }, [new(100, Input(1, 1, true)), new(30, Input(2, 1))], seed, null),
-            new Vector("boost-and-cancel", seed, [new(30, Input(1, 1, boost: 1)), new(20, Input(2, 1, true, 1))], seed, null),
+            new Vector("selected-speed-reduction", seed with { Velocity = new(35, 0) }, [new(90, Input(1, .25)), new(90, Input(2, 0))], seed, null),
             new Vector("ccd-fatal", seed with { Position = new(49, 0), Velocity = new(1200, 0) }, [new(1, Input())], seed, null),
             new Vector("glancing-wall", seed with { Position = new(49, 0), Velocity = new(5, 30) }, [new(3, Input())], seed, null),
         };
@@ -153,7 +160,7 @@ public class RaceTests
         }
     }
 
-    [Fact] public void RealCanyonCanBeCompletedWithStandardPhysicsWithoutBoost()
+    [Fact] public void RealCanyonCanBeCompletedWithSelectedSpeed()
     {
         var repo = new DirectoryInfo(AppContext.BaseDirectory);
         while (repo is not null && !Directory.Exists(Path.Combine(repo.FullName, "shared"))) repo = repo.Parent;
@@ -179,7 +186,7 @@ public class RaceTests
             }
             var desired = target - s.Body.Position; var heading = Math.Atan2(desired.Y, desired.X);
             var speed = s.Body.Velocity.Length;
-            s.Apply(new(tick, "heading", heading, Throttle: speed < 6 ? .4 : 0, Brake: speed > 7)); s.Step();
+            s.Apply(new(tick, "heading", heading, Throttle: 6 / config.Rules.EngineLimit, Brake: speed > 7)); s.Step();
         }
         Assert.True(s.State == "FINISHED", $"{s.State}/{s.Reason} at {s.Body.Position}, CP {s.NextCp}, laps {s.LapTimesMs.Count}, HP {s.Body.Hp}");
         Assert.Equal(3, s.LapTimesMs.Count); Assert.Equal(s.ElapsedMs, s.LapTimesMs.Sum());

@@ -11,13 +11,13 @@ export const angle = (a: number) => Math.atan2(Math.sin(a), Math.cos(a));
 export const damage = (vn: number) => vn < 2 ? 0 : vn < 7 ? 2 + 2 * (vn - 2) : 12 + 6 * (vn - 7);
 export interface Body {
   position: Vec; velocity: Vec; heading: number; omega: number; hp: number;
-  boostRemaining: number; cooldownRemaining: number; boostPressId: number; contacts: Set<string>;
+  contacts: Set<string>;
 }
 export interface Segment { from: Vec; to: Vec; startFraction: number; endFraction: number }
 export interface Motion { segments: Segment[]; fatalReason: string | null; fatalFraction: number; normalSpeed: number; contactLimit: boolean }
 export function body(track: Track, rules: Rules): Body {
   return { position: { ...track.spawn }, velocity: { x: 0, y: 0 }, heading: track.spawnHeading, omega: 0,
-    hp: rules.hp, boostRemaining: 0, cooldownRemaining: 0, boostPressId: 0, contacts: new Set() };
+    hp: rules.hp, contacts: new Set() };
 }
 export function distance(p: Vec, a: Vec, b: Vec): number {
   const ab = sub(b, a);
@@ -29,10 +29,6 @@ export function crossing(from: Vec, to: Vec, g: { a: Vec; b: Vec; normal: Vec })
   const t = -da / (db - da), p = add(from, mul(sub(to, from), t)), line = sub(g.b, g.a);
   const along = dot(sub(p, g.a), line) / dot(line, line);
   return along >= 0 && along <= 1 ? t : null;
-}
-export function cancelBoost(b: Body, r: Rules): void {
-  if (b.boostRemaining <= 0) return;
-  b.boostRemaining = 0; b.cooldownRemaining = r.cooldownSeconds;
 }
 interface Hit { t: number; normal: Vec; id: string; reason: string }
 function firstHit(p: Vec, d: Vec, track: Track, radius: number): Hit | null {
@@ -60,24 +56,16 @@ function firstHit(p: Vec, d: Vec, track: Track, radius: number): Hit | null {
   return best;
 }
 export function step(b: Body, input: Input, track: Track, r: Rules): Motion {
-  if (input.brake || !input.controlActive) cancelBoost(b, r);
-  if (input.boostPressId > b.boostPressId) {
-    b.boostPressId = input.boostPressId;
-    if (input.controlActive && !input.brake && b.boostRemaining <= 0 && b.cooldownRemaining <= 0) b.boostRemaining = r.boostSeconds;
-  }
   const limit = r.turnSlow + (r.turnFast - r.turnSlow) * Math.min(length(b.velocity) / r.engineLimit, 1);
   const target = input.steerMode === 'heading' ? clamp(angle(input.heading - b.heading) * r.headingGain, -limit, limit) : input.turn * limit;
   b.omega += clamp(target - b.omega, -r.angularAccel * DT, r.angularAccel * DT);
   b.heading = angle(b.heading + b.omega * DT);
   const f = { x: Math.cos(b.heading), y: Math.sin(b.heading) }, forward = dot(b.velocity, f), side = sub(b.velocity, mul(f, forward));
-  const engine = input.brake ? 0 : r.engineAccel * input.throttle * Math.max(0, 1 - (Math.max(0, forward) / r.engineLimit) ** 2);
-  const boost = b.boostRemaining > 0 && !input.brake ? r.boostAccel * Math.max(0, 1 - (Math.max(0, forward) / r.boostLimit) ** 2) : 0;
-  b.velocity = add(b.velocity, mul(sub(sub(mul(f, engine + boost), mul(b.velocity, r.dragK)), mul(side, r.lateralK)), DT));
-  if (input.brake && length(b.velocity) > 0) b.velocity = mul(b.velocity, Math.max(0, 1 - r.brakeAccel * DT / length(b.velocity)));
-  if (b.boostRemaining > 0) {
-    b.boostRemaining = Math.max(0, b.boostRemaining - DT);
-    if (b.boostRemaining <= 1e-9) { b.boostRemaining = 0; b.cooldownRemaining = r.cooldownSeconds; }
-  } else b.cooldownRemaining = Math.max(0, b.cooldownRemaining - DT);
+  const speed = length(b.velocity), desired = input.throttle * r.engineLimit;
+  const engine = input.brake || !input.controlActive ? 0 : clamp((desired - speed) * 2 + speed * r.dragK, 0, r.engineAccel);
+  b.velocity = add(b.velocity, mul(sub(sub(mul(f, engine), mul(b.velocity, r.dragK)), mul(side, r.lateralK)), DT));
+  const deceleration = input.brake ? r.brakeAccel : input.controlActive ? Math.min(r.coastBrakeAccel, Math.max(0, speed - desired) * 2) : 0;
+  if (deceleration > 0 && length(b.velocity) > 0) b.velocity = mul(b.velocity, Math.max(0, 1 - deceleration * DT / length(b.velocity)));
   const segments: Segment[] = [], touching = new Set<string>(); let fraction = 0;
   const result = (fatalReason: string | null, fatalFraction: number, normalSpeed: number, contactLimit = false): Motion =>
     ({ segments, fatalReason, fatalFraction, normalSpeed, contactLimit });

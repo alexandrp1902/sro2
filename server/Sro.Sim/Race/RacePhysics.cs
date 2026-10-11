@@ -1,11 +1,11 @@
 namespace Sro.Sim.Race;
 
 public sealed record RaceInput(long Seq = 0, string SteerMode = "turn", double Heading = 0,
-    double Turn = 0, double Throttle = 0, bool Brake = false, long BoostPressId = 0, bool ControlActive = true)
+    double Turn = 0, double Throttle = 0, bool Brake = false, bool ControlActive = true)
 {
     public bool Valid => Seq > 0 && (SteerMode == "turn" || SteerMode == "heading") &&
         double.IsFinite(Heading) && double.IsFinite(Turn) && double.IsFinite(Throttle) &&
-        Turn is >= -1 and <= 1 && Throttle is >= 0 and <= 1 && BoostPressId >= 0;
+        Turn is >= -1 and <= 1 && Throttle is >= 0 and <= 1;
 }
 public sealed class RaceBody
 {
@@ -14,11 +14,7 @@ public sealed class RaceBody
     public double Heading { get; set; }
     public double Omega { get; set; }
     public double Hp { get; set; } = 100;
-    public double BoostRemaining { get; set; }
-    public double CooldownRemaining { get; set; }
-    public long BoostPressId { get; set; }
     public HashSet<string> Contacts { get; } = [];
-    public string BoostState => BoostRemaining > 0 ? "ACTIVE" : CooldownRemaining > 0 ? "COOLDOWN" : "READY";
 }
 public sealed record RaceSegment(RaceVec From, RaceVec To, double StartFraction, double EndFraction);
 public sealed record RaceMotion(List<RaceSegment> Segments, string? FatalReason, double FatalFraction,
@@ -28,22 +24,10 @@ public static class RacePhysics
 {
     public const double Dt = 1.0 / 60;
     public static double Angle(double a) => Math.Atan2(Math.Sin(a), Math.Cos(a));
-    public static void CancelBoost(RaceBody body, RaceRules rules)
-    {
-        if (body.BoostRemaining <= 0) return;
-        body.BoostRemaining = 0;
-        body.CooldownRemaining = rules.CooldownSeconds;
-    }
     public static double Damage(double vn) => vn < 2 ? 0 : vn < 7 ? 2 + 2 * (vn - 2) : 12 + 6 * (vn - 7);
 
     public static RaceMotion Step(RaceBody b, RaceInput input, RaceTrack track, RaceRules r)
     {
-        if (input.Brake || !input.ControlActive) CancelBoost(b, r);
-        if (input.BoostPressId > b.BoostPressId)
-        {
-            b.BoostPressId = input.BoostPressId;
-            if (input.ControlActive && !input.Brake && b.BoostState == "READY") b.BoostRemaining = r.BoostSeconds;
-        }
         var speed = b.Velocity.Length;
         var limit = r.TurnSlow + (r.TurnFast - r.TurnSlow) * Math.Min(speed / r.EngineLimit, 1);
         var target = input.SteerMode == "heading" ? Math.Clamp(Angle(input.Heading - b.Heading) * r.HeadingGain, -limit, limit) : input.Turn * limit;
@@ -52,16 +36,11 @@ public static class RacePhysics
         var f = new RaceVec(Math.Cos(b.Heading), Math.Sin(b.Heading));
         var forward = b.Velocity.Dot(f);
         var side = b.Velocity - f * forward;
-        var engine = input.Brake ? 0 : r.EngineAccel * input.Throttle * Math.Max(0, 1 - Math.Pow(Math.Max(0, forward) / r.EngineLimit, 2));
-        var boost = b.BoostRemaining > 0 && !input.Brake ? r.BoostAccel * Math.Max(0, 1 - Math.Pow(Math.Max(0, forward) / r.BoostLimit, 2)) : 0;
-        b.Velocity += (f * (engine + boost) - b.Velocity * r.DragK - side * r.LateralK) * Dt;
-        if (input.Brake && b.Velocity.Length > 0) b.Velocity *= Math.Max(0, 1 - r.BrakeAccel * Dt / b.Velocity.Length);
-        if (b.BoostRemaining > 0)
-        {
-            b.BoostRemaining = Math.Max(0, b.BoostRemaining - Dt);
-            if (b.BoostRemaining <= 1e-9) { b.BoostRemaining = 0; b.CooldownRemaining = r.CooldownSeconds; }
-        }
-        else b.CooldownRemaining = Math.Max(0, b.CooldownRemaining - Dt);
+        var desired = input.Throttle * r.EngineLimit;
+        var engine = input.Brake || !input.ControlActive ? 0 : Math.Clamp((desired - speed) * 2 + speed * r.DragK, 0, r.EngineAccel);
+        b.Velocity += (f * engine - b.Velocity * r.DragK - side * r.LateralK) * Dt;
+        var deceleration = input.Brake ? r.BrakeAccel : input.ControlActive ? Math.Min(r.CoastBrakeAccel, Math.Max(0, speed - desired) * 2) : 0;
+        if (deceleration > 0 && b.Velocity.Length > 0) b.Velocity *= Math.Max(0, 1 - deceleration * Dt / b.Velocity.Length);
 
         var segments = new List<RaceSegment>();
         var touching = new HashSet<string>();

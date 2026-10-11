@@ -14,10 +14,7 @@
     "turnSlow": 2.6179938779914944,
     "angularAccel": 4.1887902047863905,
     "headingGain": 4,
-    "boostAccel": 16,
-    "boostLimit": 70,
-    "boostSeconds": 1.5,
-    "cooldownSeconds": 8,
+    "coastBrakeAccel": 10,
     "fatalSpeed": 18,
     "restitution": 0.05,
     "tangentLoss": 0.1,
@@ -133,10 +130,7 @@
         },
         "heading": 0,
         "omega": 0,
-        "hp": 100,
-        "boostRemaining": 0,
-        "cooldownRemaining": 0,
-        "boostPressId": 0
+        "hp": 100
       },
       "phases": [
         {
@@ -148,7 +142,6 @@
             "turn": 0,
             "throttle": 1,
             "brake": false,
-            "boostPressId": 0,
             "controlActive": true,
             "valid": true
           }
@@ -162,7 +155,6 @@
             "turn": 0,
             "throttle": 0,
             "brake": false,
-            "boostPressId": 0,
             "controlActive": true,
             "valid": true
           }
@@ -175,16 +167,13 @@
           "length": 49.1
         },
         "velocity": {
-          "x": 27.15675131448243,
+          "x": 27.67202894559364,
           "y": 0,
-          "length": 27.15675131448243
+          "length": 27.67202894559364
         },
         "heading": 0,
         "omega": 0,
-        "hp": 0,
-        "boostRemaining": 0,
-        "cooldownRemaining": 0,
-        "boostPressId": 0
+        "hp": 0
       },
       "fatalReason": "WALL"
     },
@@ -203,10 +192,7 @@
         },
         "heading": 0,
         "omega": 0,
-        "hp": 100,
-        "boostRemaining": 0,
-        "cooldownRemaining": 0,
-        "boostPressId": 0
+        "hp": 100
       },
       "phases": [
         {
@@ -218,7 +204,6 @@
             "turn": 0,
             "throttle": 1,
             "brake": false,
-            "boostPressId": 0,
             "controlActive": true,
             "valid": true
           }
@@ -226,21 +211,18 @@
       ],
       "expected": {
         "position": {
-          "x": 20.90191078111126,
-          "y": 0.6119726500245934,
-          "length": 20.910867624895747
+          "x": 21.63648641306797,
+          "y": 0.6830197700499573,
+          "length": 21.647264499450134
         },
         "velocity": {
-          "x": 40.99860085655442,
-          "y": 4.225133149434672,
-          "length": 41.21573755649068
+          "x": 43.25922356387113,
+          "y": 4.664529945122505,
+          "length": 43.50997888942177
         },
-        "heading": 0.5387390715844669,
-        "omega": 1.9908339646842224,
-        "hp": 100,
-        "boostRemaining": 0,
-        "cooldownRemaining": 0,
-        "boostPressId": 0
+        "heading": 0.5375861446713865,
+        "omega": 1.9563118580141163,
+        "hp": 100
       },
       "fatalReason": null
     },
@@ -259,10 +241,7 @@
         },
         "heading": 0,
         "omega": 0,
-        "hp": 100,
-        "boostRemaining": 0,
-        "cooldownRemaining": 0,
-        "boostPressId": 0
+        "hp": 100
       },
       "phases": [
         {
@@ -274,7 +253,6 @@
             "turn": 0,
             "throttle": 1,
             "brake": true,
-            "boostPressId": 0,
             "controlActive": true,
             "valid": true
           }
@@ -288,7 +266,6 @@
             "turn": 0,
             "throttle": 1,
             "brake": false,
-            "boostPressId": 0,
             "controlActive": true,
             "valid": true
           }
@@ -296,26 +273,23 @@
       ],
       "expected": {
         "position": {
-          "x": 29.494481265922776,
+          "x": 29.50831321791394,
           "y": 0,
-          "length": 29.494481265922776
+          "length": 29.50831321791394
         },
         "velocity": {
-          "x": 8.742194964901111,
+          "x": 8.846355261890542,
           "y": 0,
-          "length": 8.742194964901111
+          "length": 8.846355261890542
         },
         "heading": 0,
         "omega": 0,
-        "hp": 100,
-        "boostRemaining": 0,
-        "cooldownRemaining": 0,
-        "boostPressId": 0
+        "hp": 100
       },
       "fatalReason": null
     },
     {
-      "name": "boost-and-cancel",
+      "name": "selected-speed-reduction",
       "initial": {
         "position": {
           "x": 0,
@@ -323,42 +297,37 @@
           "length": 0
         },
         "velocity": {
-          "x": 0,
+          "x": 35,
           "y": 0,
-          "length": 0
+          "length": 35
         },
         "heading": 0,
         "omega": 0,
-        "hp": 100,
-        "boostRemaining": 0,
-        "cooldownRemaining": 0,
-        "boostPressId": 0
+        "hp": 100
       },
       "phases": [
         {
-          "ticks": 30,
+          "ticks": 90,
           "input": {
             "seq": 1,
             "steerMode": "turn",
             "heading": 0,
             "turn": 0,
-            "throttle": 1,
+            "throttle": 0.25,
             "brake": false,
-            "boostPressId": 1,
             "controlActive": true,
             "valid": true
           }
         },
         {
-          "ticks": 20,
+          "ticks": 90,
           "input": {
             "seq": 2,
             "steerMode": "turn",
             "heading": 0,
             "turn": 0,
-            "throttle": 1,
-            "brake": true,
-            "boostPressId": 1,
+            "throttle": 0,
+            "brake": false,
             "controlActive": true,
             "valid": true
           }
@@ -366,21 +335,18 @@
       ],
       "expected": {
         "position": {
-          "x": 7.872513033700303,
+          "x": 48.951539209015706,
           "y": 0,
-          "length": 7.872513033700303
+          "length": 48.951539209015706
         },
         "velocity": {
-          "x": 5.937233065508134,
+          "x": -0.09957884860663656,
           "y": 0,
-          "length": 5.937233065508134
+          "length": 0.09957884860663656
         },
         "heading": 0,
         "omega": 0,
-        "hp": 100,
-        "boostRemaining": 0,
-        "cooldownRemaining": 7.666666666666668,
-        "boostPressId": 1
+        "hp": 81.28242970679938
       },
       "fatalReason": null
     },
@@ -399,10 +365,7 @@
         },
         "heading": 0,
         "omega": 0,
-        "hp": 100,
-        "boostRemaining": 0,
-        "cooldownRemaining": 0,
-        "boostPressId": 0
+        "hp": 100
       },
       "phases": [
         {
@@ -414,7 +377,6 @@
             "turn": 0,
             "throttle": 0,
             "brake": false,
-            "boostPressId": 0,
             "controlActive": true,
             "valid": true
           }
@@ -427,16 +389,13 @@
           "length": 49.1
         },
         "velocity": {
-          "x": 1198.5714285714287,
+          "x": 1198.404761904762,
           "y": 0,
-          "length": 1198.5714285714287
+          "length": 1198.404761904762
         },
         "heading": 0,
         "omega": 0,
-        "hp": 0,
-        "boostRemaining": 0,
-        "cooldownRemaining": 0,
-        "boostPressId": 0
+        "hp": 0
       },
       "fatalReason": "WALL"
     },
@@ -455,10 +414,7 @@
         },
         "heading": 0,
         "omega": 0,
-        "hp": 100,
-        "boostRemaining": 0,
-        "cooldownRemaining": 0,
-        "boostPressId": 0
+        "hp": 100
       },
       "phases": [
         {
@@ -470,7 +426,6 @@
             "turn": 0,
             "throttle": 0,
             "brake": false,
-            "boostPressId": 0,
             "controlActive": true,
             "valid": true
           }
@@ -478,21 +433,18 @@
       ],
       "expected": {
         "position": {
-          "x": 49.09242973829123,
-          "y": 1.3521908705690435,
-          "length": 49.11104842863275
+          "x": 49.092574312639236,
+          "y": 1.3372953185244487,
+          "length": 49.11078508241294
         },
         "velocity": {
-          "x": -0.24910820536051723,
-          "y": 25.319686454446064,
-          "length": 25.320911852645384
+          "x": -0.2446514195590293,
+          "y": 24.86669286908829,
+          "length": 24.86789634373319
         },
         "heading": 0,
         "omega": 0,
-        "hp": 92.02379535147392,
-        "boostRemaining": 0,
-        "cooldownRemaining": 0,
-        "boostPressId": 0
+        "hp": 92.13661414203463
       },
       "fatalReason": null
     }
