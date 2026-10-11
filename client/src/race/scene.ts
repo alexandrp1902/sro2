@@ -10,7 +10,6 @@ export class RaceScene {
   private background = new Graphics();
   private world = new Container();
   private track = new Graphics();
-  private marker = new Graphics();
   private vehicle = new Container();
   private hull = new Sprite();
   private pilot = new Graphics();
@@ -19,6 +18,8 @@ export class RaceScene {
   private scenery = new Container();
   private banks = new Container();
   private landMask = new Graphics();
+  private floorShadow = new Graphics();
+  private floorMask = new Graphics();
   private decals = new Container();
   private particleView = new Container();
   private particleSprites: Sprite[] = [];
@@ -34,8 +35,9 @@ export class RaceScene {
   private camera = { x: 0, y: 0 };
   constructor() {
     this.view.addChild(this.background, this.world);
-    this.world.addChild(this.track, this.banks, this.landMask, this.scenery, this.decals, this.marker, this.vehicle, this.particleView);
-    this.banks.mask = this.landMask;
+    this.world.addChild(this.track, this.banks, this.landMask, this.floorShadow, this.floorMask, this.scenery, this.decals, this.vehicle, this.particleView);
+    this.banks.setMask({ mask: this.landMask, inverse: true });
+    this.floorShadow.mask = this.floorMask;
     this.particleView.sortableChildren = true;
     this.vehicle.addChild(...this.flames, this.hull, this.link, this.pilot); this.view.visible = false;
     this.hull.anchor.set(.5);
@@ -99,6 +101,7 @@ export class RaceScene {
   private clearScenery(): void {
     for (const parent of [this.banks, this.scenery, this.decals]) for (const child of parent.removeChildren()) child.destroy();
     this.landMask.clear();
+    this.floorShadow.clear(); this.floorMask.clear();
   }
   private pattern(name: string, size: number): FillPattern {
     const texture = this.textures.get(name)!;
@@ -112,29 +115,68 @@ export class RaceScene {
     const xs = t.walls.flatMap(w => [w.a.x, w.b.x]), ys = t.walls.flatMap(w => [w.a.y, w.b.y]);
     const minX = Math.min(...xs) - 150, minY = Math.min(...ys) - 150;
     const spanX = Math.max(...xs) - minX + 150, spanY = Math.max(...ys) - minY + 150;
-    this.track.rect(minX, minY, spanX, spanY).fill(this.pattern('canyon-sand-tile-v1', 24));
+    this.track.rect(minX, minY, spanX, spanY).fill(this.pattern('canyon-rock-tile-v1', 32));
     // The racing surface follows the exact collision banks, including every rock spur.
     const outer = t.walls.filter(w => w.id.startsWith('wall-0-'));
     const inner = t.walls.filter(w => w.id.startsWith('wall-1-'));
-    const polygon = (bank: typeof outer) => bank.flatMap(w => [w.a.x, w.a.y]);
-    // Mask the canyon rocks to land: imagery cannot cover the driveable ribbon.
-    this.landMask.rect(minX, minY, spanX, spanY).fill(0xffffff).poly(polygon(outer)).cut()
-      .poly(polygon(inner)).fill(0xffffff);
-    this.track.poly(polygon(inner)).fill(this.pattern('canyon-rock-tile-v1', 18));
-    for (const [width, color] of [[9, 0x3b291f], [6, 0x704632], [3.8, 0x986748]]) {
-      for (const bank of [outer, inner]) {
-        this.track.moveTo(bank[0].a.x, bank[0].a.y);
-        for (const w of bank) this.track.lineTo(w.b.x, w.b.y);
-        this.track.closePath().stroke({ color, width, join: 'round' });
-      }
-    }
-    const road = this.pattern('canyon-road-tile-v1', 18);
+    // Individual ribbon sections avoid triangulating a huge polygon with a hole.
+    // The inverse of the same ribbon clips the cliffs exactly to collision banks.
+    const sand = this.pattern('canyon-sand-tile-v1', 30);
     for (let i = 0; i < outer.length; i++) {
       const a = outer[i], b = inner[i];
-      this.track.poly([a.a.x, a.a.y, a.b.x, a.b.y, b.b.x, b.b.y, b.a.x, b.a.y]).fill(road);
+      const section = [a.a.x, a.a.y, a.b.x, a.b.y, b.b.x, b.b.y, b.a.x, b.a.y];
+      this.track.poly(section).fill(sand);
+      this.landMask.poly(section).fill(0xffffff);
+      this.floorMask.poly(section).fill(0xffffff);
     }
-    for (const w of t.walls) this.track.moveTo(w.a.x, w.a.y).lineTo(w.b.x, w.b.y)
-      .stroke({ color: 0x211b17, width: 1.2 }).stroke({ color: 0xd69d69, width: .35 });
+    // Build broad, textured escarpments from the collision edge up to the mesa.
+    // Normals point into land; erosion varies smoothly rather than at each sprite.
+    const cliff = new Graphics(); this.banks.addChild(cliff);
+    const rock = this.pattern('canyon-rock-tile-v1', 22);
+    const landNormal = (bank: typeof outer, i: number): Vec => {
+      const p = bank[i].a, center = t.centerline[i];
+      const length = Math.hypot(p.x - center.x, p.y - center.y);
+      return { x: (p.x - center.x) / length, y: (p.y - center.y) / length };
+    };
+    for (const bank of [outer, inner]) {
+      const normals = bank.map((_, i) => landNormal(bank, i));
+      const depth = bank.map((_, i) => 11 + 2.1 * Math.sin(i * .083) + 1.3 * Math.sin(i * .21));
+      const point = (i: number, level: number) => {
+        const p = bank[i].a, n = normals[i];
+        return { x: p.x + n.x * depth[i] * level, y: p.y + n.y * depth[i] * level };
+      };
+      for (let layer = 0; layer < 6; layer++) for (let i = 0; i < bank.length; i++) {
+        const j = (i + 1) % bank.length;
+        const a = point(i, layer / 6), b = point(j, layer / 6);
+        const c = point(j, (layer + 1) / 6), d = point(i, (layer + 1) / 6);
+        const face = [a.x, a.y, b.x, b.y, c.x, c.y, d.x, d.y];
+        const shade = .5 - layer * .066 + (normals[i].x * .6 + normals[i].y * .8) * .12;
+        cliff.poly(face).fill(rock).poly(face).fill({ color: 0x291713, alpha: Math.max(.06, shade) });
+        cliff.moveTo(d.x, d.y).lineTo(c.x, c.y).stroke({ color: layer % 2 ? 0xf0ba7c : 0x582e21,
+          width: layer % 2 ? .12 : .22, alpha: .4 });
+      }
+      // Soft directional shadows anchor the tall walls to the sandy canyon floor.
+      for (let band = 0; band < 10; band++) for (let i = 0; i < bank.length; i++) {
+        const j = (i + 1) % bank.length, n = normals[i], m = normals[j];
+        const reach = (v: Vec) => 1.2 + 4.5 * Math.max(0, -v.x * .6 - v.y * .8);
+        const a = bank[i].a, b = bank[j].a, near = band / 10, far = (band + 1) / 10;
+        this.floorShadow.poly([a.x - n.x * reach(n) * near, a.y - n.y * reach(n) * near,
+          b.x - m.x * reach(m) * near, b.y - m.y * reach(m) * near,
+          b.x - m.x * reach(m) * far, b.y - m.y * reach(m) * far,
+          a.x - n.x * reach(n) * far, a.y - n.y * reach(n) * far])
+          .fill({ color: 0x241918, alpha: .32 * (1 - near) ** 1.5 });
+      }
+      // Overlapping formations make the mesa rim irregular and hide strip joins.
+      for (let tier = 0; tier < 3; tier++) for (let i = 0; i < bank.length; i += 3) {
+        const w = bank[i], n = normals[i], h = Math.atan2(w.b.y - w.a.y, w.b.x - w.a.x);
+        const offset = tier === 0 ? 1.6 : tier === 1 ? depth[i] * .7 : depth[i] + 5;
+        const sprite = this.sprite(i % 9 === 0 ? 'canyon-bank-b-v1' : 'canyon-bank-a-v1', this.banks,
+          w.a.x + n.x * offset, w.a.y + n.y * offset, 11 + random() * 7, h + (random() - .5) * .3);
+        sprite.tint = tier === 0 ? 0x87604b : tier === 1 ? 0xbb8c6b : 0xffdfb3;
+        if (tier === 2 && i % 9 === 0) this.sprite('canyon-rock-cluster-v1', this.banks,
+          w.a.x + n.x * (offset + 5), w.a.y + n.y * (offset + 5), 5 + random() * 4, random() * Math.PI * 2);
+      }
+    }
     for (let i = 0; i < t.centerline.length; i += 10) {
       const p = t.centerline[i], next = t.centerline[(i + 1) % t.centerline.length];
       const h = Math.atan2(next.y - p.y, next.x - p.x);
@@ -144,16 +186,6 @@ export class RaceScene {
     for (const cp of t.checkpoints) for (const p of [cp.a, cp.b]) {
       this.sprite('race-checkpoint-post-v1', this.banks, p.x, p.y, 1.8);
       this.sprite('canyon-beacon-v1', this.banks, p.x, p.y, .9);
-    }
-    for (const bank of [outer, inner]) for (let i = 0; i < bank.length; i += 2) {
-      const w = bank[i], h = Math.atan2(w.b.y - w.a.y, w.b.x - w.a.x);
-      this.sprite(i % 10 === 0 ? 'canyon-spur-v1' : i % 4 ? 'canyon-bank-a-v1' : 'canyon-bank-b-v1',
-        this.banks, w.a.x, w.a.y, 6 + random() * 4, h);
-      if (i % 12 === 0) {
-        const dx = (random() - .5) * 8, dy = (random() - .5) * 8;
-        this.sprite(['canyon-pipe-v1', 'canyon-scrap-v1', 'canyon-rock-cluster-v1'][i / 12 % 3],
-          this.banks, w.a.x + dx, w.a.y + dy, 2.5, random() * Math.PI * 2);
-      }
     }
     for (let i = 2; i < outer.length; i += 30) {
       const w = outer[i], p = w.a, n = w.b;
@@ -186,8 +218,6 @@ export class RaceScene {
     this.world.position.set(width / 2 - this.camera.x * scale, height * .43 - this.camera.y * scale);
     this.vehicle.position.set(b.position.x, b.position.y); this.vehicle.rotation = b.heading;
     this.vehicle.visible = !crashed;
-    this.marker.clear();
-    if (!crashed) this.marker.circle(b.position.x, b.position.y, 2.3).stroke({ color: 0x92f4ee, width: .12, alpha: .7 });
     const power = input.brake ? 0 : input.throttle;
     for (let i = 0; i < 2; i++) {
       const flame = this.flames[i], flicker = 1 + .10 * Math.sin(now / 31 + i * 2) + .05 * Math.sin(now / 13);

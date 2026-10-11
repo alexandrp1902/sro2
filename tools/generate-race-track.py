@@ -49,12 +49,20 @@ def pt(p):
     return dict(x=round(p[0], 6), y=round(p[1], 6))
 
 edges = [[], []]
+# Propagate tight-bend limits along arc length. Pointwise curvature limits caused
+# alternating wide/narrow teeth where sampled curves meet the straights.
+widths = []
+for side in range(2):
+    raw = [half_width(i, side) for i in range(len(points))]
+    widths.append([min(raw[j] + .22 * min(abs(distances[i] - distances[j]),
+                                         length - abs(distances[i] - distances[j]))
+                       for j in range(len(points))) for i in range(len(points))])
 for i, p in enumerate(points):
     a, b = points[i-1], points[(i+1) % len(points)]
     dx, dy = b[0]-a[0], b[1]-a[1]
     d = math.hypot(dx, dy)
     for side, sign in enumerate([-1, 1]):
-        width = half_width(i, side)
+        width = widths[side][i]
         edges[side].append((p[0]-sign*dy/d*width, p[1]+sign*dx/d*width))
 walls = [dict(id=f'wall-{side}-{i}', a=pt(p), b=pt(edge[(i+1) % len(edge)]), reason='WALL')
          for side, edge in enumerate(edges) for i, p in enumerate(edge)]
@@ -68,7 +76,7 @@ finish_index = min(range(len(points)), key=lambda i: math.dist(points[i], (30,0)
 finish_gate = gate(finish_index)
 finish = dict(a=pt((30, finish_gate['b']['y'])), b=pt((30, finish_gate['a']['y'])), normal=pt((1, 0)))
 checkpoint_indices = [min(range(len(points)), key=lambda i: abs(distances[i] - (distances[finish_index] + length*j/11) % length)) for j in range(1,11)]
-track = dict(id='red-canyon', version='2', name='Красный каньон', lapCount=3,
+track = dict(id='red-canyon', version='3', name='Красный каньон', lapCount=3,
              spawn=pt((26, 0)), spawnHeading=0, environment='desert-industrial', isActive=True,
              centerline=[pt(p) for p in points], walls=walls,
              obstacles=[dict(id='column-1', center=pt((102, 77)), radius=1.5, reason='COLUMN'),
