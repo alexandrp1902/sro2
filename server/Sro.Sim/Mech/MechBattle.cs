@@ -221,13 +221,13 @@ public sealed class MechBattle
 
     /// <summary>
     /// Шанс попасть текущим мехом по цели, если бы он стрелял из (x, y), пройдя steps клеток. null — отсюда
-    /// не выстрелить: нечем, далеко, близко или стена.
+    /// не выстрелить: нечем, далеко или стена. Соседняя клетка допустима для любого оружия.
     /// </summary>
     public int? Chance(MechUnit shooter, int x, int y, int steps, int moveRange, MechUnit target, bool aimed, string? hand = null)
     {
         if (Gun(shooter, hand) is not { } gun) return null;
         var d = MechField.Distance(x, y, target.X, target.Y);
-        if (d < gun.Weapon.MinRange || d > gun.Weapon.MaxRange) return null;
+        if (d < 1 || d > gun.Weapon.MaxRange) return null;
         if (!Field.LineOfFire(x, y, target.X, target.Y)) return null;
         var side = MechCombat.Side(x, y, target.X, target.Y, target.Dir);
         if (target == ObjectiveUnit && Mission.Objective?.FiringCells is { Length: > 0 } cells && !cells.Any(p => p.X == x && p.Y == y)) return null;
@@ -354,7 +354,7 @@ public sealed class MechBattle
             if (aimed is not { } p || !target.PartAlive(p)) return MechCodes.BadPart;
         }
         var d = MechField.Distance(u.X, u.Y, target.X, target.Y);
-        if (d < gun.Weapon.MinRange || d > gun.Weapon.MaxRange) return MechCodes.OutOfRange;
+        if (d < 1 || d > gun.Weapon.MaxRange) return MechCodes.OutOfRange;
         if (!Field.LineOfFire(u.X, u.Y, target.X, target.Y)) return MechCodes.NoLine;
         if (target == ObjectiveUnit && Mission.Objective?.FiringCells is { Length: > 0 } cells && !cells.Any(p => p.X == u.X && p.Y == u.Y)) return MechCodes.OutOfRange;
         if (!reaction) StartActivation(u);

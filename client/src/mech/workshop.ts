@@ -104,7 +104,7 @@ export class WorkshopPanel {
         form.append(node('p', `Ход ${(rules.chassis?.[def.chassis]?.move ?? 0)+(backpack?.effect === 'mobility' ? backpack.value : 0)} клеток`));
         for (const [label,id] of [['Левая',def.left],['Правая',def.right]]) {
           const w = id ? rules.weapons?.[id] : null;
-          if (w) form.append(node('p', `${label}: ${w.name} · урон ${Math.round(w.damage*(backpack?.effect === 'damage' ? backpack.value : 1))} · точность ${w.accuracy+(backpack?.effect === 'accuracy' ? backpack.value : 0)}% · дальность ${w.minRange}–${w.maxRange}`));
+          if (w) form.append(node('p', `${label}: ${w.name} · урон ${2*Math.round(w.damage*(backpack?.effect === 'damage' ? backpack.value : 1))} · точность ${w.accuracy+(backpack?.effect === 'accuracy' ? backpack.value : 0)}% · дальность 1–${w.maxRange}`));
         }
       } else form.append(node('p','Нужны корпус и шасси для расчёта параметров. Недостроенную машину можно сохранить.'));
       form.append(node('p', 'Автоматические навыки'));
@@ -134,7 +134,7 @@ export class WorkshopPanel {
     if (recipe) {
       const part = recipe.category === 'body' ? rules.bodies?.[recipe.part] : recipe.category === 'chassis' ? rules.chassis?.[recipe.part]
         : recipe.category === 'backpack' ? rules.backpacks?.[recipe.part] : armItem(rules,recipe.part);
-      if (part) shop.append(node('p', `Масса ${part.weight ?? 0}${'hp' in part ? ` · ${part.hp} HP · броня ${part.armor}` : ''}${'maxLoad' in part ? ` · нагрузка до ${part.maxLoad} · ход ${part.move}` : ''}${'damage' in part ? ` · урон ${part.damage} · точность ${part.accuracy}% · дальность ${part.minRange}–${part.maxRange}` : ''}`));
+      if (part) shop.append(node('p', `Масса ${part.weight ?? 0}${'hp' in part ? ` · ${part.hp} HP · броня ${part.armor}` : ''}${'maxLoad' in part ? ` · нагрузка до ${part.maxLoad} · ход ${Math.ceil((part.move ?? 0)/2)}` : ''}${'damage' in part ? ` · урон ${2*part.damage} · точность ${part.accuracy}% · дальность 1–${part.maxRange}` : ''}`));
       if(part&&'value' in part) {
         const baseKey=recipe.part.replace(/Mk[23]$/,'');const base=rules.backpacks?.[baseKey];
         shop.append(node('p',`Эффект: ${part.value}${base&&baseKey!==recipe.part?` · базовая версия ${base.value} · улучшение +${Math.round((part.value/base.value-1)*100)}%`:''}`));

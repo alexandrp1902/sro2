@@ -70,48 +70,49 @@ public class MechRulesTests
         Assert.Contains("unknown trainingPlace", error);
     }
 
-    /// <summary>Пример §21: 82 + 10 (стоял) + 10 (бок) − 10 (на две клетки дальше оптимума) = 92.</summary>
     [Fact]
-    public void HitChance_MatchesTheWorkedExample()
+    public void HitChance_FallsWithDistance_RegardlessOfFacing_AndAlwaysAllowsAMiss()
     {
-        Assert.Equal(92, MechCombat.HitChance(C, TestMechs.Autocannon, 7, 0, 4, MechSide.Left, aimed: false));
-        // Прицельный — минус 25 (§27), и шанс не бывает меньше 20 и больше 95 (§20).
-        Assert.Equal(67, MechCombat.HitChance(C, TestMechs.Autocannon, 7, 0, 4, MechSide.Left, aimed: true));
-        Assert.Equal(95, MechCombat.HitChance(C, TestMechs.Shotgun, 1, 0, 4, MechSide.Rear, aimed: false));
+        foreach (var side in Enum.GetValues<MechSide>())
+        {
+            Assert.Equal(90, MechCombat.HitChance(C, TestMechs.Autocannon, 1, 0, 4, side, false));
+            Assert.Equal(77, MechCombat.HitChance(C, TestMechs.Autocannon, 4, 0, 4, side, false));
+            Assert.Equal(62, MechCombat.HitChance(C, TestMechs.Autocannon, 7, 0, 4, side, false));
+            Assert.Equal(37, MechCombat.HitChance(C, TestMechs.Autocannon, 7, 0, 4, side, true));
+        }
         Assert.Equal(20, MechCombat.HitChance(C with { AimedPenalty = 90 }, TestMechs.Autocannon, 7, 4, 4, MechSide.Front, aimed: true));
     }
 
     [Fact]
-    public void HitChance_RangePenaltyStopsAtTwentyFive_AndMovementCountsHalfTheMove()
+    public void HitChance_RangePenaltyContinues_AndMovementCountsHalfTheMove()
     {
-        // Дробовик на 4 клетках: на две дальше оптимума 1–2 — −10; автопушка в упор на 2 — −5.
-        Assert.Equal(85 + 10 - 10, MechCombat.HitChance(C, TestMechs.Shotgun, 4, 0, 4, MechSide.Front, false));
+        Assert.Equal(85 + 10 - 15, MechCombat.HitChance(C, TestMechs.Shotgun, 4, 0, 4, MechSide.Front, false));
         Assert.Equal(82 + 10 - 5, MechCombat.HitChance(C, TestMechs.Autocannon, 2, 0, 4, MechSide.Front, false));
         var far = new MechWeapon("Далёкая", 100, 80, 1, 1, 1, 20, 100, 0);
-        Assert.Equal(80 + 10 - 25, MechCombat.HitChance(C, far, 20, 0, 4, MechSide.Front, false));
+        Assert.Equal(20, MechCombat.HitChance(C, far, 20, 0, 4, MechSide.Front, false));
         // Прошёл половину хода — без штрафа, больше половины — −10 (§18).
-        Assert.Equal(82, MechCombat.HitChance(C, TestMechs.Autocannon, 4, 2, 4, MechSide.Front, false));
-        Assert.Equal(72, MechCombat.HitChance(C, TestMechs.Autocannon, 4, 3, 4, MechSide.Front, false));
+        Assert.Equal(67, MechCombat.HitChance(C, TestMechs.Autocannon, 4, 2, 4, MechSide.Front, false));
+        Assert.Equal(57, MechCombat.HitChance(C, TestMechs.Autocannon, 4, 3, 4, MechSide.Front, false));
     }
 
     [Fact]
     public void Armor_TwentyFiveTakesAFifth()
     {
-        Assert.Equal(80, MechCombat.Damage(100, 25));
-        Assert.Equal(67, MechCombat.Damage(100, 50));
-        Assert.Equal(50, MechCombat.Damage(100, 100));
+        Assert.Equal(160, MechCombat.Damage(100, 25));
+        Assert.Equal(133, MechCombat.Damage(100, 50));
+        Assert.Equal(100, MechCombat.Damage(100, 100));
         var (min, max) = MechCombat.DamageRange(C, TestMechs.Autocannon, [15, 25]);
         Assert.Equal(MechCombat.Damage(240 * 0.9, 25), min);
         Assert.Equal(MechCombat.Damage(240 * 1.1, 15), max);
     }
 
     [Theory]
-    [InlineData(1100, 4)]
-    [InlineData(551, 4)]
-    [InlineData(550, 3)]
-    [InlineData(276, 3)]
-    [InlineData(275, 2)]
-    [InlineData(1, 2)]
+    [InlineData(1100, 2)]
+    [InlineData(551, 2)]
+    [InlineData(550, 2)]
+    [InlineData(276, 2)]
+    [InlineData(275, 1)]
+    [InlineData(1, 1)]
     [InlineData(0, 0)]
     public void DamagedChassis_SlowsTheMech(int hp, int move)
     {
@@ -148,23 +149,23 @@ public class MechRulesTests
     }
 
     [Fact]
-    public void Shield_HoldsItsOwnSideBest_AndNeverTheRear()
+    public void Shield_HoldsEverySideEqually()
     {
         Assert.Equal(30, MechCombat.BlockChance(C, TestMechs.Light, MechPart.Left, true, MechSide.Front));
-        Assert.Equal(45, MechCombat.BlockChance(C, TestMechs.Light, MechPart.Left, true, MechSide.Left));
-        Assert.Equal(5, MechCombat.BlockChance(C, TestMechs.Light, MechPart.Left, true, MechSide.Right));
-        Assert.Equal(0, MechCombat.BlockChance(C, TestMechs.Light, MechPart.Left, true, MechSide.Rear));
+        Assert.Equal(30, MechCombat.BlockChance(C, TestMechs.Light, MechPart.Left, true, MechSide.Left));
+        Assert.Equal(30, MechCombat.BlockChance(C, TestMechs.Light, MechPart.Left, true, MechSide.Right));
+        Assert.Equal(30, MechCombat.BlockChance(C, TestMechs.Light, MechPart.Left, true, MechSide.Rear));
         Assert.Equal(0, MechCombat.BlockChance(C, TestMechs.Light, MechPart.Left, false, MechSide.Left));
-        // Щит в правой руке — зеркально.
-        Assert.Equal(45, MechCombat.BlockChance(C, TestMechs.Light, MechPart.Right, true, MechSide.Right));
+        Assert.Equal(30, MechCombat.BlockChance(C, TestMechs.Light, MechPart.Right, true, MechSide.Right));
     }
 
     [Fact]
-    public void PartWeights_MirrorTheRightSide_AndMoveBrokenPartsIntoTheBody()
+    public void PartWeights_IgnoreFacing_AndMoveBrokenPartsIntoTheBody()
     {
         int[] whole = [1, 1, 1, 1];
-        Assert.Equal([35, 10, 35, 20], MechCombat.PartWeights(C, MechSide.Right, whole));
-        Assert.Equal([35 + 35, 0, 10, 20], MechCombat.PartWeights(C, MechSide.Left, [1, 0, 1, 1]));
+        foreach (var side in Enum.GetValues<MechSide>())
+            Assert.Equal([45, 20, 20, 15], MechCombat.PartWeights(C, side, whole));
+        Assert.Equal([65, 0, 20, 15], MechCombat.PartWeights(C, MechSide.Left, [1, 0, 1, 1]));
         Assert.Equal([100, 0, 0, 0], MechCombat.PartWeights(C, MechSide.Rear, [1, 0, 0, 0]));
     }
 

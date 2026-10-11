@@ -139,7 +139,7 @@ public sealed class M22MechTests
     {
         var b=Battle(backpack:pack);var p=b.Unit("p1")!;Assert.Equal(value,b.Pack(p,pack));
         if(pack=="armor")Assert.Equal(40,b.Armor(p,MechPart.Body));
-        if(pack=="mobility")Assert.Equal(5,b.MoveRangeOf(p));
+        if(pack=="mobility")Assert.Equal(3,b.MoveRangeOf(p));
         if(pack=="repair")
         {
             p.Hp[0]=100;Assert.Null(b.Apply(new("repair",Part:"body"),[]));Assert.Equal(760,p.Hp[0]);Assert.True(p.Repaired);
@@ -189,7 +189,7 @@ public sealed class M22MechTests
         var map=new[]{".w....",".w....",".w....",".w....",".w....","......"};
         var b=Battle(map:map);b.Unit("p1")!.Skills=["jump"];Assert.Null(b.Apply(new("move",2,0),[]));Assert.Equal(2,b.Unit("p1")!.X);
         b=Battle(map:map,chance:0);b.Unit("p1")!.Skills=["jump"];Assert.Null(b.Apply(new("move",2,0),[]));Assert.Equal(0,b.Unit("p1")!.X);Assert.True(b.Moved);Assert.Equal("alreadyMoved",b.Apply(new("move",2,0),[]));
-        b=Battle(chance:0);b.Unit("p1")!.Skills=["dash"];Assert.Null(b.Apply(new("move",5,5),[]));Assert.True(b.Moved);Assert.Equal(0,b.Unit("p1")!.X);
+        b=Battle(chance:0);b.Unit("p1")!.Skills=["dash"];Assert.Null(b.Apply(new("move",3,3),[]));Assert.True(b.Moved);Assert.Equal(0,b.Unit("p1")!.X);
         var a=Battle(seed:42);var other=Battle(seed:42);a.Unit("p1")!.Skills=other.Unit("p1")!.Skills=["dash"];
         Assert.Equal("unreachable",a.Apply(new("move",99,99),[]));var ae=new List<MechEvent>();var be=new List<MechEvent>();
         Assert.Null(a.Apply(new("move",2,2),ae));Assert.Null(other.Apply(new("move",2,2),be));

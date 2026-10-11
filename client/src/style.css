@@ -3189,6 +3189,31 @@ body.ui-hidden #ability {
 .mech-own { max-height: calc(100vh - 185px); overflow-y: auto; }
 .mech-end { max-height: 85vh; overflow-y: auto; }
 .mech-tray { flex-wrap: wrap; }
+.mech-disclosure > summary { list-style: none; cursor: pointer; }
+.mech-disclosure > summary::-webkit-details-marker { display: none; }
+.mech-disclosure > summary:focus-visible { outline: 2px solid var(--warn); outline-offset: 2px; }
+.mech-disclosure { position: relative; }
+.mech-details-content { display: flex; flex-direction: column; gap: 10px; }
+.mech-disclosure--own > .mech-details-content,
+.mech-disclosure--attack > .mech-details-content,
+.mech-disclosure--actions > .mech-details-content,
+.mech-disclosure--mission[open] {
+  background: var(--bg-pane); border: 1px solid var(--line); border-radius: var(--radius-md);
+}
+.mech-disclosure > .mech-details-content {
+  position: absolute; z-index: 2; width: min(300px, calc(100vw - 32px));
+  box-sizing: border-box; padding: 12px; max-height: 48dvh; overflow: auto;
+}
+.mech-disclosure--own > .mech-details-content { left: 0; top: calc(100% + 8px); }
+.mech-disclosure--attack > .mech-details-content { right: 0; top: calc(100% + 8px); }
+.mech-disclosure--actions > .mech-details-content { right: 0; bottom: calc(100% + 8px); }
+.mech-disclosure--mission[open] { padding: 8px; }
+.mech-disclosure--mission .mech-head-title,
+.mech-disclosure--mission .mech-goal { display: flex; white-space: normal; max-width: 280px; }
+.mech-own { width: auto; padding: 0; border: 0; background: none; overflow: visible; max-height: none; }
+.mech-target { overflow: visible; max-height: none; }
+.mech-target-summary { display: flex; align-items: center; gap: 8px; justify-content: space-between; font-size: 12px; }
+.mech-tray .mech-hint { white-space: normal; }
 @media (max-width: 640px) {
   .dock-tabs { overflow-x: auto; justify-content: flex-start; }
   .dock-tab { flex: 0 0 auto; min-height: 44px; }
@@ -3200,4 +3225,25 @@ body.ui-hidden #ability {
   .mech-own { top: calc(var(--mech-head-height, 104px) + 8px); max-height: 24vh; }
   .mech-squad { flex-direction: row; overflow-x: auto; flex-shrink: 0; max-height: none; }
   .mech-squad .sro-btn { flex: 0 0 auto; max-width: 190px; min-height: 44px; white-space: normal; }
+}
+
+@media (max-width: 720px), (pointer: coarse) and (max-height: 600px) {
+  .mech-head { flex-wrap: wrap; }
+  .mech-head > .mech-goal { display: none; }
+  .mech-own { top: calc(var(--mech-head-height, 64px) + 8px); right: auto; max-height: none; overflow: visible; }
+  .mech-own .mech-gear { display: flex; }
+  .mech-own .mech-squad { flex-direction: column; max-height: none; overflow: visible; }
+  .mech-target {
+    left: calc(env(safe-area-inset-left) + 8px); right: calc(env(safe-area-inset-right) + 8px);
+    top: auto; bottom: calc(var(--mech-tray-height, 94px) + env(safe-area-inset-bottom) + 8px);
+    width: auto; max-height: none; overflow: visible; padding: 6px 10px; border-radius: var(--radius-md);
+  }
+  .mech-disclosure--attack > .mech-details-content { top: auto; bottom: calc(100% + 8px); }
+  .mech-head-title strong { white-space: normal; }
+  .mech-tray { left: 0; right: 0; bottom: 0; transform: none; max-width: none; gap: 4px; }
+  .mech-tray .mech-hint { flex: 1 0 100%; font-size: 11px; }
+  .mech-tray-buttons { flex: 1; gap: 6px; }
+  .mech-tray-buttons > button { flex: 1; min-height: 44px; white-space: normal; padding: 8px; }
+  .mech-disclosure > summary { min-width: 44px; min-height: 44px; }
+  .mech-toast { top: calc(var(--mech-head-height, 64px) + 62px); }
 }

@@ -25,7 +25,7 @@ export interface MechWeapon {
   armor: number;
   sound?: string;
   weight?: number;
-  art?: string;
+  art?: string | null;
 }
 
 export interface MechShield {
@@ -34,7 +34,7 @@ export interface MechShield {
   armor: number;
   block: number;
   weight?: number;
-  art?: string;
+  art?: string | null;
 }
 
 export interface MechUnitDef {
@@ -130,8 +130,6 @@ export const DEFAULT_COMBAT: MechCombatDef = {
 };
 
 const FRONT = [45, 20, 20, 15];
-const LEFT = [35, 35, 10, 20];
-const REAR = [55, 15, 15, 15];
 
 export function combatOf(rules: MechRules): MechCombatDef {
   return { ...DEFAULT_COMBAT, ...(rules.combat ?? {}) };
@@ -260,9 +258,8 @@ export function direction(dx: number, dy: number): number {
 
 export function moveRange(base: number, chassisHp: number, chassisMax: number): number {
   if (chassisHp <= 0) return 0;
-  if (2 * chassisHp > chassisMax) return base;
-  if (4 * chassisHp > chassisMax) return Math.max(1, base - 1);
-  return Math.max(1, base - 2);
+  const penalty = 2 * chassisHp > chassisMax ? 0 : 4 * chassisHp > chassisMax ? 1 : 2;
+  return Math.max(1, Math.ceil(Math.max(1, base - penalty) / 2));
 }
 
 export function side(ax: number, ay: number, tx: number, ty: number, targetDir: number): MechSide {
@@ -277,31 +274,23 @@ export function side(ax: number, ay: number, tx: number, ty: number, targetDir: 
 }
 
 export function hitChance(
-  c: MechCombatDef, w: MechWeapon, dist: number, steps: number, range: number, from: MechSide, aimed: boolean,
+  c: MechCombatDef, w: MechWeapon, dist: number, steps: number, range: number, _from: MechSide, aimed: boolean,
 ): number {
-  const r = dist < w.optimalMin ? (w.optimalMin - dist) * c.rangeStep
-    : dist > w.optimalMax ? (dist - w.optimalMax) * c.rangeStep
-    : 0;
+  const r = Math.max(0, dist - 1) * c.rangeStep;
   const move = steps === 0 ? c.stillBonus : 2 * steps <= range ? 0 : -c.farMovePenalty;
-  const flank = from === 'rear' ? c.rearBonus : from === 'front' ? 0 : c.flankBonus;
-  const chance = w.accuracy - Math.min(r, c.rangeFloor) + move + flank - (aimed ? c.aimedPenalty : 0);
-  return Math.min(c.hitMax, Math.max(c.hitMin, chance));
+  const chance = w.accuracy - r + move - (aimed ? c.aimedPenalty : 0);
+  return Math.min(90, c.hitMax, Math.max(c.hitMin, chance));
 }
 
 export function blockChance(
-  c: MechCombatDef, shield: MechShield | null, shieldArm: MechPart, alive: boolean, from: MechSide,
+  c: MechCombatDef, shield: MechShield | null, _shieldArm: MechPart, alive: boolean, _from: MechSide,
 ): number {
-  if (!shield || !alive || from === 'rear') return 0;
-  const mod = from === 'front' ? 0 : (from === 'left') === (shieldArm === 'left') ? c.shieldSame : c.shieldOpposite;
-  return Math.min(c.blockMax, Math.max(0, shield.block + mod));
+  if (!shield || !alive) return 0;
+  return Math.min(c.blockMax, Math.max(0, shield.block));
 }
 
-export function partWeights(c: MechCombatDef, from: MechSide, hp: readonly number[]): number[] {
-  const left = c.partsLeft ?? LEFT;
-  const table = from === 'front' ? (c.partsFront ?? FRONT)
-    : from === 'rear' ? (c.partsRear ?? REAR)
-    : from === 'left' ? left
-    : [left[0], left[2], left[1], left[3]];
+export function partWeights(c: MechCombatDef, _from: MechSide, hp: readonly number[]): number[] {
+  const table = c.partsFront ?? FRONT;
   const weights = [...table];
   for (let i = 1; i < 4; i++) {
     if (hp[i] > 0) continue;
@@ -316,7 +305,7 @@ export function round(x: number): number {
 }
 
 export function damage(raw: number, armor: number): number {
-  return round(raw * (1 - armor / (armor + 100)));
+  return round(2 * raw * (1 - armor / (armor + 100)));
 }
 
 export function damageRange(c: MechCombatDef, w: MechWeapon, armors: readonly number[]): [number, number] {
@@ -514,7 +503,7 @@ export function forecast(
   const field = new MechField(state.map);
   const firingCells=rules.missions?.[state.mission]?.objective?.firingCells;
   const outsideFiringCells=target.id===state.objectiveUnit && firingCells?.length && !firingCells.some(p=>p.x===shooter.x && p.y===shooter.y);
-  const refusal: Refusal | undefined = dist < gun.weapon.minRange || dist > gun.weapon.maxRange || outsideFiringCells ? 'outOfRange'
+  const refusal: Refusal | undefined = dist < 1 || dist > gun.weapon.maxRange || outsideFiringCells ? 'outOfRange'
     : !field.lineOfFire(shooter.x, shooter.y, target.x, target.y) ? 'noLine'
     : undefined;
   return { ...base, ok: !refusal, refusal, chance, min, max, weapon };

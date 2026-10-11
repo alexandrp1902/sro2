@@ -38,15 +38,14 @@ public static class MechCombat
     public static MechPart? ParsePart(string? name) => Array.IndexOf(PartNames, name) is var i and >= 0 ? (MechPart)i : null;
 
     /// <summary>
-    /// Ход с повреждённым шасси (§10): больше половины — полный, от четверти до половины — на 1 меньше,
-    /// меньше четверти — на 2, но не меньше 1; шасси нет — стоит, хотя стрелять может.
+    /// Дальность после штрафа повреждённого шасси делится пополам с округлением вверх.
+    /// Пока шасси живо, остаётся хотя бы одна клетка; разбитое шасси двигаться не может.
     /// </summary>
     public static int MoveRange(int baseMove, int chassisHp, int chassisMax)
     {
         if (chassisHp <= 0) return 0;
-        if (2 * chassisHp > chassisMax) return baseMove;
-        if (4 * chassisHp > chassisMax) return Math.Max(1, baseMove - 1);
-        return Math.Max(1, baseMove - 2);
+        var penalty = 2 * chassisHp > chassisMax ? 0 : 4 * chassisHp > chassisMax ? 1 : 2;
+        return Math.Max(1, (Math.Max(1, baseMove - penalty) + 1) / 2);
     }
 
     /// <summary>
@@ -67,46 +66,34 @@ public static class MechCombat
     }
 
     /// <summary>
-    /// Шанс попасть (§20): точность оружия + дальность + своё движение + сторона цели − прицельный,
-    /// в пределах hitMin..hitMax. steps — сколько клеток стрелок прошёл в этот ход, moveRange — его ход.
+    /// Точность оружия и движение минус штраф за каждую клетку дальше первой и прицельный штраф.
+    /// Сторона цели не влияет; потолок 90 % оставляет шанс промаха даже в упор.
     /// </summary>
     public static int HitChance(MechCombatDef c, MechWeapon w, int distance, int steps, int moveRange, MechSide side, bool aimed)
     {
-        var range = distance < w.OptimalMin ? (w.OptimalMin - distance) * c.RangeStep
-            : distance > w.OptimalMax ? (distance - w.OptimalMax) * c.RangeStep
-            : 0;
+        // Every extra cell reduces accuracy. Facing gives no combat advantage.
+        var range = Math.Max(0, distance - 1) * c.RangeStep;
         var move = steps == 0 ? c.StillBonus : 2 * steps <= moveRange ? 0 : -c.FarMovePenalty;
-        var flank = side switch { MechSide.Rear => c.RearBonus, MechSide.Front => 0, _ => c.FlankBonus };
-        var chance = w.Accuracy - Math.Min(range, c.RangeFloor) + move + flank - (aimed ? c.AimedPenalty : 0);
-        return Math.Clamp(chance, c.HitMin, c.HitMax);
+        var chance = w.Accuracy - range + move - (aimed ? c.AimedPenalty : 0);
+        return Math.Clamp(chance, c.HitMin, Math.Min(90, c.HitMax));
     }
 
     /// <summary>
-    /// Шанс блока (§39–40): щит жив и выстрел не с тыла. Щит слева лучше всего держит левый бок, хуже — правый;
-    /// щит справа — наоборот. Нет щита — 0.
+    /// Исправный щит блокирует с одинаковой вероятностью со всех сторон. Нет щита — 0.
     /// </summary>
     public static int BlockChance(MechCombatDef c, MechShield? shield, MechPart shieldArm, bool shieldAlive, MechSide side)
     {
-        if (shield is null || !shieldAlive || side == MechSide.Rear) return 0;
-        var mod = side == MechSide.Front ? 0
-            : (side == MechSide.Left) == (shieldArm == MechPart.Left) ? c.ShieldSame
-            : c.ShieldOpposite;
-        return Math.Clamp(shield.Block + mod, 0, c.BlockMax);
+        if (shield is null || !shieldAlive) return 0;
+        return Math.Clamp(shield.Block, 0, c.BlockMax);
     }
 
     /// <summary>
-    /// Веса частей для стороны (§24–26), [корпус, левая, правая, шасси]. Разбитую руку и шасси
+    /// Единые веса частей со всех сторон, [корпус, левая, правая, шасси]. Разбитую руку и шасси
     /// уже не выбить второй раз — их доля уходит в корпус.
     /// </summary>
     public static int[] PartWeights(MechCombatDef c, MechSide side, int[] hp)
     {
-        var table = side switch
-        {
-            MechSide.Front => c.Front,
-            MechSide.Rear => c.Rear,
-            MechSide.Left => c.Left,
-            _ => [c.Left[0], c.Left[2], c.Left[1], c.Left[3]],
-        };
+        var table = c.Front;
         var weights = (int[])table.Clone();
         for (var i = 1; i < 4; i++)
         {
@@ -117,8 +104,8 @@ public static class MechCombat
         return weights;
     }
 
-    /// <summary>Урон после брони (§29–31): raw × (1 − armor / (armor + 100)), до целого.</summary>
-    public static int Damage(double raw, int armor) => Round(raw * (1 - armor / (armor + 100.0)));
+    /// <summary>Удвоенный урон после брони: 2 × raw × (1 − armor / (armor + 100)), до целого.</summary>
+    public static int Damage(double raw, int armor) => Round(2 * raw * (1 - armor / (armor + 100.0)));
 
     /// <summary>Вилка урона для прогноза: самый слабый бросок в самую крепкую броню и самый сильный — в самую слабую.</summary>
     public static (int Min, int Max) DamageRange(MechCombatDef c, MechWeapon w, IEnumerable<int> armors)

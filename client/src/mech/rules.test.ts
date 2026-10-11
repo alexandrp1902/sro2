@@ -90,13 +90,13 @@ describe('прогноз выстрела', () => {
     mission: 'firstSortie', map, round: 1, turn: 'player', current: units[0].id, moved: false, steps: 0, moveRange: 4, units,
   });
 
-  it('стоял, фронт, в оптимуме: 82 + 10', () => {
+  it('стоял на четырёх клетках: 82 + 10 − 15', () => {
     const me = unit('p1', 'player', 0, 0, 4, 'prototype');
     const foe = unit('e1', 'enemy', 0, 4, 0);
     const f = forecast(DEFAULT_RULES, state([me, foe]), me, foe, null);
     expect(f.ok).toBe(true);
     expect(f.side).toBe('front');
-    expect(f.chance).toBe(92);
+    expect(f.chance).toBe(77);
     // Щит слева у цели: с фронта — базовые 30.
     expect(f.block).toBe(30);
     expect(f.min).toBeLessThan(f.max);
@@ -106,7 +106,7 @@ describe('прогноз выстрела', () => {
     const me = unit('p1', 'player', 0, 0, 4, 'prototype');
     const foe = unit('e1', 'enemy', 0, 4, 0);
     const f = forecast(DEFAULT_RULES, state([me, foe]), me, foe, 'chassis');
-    expect(f.chance).toBe(67);
+    expect(f.chance).toBe(52);
     const c = combatOf(DEFAULT_RULES);
     expect([f.min, f.max]).toEqual(damageRange(c, DEFAULT_RULES.weapons!.autocannon, [20, 25]));
   });

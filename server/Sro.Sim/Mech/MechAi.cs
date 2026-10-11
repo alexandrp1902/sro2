@@ -12,6 +12,10 @@ public static class MechAi
         var here = field.Index(u.X, u.Y);
         var cells = new[] { (Cell: here, Steps: 0) }.Concat(battle.Reach().OrderBy(p => p.Key).Select(p => (Cell: p.Key, Steps: p.Value))).ToArray();
         var ai = battle.Rules.AiDef;
+        // Shoot where we stand whenever possible; approach only to get a legal shot.
+        var canShootHere = targets.Any(t => new[] { "right", "left" }.Any(hand =>
+            battle.Chance(u, u.X, u.Y, 0, battle.MoveRange, t, false, hand) is not null));
+        if (canShootHere && battle.Mission.Objective?.Kind != "capture") cells = cells.Where(c => c.Steps == 0).ToArray();
         bool Capture(int cell) => battle.Mission.Objective?.Kind == "capture" && battle.Mission.Objective.Zone!.Any(p => field.Index(p.X, p.Y) == cell);
         (int Cell, int Steps, string Target, string Hand, string? Part, double Score)? best = null;
         foreach (var (cell, steps) in cells)
@@ -26,7 +30,6 @@ public static class MechAi
                 shield.Arm, target.PartAlive(shield.Arm), from) : 0;
             var score = chance * gun.Weapon.Damage / 100.0 - block * ai.ShieldPenalty;
             score += (battle.Gun(target)?.Weapon.Damage ?? 0) * ai.ThreatPriority;
-            if (from != MechSide.Front) score += ai.FlankScore;
             if (target == battle.ObjectiveUnit) score += ai.ObjectivePriority;
             if (Capture(cell)) score += ai.CapturePriority;
             string? part = null;
@@ -36,7 +39,9 @@ public static class MechAi
                 if (target.PartAlive(arm) && battle.Rules.Weapon(id) is not null && target.Hp[(int)arm] <= MechCombat.Damage(gun.Weapon.Damage, battle.Armor(target, arm)))
                 { part = MechCombat.Name(arm); score += ai.FinishArmScore; break; }
             }
-            if (best is null || score > best.Value.Score || score == best.Value.Score && steps < best.Value.Steps)
+            if (best is null || Capture(cell) && !Capture(best.Value.Cell)
+                || Capture(cell) == Capture(best.Value.Cell) && (steps < best.Value.Steps
+                    || steps == best.Value.Steps && score > best.Value.Score))
                 best = (cell, steps, target.Id, hand, part, score);
         }
         var commands = new List<MechCommand>();

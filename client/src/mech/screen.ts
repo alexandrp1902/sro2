@@ -25,7 +25,6 @@ import { MechScene } from './scene';
 import {partName} from './workshop';
 import {
   PART_LABEL,
-  SIDE_LABEL,
   cells,
   endText,
   endTitle,
@@ -78,7 +77,7 @@ export class MechScreen {
   private aimed = false;
   private part: MechPart | null = null;
   private preview: number | null = null;
-  private pendingDir: number | null = null;
+  private readonly detailsOpen: Record<string, boolean> = {};
   private map: string[] = [];
   private toastTimer = 0;
 
@@ -107,6 +106,9 @@ export class MechScreen {
     this.endCard = div('mech-end sro-pane sro-dialog');
     this.endCard.hidden = true;
     root.append(this.canvasHost, this.head, this.own, this.target, this.tray, this.toast, this.endCard);
+    const panelSizes = new ResizeObserver(() => this.updatePanelHeights());
+    panelSizes.observe(this.head);
+    panelSizes.observe(this.tray);
     window.addEventListener('keydown', (e) => {
       if (!this.open || e.key !== 'Escape') return;
       this.select(null);
@@ -186,6 +188,7 @@ export class MechScreen {
       this.root.hidden = false;
       this.ended = null;
       this.endCard.hidden = true;
+      for (const key of Object.keys(this.detailsOpen)) delete this.detailsOpen[key];
     }
     if (!this.app) {
       this.app = await createApp(this.canvasHost);
@@ -205,7 +208,6 @@ export class MechScreen {
     this.state = state;
     this.waiting = false;
     this.preview = null;
-    this.pendingDir = null;
     if (mapChanged) {
       this.map = [...state.map];
       scene.setMap(state.map,state.biome??'desert');
@@ -328,12 +330,7 @@ export class MechScreen {
       this.render();
       return;
     }
-    // Телефон: первый тап — предпросмотр пути, второй — ход. Мышь: путь видно наведением, клик — ход.
-    if (this.preview === cell || !coarse()) {
-      if (!reachOf(s).has(cell)) this.handlers.confirm({title:'Нужен рывок / прыжок',text:'При неудаче движение будет потрачено. Атаковать после попытки можно.',yes:'Попробовать',no:'Отмена'},()=>this.send({t:'mechAct',act:'move',x,y}));
-      else this.send({ t: 'mechAct', act: 'move', x, y });
-      return;
-    }
+    this.select(null);
     this.preview = cell;
     this.render();
   }
@@ -342,15 +339,28 @@ export class MechScreen {
     const s = this.state;
     if (!s || !this.interactive) return;
     const cell = new MechField(s.map).index(x, y);
-    const next = reachOf(s,true).has(cell) ? cell : null;
-    if (next === this.preview) return;
-    this.preview = next;
+    if (this.preview !== null) return;
+    // Draw a hover path without choosing a destination for the Move button.
+    this.preview = reachOf(s, true).has(cell) ? cell : null;
     this.renderMarks();
+    this.preview = null;
+  }
+
+  private move(): void {
+    const s = this.state;
+    if (!s || !this.interactive || this.preview === null || !reachOf(s, true).has(this.preview)) return;
+    const x = this.preview % s.map[0].length;
+    const y = Math.floor(this.preview / s.map[0].length);
+    if (!reachOf(s).has(this.preview)) this.handlers.confirm({title:'Нужен рывок / прыжок',text:'При неудаче движение будет потрачено. Атаковать после попытки можно.',yes:'Попробовать',no:'Отмена'},()=>this.send({t:'mechAct',act:'move',x,y}));
+    else this.send({t:'mechAct',act:'move',x,y});
   }
 
   /** Выбрать цель (null — снять); прицельный режим сбрасывается. Снаружи зовёт только витрина. */
   select(id: string | null): void {
     this.selected = id;
+    this.preview = null;
+    this.hand = null;
+    this.detailsOpen.attack = false;
     this.aimed = false;
     this.part = null;
     // Телефон: лист цели закроет низ экрана — стрелка и цель поднимаем в верхнюю треть.
@@ -374,17 +384,7 @@ export class MechScreen {
   }
 
   private endTurn(): void {
-    const me = this.me();
-    const dir = this.pendingDir ?? undefined;
-    this.send({ t: 'mechAct', act: 'end', dir: me && dir !== me.dir ? dir : undefined });
-  }
-
-  private turn(step: number): void {
-    const me = this.me();
-    if (!me || !this.interactive) return;
-    this.pendingDir = ((this.pendingDir ?? me.dir) + step + 8) % 8;
-    this.scene?.face(me.id, this.pendingDir);
-    this.render();
+    this.send({ t: 'mechAct', act: 'end' });
   }
 
   private quit(): void {
@@ -445,9 +445,11 @@ export class MechScreen {
     const killed = enemies.filter((u) => !alive(u)).length;
     const object = s.units.find(u=>u.id===s.objectiveUnit);
     this.head.replaceChildren(
+      this.disclosure('mission', 'ⓘ', 'Задача операции', [
       el('div', 'mech-head-title', [el('span', 'sro-label', 'Наземная операция'), el('strong', '', mission?.name ?? 'Вылазка')]),
-      el('span', 'mech-chip sro-pane sro-pane--pill', this.yourAccount && s.turn === 'player' && !this.owns(this.me()!) ? `Раунд ${s.round} · ход напарника` : roundChip(s.round, s.turn, !!s.winner || this.ended !== null)),
       el('span', 'mech-goal', objectiveLine(s.goal ?? mission?.goal ?? 'Уничтожить противников', mission?.objective?.kind && mission.objective.kind !== 'eliminate' ? s.progress ?? 0 : killed, mission?.objective?.kind && mission.objective.kind !== 'eliminate' ? s.required ?? 0 : enemies.length)+(object ? ` · ${object.name}: ${object.hp[0]}/${object.max[0]} HP` : '')),
+      ]),
+      el('span', 'mech-chip sro-pane sro-pane--pill', this.yourAccount && s.turn === 'player' && !this.owns(this.me()!) ? `Раунд ${s.round} · ход напарника` : roundChip(s.round, s.turn, !!s.winner || this.ended !== null)),
       el('div', 'mech-head-actions', [
         button('−', 'sro-btn sro-btn--icon sro-btn--ghost', () => this.scene?.zoomBy(1 / 1.2), 'Отдалить'),
         button('+', 'sro-btn sro-btn--icon sro-btn--ghost', () => this.scene?.zoomBy(1.2), 'Приблизить'),
@@ -474,7 +476,7 @@ export class MechScreen {
     const moving = s.turn === 'player' && s.current === me.id
       ? (s.moved ? 'Уже переместился' : `Ход: ${cells(s.moveRange)}`)
       : 'Ждёт своего хода';
-    this.own.replaceChildren(
+    const content = el('div', 'mech-details-content', [
       el('div', 'mech-panel-head', [el('span', 'sro-label', this.owns(me) ? 'Ваш мех' : 'Мех напарника'), el('strong', '', me.name)]),
       partBars(me, null),
       el('div', 'mech-gear', [
@@ -482,83 +484,80 @@ export class MechScreen {
         gearRow('Правая', armItem(this.rules, def?.right)?.name ?? '—', me.hp[2] <= 0 && me.max[2] > 0),
       ]),
       el('div', 'mech-move sro-num', moving),
-    );
-    this.own.append(el('div','mech-squad', s.units.filter(u=>u.side==='player').map(u=>button(
+    ]);
+    content.append(el('div','mech-squad', s.units.filter(u=>u.side==='player').map(u=>button(
       `${u.name} · ${u.control === 'ai' ? 'союзник · ИИ' : u.control === 'objective' ? 'цель миссии' : this.owns(u) ? 'ваш' : 'напарника'}${u.activated ? ' · ход использован' : ''}`,
       'sro-btn sro-btn--xs',()=>this.send({t:'mechAct',act:'select',unit:u.id}),undefined,
       !this.interactive || s.moved || !alive(u) || u.activated || u.control==='ai' || u.control==='objective' || !!this.yourAccount&&u.accountOwner!==this.yourAccount))));
-    this.own.append(el('div','sro-muted',`Навыки: ${(me.skills ?? []).map(id=>this.rules.skills?.[id]?.name ?? id).join(', ') || 'нет'}`));
+    content.append(el('div','sro-muted',`Навыки: ${(me.skills ?? []).map(id=>this.rules.skills?.[id]?.name ?? id).join(', ') || 'нет'}`));
+    this.own.replaceChildren(this.disclosure('own', '🤖', 'Состояние меха и отряд', [content]));
   }
 
   private renderTarget(): void {
     const s = this.state!;
-    const target = s.units.find((u) => u.id === this.selected);
+    const target = s.units.find(u => u.id === this.selected);
     const me = this.me();
     this.target.hidden = !target || this.ended !== null;
     if (!target || !me) return;
     const f = forecast(this.rules, s, me, target, this.aimed ? this.part : null, this.hand);
-    const myTurn = this.interactive && s.current === me.id;
-    const canFire = myTurn && f.ok && (!this.aimed || this.part !== null);
-    const blocker = !myTurn ? (s.turn === 'enemy' ? 'Ход противника' : null)
-      : forecastBlocker(f.refusal) ?? (this.aimed && !this.part ? 'Выберите часть' : null);
-    const segment = (label: string, on: boolean, click: () => void) => {
-      const b = button(label, 'sro-btn sro-btn--xs mech-seg', click);
-      b.dataset.active = String(on);
+    const mode = (label: string, aimed: boolean) => {
+      const b = button(label, 'sro-btn sro-btn--xs mech-seg', () => {
+        this.aimed = aimed; this.part = null; this.render();
+      });
+      b.setAttribute('aria-pressed', String(this.aimed === aimed));
       return b;
     };
-    const parts = this.aimed
-      ? el('div', 'mech-parts', PARTS.map((p, i) => {
-        const b = button(PART_LABEL[p], 'sro-btn sro-btn--xs mech-seg', () => {
-          this.part = p;
-          this.render();
-        }, undefined, target.hp[i] <= 0);
-        b.dataset.active = String(this.part === p);
-        return b;
-      }))
-      : null;
-    const stat = (label: string, value: string, strong = false) =>
-      el('div', 'mech-stat', [el('span', 'sro-muted', label), el(strong ? 'strong' : 'span', 'sro-num', value)]);
-    this.target.replaceChildren(
-      el('div', 'mech-panel-head', [
-        el('span', 'sro-label', 'Цель'),
-        el('strong', '', target.name),
-        button('✕', 'sro-btn sro-btn--xs sro-btn--ghost mech-close', () => this.select(null), 'Снять цель'),
-      ]),
+    const content = el('div', 'mech-details-content', [
       partBars(target, this.aimed ? this.part : null),
-      el('div', 'mech-mode', [
-        segment('Обычный', !this.aimed, () => {
-          this.aimed = false;
-          this.part = null;
-          this.render();
-        }),
-        segment('Прицельный', this.aimed, () => {
-          this.aimed = true;
-          this.render();
-        }),
-      ]),
-      ...(parts ? [parts] : []),
-      el('div', 'mech-stats', [
-        stat('Попадание', f.weapon ? `${f.chance} %` : '—', true),
-        stat('Урон', f.weapon ? `${f.min}–${f.max}` : '—', true),
-        stat('Дистанция', cells(f.distance)),
-        stat('Сторона', SIDE_LABEL[f.side]),
-        stat('Щит', f.block > 0 ? `блок ${f.block} %` : 'не прикрывает'),
-      ]),
-      ...(blocker ? [el('div', 'mech-blocker sro-warn', blocker)] : []),
-      el('div', 'mech-actions', [
-        button('Подтвердить атаку', 'sro-btn sro-btn--primary', () => this.attack(), undefined, !canFire),
-        button('Отмена', 'sro-btn sro-btn--ghost', () => this.select(null)),
-      ]),
-    );
-    const hands = el('div','mech-mode');
-    for (const hand of ['left','right']) {
-      const gun = gunOf(this.rules,me,hand);
+      el('div', 'mech-mode', [mode('Обычный огонь', false), mode('Прицельный', true)]),
+    ]);
+    if (this.aimed) content.append(el('div', 'mech-parts', PARTS.map((p, i) => {
+      const b = button(PART_LABEL[p], 'sro-btn sro-btn--xs mech-seg', () => { this.part = p; this.render(); }, undefined, target.hp[i] <= 0);
+      b.setAttribute('aria-pressed', String(this.part === p)); return b;
+    })));
+    const hands = el('div', 'mech-mode');
+    for (const hand of ['left', 'right']) {
+      const gun = gunOf(this.rules, me, hand);
       if (!gun) continue;
-      const b=button(`${hand==='left'?'Левая':'Правая'} · ${gun.weapon.name}`,'sro-btn sro-btn--xs',()=>{this.hand=hand;this.render();});
-      b.setAttribute('aria-pressed',String(this.hand===hand));hands.append(b);
+      const b = button(`${hand === 'left' ? 'Левая' : 'Правая'} · ${gun.weapon.name}`, 'sro-btn sro-btn--xs', () => { this.hand = hand; this.render(); });
+      b.setAttribute('aria-pressed', String(this.hand === hand)); hands.append(b);
     }
-    this.target.prepend(hands);
-    if ((me.skills ?? []).length) this.target.append(el('p','sro-muted','Прогноз — обычная атака. Автоматические навыки могут изменить её результат.'));
+    content.append(hands, el('p', 'sro-muted', `Дистанция: ${cells(f.distance)} · щит: ${f.block} %`));
+    if (me.skills?.length) content.append(el('p', 'sro-muted', 'Автоматические навыки могут изменить результат атаки.'));
+    this.target.replaceChildren(
+      el('div', 'mech-panel-head', [el('strong', '', target.name),
+        button('✕', 'sro-btn sro-btn--xs sro-btn--ghost mech-close', () => this.select(null), 'Снять цель')]),
+      el('div', 'mech-target-summary sro-num', [
+        el('span', '', `Попадание ${f.chance} % · урон ${f.min}–${f.max}`),
+        this.disclosure('attack', '⚙', 'Настройки атаки и сведения о цели', [content]),
+      ]),
+      ...(!f.ok ? [el('div', 'mech-blocker sro-warn', forecastBlocker(f.refusal) ?? '')] : []),
+    );
+  }
+
+  private disclosure(key: string, icon: string, label: string, content: Node[]): HTMLDetailsElement {
+    const details = document.createElement('details');
+    details.className = `mech-disclosure mech-disclosure--${key}`;
+    details.open = this.detailsOpen[key] ?? false;
+    const summary = el('summary', 'sro-btn sro-btn--icon', icon);
+    summary.title = label; summary.setAttribute('aria-label', label);
+    summary.setAttribute('aria-expanded', String(details.open));
+    details.append(summary, ...content);
+    details.addEventListener('toggle', () => {
+      if (!details.isConnected) return;
+      this.detailsOpen[key] = details.open;
+      summary.setAttribute('aria-expanded', String(details.open));
+      if (key === 'attack' && !details.open && (this.aimed || this.hand)) {
+        this.aimed = false; this.part = null; this.hand = null; this.render();
+      }
+      this.updatePanelHeights();
+    });
+    return details;
+  }
+
+  private updatePanelHeights(): void {
+    this.root.style.setProperty('--mech-tray-height', `${this.tray.getBoundingClientRect().height}px`);
+    this.root.style.setProperty('--mech-head-height', `${this.head.getBoundingClientRect().height}px`);
   }
 
   private renderTray(): void {
@@ -568,19 +567,23 @@ export class MechScreen {
     const gun = me ? gunOf(this.rules, me) : null;
     const hint = !can ? (this.playing || this.waiting ? 'Идёт ход…' : s.turn === 'enemy' ? 'Ход противника' : '')
       : s.moved ? 'Атакуйте или завершите ход'
-      : gun ? 'Клетка — перемещение, враг — атака' : 'Оружие разбито: только перемещение';
+      : this.preview !== null ? 'Нажмите «Идти» для перемещения' : gun ? 'Выберите клетку → Идти; врага → Огонь' : 'Оружие разбито: только перемещение';
     this.tray.replaceChildren(
       el('span', 'mech-hint sro-muted', hint),
       el('div', 'mech-tray-buttons', [
-        button('↺', 'sro-btn sro-btn--icon', () => this.turn(-1), 'Повернуть против часовой', !can),
-        button('↻', 'sro-btn sro-btn--icon', () => this.turn(1), 'Повернуть по часовой', !can),
-        button('Завершить ход', 'sro-btn sro-btn--primary mech-end-turn', () => this.endTurn(), undefined, !can),
+        button('Идти', 'sro-btn mech-move-button', () => this.move(), undefined, !can || this.preview === null || !reachOf(s, true).has(this.preview)),
+        button(this.aimed ? 'Прицельный огонь' : 'Огонь', 'sro-btn sro-btn--primary mech-fire-button', () => this.attack(), undefined,
+          !can || !this.selected || !s.units.some(t => t.id === this.selected && alive(t) && forecast(this.rules, s, me!, t, this.aimed ? this.part : null, this.hand).ok) || this.aimed && !this.part),
+        button('Конец хода', 'sro-btn sro-btn--primary mech-end-turn', () => this.endTurn(), undefined, !can),
       ]),
     );
+    const extra = el('div', 'mech-details-content');
     if (me && packEffect(this.rules,me,'repair') > 0 && !me.repaired) for (const [i,part] of PARTS.entries())
-      if (me.hp[i]>0 && me.hp[i]<me.max[i]) this.tray.append(button(`Ремонт: ${PART_LABEL[part]}`,'sro-btn sro-btn--xs',()=>this.send({t:'mechAct',act:'repair',part}),undefined,!can));
+      if (me.hp[i]>0 && me.hp[i]<me.max[i]) extra.append(button(`Ремонт: ${PART_LABEL[part]}`,'sro-btn sro-btn--xs',()=>this.send({t:'mechAct',act:'repair',part}),undefined,!can));
     if (this.savePending) this.tray.append(button('Повторить сохранение итога','sro-btn sro-btn--primary',()=>this.send({t:'mechAct',act:'end',unit:this.state?.units.find(u=>u.control==='player')?.id}),undefined,!this.online || this.waiting || this.playing));
-    if(s.actions?.includes('interact'))this.tray.append(button(s.interacted?'Объект открыт — эвакуируйтесь':'Взаимодействовать с объектом','sro-btn',()=>this.send({t:'mechAct',act:'interact'}),undefined,!can||!!s.interacted));
+    if(s.actions?.includes('interact'))extra.append(button(s.interacted?'Объект открыт — эвакуируйтесь':'Взаимодействовать с объектом','sro-btn',()=>this.send({t:'mechAct',act:'interact'}),undefined,!can||!!s.interacted));
+    if (extra.childElementCount) this.tray.append(this.disclosure('actions', '⚙', 'Дополнительные действия', [extra]));
+    this.updatePanelHeights();
   }
 
   private showEnd(end: MechEndMsg): void {

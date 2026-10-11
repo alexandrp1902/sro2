@@ -4,6 +4,56 @@ namespace Sro.Sim.Tests;
 
 public class MechBattleTests
 {
+    [Fact]
+    public void AdjacentMechs_CanFire_AndAiStaysToShoot()
+    {
+        var b = new MechBattle(TestMechs.Rules(TestMechs.Open,
+            [new("proto", 0, 0, 0)], [new("raider", 1, 0, 4)]), "test", 42);
+        Assert.Equal(90, b.Chance(b.Unit("p1")!, 0, 0, 0, b.MoveRange, b.Unit("e1")!, false));
+        var plan = MechAi.Decide(b);
+        Assert.Equal("attack", Assert.Single(plan).Act);
+        var events = new List<MechEvent>();
+        Assert.Null(b.Apply(new("attack", Target: "e1"), events));
+        b.RunEnemies(events);
+        Assert.DoesNotContain(events, e => e.Kind == MechEvent.Move);
+        Assert.Contains(events, e => e.Kind == MechEvent.Shot && e.Unit == "e1");
+    }
+
+    [Fact]
+    public void Ai_ApproachesOnlyFarEnoughToFire()
+    {
+        var b = new MechBattle(TestMechs.Rules(TestMechs.Open,
+            [new("proto", 0, 0, 0)], [new("raider", 8, 0, 4)]), "test", 42);
+        var plan = MechAi.Decide(b);
+        Assert.Equal(2, plan.Count);
+        Assert.Equal("move", plan[0].Act);
+        Assert.Equal(1, MechField.Distance(0, 0, plan[0].X, plan[0].Y));
+        Assert.Equal("attack", plan[1].Act);
+    }
+
+    [Fact]
+    public void EnemyShots_CanMiss_AndMissMoreOftenAtDistance()
+    {
+        int Misses(int distance)
+        {
+            var misses = 0;
+            for (uint seed = 1; seed <= 400; seed++)
+            {
+                var b = new MechBattle(TestMechs.Rules(TestMechs.Open,
+                    [new("proto", 0, 0, 0)], [new("raider", distance, 0, 4)]), "test", seed);
+                var events = new List<MechEvent>();
+                Assert.Null(b.Apply(new("end"), events));
+                b.RunEnemies(events);
+                if (events.Any(e => e.Kind == MechEvent.Miss && e.Unit == "e1")) misses++;
+            }
+            return misses;
+        }
+        var close = Misses(1);
+        var far = Misses(7);
+        Assert.InRange(close, 1, 100);
+        Assert.True(far > close, $"close {close}; far {far}");
+    }
+
     private static MechRules Shared()
     {
         Assert.True(Balance.TryParse(TestHulls.SharedSources(), out var balance, out var error), error);
@@ -70,7 +120,7 @@ public class MechBattleTests
     [Fact]
     public void Refusals_HaveCodes()
     {
-        MechSpawn[] p = [new("proto", 0, 5, 2)];
+        MechSpawn[] p = [new("proto", 2, 5, 2)];
         MechSpawn[] e = [new("raider", 10, 5, 6)];
         string[] map =
         [
@@ -106,11 +156,11 @@ public class MechBattleTests
     {
         var battle = new MechBattle(TestMechs.Rules(TestMechs.Open, [new("proto", 0, 0, 4)], [new("raider", 11, 11, 0)]), "test", 1);
         var events = new List<MechEvent>();
-        Assert.Null(battle.Apply(new MechCommand(MechCommand.MoveAct, 3, 0), events));
+        Assert.Null(battle.Apply(new MechCommand(MechCommand.MoveAct, 2, 0), events));
         Assert.Equal(2, battle.Current!.Dir);
-        Assert.Equal(3, battle.Steps);
+        Assert.Equal(2, battle.Steps);
         var move = Assert.Single(events);
-        Assert.Equal([1, 2, 3], move.Path!);
+        Assert.Equal([1, 2], move.Path!);
     }
 
     [Fact]
@@ -168,16 +218,19 @@ public class MechBattleTests
     }
 
     [Fact]
-    public void RearShot_IsNeverBlocked()
+    public void TurningTheTarget_DoesNotChangeShotResults()
     {
         for (uint seed = 1; seed < 200; seed++)
         {
-            // Цель смотрит на восток, стрелок — к западу от неё: выстрел в спину.
             var battle = new MechBattle(
                 TestMechs.Rules(TestMechs.Open, [new("proto", 0, 4, 2)], [new("raider", 4, 4, 2)]), "test", seed);
+            var front = new MechBattle(
+                TestMechs.Rules(TestMechs.Open, [new("proto", 0, 4, 2)], [new("raider", 4, 4, 6)]), "test", seed);
             var events = new List<MechEvent>();
+            var frontEvents = new List<MechEvent>();
             Assert.Null(battle.Apply(new MechCommand(MechCommand.AttackAct, Target: "e1"), events));
-            Assert.DoesNotContain(events, e => e.Kind == MechEvent.Block);
+            Assert.Null(front.Apply(new MechCommand(MechCommand.AttackAct, Target: "e1"), frontEvents));
+            Assert.Equal(frontEvents, events);
         }
     }
 
