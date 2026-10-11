@@ -1379,6 +1379,17 @@ async function main(): Promise<void> {
     }
     latestSnapshot = null;
 
+    // A local race owns this frame; hidden space views and HUD do not need redraws.
+    world.visible = !race.open;
+    if (race.open) {
+      loop.advance(now);
+      app.stage.visible = true;
+      race.frame(now, app.screen.width, app.screen.height);
+      audio.frame({ now, camera: { ...MECH_EAR, zoom: 1 }, threats: 0, incoming: 0, docked: false,
+        dead: false, ships: [], me: { id: ownId(), ...MECH_EAR }, myHp: 1, throttle: race.throttle });
+      return;
+    }
+
     // Уничтожены: стик в центр и огонь отпущен — после респауна корабль не улетит и не начнёт палить сам.
     const dead = prediction.isDead;
     if (dead && !wasDead) {

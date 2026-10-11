@@ -24,7 +24,7 @@ try {
     await evaluate(`(async()=>{
       await import('/src/main.ts');await import('/src/race/race.css');
       const {RaceScreen}=await import('/src/race/screen.ts');const pixi=performance.getEntriesByType('resource').find(e=>e.name.includes('/deps/pixi__js.js?')).name;const {Application}=await import(pixi);
-      window.sent=[];window.bench=new RaceScreen({send:m=>sent.push(m),online:()=>true,resetSpace:()=>{}});
+      window.sent=[];window.raceOnline=true;window.bench=new RaceScreen({send:m=>sent.push(m),online:()=>window.raceOnline,resetSpace:()=>{}});
       window.raceApp=new Application();await raceApp.init({width:innerWidth,height:innerHeight,background:'#503527'});
       document.getElementById('game').replaceChildren(raceApp.canvas);raceApp.stage.addChild(bench.scene.view);
       raceApp.ticker.add(()=>bench.frame(performance.now(),innerWidth,innerHeight));bench.show();
@@ -42,20 +42,19 @@ try {
       await evaluate(`document.querySelector('.race-card').scrollTop=0`);
     }
     const terminalShot=await cdp('Page.captureScreenshot',{format:'png'});writeFileSync(`${out}/menu-${width}x${height}.png`,Buffer.from(terminalShot.result.data,'base64'));
-    await evaluate(`(async()=>{bench.livery=${JSON.stringify(width===1280?'blue':'copper')};await bench.start();bench.apply({t:'raceEvent',event:'joined',requestId:sent.find(m=>m.act==='join').requestId,sessionId:'fixture',config,snapshot:snap});})()`);
+    await evaluate(`(async()=>{bench.livery=${JSON.stringify(width===1280?'blue':'copper')};await bench.start();bench.apply({t:'raceEvent',event:'joined',requestId:sent.find(m=>m.act==='join').requestId,sessionId:'fixture',config});bench.apply({t:'raceEvent',event:'started',sessionId:'fixture',countdownMs:3000});})()`);
     assert(await evaluate(`bench.scene.hull.texture.width>100&&bench.scene.hull.width===3.65`),'generated bolide is loaded at double size');
     await sleep(100);assert(await evaluate(`bench.scene.view.visible`));
-    const bounds=await evaluate(`(()=>{const box=s=>{const r=document.querySelector(s).getBoundingClientRect();return{x:r.x,y:r.y,w:r.width,h:r.height}};return {stick:box('.race-stick'),brake:box('.race-brake'),speed:box('.race-speed'),hud:box('.race-hud')}})()`);
+    const bounds=await evaluate(`(()=>{const box=s=>{const r=document.querySelector(s).getBoundingClientRect();return{x:r.x,y:r.y,w:r.width,h:r.height}};return {stick:box('.race-stick'),brake:box('.race-brake'),hud:box('.race-hud')}})()`);
     for(const box of Object.values(bounds)){assert(box.x>=0&&box.y>=0&&box.x+box.w<=width+1&&box.y+box.h<=height+1,JSON.stringify({width,height,box}));}
-    assert(await evaluate(`!document.querySelector('.race-boost')`),'boost removed');
+    assert(await evaluate(`!document.querySelector('.race-boost')&&!document.querySelector('.race-speed')`),'boost removed');
     if(width<1000) {
-      assert(bounds.brake.w>=88&&bounds.speed.w>=48);
-      assert(bounds.speed.x>bounds.stick.x+bounds.stick.w&&bounds.speed.x+bounds.speed.w<bounds.brake.x,'speed scale between stick and brake');
-    } else assert(bounds.stick.w===0&&bounds.brake.w===0&&bounds.speed.w===0,'desktop touch controls hidden');
+      assert(bounds.brake.w>=88);
+    } else assert(bounds.stick.w===0&&bounds.brake.w===0,'desktop touch controls hidden');
     await cdp('Input.dispatchKeyEvent',{type:'keyDown',code:'KeyW',key:'w'});await sleep(80);
     assert.equal(await evaluate(`bench.body.position.x`),26,'countdown must not move');
     await cdp('Input.dispatchKeyEvent',{type:'keyUp',code:'KeyW',key:'w'});
-    await evaluate(`bench.apply({t:'raceEvent',event:'snapshot',sessionId:'fixture',snapshot:{...snap,state:'RUNNING',tick:180,countdownMs:0}})`);
+    await evaluate(`bench.run.startsAt=performance.now();bench.run.lastNow=performance.now()`);
     await cdp('Input.dispatchKeyEvent',{type:'keyDown',code:'KeyW',key:'w'});await sleep(250);
     await cdp('Input.dispatchKeyEvent',{type:'keyUp',code:'KeyW',key:'w'});
     const selected=await evaluate(`bench.input.value.throttle`);assert(selected>.1);
@@ -71,12 +70,11 @@ try {
     await cdp('Input.dispatchKeyEvent',{type:'keyDown',code:'ShiftLeft',key:'Shift'});await sleep(40);
     await cdp('Input.dispatchKeyEvent',{type:'keyUp',code:'ShiftLeft',key:'Shift'});
     if(width<1000) {
-      const slider=await evaluate(`(()=>{const r=bench.root.querySelector('.race-speed-range').getBoundingClientRect();return {x:r.x+r.width/2,y:r.y+r.height*.2,id:3}})()`);
-      await cdp('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[slider]});await cdp('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});
-      const chosen=await evaluate(`bench.input.value.throttle`);assert(chosen>.7,'slider sets speed');
       const stick={x:bounds.stick.x+bounds.stick.w*.8,y:bounds.stick.y+bounds.stick.h*.5,id:1};
       const brake={x:bounds.brake.x+bounds.brake.w*.5,y:bounds.brake.y+bounds.brake.h*.5,id:2};
       await cdp('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[stick]});
+      const chosen=await evaluate(`bench.input.value.throttle`);assert(chosen>.7);
+      const knob=await evaluate(`bench.root.querySelector('.race-knob').style.transform`);
       await cdp('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[stick,brake]});await sleep(120);
       assert(await evaluate(`bench.input.value.brake&&bench.input.value.steerMode==='heading'`));
       assert.equal(await evaluate(`bench.input.value.throttle`),chosen,'stick and brake preserve selected speed');
@@ -84,18 +82,27 @@ try {
       assert(await evaluate(`!bench.input.value.brake`));assert.equal(await evaluate(`bench.input.value.throttle`),chosen);
       await cdp('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});
       assert.equal(await evaluate(`bench.input.value.throttle`),chosen,'releasing stick preserves speed');
+      assert.equal(await evaluate(`bench.root.querySelector('.race-knob').style.transform`),knob,'stick remains in selected position');
     }
+    assert(await evaluate(`sent.every(m=>m.act!=='input')`),'no race input synchronization');
+    const elapsed=await evaluate(`bench.run.elapsedMs`);await evaluate(`window.raceOnline=false`);await sleep(200);
+    assert((await evaluate(`bench.run.elapsedMs`))>elapsed,'race continues offline');await evaluate(`window.raceOnline=true`);
     await evaluate(`window.dispatchEvent(new Event('blur'))`);await sleep(80);
     assert(await evaluate(`!bench.input.value.brake&&bench.input.value.throttle===0&&!bench.input.value.controlActive`));
     await evaluate(`window.dispatchEvent(new Event('focus'));bench.exitMenu()`);
     assert(await evaluate(`bench.menuOpen&&bench.input.value.controlActive&&bench.input.value.throttle===0`));
     await evaluate(`bench.exitMenu()`);await sleep(100);
     const shot=await cdp('Page.captureScreenshot',{format:'png'});writeFileSync(`${out}/${width}x${height}.png`,Buffer.from(shot.result.data,'base64'));
+    await evaluate(`window.raceOnline=false;const p=bench.body.position;bench.config.track.obstacles.push({id:'local-crash',center:{x:p.x+4,y:p.y},radius:1,reason:'COLUMN'});bench.body.velocity={x:600,y:0};bench.body.heading=0`);
+    await sleep(200);assert(await evaluate(`bench.run.state==='CRASHED'&&bench.mode==='results'`),'local physics produces crash without server');
+    assert.equal(await evaluate(`sent.filter(m=>m.act==='finish').length`),0,'offline finish is queued');
+    await evaluate(`window.raceOnline=true`);await sleep(100);
+    assert.equal(await evaluate(`sent.filter(m=>m.act==='finish').length`),1,'reconnect submits one finish');
     await evaluate(`bench.apply({t:'raceEvent',event:'result',sessionId:'fixture',validationStatus:'CONFIRMED',result:{sessionId:'fixture',playerId:null,name:'Guest',rankingKey:config.rankingKey,status:'CRASHED',reason:'WALL',elapsedMs:1534,totalMs:null,lapTimesMs:[],finishedAt:new Date().toISOString()}})`);
     await sleep(750);
     assert(await evaluate(`bench.root.textContent.includes('DNF')`));
     await evaluate(`bench.terminal();bench.close()`);assert(await evaluate(`!document.body.classList.contains('race-open')`));
-    results.push({width,height,layout:'PASS',menuScroll:menu.scroll>menu.client?'PASS':'FITS',bolideImage:'PASS',speedControls:'PASS',desktopKeyboard:'PASS',countdown:'PASS',focusReset:'PASS',exitMenu:'PASS'});
+    results.push({width,height,layout:'PASS',menuScroll:menu.scroll>menu.client?'PASS':'FITS',bolideImage:'PASS',latchedStick:'PASS',localSimulation:'PASS',desktopKeyboard:'PASS',countdown:'PASS',focusReset:'PASS',exitMenu:'PASS'});
   }
   assert.equal(errors.length,0,JSON.stringify(errors));writeFileSync(`${out}/browser.json`,JSON.stringify(results,null,2));console.log(JSON.stringify(results,null,2));
 } finally {ws?.close();proc.kill();}

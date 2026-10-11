@@ -14,7 +14,8 @@ export interface Body {
   contacts: Set<string>;
 }
 export interface Segment { from: Vec; to: Vec; startFraction: number; endFraction: number }
-export interface Motion { segments: Segment[]; fatalReason: string | null; fatalFraction: number; normalSpeed: number; contactLimit: boolean }
+export interface Impact { position: Vec; normal: Vec; velocity: Vec; speed: number }
+export interface Motion { segments: Segment[]; impacts: Impact[]; fatalReason: string | null; fatalFraction: number; normalSpeed: number; contactLimit: boolean; hpBeforeFatal?: number }
 export function body(track: Track, rules: Rules): Body {
   return { position: { ...track.spawn }, velocity: { x: 0, y: 0 }, heading: track.spawnHeading, omega: 0,
     hp: rules.hp, contacts: new Set() };
@@ -31,6 +32,31 @@ export function crossing(from: Vec, to: Vec, g: { a: Vec; b: Vec; normal: Vec })
   return along >= 0 && along <= 1 ? t : null;
 }
 interface Hit { t: number; normal: Vec; id: string; reason: string }
+// Static canyon geometry is indexed once; a vehicle only checks nearby rock banks.
+const wallIndexes = new WeakMap<Track, Map<string, Track['walls']>>();
+const CELL = 12;
+function nearbyWalls(track: Track, p: Vec, d: Vec, radius: number): Track['walls'] {
+  let index = wallIndexes.get(track);
+  if (!index) {
+    index = new Map();
+    for (const wall of track.walls) {
+      for (let x = Math.floor(Math.min(wall.a.x, wall.b.x) / CELL); x <= Math.floor(Math.max(wall.a.x, wall.b.x) / CELL); x++) {
+        for (let y = Math.floor(Math.min(wall.a.y, wall.b.y) / CELL); y <= Math.floor(Math.max(wall.a.y, wall.b.y) / CELL); y++) {
+          const key = `${x}:${y}`, bucket = index.get(key) ?? [];
+          bucket.push(wall); index.set(key, bucket);
+        }
+      }
+    }
+    wallIndexes.set(track, index);
+  }
+  const walls = new Set<Track['walls'][number]>();
+  for (let x = Math.floor((Math.min(p.x, p.x + d.x) - radius) / CELL); x <= Math.floor((Math.max(p.x, p.x + d.x) + radius) / CELL); x++) {
+    for (let y = Math.floor((Math.min(p.y, p.y + d.y) - radius) / CELL); y <= Math.floor((Math.max(p.y, p.y + d.y) + radius) / CELL); y++) {
+      for (const wall of index.get(`${x}:${y}`) ?? []) walls.add(wall);
+    }
+  }
+  return [...walls];
+}
 function firstHit(p: Vec, d: Vec, track: Track, radius: number): Hit | null {
   let best: Hit | null = null;
   const candidate = (t: number, n: Vec, id: string, reason: string) => {
@@ -43,7 +69,7 @@ function firstHit(p: Vec, d: Vec, track: Track, radius: number): Hit | null {
     const t = (-k - Math.sqrt(disc)) / a, at = add(v, mul(d, Math.max(0, t)));
     if (length(at) > 1e-12) candidate(t, mul(at, 1 / length(at)), id, reason);
   };
-  for (const w of track.walls) {
+  for (const w of nearbyWalls(track, p, d, radius)) {
     const axis = sub(w.b, w.a), len = length(axis), u = mul(axis, 1 / len), n = { x: -u.y, y: u.x };
     const dist = dot(sub(p, w.a), n), rate = dot(d, n);
     if (Math.abs(rate) > 1e-12) for (const sign of [-1, 1]) {
@@ -66,12 +92,12 @@ export function step(b: Body, input: Input, track: Track, r: Rules): Motion {
   b.velocity = add(b.velocity, mul(sub(sub(mul(f, engine), mul(b.velocity, r.dragK)), mul(side, r.lateralK)), DT));
   const deceleration = input.brake ? r.brakeAccel : input.controlActive ? Math.min(r.coastBrakeAccel, Math.max(0, speed - desired) * 2) : 0;
   if (deceleration > 0 && length(b.velocity) > 0) b.velocity = mul(b.velocity, Math.max(0, 1 - deceleration * DT / length(b.velocity)));
-  const segments: Segment[] = [], touching = new Set<string>(); let fraction = 0;
+  const segments: Segment[] = [], impacts: Impact[] = [], touching = new Set<string>(); let fraction = 0;
   const result = (fatalReason: string | null, fatalFraction: number, normalSpeed: number, contactLimit = false): Motion =>
-    ({ segments, fatalReason, fatalFraction, normalSpeed, contactLimit });
+    ({ segments, impacts, fatalReason, fatalFraction, normalSpeed, contactLimit });
   const updateContacts = () => {
     b.contacts.clear();
-    for (const w of track.walls) if (distance(b.position, w.a, w.b) <= r.radius + r.contactSlop * 3) b.contacts.add(w.id);
+    for (const w of nearbyWalls(track, b.position, { x: 0, y: 0 }, r.radius + r.contactSlop * 3)) if (distance(b.position, w.a, w.b) <= r.radius + r.contactSlop * 3) b.contacts.add(w.id);
     for (const o of track.obstacles) if (length(sub(b.position, o.center)) <= r.radius + o.radius + r.contactSlop * 3) b.contacts.add(o.id);
   };
   for (let iteration = 0; iteration < r.maxContacts; iteration++) {
@@ -85,8 +111,11 @@ export function step(b: Body, input: Input, track: Track, r: Rules): Motion {
     const vn = Math.max(0, -dot(b.velocity, hit.normal));
     const newImpact = !b.contacts.has(hit.id) && !touching.has(hit.id);
     if (newImpact) {
+      if (vn > .2) impacts.push({ position: sub(b.position, mul(hit.normal, r.radius)),
+        normal: { ...hit.normal }, velocity: { ...b.velocity }, speed: vn });
+      const hpBeforeFatal = b.hp;
       b.hp -= damage(vn);
-      if (vn >= r.fatalSpeed || b.hp <= 0) { b.hp = 0; return result(hit.reason, end, vn); }
+      if (vn >= r.fatalSpeed || b.hp <= 0) { b.hp = 0; return { ...result(hit.reason, end, vn), hpBeforeFatal }; }
     }
     touching.add(hit.id);
     const nv = dot(b.velocity, hit.normal);

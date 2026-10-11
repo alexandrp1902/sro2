@@ -11,7 +11,7 @@ body.race-open > :not(#game):not(#race) { visibility: hidden !important; pointer
 .race-muted { color: #a9afb6; }
 .race-error { color: #ffbc91; }
 .race-actions { display: flex; gap: 8px; }
-.race-vehicles { display: flex; gap: 8px; margin: 12px 0; }
+.race-vehicles { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin: 12px 0; }
 .race-vehicles button { display: grid; justify-items: center; flex: 1; min-width: 0; padding: 8px; }
 .race-vehicles img { width: 100%; max-width: 160px; height: 96px; object-fit: contain; pointer-events: none; }
 .race-vehicles button[aria-pressed="true"] { border-color: #79ddd4; background: #214348; }
@@ -32,8 +32,3 @@ body.race-open > :not(#game):not(#race) { visibility: hidden !important; pointer
 .race-mobile { display: none; }
 @media (pointer: coarse) { .race-mobile { display: block; } }
 .race-touch .race-mobile { display: block; }
-.race-speed { position: absolute; left: 50%; transform: translateX(-50%); bottom: max(20px, env(safe-area-inset-bottom)); width: 64px; height: 168px; padding: 8px 0; box-sizing: border-box; text-align: center; border: 1px solid #82b5bd; border-radius: 14px; background: #0e2027df; touch-action: none; }
-.race-speed-label { display: block; font-size: 12px; white-space: nowrap; color: #b4fff4; }
-.race-speed-range { display: block; writing-mode: vertical-lr; direction: rtl; width: 48px; height: 112px; margin: 4px auto; padding: 0; accent-color: #89d3d9; touch-action: none; cursor: pointer; }
-.race-speed-title { display: block; font-size: 9px; letter-spacing: .5px; }
-@media (max-height: 420px) { .race-speed { height: 144px; bottom: max(12px, env(safe-area-inset-bottom)); } .race-speed-range { height: 88px; } }

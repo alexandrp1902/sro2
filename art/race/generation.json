@@ -1,0 +1,201 @@
+{
+  "date": "2026-10-11",
+  "tool": "built-in image_gen",
+  "status": "awaiting_visual_acceptance",
+  "assets": [
+    {
+      "name": "pod-copper-v1",
+      "width": 1536,
+      "height": 1024,
+      "transparent": true,
+      "prompt": "Generate one production PNG game sprite, landscape 1536x1024. Save output for asset pod-copper-v1.png. Strict orthographic overhead camera, no perspective or isometric tilt. Detailed believable original industrial sci-fi podracing vehicle: two enormous separated cylindrical turbine engines at the front RIGHT, small open pilot cockpit behind on the LEFT, long exposed structural struts and repaired copper cables connecting cockpit to engines. Copper-orange armor, weathered titanium, patched graphite chassis, desert dust, visible vents, rugged workshop-built racer. Whole vehicle centered and fully inside frame with margin; nose points right; vehicle 1.7 times as long as wide. Neutral soft overhead illumination, readable strong silhouette at 24–40 pixels. Genuine transparent background. No ground, lettering, logos, background, baked flame, energy beam, smoke or long cast shadow. Premium realistic game render, clear large shapes. Single asset only.",
+      "generatedPath": "C:\\Users\\467\\.codex\\generated_images\\01a12ba8-1343-7b53-9776-9c26fed42321\\exec-64002210-5de8-482b-8697-a2658945c5e0.png"
+    },
+    {
+      "name": "pod-blue-v1",
+      "width": 1536,
+      "height": 1024,
+      "transparent": true,
+      "prompt": "Use case: stylized-concept. Production sprite for SRO Red Canyon top-down browser sci-fi racing game. Strict orthographic overhead camera, no perspective or isometric tilt. Premium realistic game render, readable compact silhouette and restrained detail readable on mobile, weathered materials, neutral soft overhead light. Whole object fully visible with ample transparent margin on every side. Genuine transparent background, clean alpha edges. No ground, text, lettering, logos, watermark, interface, vehicles other than requested subject, long cast shadows. Landscape PNG 1536x1024. One original industrial podracer: two enormous separated turbine engines in front on the RIGHT, small open pilot cockpit behind on the LEFT, long exposed struts and cables connecting cockpit to engines. Nose points RIGHT. Overall silhouette 1.7 times as long as wide. Object centered occupying 85% of width. Weathered titanium, graphite chassis, desert dust, visible vents. No flame, energy beam, smoke or baked effects. Cobalt blue and silver armor, two tapered turbine engines, reinforced aerodynamic connecting struts, low rear cockpit; fast precision racer.",
+      "generatedPath": "C:\\Users\\467\\.codex\\generated_images\\01a12ba8-1343-7b53-9776-9c26fed42321\\exec-937f6fb9-101c-40d0-8ee7-a8991648e736.png"
+    },
+    {
+      "name": "pod-yellow-v1",
+      "width": 1536,
+      "height": 1024,
+      "transparent": true,
+      "prompt": "Use case: stylized-concept. Production sprite for SRO Red Canyon top-down browser sci-fi racing game. Strict orthographic overhead camera, no perspective or isometric tilt. Premium realistic game render, readable compact silhouette and restrained detail readable on mobile, weathered materials, neutral soft overhead light. Whole object fully visible with ample transparent margin on every side. Genuine transparent background, clean alpha edges. No ground, text, lettering, logos, watermark, interface, vehicles other than requested subject, long cast shadows. Landscape PNG 1536x1024. One original industrial podracer: two enormous separated turbine engines in front on the RIGHT, small open pilot cockpit behind on the LEFT, long exposed struts and cables connecting cockpit to engines. Nose points RIGHT. Overall silhouette 1.7 times as long as wide. Object centered occupying 85% of width. Weathered titanium, graphite chassis, desert dust, visible vents. No flame, energy beam, smoke or baked effects. Sand-yellow and dark graphite armor, two broad exposed turbine engines with protective rings, skeletal connecting frame, open rear cockpit; powerful desert racer.",
+      "generatedPath": "C:\\Users\\467\\.codex\\generated_images\\01a12ba8-1343-7b53-9776-9c26fed42321\\exec-436770c9-ece6-429e-8df7-10b0ddecf0aa.png"
+    },
+    {
+      "name": "pod-white-v1",
+      "width": 1536,
+      "height": 1024,
+      "transparent": true,
+      "prompt": "Use case: stylized-concept. Production sprite for SRO Red Canyon top-down browser sci-fi racing game. Strict orthographic overhead camera, no perspective or isometric tilt. Premium realistic game render, readable compact silhouette and restrained detail readable on mobile, weathered materials, neutral soft overhead light. Whole object fully visible with ample transparent margin on every side. Genuine transparent background, clean alpha edges. No ground, text, lettering, logos, watermark, interface, vehicles other than requested subject, long cast shadows. Landscape PNG 1536x1024. One original industrial podracer: two enormous separated turbine engines in front on the RIGHT, small open pilot cockpit behind on the LEFT, long exposed struts and cables connecting cockpit to engines. Nose points RIGHT. Overall silhouette 1.7 times as long as wide. Object centered occupying 85% of width. Weathered titanium, graphite chassis, desert dust, visible vents. No flame, energy beam, smoke or baked effects. Off-white weathered titanium with muted red accents, two long narrow high-performance engines, lightweight rear cockpit, thin tension cables; light experimental racer.",
+      "generatedPath": "C:\\Users\\467\\.codex\\generated_images\\01a12ba8-1343-7b53-9776-9c26fed42321\\exec-cbf9ed0a-daf9-4a10-ab3c-58f1da47b84c.png"
+    },
+    {
+      "name": "pod-exhaust-v1",
+      "width": 512,
+      "height": 512,
+      "transparent": true,
+      "prompt": "Use case: stylized-concept. Production sprite for SRO Red Canyon top-down browser sci-fi racing game. Strict orthographic overhead camera, no perspective or isometric tilt. Premium realistic game render, readable compact silhouette and restrained detail readable on mobile, weathered materials, neutral soft overhead light. Whole object fully visible with ample transparent margin on every side. Genuine transparent background, clean alpha edges. No ground, text, lettering, logos, watermark, interface, vehicles other than requested subject, long cast shadows. Square PNG 512x512. One isolated turquoise engine exhaust flame pointing LEFT, bright core on RIGHT fading into soft transparent wispy tail on LEFT. No engine, no surrounding haze; convenient for stretching and modulating brightness.",
+      "generatedPath": "C:\\Users\\467\\.codex\\generated_images\\01a12ba8-1343-7b53-9776-9c26fed42321\\exec-a6cba6f3-ede4-4b2a-a2f9-51d8dce77de8.png"
+    },
+    {
+      "name": "pod-energy-link-v1",
+      "width": 512,
+      "height": 512,
+      "transparent": true,
+      "prompt": "Use case: stylized-concept. Production sprite for SRO Red Canyon top-down browser sci-fi racing game. Strict orthographic overhead camera, no perspective or isometric tilt. Premium realistic game render, readable compact silhouette and restrained detail readable on mobile, weathered materials, neutral soft overhead light. Whole object fully visible with ample transparent margin on every side. Genuine transparent background, clean alpha edges. No ground, text, lettering, logos, watermark, interface, vehicles other than requested subject, long cast shadows. Square PNG 512x512. One short turquoise electric energy arc oriented VERTICALLY connecting an upper and lower endpoint, bright core with soft transparent edge. No engines or fixtures, no surrounding haze. Convenient for stretching and modulating brightness.",
+      "generatedPath": "C:\\Users\\467\\.codex\\generated_images\\01a12ba8-1343-7b53-9776-9c26fed42321\\exec-0762d1a1-752b-497e-9b29-d33677c269a0.png"
+    },
+    {
+      "name": "canyon-sand-tile-v1",
+      "width": 1024,
+      "height": 1024,
+      "transparent": false,
+      "prompt": "Use case: stylized-concept. Seamless repeating square opaque texture 1024x1024 for a strict overhead sci-fi desert canyon racing game, premium realistic game art, neutral lighting. Texture must join perfectly on all four edges, periodic tiling in both axes. Surface: red-brown sand with fine desert dust. Fine restrained detail readable on mobile, no distracting high contrast noise. No perspective, horizon, directional cast shadows, characters, vehicles, markings, text, isolated large stones, border or frame. Full bleed surface only.",
+      "generatedPath": "C:\\Users\\467\\.codex\\generated_images\\01a12ba8-1343-7b53-9776-9c26fed42321\\exec-11d67c2a-1027-4ec9-a622-0e7adb0719ac.png"
+    },
+    {
+      "name": "canyon-road-tile-v1",
+      "width": 1024,
+      "height": 1024,
+      "transparent": false,
+      "prompt": "Use case: stylized-concept. Seamless repeating square opaque texture 1024x1024 for a strict overhead sci-fi desert canyon racing game, premium realistic game art, neutral lighting. Texture must join perfectly on all four edges, periodic tiling in both axes. Surface: compacted dark sandy racing road surface with faint nondirectional wear. Fine restrained detail readable on mobile, no distracting high contrast noise. No perspective, horizon, directional cast shadows, characters, vehicles, markings, text, isolated large stones, border or frame. Full bleed surface only.",
+      "generatedPath": "C:\\Users\\467\\.codex\\generated_images\\01a12ba8-1343-7b53-9776-9c26fed42321\\exec-23ae260b-d7a4-4496-ad16-53561cbef4ed.png"
+    },
+    {
+      "name": "canyon-rock-tile-v1",
+      "width": 1024,
+      "height": 1024,
+      "transparent": false,
+      "prompt": "Use case: stylized-concept. Seamless repeating square opaque texture 1024x1024 for a strict overhead sci-fi desert canyon racing game, premium realistic game art, neutral lighting. Texture must join perfectly on all four edges, periodic tiling in both axes. Surface: layered red sandstone rocky mass surface. Fine restrained detail readable on mobile, no distracting high contrast noise. No perspective, horizon, directional cast shadows, characters, vehicles, markings, text, isolated large stones, border or frame. Full bleed surface only.",
+      "generatedPath": "C:\\Users\\467\\.codex\\generated_images\\01a12ba8-1343-7b53-9776-9c26fed42321\\exec-dc6c75dd-e7dd-4743-9291-f4058f4a4096.png"
+    },
+    {
+      "name": "canyon-bank-a-v1",
+      "width": 1024,
+      "height": 1024,
+      "transparent": true,
+      "prompt": "Edit the supplied game asset. Change ONLY the camera to a STRICT VERTICAL ORTHOGRAPHIC BIRD'S EYE PLAN VIEW: camera points straight down 90 degrees, like a satellite looking straight down. No camera tilt, no perspective, no isometric view. For rocks, show ONLY the top surfaces, NOT vertical cliff faces or front walls. For the gate post show ONLY its horizontal top cap and top footprint; NO vertical front panels, elevated antenna side or side elevation. Preserve the original red sandstone / weathered titanium and turquoise material palette, original irregular footprint and identity, realistic detailed game rendering, neutral overhead light. Object wholly centered with at least 8% transparent margin on all sides. Genuine transparent background. No ground, road, text, logos, shadows beyond footprint. One single asset.",
+      "generatedPath": "C:\\Users\\467\\.codex\\generated_images\\01a12ba8-1343-7b53-9776-9c26fed42321\\exec-fc973b89-7074-4cba-b025-e6f09d4548ad.png",
+      "original_prompt": "Use case: stylized-concept. Production sprite for SRO Red Canyon top-down browser sci-fi racing game. Strict orthographic overhead camera, no perspective or isometric tilt. Premium realistic game render, readable compact silhouette and restrained detail readable on mobile, weathered materials, neutral soft overhead light. Whole object fully visible with ample transparent margin on every side. Genuine transparent background, clean alpha edges. No ground, text, lettering, logos, watermark, interface, vehicles other than requested subject, long cast shadows. Square PNG 1024x1024. One elongated irregular red sandstone canyon ledge with jagged edge facing DOWN, sufficient solid rock depth on upper side of edge. Detailed layered weathered rock, warm red-brown and ochre strata, broken irregular silhouette. Entire formation isolated fully in frame. No road or surrounding terrain.",
+      "original_generated_path": "C:\\Users\\467\\.codex\\generated_images\\01a12ba8-1343-7b53-9776-9c26fed42321\\exec-267eed0e-4e52-4fa7-ba7d-919963f24569.png",
+      "source_file": "revisions/canyon-bank-a-v1.png"
+    },
+    {
+      "name": "canyon-bank-b-v1",
+      "width": 1024,
+      "height": 1024,
+      "transparent": true,
+      "prompt": "Edit the supplied game asset. Change ONLY the camera to a STRICT VERTICAL ORTHOGRAPHIC BIRD'S EYE PLAN VIEW: camera points straight down 90 degrees, like a satellite looking straight down. No camera tilt, no perspective, no isometric view. For rocks, show ONLY the top surfaces, NOT vertical cliff faces or front walls. For the gate post show ONLY its horizontal top cap and top footprint; NO vertical front panels, elevated antenna side or side elevation. Preserve the original red sandstone / weathered titanium and turquoise material palette, original irregular footprint and identity, realistic detailed game rendering, neutral overhead light. Object wholly centered with at least 8% transparent margin on all sides. Genuine transparent background. No ground, road, text, logos, shadows beyond footprint. One single asset.",
+      "generatedPath": "C:\\Users\\467\\.codex\\generated_images\\01a12ba8-1343-7b53-9776-9c26fed42321\\exec-9d4de8f9-e113-41f5-b3ae-bc07eb1da670.png",
+      "original_prompt": "Use case: stylized-concept. Production sprite for SRO Red Canyon top-down browser sci-fi racing game. Strict orthographic overhead camera, no perspective or isometric tilt. Premium realistic game render, readable compact silhouette and restrained detail readable on mobile, weathered materials, neutral soft overhead light. Whole object fully visible with ample transparent margin on every side. Genuine transparent background, clean alpha edges. No ground, text, lettering, logos, watermark, interface, vehicles other than requested subject, long cast shadows. Square PNG 1024x1024. One wider red sandstone canyon ledge with a concave recess along its lower edge, ample solid rock depth on upper side. Detailed layered weathered rock, warm red-brown and ochre strata, broken irregular silhouette. Entire formation isolated fully in frame. No road or surrounding terrain.",
+      "original_generated_path": "C:\\Users\\467\\.codex\\generated_images\\01a12ba8-1343-7b53-9776-9c26fed42321\\exec-22991238-4cb0-4fab-9857-251bb46d67da.png",
+      "source_file": "revisions/canyon-bank-b-v1.png"
+    },
+    {
+      "name": "canyon-spur-v1",
+      "width": 1024,
+      "height": 1024,
+      "transparent": true,
+      "prompt": "Edit the supplied game asset. Change ONLY the camera to a STRICT VERTICAL ORTHOGRAPHIC BIRD'S EYE PLAN VIEW: camera points straight down 90 degrees, like a satellite looking straight down. No camera tilt, no perspective, no isometric view. For rocks, show ONLY the top surfaces, NOT vertical cliff faces or front walls. For the gate post show ONLY its horizontal top cap and top footprint; NO vertical front panels, elevated antenna side or side elevation. Preserve the original red sandstone / weathered titanium and turquoise material palette, original irregular footprint and identity, realistic detailed game rendering, neutral overhead light. Object wholly centered with at least 8% transparent margin on all sides. Genuine transparent background. No ground, road, text, logos, shadows beyond footprint. One single asset.",
+      "generatedPath": "C:\\Users\\467\\.codex\\generated_images\\01a12ba8-1343-7b53-9776-9c26fed42321\\exec-99c83fbd-21b9-45ce-9f11-a8d67cbaaf42.png",
+      "original_prompt": "Use case: stylized-concept. Production sprite for SRO Red Canyon top-down browser sci-fi racing game. Strict orthographic overhead camera, no perspective or isometric tilt. Premium realistic game render, readable compact silhouette and restrained detail readable on mobile, weathered materials, neutral soft overhead light. Whole object fully visible with ample transparent margin on every side. Genuine transparent background, clean alpha edges. No ground, text, lettering, logos, watermark, interface, vehicles other than requested subject, long cast shadows. Square PNG 1024x1024. One short pointed red sandstone rocky spur extending DOWN from a wide upper base. Detailed layered weathered rock, warm red-brown and ochre strata, broken irregular silhouette. Entire formation isolated fully in frame. No road or surrounding terrain.",
+      "original_generated_path": "C:\\Users\\467\\.codex\\generated_images\\01a12ba8-1343-7b53-9776-9c26fed42321\\exec-3784ebf9-4249-439b-8369-64fd292bd7ae.png",
+      "source_file": "revisions/canyon-spur-v1.png"
+    },
+    {
+      "name": "canyon-rock-small-v1",
+      "width": 512,
+      "height": 512,
+      "transparent": true,
+      "prompt": "ONE SINGLE SMALL RED SANDSTONE STONE. This image contains only a natural angular reddish brown stone, an irregular compact rock chunk, weathered sedimentary mineral, seen from directly vertically above, orthographic plan view, camera points down 90 degrees. Realistic stone texture and simple readable small silhouette. The stone is centered fully in frame with 15% transparent margin. Genuine transparent background. Neutral soft overhead lighting. Square PNG. No manmade objects, no metal, no machinery, no wheels, no vehicle, no car, no spacecraft, no ground, no long cast shadow, no text. Only ONE NATURAL ROCK.",
+      "generatedPath": "C:\\Users\\467\\.codex\\generated_images\\01a12ba8-1343-7b53-9776-9c26fed42321\\exec-5140abbf-a944-48e6-ba4a-975606379ed1.png",
+      "original_prompt": "Use case: stylized-concept. Production sprite for SRO Red Canyon top-down browser sci-fi racing game. Strict orthographic overhead camera, no perspective or isometric tilt. Premium realistic game render, readable compact silhouette and restrained detail readable on mobile, weathered materials, neutral soft overhead light. Whole object fully visible with ample transparent margin on every side. Genuine transparent background, clean alpha edges. No ground, text, lettering, logos, watermark, interface, vehicles other than requested subject, long cast shadows. Square PNG 512x512. one small compact angular red sandstone stone. Match red sandstone and worn titanium industrial palette.",
+      "original_generated_path": "C:\\Users\\467\\.codex\\generated_images\\01a12ba8-1343-7b53-9776-9c26fed42321\\exec-8d646410-73c6-4427-b18e-7b70c34f93e0.png",
+      "source_file": "revisions/canyon-rock-small-v1.png"
+    },
+    {
+      "name": "canyon-rock-large-v1",
+      "width": 512,
+      "height": 512,
+      "transparent": true,
+      "prompt": "Use case: stylized-concept. Production sprite for SRO Red Canyon top-down browser sci-fi racing game. Strict orthographic overhead camera, no perspective or isometric tilt. Premium realistic game render, readable compact silhouette and restrained detail readable on mobile, weathered materials, neutral soft overhead light. Whole object fully visible with ample transparent margin on every side. Genuine transparent background, clean alpha edges. No ground, text, lettering, logos, watermark, interface, vehicles other than requested subject, long cast shadows. Square PNG 512x512. one large bulky red sandstone boulder. Match red sandstone and worn titanium industrial palette.",
+      "generatedPath": "C:\\Users\\467\\.codex\\generated_images\\01a12ba8-1343-7b53-9776-9c26fed42321\\exec-2090f245-9b91-4ea2-b5a9-f6c66ec7ae0b.png"
+    },
+    {
+      "name": "canyon-rock-cluster-v1",
+      "width": 512,
+      "height": 512,
+      "transparent": true,
+      "prompt": "Use case: stylized-concept. Production sprite for SRO Red Canyon top-down browser sci-fi racing game. Strict orthographic overhead camera, no perspective or isometric tilt. Premium realistic game render, readable compact silhouette and restrained detail readable on mobile, weathered materials, neutral soft overhead light. Whole object fully visible with ample transparent margin on every side. Genuine transparent background, clean alpha edges. No ground, text, lettering, logos, watermark, interface, vehicles other than requested subject, long cast shadows. Square PNG 512x512. one compact cluster of three red sandstone rocks. Match red sandstone and worn titanium industrial palette.",
+      "generatedPath": "C:\\Users\\467\\.codex\\generated_images\\01a12ba8-1343-7b53-9776-9c26fed42321\\exec-6973ee1c-892a-4257-9a31-4c9a9ac1b4ee.png"
+    },
+    {
+      "name": "canyon-column-v1",
+      "width": 512,
+      "height": 512,
+      "transparent": true,
+      "prompt": "Use case: stylized-concept. Production sprite for SRO Red Canyon top-down browser sci-fi racing game. Strict orthographic overhead camera, no perspective or isometric tilt. Premium realistic game render, readable compact silhouette and restrained detail readable on mobile, weathered materials, neutral soft overhead light. Whole object fully visible with ample transparent margin on every side. Genuine transparent background, clean alpha edges. No ground, text, lettering, logos, watermark, interface, vehicles other than requested subject, long cast shadows. Square PNG 512x512. one short industrial column seen from directly above, circular worn titanium top, no visible side elevation. Match red sandstone and worn titanium industrial palette.",
+      "generatedPath": "C:\\Users\\467\\.codex\\generated_images\\01a12ba8-1343-7b53-9776-9c26fed42321\\exec-37ae9265-f4a3-47a8-9f7d-237440440c26.png"
+    },
+    {
+      "name": "canyon-pipe-v1",
+      "width": 512,
+      "height": 512,
+      "transparent": true,
+      "prompt": "Use case: stylized-concept. Production sprite for SRO Red Canyon top-down browser sci-fi racing game. Strict orthographic overhead camera, no perspective or isometric tilt. Premium realistic game render, readable compact silhouette and restrained detail readable on mobile, weathered materials, neutral soft overhead light. Whole object fully visible with ample transparent margin on every side. Genuine transparent background, clean alpha edges. No ground, text, lettering, logos, watermark, interface, vehicles other than requested subject, long cast shadows. Square PNG 512x512. one bent metal pipe, worn dusty titanium industrial palette. Match red sandstone and worn titanium industrial palette.",
+      "generatedPath": "C:\\Users\\467\\.codex\\generated_images\\01a12ba8-1343-7b53-9776-9c26fed42321\\exec-5f04da2d-6347-40f3-a0ab-f18139ffb091.png"
+    },
+    {
+      "name": "canyon-scrap-v1",
+      "width": 512,
+      "height": 512,
+      "transparent": true,
+      "prompt": "Use case: stylized-concept. Production sprite for SRO Red Canyon top-down browser sci-fi racing game. Strict orthographic overhead camera, no perspective or isometric tilt. Premium realistic game render, readable compact silhouette and restrained detail readable on mobile, weathered materials, neutral soft overhead light. Whole object fully visible with ample transparent margin on every side. Genuine transparent background, clean alpha edges. No ground, text, lettering, logos, watermark, interface, vehicles other than requested subject, long cast shadows. Square PNG 512x512. one compact heap of mechanical scrap, weathered dusty titanium and graphite. Match red sandstone and worn titanium industrial palette.",
+      "generatedPath": "C:\\Users\\467\\.codex\\generated_images\\01a12ba8-1343-7b53-9776-9c26fed42321\\exec-c5513ba0-0725-4e43-8e61-57cd38ad28b0.png"
+    },
+    {
+      "name": "canyon-beacon-v1",
+      "width": 512,
+      "height": 512,
+      "transparent": true,
+      "prompt": "Use case: stylized-concept. Production sprite for SRO Red Canyon top-down browser sci-fi racing game. Strict orthographic overhead camera, no perspective or isometric tilt. Premium realistic game render, readable compact silhouette and restrained detail readable on mobile, weathered materials, neutral soft overhead light. Whole object fully visible with ample transparent margin on every side. Genuine transparent background, clean alpha edges. No ground, text, lettering, logos, watermark, interface, vehicles other than requested subject, long cast shadows. Square PNG 512x512. one small turquoise glowing racing beacon, worn titanium housing, compact round top seen from directly above. Match red sandstone and worn titanium industrial palette.",
+      "generatedPath": "C:\\Users\\467\\.codex\\generated_images\\01a12ba8-1343-7b53-9776-9c26fed42321\\exec-f785a69b-14fd-40d1-a09d-28e02ed82c89.png"
+    },
+    {
+      "name": "race-arrow-v1",
+      "width": 512,
+      "height": 512,
+      "transparent": true,
+      "prompt": "ONE SINGLE OCHRE RIGHT-POINTING PAINTED ARROW DECAL, NOTHING ELSE. Flat worn ochre arrow symbol, simple thick horizontal shaft with triangular arrowhead on RIGHT, entirely filled in mustard ochre paint with subtle chipped wear. Directly overhead flat 2D orthographic view, isolated centered with ample margin, transparent background, square PNG. Only the paint shape is visible. No road, no surface, no vehicle, no car, no spaceship, no object, no machinery, no wheels, no logos, no lettering, no text, no shadow. The image contains only the RIGHT ARROW.",
+      "generatedPath": "C:\\Users\\467\\.codex\\generated_images\\01a12ba8-1343-7b53-9776-9c26fed42321\\exec-93529f98-2edd-410b-a99a-e633e2ab4b87.png",
+      "original_prompt": "Use case: stylized-concept. Production sprite for SRO Red Canyon top-down browser sci-fi racing game. Strict orthographic overhead camera, no perspective or isometric tilt. Premium realistic game render, readable compact silhouette and restrained detail readable on mobile, weathered materials, neutral soft overhead light. Whole object fully visible with ample transparent margin on every side. Genuine transparent background, clean alpha edges. No ground, text, lettering, logos, watermark, interface, vehicles other than requested subject, long cast shadows. Square PNG 512x512. one small RIGHT-pointing road arrow made of worn ochre paint, painted flat decal only. Match red sandstone and worn titanium industrial palette.",
+      "original_generated_path": "C:\\Users\\467\\.codex\\generated_images\\01a12ba8-1343-7b53-9776-9c26fed42321\\exec-f2697e48-07e1-4a27-a8a2-e4c3f619c1dc.png",
+      "source_file": "revisions/race-arrow-v1.png"
+    },
+    {
+      "name": "race-start-stripe-v1",
+      "width": 512,
+      "height": 512,
+      "transparent": true,
+      "prompt": "Use case: stylized-concept. Production sprite for SRO Red Canyon top-down browser sci-fi racing game. Strict orthographic overhead camera, no perspective or isometric tilt. Premium realistic game render, readable compact silhouette and restrained detail readable on mobile, weathered materials, neutral soft overhead light. Whole object fully visible with ample transparent margin on every side. Genuine transparent background, clean alpha edges. No ground, text, lettering, logos, watermark, interface, vehicles other than requested subject, long cast shadows. Square PNG 512x512. one segment of a checkerboard race start stripe, long narrow vertical strip with alternating off-white and graphite squares, worn painted flat decal assembled across the track. Match red sandstone and worn titanium industrial palette.",
+      "generatedPath": "C:\\Users\\467\\.codex\\generated_images\\01a12ba8-1343-7b53-9776-9c26fed42321\\exec-e6101d27-db41-4327-b41c-51eb607a68d8.png"
+    },
+    {
+      "name": "race-checkpoint-post-v1",
+      "width": 512,
+      "height": 512,
+      "transparent": true,
+      "prompt": "Edit the supplied game asset. Change ONLY the camera to a STRICT VERTICAL ORTHOGRAPHIC BIRD'S EYE PLAN VIEW: camera points straight down 90 degrees, like a satellite looking straight down. No camera tilt, no perspective, no isometric view. For rocks, show ONLY the top surfaces, NOT vertical cliff faces or front walls. For the gate post show ONLY its horizontal top cap and top footprint; NO vertical front panels, elevated antenna side or side elevation. Preserve the original red sandstone / weathered titanium and turquoise material palette, original irregular footprint and identity, realistic detailed game rendering, neutral overhead light. Object wholly centered with at least 8% transparent margin on all sides. Genuine transparent background. No ground, road, text, logos, shadows beyond footprint. One single asset.",
+      "generatedPath": "C:\\Users\\467\\.codex\\generated_images\\01a12ba8-1343-7b53-9776-9c26fed42321\\exec-4d7f9ad2-0675-44ca-a84e-2dd1bf1d0288.png",
+      "original_prompt": "Use case: stylized-concept. Production sprite for SRO Red Canyon top-down browser sci-fi racing game. Strict orthographic overhead camera, no perspective or isometric tilt. Premium realistic game render, readable compact silhouette and restrained detail readable on mobile, weathered materials, neutral soft overhead light. Whole object fully visible with ample transparent margin on every side. Genuine transparent background, clean alpha edges. No ground, text, lettering, logos, watermark, interface, vehicles other than requested subject, long cast shadows. Square PNG 512x512. one compact industrial checkpoint gate post seen from directly overhead, worn titanium housing with turquoise light; single freestanding post only, no gate beam. Match red sandstone and worn titanium industrial palette.",
+      "original_generated_path": "C:\\Users\\467\\.codex\\generated_images\\01a12ba8-1343-7b53-9776-9c26fed42321\\exec-5f8b5a08-2ed0-44fc-b94d-82c2d295ee87.png",
+      "source_file": "revisions/race-checkpoint-post-v1.png"
+    }
+  ]
+}

@@ -50,7 +50,7 @@ public sealed record RaceRules
 }
 public sealed record RaceConfig(RaceTrack Track, RaceRules Rules, string Hash)
 {
-    public string RankingKey => $"{Track.Id}:{Track.Version}:{Rules.Id}:{Rules.VehicleVersion}:{Track.LapCount}";
+    public string RankingKey => $"{Track.Id}:{Track.Version}:{Rules.Id}:{Rules.VehicleVersion}:{Track.LapCount}:browser-v1";
     public static RaceConfig Load(string directory)
     {
         var rulesText = File.ReadAllText(Path.Combine(directory, "rules.json"));

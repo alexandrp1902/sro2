@@ -4,7 +4,8 @@ using Sro.Sim.Race;
 namespace Sro.Server.Game;
 
 public sealed record RaceResult(string SessionId, string? PlayerId, string Name, string RankingKey,
-    string Status, string? Reason, int ElapsedMs, int? TotalMs, int[] LapTimesMs, DateTimeOffset FinishedAt, int SchemaVersion = 1);
+    string Status, string? Reason, int ElapsedMs, int? TotalMs, int[] LapTimesMs, DateTimeOffset FinishedAt, int SchemaVersion = 1,
+    DateTimeOffset? StartedAt = null);
 public sealed record RaceRank(int Rank, string Name, int TimeMs, DateTimeOffset AchievedAt);
 public sealed record RaceBoard(string RankingKey, string Kind, RaceRank[] Rows, RaceRank? Self);
 public sealed class RaceResultStore

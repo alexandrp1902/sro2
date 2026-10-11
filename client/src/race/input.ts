@@ -1,4 +1,4 @@
-﻿import { keymap } from '../input/keymap';
+import { keymap } from '../input/keymap';
 import type { Input } from './types';
 
 /** Throttle is selected speed, independent of steering. */
@@ -6,19 +6,17 @@ export class RaceInput {
   value: Input = { seq: 0, steerMode: 'turn', heading: 0, turn: 0, throttle: 0, brake: false, controlActive: true };
   private held = new Set<string>();
   private stickPointer: number | null = null;
-  private speedPointer: number | null = null;
   private brakePointer: number | null = null;
   private abort: AbortController | null = null;
   private captures = new Map<number, HTMLElement>();
-  private speed: HTMLInputElement | null = null;
   private knob: HTMLElement | null = null;
   constructor(private changed: () => void, private menu: () => void, private running: () => boolean) {}
   private holds(action: 'thrust' | 'brake' | 'left' | 'right', code: string): boolean {
     const defaults = { thrust: ['KeyW', 'ArrowUp'], brake: ['KeyS', 'ArrowDown'], left: ['KeyA', 'ArrowLeft'], right: ['KeyD', 'ArrowRight'] };
     return defaults[action].includes(code) || keymap.holds(action, code);
   }
-  bind(root: HTMLElement, stick: HTMLElement, knob: HTMLElement, speed: HTMLInputElement, brake: HTMLButtonElement): void {
-    this.unbind(); this.speed = speed; this.knob = knob;
+  bind(root: HTMLElement, stick: HTMLElement, knob: HTMLElement, brake: HTMLButtonElement): void {
+    this.unbind(); this.knob = knob;
     this.abort = new AbortController(); const signal = this.abort.signal;
     const reset = (active: boolean) => { this.safe(active); this.changed(); };
     window.addEventListener('keydown', e => {
@@ -54,6 +52,7 @@ export class RaceInput {
       const box = stick.getBoundingClientRect(), radius = box.width * .4;
       const x = e.clientX - box.left - box.width / 2, y = e.clientY - box.top - box.height / 2;
       const magnitude = Math.hypot(x, y), scale = magnitude > radius ? radius / magnitude : 1;
+      this.setSpeed(Math.min(1, magnitude / radius));
       if (magnitude > 4) this.value.heading = Math.atan2(y, x);
       this.value.steerMode = 'heading'; this.value.turn = 0;
       knob.style.transform = `translate(${x * scale}px, ${y * scale}px)`; this.changed();
@@ -63,28 +62,13 @@ export class RaceInput {
       this.stickPointer = e.pointerId; capture(e, stick); moveStick(e);
     }, { signal });
     stick.addEventListener('pointermove', moveStick, { signal });
-    const moveSpeed = (e: PointerEvent) => {
-      if (e.pointerId !== this.speedPointer || !this.running()) return;
-      const box = speed.getBoundingClientRect();
-      this.setSpeed(1 - (e.clientY - box.top - 12) / (box.height - 24)); this.changed();
-    };
-    speed.addEventListener('pointerdown', e => {
-      if (!this.running() || this.speedPointer !== null) return;
-      this.speedPointer = e.pointerId; capture(e, speed); moveSpeed(e);
-    }, { signal });
-    speed.addEventListener('pointermove', moveSpeed, { signal });
-    speed.addEventListener('input', () => {
-      if (!this.running()) { speed.value = String(this.value.throttle * 100); return; }
-      this.setSpeed(Number(speed.value) / 100); this.changed();
-    }, { signal });
     brake.addEventListener('pointerdown', e => {
       if (!this.running() || this.brakePointer !== null) return;
       this.brakePointer = e.pointerId; capture(e, brake); this.updateKeys(); this.changed();
     }, { signal });
-    for (const node of [stick, speed, brake]) {
+    for (const node of [stick, brake]) {
       node.addEventListener('pointerup', e => {
-        if (e.pointerId === this.stickPointer) { this.stickPointer = null; knob.style.transform = ''; }
-        if (e.pointerId === this.speedPointer) this.speedPointer = null;
+        if (e.pointerId === this.stickPointer) { this.stickPointer = null; }
         if (e.pointerId === this.brakePointer) { this.brakePointer = null; this.updateKeys(); this.changed(); }
         this.captures.delete(e.pointerId);
       }, { signal });
@@ -100,7 +84,6 @@ export class RaceInput {
   }
   private setSpeed(value: number): void {
     this.value.throttle = Math.max(0, Math.min(1, value));
-    if (this.speed) this.speed.value = String(this.value.throttle * 100);
   }
   private updateKeys(): void {
     this.value.brake = this.held.has('Space') || this.brakePointer !== null;
@@ -112,9 +95,9 @@ export class RaceInput {
     this.value = { ...this.value, turn: 0, steerMode: 'turn', brake: false, controlActive: active };
   }
   private release(): void {
-    this.stickPointer = this.speedPointer = this.brakePointer = null;
+    this.stickPointer = this.brakePointer = null;
     const captures = [...this.captures]; this.captures.clear();
     for (const [id, node] of captures) if (node.hasPointerCapture(id)) node.releasePointerCapture(id);
   }
-  unbind(): void { this.abort?.abort(); this.abort = null; this.safe(true); this.speed = this.knob = null; }
+  unbind(): void { this.abort?.abort(); this.abort = null; this.safe(true); this.knob = null; }
 }

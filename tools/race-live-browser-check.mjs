@@ -46,9 +46,9 @@ try {
   await sleep(3600);assert(await evaluate(`document.querySelector('.race-hud').textContent.includes('Круг 1/3')`));
   await cdp('Input.dispatchKeyEvent',{type:'keyDown',code:'KeyW',key:'w'});await sleep(500);await cdp('Input.dispatchKeyEvent',{type:'keyUp',code:'KeyW',key:'w'});
   assert(await click('Выход'));assert(await evaluate(`document.querySelector('.race-exit').textContent.includes('Заезд продолжается')`));
-  assert(await click('Прервать заезд'));await until(()=>evaluate(`document.querySelector('#race').textContent.includes('ABORT')`),'abort result');
+  assert(await click('Прервать заезд'));await until(()=>evaluate(`document.querySelector('#race').textContent.includes('ABORT')&&[...document.querySelectorAll('#race button')].filter(b=>!b.disabled).length===2`),'abort result');
   assert(await click('Повторить'));await until(()=>evaluate(`!!document.querySelector('.race-countdown')`),'retry');await sleep(500);
-  assert(await click('Выход'));assert(await click('Прервать заезд'));await until(()=>evaluate(`document.querySelector('#race').textContent.includes('ABORT')`),'retry abort');
+  assert(await click('Выход'));assert(await click('Прервать заезд'));await until(()=>evaluate(`document.querySelector('#race').textContent.includes('ABORT')&&[...document.querySelectorAll('#race button')].filter(b=>!b.disabled).length===2`),'retry abort');
   assert(await click('В терминал'));assert(await click('Назад в док'));assert(await evaluate(`!document.body.classList.contains('race-open')`));
   assert(await click('Вылет'));await until(()=>evaluate(`document.querySelector('#dock').hidden`),'undock');
   assert.equal(errors.length,0,JSON.stringify(errors));mkdirSync('.artifacts/race',{recursive:true});

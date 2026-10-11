@@ -1,37 +1,35 @@
-using System.Diagnostics;
-using Sro.Server.Net;
+﻿using Sro.Server.Net;
 using Sro.Sim.Race;
 
 namespace Sro.Server.Game;
 
-public sealed record RaceSnapshot(string SessionId, int Tick, long AckSeq, string State, RaceVec Position,
-    RaceVec Velocity, double Heading, double Omega, double Hp,
-    int CountdownMs, int Lap, int NextCp, int ElapsedMs, int LapElapsedMs, int[] LapTimesMs);
-
 public sealed partial class Galaxy
 {
-    private sealed class RaceEntry(Player player, string request, RaceSession session)
+    // Only a clock and durable result metadata live on the server. No vehicle simulation.
+    private sealed class RaceEntry(Player player, string request, RaceConfig config, long created)
     {
+        public readonly string Id = Guid.NewGuid().ToString("N");
         public Player Player = player;
-        public string Request = request;
-        public RaceSession Session = session;
+        public readonly string Request = request;
+        public readonly RaceConfig Config = config;
+        public readonly long CreatedAt = created;
+        public long? StartTick;
+        public DateTimeOffset? StartedAt;
         public RaceResult? Result;
         public Task? Save;
         public long RetryAt;
         public bool Published;
         public bool Confirmed;
-        public long InputWindow;
-        public int InputCount;
-        public long CreatedAt = Stopwatch.GetTimestamp();
+        public bool Active => Result is null;
     }
     private readonly Dictionary<string, RaceEntry> _races = [];
     private RaceConfig? _raceConfig;
     private RaceResultStore? _raceStore;
-    private long _raceClock;
-    public void ConfigureRace(RaceConfig config, RaceResultStore store)
-    { _raceConfig = config; _raceStore = store; _raceClock = Stopwatch.GetTimestamp(); }
+    private TimeProvider _raceTime = TimeProvider.System;
+    public void ConfigureRace(RaceConfig config, RaceResultStore store, TimeProvider? time = null)
+    { _raceConfig = config; _raceStore = store; _raceTime = time ?? TimeProvider.System; }
     private static string RaceOwner(Player p) => p.AccountId ?? $"guest:{p.Id}";
-    public bool InRace(Player p) => _races.Values.Any(e => RaceOwner(e.Player) == RaceOwner(p) && e.Session.Active);
+    public bool InRace(Player p) => _races.Values.Any(e => RaceOwner(e.Player) == RaceOwner(p) && e.Active);
     public void Race(IClientConnection connection, RaceActMsg m)
     {
         if (RoomOf(connection)?.PlayerOf(connection) is not { } p || _raceConfig is not { } config || _raceStore is null) return;
@@ -49,9 +47,8 @@ public sealed partial class Galaxy
             if (duplicate is not null) { Joined(duplicate); return; }
             if (!config.Track.IsActive) { Error("TRACK_UNAVAILABLE"); return; }
             if (InMech(p) || InRace(p)) { Error("RACE_ALREADY_ACTIVE"); return; }
-            var entry = new RaceEntry(p, m.RequestId, new RaceSession(config));
-            _races.Add(entry.Session.Id, entry);
-            _log.LogInformation("Race {Session} joined, config {Key}", entry.Session.Id, config.RankingKey);
+            var entry = new RaceEntry(p, m.RequestId, config, _raceTime.GetTimestamp());
+            _races.Add(entry.Id, entry);
             Joined(entry); return;
         }
         if (m.SessionId is null) { Error("SESSION_NOT_FOUND"); return; }
@@ -69,75 +66,104 @@ public sealed partial class Galaxy
         switch (m.Act)
         {
             case "ready":
-                if (m.ConfigHash != own.Session.Config.Hash) { Error("CONFIG_MISMATCH"); return; }
-                if (own.Session.State == "COUNTDOWN") break;
-                if (!own.Session.Ready(m.ConfigHash)) Error("INVALID_STATE");
+                if (!own.Active) { Error("INVALID_STATE"); return; }
+                if (m.ConfigHash != own.Config.Hash) { Error("CONFIG_MISMATCH"); return; }
+                if (!own.StartTick.HasValue)
+                {
+                    var seconds = own.Config.Rules.CountdownSeconds;
+                    own.StartTick = _raceTime.GetTimestamp() + (long)Math.Round(seconds * _raceTime.TimestampFrequency);
+                    own.StartedAt = _raceTime.GetUtcNow().AddSeconds(seconds);
+                }
+                Started(own); break;
+            case "finish":
+                if (own.Result is not null) { Publish(own); return; }
+                var finish = m.Finish;
+                if ((!own.StartTick.HasValue || _raceTime.GetTimestamp() < own.StartTick.Value) && finish?.Status != "ABORTED")
+                { Error("INVALID_STATE"); return; }
+                var laps = finish?.LapTimesMs ?? [];
+                if (finish is null || finish.Status is not ("FINISHED" or "CRASHED" or "ABORTED") ||
+                    laps.Length > own.Config.Track.LapCount || laps.Any(t => t <= 0 || t > own.Config.Rules.TimeLimitSeconds * 1000) ||
+                    (finish.Status == "FINISHED" && laps.Length != own.Config.Track.LapCount) ||
+                    (finish.Status == "CRASHED" && finish.Reason is not ("WALL" or "COLUMN" or "ROCK")))
+                { Error("INVALID_INPUT"); return; }
+                var elapsed = Elapsed(own);
+                if (laps.Length > 0 && elapsed < laps.Length * own.Config.Track.Length / own.Config.Rules.EngineLimit * 500)
+                { Error("INVALID_RESULT"); return; }
+                var minimum = own.Config.Track.Length * own.Config.Track.LapCount / own.Config.Rules.EngineLimit * 500;
+                if (finish.Status == "FINISHED" && elapsed < minimum) { Error("INVALID_RESULT"); return; }
+                if (elapsed > own.Config.Rules.TimeLimitSeconds * 1000) End(own, "ABORTED", "TIME_LIMIT", []);
+                else End(own, finish.Status, finish.Status == "FINISHED" ? null : finish.Reason, ScaleLaps(laps, elapsed, finish.Status == "FINISHED"), elapsed);
                 break;
-            case "input":
-                if (own.InputWindow != Tick) { own.InputWindow = Tick; own.InputCount = 0; }
-                if (++own.InputCount > 6) { Error("RATE_LIMITED"); return; }
-                if (m.Input is null || !m.Input.Valid) { Error("INVALID_INPUT"); return; }
-                own.Session.Apply(m.Input); break;
-            case "abort": own.Session.Abort("USER_ABORT"); break;
+            case "abort":
+                if (own.Active) End(own, "ABORTED", "USER_ABORT", []); else Publish(own);
+                break;
             case "result":
                 if (own.Result is null) { Error("RESULT_PENDING"); return; }
                 Publish(own); break;
             default: Error("INVALID_INPUT"); break;
         }
-        void Joined(RaceEntry e) => connection.Send(new RaceEventMsg("joined", m.RequestId, e.Session.Id,
-            Config: e.Session.Config, Snapshot: Snapshot(e.Session)));
+        void Joined(RaceEntry e) => connection.Send(new RaceEventMsg("joined", m.RequestId, e.Id, Config: e.Config));
+        void Started(RaceEntry e) => connection.Send(new RaceEventMsg("started", SessionId: e.Id,
+            CountdownMs: Math.Max(0, (int)Math.Ceiling(_raceTime.GetElapsedTime(_raceTime.GetTimestamp(), e.StartTick!.Value).TotalMilliseconds)), StartedAt: e.StartedAt));
     }
-    private static RaceSnapshot Snapshot(RaceSession s) => new(s.Id, s.Tick, s.Input.Seq, s.State,
-        s.Body.Position, s.Body.Velocity, s.Body.Heading, s.Body.Omega, s.Body.Hp,
-        s.CountdownMs, Math.Min(s.Config.Track.LapCount, s.LapTimesMs.Count + 1), s.NextCp,
-        s.ElapsedMs, s.ElapsedMs - s.LapTimesMs.Sum(), s.LapTimesMs.ToArray());
+    private int Elapsed(RaceEntry e) => !e.StartTick.HasValue ? 0 : Math.Max(0, (int)Math.Round(_raceTime.GetElapsedTime(e.StartTick.Value).TotalMilliseconds));
+    private static int[] ScaleLaps(int[] laps, int elapsed, bool finished)
+    {
+        if (laps.Length == 0) return [];
+        var sum = laps.Sum(t => (long)t);
+        var scale = finished || sum > elapsed ? elapsed / (double)sum : 1;
+        var total = 0;
+        long cumulative = 0;
+        return laps.Select((t, i) => {
+            cumulative += t;
+            var boundary = (int)Math.Round(cumulative * scale);
+            boundary = Math.Clamp(boundary, total + 1, elapsed - (laps.Length - i - 1));
+            var value = boundary - total;
+            total = boundary; return value;
+        }).ToArray();
+    }
+    private void End(RaceEntry e, string status, string? reason, int[] laps, int? measuredElapsed = null)
+    {
+        var elapsed = measuredElapsed ?? Elapsed(e);
+        e.Result = new(e.Id, e.Player.AccountId, e.Player.Name, e.Config.RankingKey, status, reason,
+            elapsed, status == "FINISHED" ? elapsed : null, laps, _raceTime.GetUtcNow(), SchemaVersion: 2, StartedAt: e.StartedAt);
+        Publish(e);
+    }
     private void Publish(RaceEntry e)
     {
-        e.Player.Connection?.Send(new RaceEventMsg("result", SessionId: e.Session.Id, Result: e.Result,
-            Snapshot: Snapshot(e.Session),
+        e.Player.Connection?.Send(new RaceEventMsg("result", SessionId: e.Id, Result: e.Result,
             ValidationStatus: e.Confirmed ? "CONFIRMED" : "PENDING",
-            Board: e.Confirmed ? _raceStore!.Board(e.Session.Config.RankingKey, "total", e.Player.AccountId) : null));
+            Board: e.Confirmed ? _raceStore!.Board(e.Config.RankingKey, "total", e.Player.AccountId) : null));
         e.Published = true;
     }
-    private void StepRace()
+    private void MaintainRaces()
     {
         if (_raceConfig is null || _raceStore is null) return;
-        var now = Stopwatch.GetTimestamp();
-        var overload = Stopwatch.GetElapsedTime(_raceClock, now).TotalSeconds > _raceConfig.Rules.OverloadSeconds;
-        _raceClock = now;
+        var now = _raceTime.GetTimestamp();
         foreach (var e in _races.Values)
         {
-            var s = e.Session;
-            if (overload && s.Active && Stopwatch.GetElapsedTime(e.CreatedAt, now).TotalSeconds > s.Config.Rules.OverloadSeconds) s.Abort("SERVER_OVERLOAD");
-            for (var i = 0; i < 3 && s.Active; i++) s.Step();
-            if (s.Active)
+            if (e.Active)
             {
-                e.Player.Connection?.Send(new RaceEventMsg("snapshot", SessionId: s.Id, Snapshot: Snapshot(s)));
-                if (s.ContactLimit) _log.LogWarning("Race contact iteration limit {Session}", s.Id);
-                continue;
-            }
-            if (e.Result is null)
-            {
-                e.Result = new(s.Id, e.Player.AccountId, e.Player.Name, s.Config.RankingKey,
-                    s.State, s.Reason, s.ElapsedMs, s.State == "FINISHED" ? s.ElapsedMs : null,
-                    s.LapTimesMs.ToArray(), DateTimeOffset.UtcNow);
-                _log.LogInformation("Race {Session} ended {Status}/{Reason}, {Elapsed}ms, vn {NormalSpeed}", s.Id, s.State, s.Reason, s.ElapsedMs, s.LastNormalSpeed);
+                if (!e.StartTick.HasValue && _raceTime.GetElapsedTime(e.CreatedAt, now).TotalSeconds >= e.Config.Rules.LoadTimeoutSeconds)
+                    End(e, "ABORTED", "LOAD_TIMEOUT", []);
+                else if (e.StartTick.HasValue && Elapsed(e) > e.Config.Rules.TimeLimitSeconds * 1000)
+                    End(e, "ABORTED", "TIME_LIMIT", []);
+                else continue;
             }
             if (e.Save is { IsCompleted: true } task)
             {
                 if (task.IsCompletedSuccessfully) { e.Confirmed = true; e.Save = null; Publish(e); }
                 else
                 {
-                    _log.LogError(task.Exception, "Race result storage unavailable {Session}", s.Id);
-                    e.Save = null; e.RetryAt = now + Stopwatch.Frequency * 5;
-                    e.Player.Connection?.Send(new RaceEventMsg("error", SessionId: s.Id, Code: "STORAGE_UNAVAILABLE"));
+                    _log.LogError(task.Exception, "Race result storage unavailable {Session}", e.Id);
+                    e.Save = null; e.RetryAt = now + _raceTime.TimestampFrequency * 5;
+                    e.Player.Connection?.Send(new RaceEventMsg("error", SessionId: e.Id, Code: "STORAGE_UNAVAILABLE"));
                 }
             }
-            if (!e.Confirmed && e.Save is null && now >= e.RetryAt) e.Save = Task.Run(() => _raceStore.Save(e.Result));
+            if (!e.Confirmed && e.Save is null && now >= e.RetryAt) e.Save = Task.Run(() => _raceStore.Save(e.Result!));
             if (!e.Published) Publish(e);
         }
-        // Durable results remain queryable; keep a bounded replay window in memory.
         foreach (var group in _races.Values.Where(e => e.Confirmed).GroupBy(e => RaceOwner(e.Player)).ToArray())
-            foreach (var old in group.OrderByDescending(e => e.Result!.FinishedAt).Skip(64).ToArray()) _races.Remove(old.Session.Id);
+            foreach (var old in group.OrderByDescending(e => e.Result!.FinishedAt).Skip(64).ToArray()) _races.Remove(old.Id);
     }
 }

@@ -16,7 +16,8 @@ import type { TerritoryAct, TerritoryStateMsg } from '../mech/territoryRules';
 // 38: M22 — workshop, squad, revisions, hands, XP and ground campaign finale.
 // 39: M23 — shared territory, durable seasons and cooperative ownership/timers.
 // 40: authoritative solo gravity races, versioned configuration and persistent rankings.
-export const PROTOCOL_VERSION = 40;
+// 41: browser-only solo races with server start/finish clocks.
+export const PROTOCOL_VERSION = 41;
 
 /** Состояние ИИ пирата: патруль, бой, возврат в логово (налётчик — полёт от врат к точке), уход из системы. */
 export type AiState = 'patrol' | 'attack' | 'return' | 'leave';

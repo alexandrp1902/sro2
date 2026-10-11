@@ -70,4 +70,61 @@ public sealed class RaceTests : IDisposable
         galaxy.Race(a, new("abort", SessionId: joined.SessionId)); Assert.False(galaxy.InRace(player));
         galaxy.Race(a, new("join", "two")); Assert.NotEqual(joined.SessionId, a.Last<RaceEventMsg>().SessionId);
     }
+
+    private sealed class RaceClock : TimeProvider
+    {
+        private long _ticks;
+        public override long TimestampFrequency => TimeSpan.TicksPerSecond;
+        public override long GetTimestamp() => _ticks;
+        public override DateTimeOffset GetUtcNow() => DateTimeOffset.UnixEpoch.AddTicks(_ticks);
+        public void Advance(double seconds) => _ticks += (long)(seconds * TimestampFrequency);
+    }
+    [Fact] public async Task BrowserRaceHasNoSnapshotsAndOfficialTimeUsesServerClock()
+    {
+        var galaxy = new Galaxy(TestBalance.Create(), NullLogger.Instance);
+        var repo = new DirectoryInfo(AppContext.BaseDirectory);
+        while (repo is not null && !Directory.Exists(Path.Combine(repo.FullName, "shared"))) repo = repo.Parent;
+        var config = RaceConfig.Load(Path.Combine(repo!.FullName, "shared", "race"));
+        var clock = new RaceClock(); galaxy.ConfigureRace(config, _store, clock);
+        var client = new FakeConnection(1); galaxy.Join(client, null, "Alice", null);
+        var player = galaxy.RoomOf(client)!.PlayerOf(client)!; player.Docked = true; player.DockedPlace = "pl:tauPrima";
+        galaxy.Race(client, new("join", "clock")); var joined = client.Last<RaceEventMsg>();
+        galaxy.Race(client, new("ready", SessionId: joined.SessionId, ConfigHash: config.Hash));
+        Assert.Equal("started", client.Last<RaceEventMsg>().Event); Assert.Equal(3000, client.Last<RaceEventMsg>().CountdownMs);
+        var started = client.Last<RaceEventMsg>().StartedAt;
+        clock.Advance(1); galaxy.Race(client, new("ready", SessionId: joined.SessionId, ConfigHash: config.Hash));
+        Assert.Equal(started, client.Last<RaceEventMsg>().StartedAt); Assert.Equal(2000, client.Last<RaceEventMsg>().CountdownMs);
+        clock.Advance(62);
+        var count = client.Count<RaceEventMsg>();
+        for (var i = 0; i < 100; i++) galaxy.Step();
+        Assert.Equal(count, client.Count<RaceEventMsg>()); Assert.True(galaxy.InRace(player));
+        galaxy.Race(client, new("finish", SessionId: joined.SessionId, Finish: new("FINISHED", LapTimesMs: [15000, 15000, 15000])));
+        var result = client.Last<RaceEventMsg>().Result!;
+        Assert.Equal(60000, result.TotalMs); Assert.Equal(60000, result.LapTimesMs.Sum()); Assert.False(galaxy.InRace(player));
+        clock.Advance(10); galaxy.Race(client, new("finish", SessionId: joined.SessionId, Finish: new("FINISHED", LapTimesMs: [1, 1, 1])));
+        Assert.Equal(60000, client.Last<RaceEventMsg>().Result!.TotalMs);
+        for (var i = 0; i < 100 && client.Last<RaceEventMsg>().ValidationStatus != "CONFIRMED"; i++) { galaxy.Step(); await Task.Delay(5); }
+        Assert.Equal("CONFIRMED", client.Last<RaceEventMsg>().ValidationStatus);
+        Assert.Equal(60000, new RaceResultStore(_dir).Get(joined.SessionId!)!.TotalMs);
+    }
+
+    [Fact] public void ImmediateFakeFinishIsRejectedButCountdownCanBeCancelled()
+    {
+        var galaxy = new Galaxy(TestBalance.Create(), NullLogger.Instance);
+        var repo = new DirectoryInfo(AppContext.BaseDirectory);
+        while (repo is not null && !Directory.Exists(Path.Combine(repo.FullName, "shared"))) repo = repo.Parent;
+        var config = RaceConfig.Load(Path.Combine(repo!.FullName, "shared", "race"));
+        var clock = new RaceClock(); galaxy.ConfigureRace(config, _store, clock);
+        var c = new FakeConnection(1); galaxy.Join(c, null, "Alice", null);
+        var p = galaxy.RoomOf(c)!.PlayerOf(c)!; p.Docked = true; p.DockedPlace = "pl:tauPrima";
+        galaxy.Race(c, new("join", "fake")); var id = c.Last<RaceEventMsg>().SessionId;
+        galaxy.Race(c, new("ready", SessionId: id, ConfigHash: config.Hash)); clock.Advance(4);
+        galaxy.Race(c, new("finish", SessionId: id, Finish: new("FINISHED", LapTimesMs: [1, 1, 1])));
+        Assert.Equal("INVALID_RESULT", c.Last<RaceEventMsg>().Code); Assert.True(galaxy.InRace(p));
+        galaxy.Race(c, new("abort", SessionId: id));
+        galaxy.Race(c, new("join", "cancel")); id = c.Last<RaceEventMsg>().SessionId;
+        galaxy.Race(c, new("ready", SessionId: id, ConfigHash: config.Hash));
+        galaxy.Race(c, new("finish", SessionId: id, Finish: new("ABORTED", "USER_ABORT", [])));
+        Assert.Equal("ABORTED", c.Last<RaceEventMsg>().Result!.Status); Assert.Equal(0, c.Last<RaceEventMsg>().Result!.ElapsedMs);
+    }
 }

@@ -1,0 +1,635 @@
+{
+  "date": "2026-10-11",
+  "status": "awaiting_visual_acceptance",
+  "asset_count": 22,
+  "export_bytes": 1305874,
+  "budget_bytes": 8388608,
+  "within_budget": true,
+  "assets": [
+    {
+      "name": "pod-copper-v1",
+      "source_file": "pod-copper-v1.png",
+      "requested_size": [
+        1536,
+        1024
+      ],
+      "source_size": [
+        1536,
+        1024
+      ],
+      "source_mode": "RGBA",
+      "source_bytes": 2121093,
+      "export_size": [
+        512,
+        341
+      ],
+      "export_bytes": 54274,
+      "transparent_pixels": 995788,
+      "visible_bounds": [
+        32,
+        150,
+        1503,
+        850
+      ],
+      "seam_metrics": null,
+      "errors": []
+    },
+    {
+      "name": "pod-blue-v1",
+      "source_file": "pod-blue-v1.png",
+      "requested_size": [
+        1536,
+        1024
+      ],
+      "source_size": [
+        1536,
+        1024
+      ],
+      "source_mode": "RGBA",
+      "source_bytes": 2200409,
+      "export_size": [
+        512,
+        341
+      ],
+      "export_bytes": 52930,
+      "transparent_pixels": 999312,
+      "visible_bounds": [
+        9,
+        93,
+        1527,
+        916
+      ],
+      "seam_metrics": null,
+      "errors": []
+    },
+    {
+      "name": "pod-yellow-v1",
+      "source_file": "pod-yellow-v1.png",
+      "requested_size": [
+        1536,
+        1024
+      ],
+      "source_size": [
+        1536,
+        1024
+      ],
+      "source_mode": "RGBA",
+      "source_bytes": 2220762,
+      "export_size": [
+        512,
+        341
+      ],
+      "export_bytes": 56712,
+      "transparent_pixels": 969353,
+      "visible_bounds": [
+        17,
+        114,
+        1524,
+        880
+      ],
+      "seam_metrics": null,
+      "errors": []
+    },
+    {
+      "name": "pod-white-v1",
+      "source_file": "pod-white-v1.png",
+      "requested_size": [
+        1536,
+        1024
+      ],
+      "source_size": [
+        1536,
+        1024
+      ],
+      "source_mode": "RGBA",
+      "source_bytes": 1830220,
+      "export_size": [
+        512,
+        341
+      ],
+      "export_bytes": 44636,
+      "transparent_pixels": 1118958,
+      "visible_bounds": [
+        26,
+        219,
+        1517,
+        789
+      ],
+      "seam_metrics": null,
+      "errors": []
+    },
+    {
+      "name": "pod-exhaust-v1",
+      "source_file": "pod-exhaust-v1.png",
+      "requested_size": [
+        512,
+        512
+      ],
+      "source_size": [
+        1254,
+        1254
+      ],
+      "source_mode": "RGBA",
+      "source_bytes": 517543,
+      "export_size": [
+        512,
+        512
+      ],
+      "export_bytes": 28020,
+      "transparent_pixels": 1306394,
+      "visible_bounds": [
+        41,
+        494,
+        1193,
+        783
+      ],
+      "seam_metrics": null,
+      "errors": []
+    },
+    {
+      "name": "pod-energy-link-v1",
+      "source_file": "pod-energy-link-v1.png",
+      "requested_size": [
+        512,
+        512
+      ],
+      "source_size": [
+        1254,
+        1254
+      ],
+      "source_mode": "RGBA",
+      "source_bytes": 247890,
+      "export_size": [
+        512,
+        512
+      ],
+      "export_bytes": 17506,
+      "transparent_pixels": 1471121,
+      "visible_bounds": [
+        569,
+        123,
+        697,
+        1136
+      ],
+      "seam_metrics": null,
+      "errors": []
+    },
+    {
+      "name": "canyon-sand-tile-v1",
+      "source_file": "canyon-sand-tile-v1.png",
+      "requested_size": [
+        1024,
+        1024
+      ],
+      "source_size": [
+        1254,
+        1254
+      ],
+      "source_mode": "RGB",
+      "source_bytes": 3878589,
+      "export_size": [
+        512,
+        512
+      ],
+      "export_bytes": 106712,
+      "transparent_pixels": 0,
+      "visible_bounds": [
+        0,
+        0,
+        1254,
+        1254
+      ],
+      "seam_metrics": {
+        "left_right_mean_difference": 15.75,
+        "top_bottom_mean_difference": 14.35
+      },
+      "errors": []
+    },
+    {
+      "name": "canyon-road-tile-v1",
+      "source_file": "canyon-road-tile-v1.png",
+      "requested_size": [
+        1024,
+        1024
+      ],
+      "source_size": [
+        1254,
+        1254
+      ],
+      "source_mode": "RGB",
+      "source_bytes": 3974229,
+      "export_size": [
+        512,
+        512
+      ],
+      "export_bytes": 110592,
+      "transparent_pixels": 0,
+      "visible_bounds": [
+        0,
+        0,
+        1254,
+        1254
+      ],
+      "seam_metrics": {
+        "left_right_mean_difference": 14.06,
+        "top_bottom_mean_difference": 14.89
+      },
+      "errors": []
+    },
+    {
+      "name": "canyon-rock-tile-v1",
+      "source_file": "canyon-rock-tile-v1.png",
+      "requested_size": [
+        1024,
+        1024
+      ],
+      "source_size": [
+        1254,
+        1254
+      ],
+      "source_mode": "RGB",
+      "source_bytes": 3607570,
+      "export_size": [
+        512,
+        512
+      ],
+      "export_bytes": 101452,
+      "transparent_pixels": 0,
+      "visible_bounds": [
+        0,
+        0,
+        1254,
+        1254
+      ],
+      "seam_metrics": {
+        "left_right_mean_difference": 12.22,
+        "top_bottom_mean_difference": 13.62
+      },
+      "errors": []
+    },
+    {
+      "name": "canyon-bank-a-v1",
+      "source_file": "revisions/canyon-bank-a-v1.png",
+      "requested_size": [
+        1024,
+        1024
+      ],
+      "source_size": [
+        1254,
+        1254
+      ],
+      "source_mode": "RGBA",
+      "source_bytes": 1271871,
+      "export_size": [
+        512,
+        512
+      ],
+      "export_bytes": 49410,
+      "transparent_pixels": 1126405,
+      "visible_bounds": [
+        23,
+        363,
+        1231,
+        923
+      ],
+      "seam_metrics": null,
+      "errors": []
+    },
+    {
+      "name": "canyon-bank-b-v1",
+      "source_file": "revisions/canyon-bank-b-v1.png",
+      "requested_size": [
+        1024,
+        1024
+      ],
+      "source_size": [
+        1254,
+        1254
+      ],
+      "source_mode": "RGBA",
+      "source_bytes": 1930675,
+      "export_size": [
+        512,
+        512
+      ],
+      "export_bytes": 71264,
+      "transparent_pixels": 913909,
+      "visible_bounds": [
+        30,
+        206,
+        1228,
+        1047
+      ],
+      "seam_metrics": null,
+      "errors": []
+    },
+    {
+      "name": "canyon-spur-v1",
+      "source_file": "revisions/canyon-spur-v1.png",
+      "requested_size": [
+        1024,
+        1024
+      ],
+      "source_size": [
+        1254,
+        1254
+      ],
+      "source_mode": "RGBA",
+      "source_bytes": 1777789,
+      "export_size": [
+        512,
+        512
+      ],
+      "export_bytes": 70686,
+      "transparent_pixels": 992170,
+      "visible_bounds": [
+        83,
+        61,
+        1171,
+        1193
+      ],
+      "seam_metrics": null,
+      "errors": []
+    },
+    {
+      "name": "canyon-rock-small-v1",
+      "source_file": "revisions/canyon-rock-small-v1.png",
+      "requested_size": [
+        512,
+        512
+      ],
+      "source_size": [
+        1254,
+        1254
+      ],
+      "source_mode": "RGBA",
+      "source_bytes": 1081069,
+      "export_size": [
+        512,
+        512
+      ],
+      "export_bytes": 40806,
+      "transparent_pixels": 1210414,
+      "visible_bounds": [
+        248,
+        257,
+        1007,
+        992
+      ],
+      "seam_metrics": null,
+      "errors": []
+    },
+    {
+      "name": "canyon-rock-large-v1",
+      "source_file": "canyon-rock-large-v1.png",
+      "requested_size": [
+        512,
+        512
+      ],
+      "source_size": [
+        1254,
+        1254
+      ],
+      "source_mode": "RGBA",
+      "source_bytes": 2327892,
+      "export_size": [
+        512,
+        512
+      ],
+      "export_bytes": 83720,
+      "transparent_pixels": 755689,
+      "visible_bounds": [
+        79,
+        92,
+        1175,
+        1160
+      ],
+      "seam_metrics": null,
+      "errors": []
+    },
+    {
+      "name": "canyon-rock-cluster-v1",
+      "source_file": "canyon-rock-cluster-v1.png",
+      "requested_size": [
+        512,
+        512
+      ],
+      "source_size": [
+        1254,
+        1254
+      ],
+      "source_mode": "RGBA",
+      "source_bytes": 1765886,
+      "export_size": [
+        512,
+        512
+      ],
+      "export_bytes": 69648,
+      "transparent_pixels": 949293,
+      "visible_bounds": [
+        197,
+        135,
+        1109,
+        1119
+      ],
+      "seam_metrics": null,
+      "errors": []
+    },
+    {
+      "name": "canyon-column-v1",
+      "source_file": "canyon-column-v1.png",
+      "requested_size": [
+        512,
+        512
+      ],
+      "source_size": [
+        1254,
+        1254
+      ],
+      "source_mode": "RGBA",
+      "source_bytes": 1618553,
+      "export_size": [
+        512,
+        512
+      ],
+      "export_bytes": 56012,
+      "transparent_pixels": 961922,
+      "visible_bounds": [
+        182,
+        173,
+        1074,
+        1072
+      ],
+      "seam_metrics": null,
+      "errors": []
+    },
+    {
+      "name": "canyon-pipe-v1",
+      "source_file": "canyon-pipe-v1.png",
+      "requested_size": [
+        512,
+        512
+      ],
+      "source_size": [
+        1254,
+        1254
+      ],
+      "source_mode": "RGBA",
+      "source_bytes": 1378343,
+      "export_size": [
+        512,
+        512
+      ],
+      "export_bytes": 50950,
+      "transparent_pixels": 1060475,
+      "visible_bounds": [
+        182,
+        168,
+        1168,
+        1114
+      ],
+      "seam_metrics": null,
+      "errors": []
+    },
+    {
+      "name": "canyon-scrap-v1",
+      "source_file": "canyon-scrap-v1.png",
+      "requested_size": [
+        512,
+        512
+      ],
+      "source_size": [
+        1254,
+        1254
+      ],
+      "source_mode": "RGBA",
+      "source_bytes": 2240286,
+      "export_size": [
+        512,
+        512
+      ],
+      "export_bytes": 93490,
+      "transparent_pixels": 733522,
+      "visible_bounds": [
+        87,
+        118,
+        1184,
+        1126
+      ],
+      "seam_metrics": null,
+      "errors": []
+    },
+    {
+      "name": "canyon-beacon-v1",
+      "source_file": "canyon-beacon-v1.png",
+      "requested_size": [
+        512,
+        512
+      ],
+      "source_size": [
+        1254,
+        1254
+      ],
+      "source_mode": "RGBA",
+      "source_bytes": 1202111,
+      "export_size": [
+        512,
+        512
+      ],
+      "export_bytes": 46008,
+      "transparent_pixels": 1100740,
+      "visible_bounds": [
+        163,
+        153,
+        1087,
+        1078
+      ],
+      "seam_metrics": null,
+      "errors": []
+    },
+    {
+      "name": "race-arrow-v1",
+      "source_file": "revisions/race-arrow-v1.png",
+      "requested_size": [
+        512,
+        512
+      ],
+      "source_size": [
+        1254,
+        1254
+      ],
+      "source_mode": "RGBA",
+      "source_bytes": 595704,
+      "export_size": [
+        512,
+        512
+      ],
+      "export_bytes": 31528,
+      "transparent_pixels": 1293826,
+      "visible_bounds": [
+        70,
+        328,
+        1190,
+        945
+      ],
+      "seam_metrics": null,
+      "errors": []
+    },
+    {
+      "name": "race-start-stripe-v1",
+      "source_file": "race-start-stripe-v1.png",
+      "requested_size": [
+        512,
+        512
+      ],
+      "source_size": [
+        1254,
+        1254
+      ],
+      "source_mode": "RGBA",
+      "source_bytes": 670235,
+      "export_size": [
+        512,
+        512
+      ],
+      "export_bytes": 25418,
+      "transparent_pixels": 1332650,
+      "visible_bounds": [
+        527,
+        42,
+        728,
+        1181
+      ],
+      "seam_metrics": null,
+      "errors": []
+    },
+    {
+      "name": "race-checkpoint-post-v1",
+      "source_file": "revisions/race-checkpoint-post-v1.png",
+      "requested_size": [
+        512,
+        512
+      ],
+      "source_size": [
+        1254,
+        1254
+      ],
+      "source_mode": "RGBA",
+      "source_bytes": 1293289,
+      "export_size": [
+        512,
+        512
+      ],
+      "export_bytes": 44100,
+      "transparent_pixels": 1072819,
+      "visible_bounds": [
+        340,
+        124,
+        956,
+        1123
+      ],
+      "seam_metrics": null,
+      "errors": []
+    }
+  ]
+}
