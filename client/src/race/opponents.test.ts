@@ -24,10 +24,30 @@ describe('computer opponents', () => {
   });
   it('completes the real canyon in order without crashing or skipping gates', () => {
     const player = new LocalRace(config, 0, 0), field = new RaceOpponents(player, 'copper');
-    for (let tick = 1; tick <= 60 * 300 && field.racers.some(r => r.run.active); tick++) field.advance(tick * 1000 / 60);
+    const peaks = [0, 0, 0], braking = [false, false, false];
+    for (let tick = 1; tick <= 60 * 300 && field.racers.some(r => r.run.active); tick++) {
+      const before = field.racers.map(r => Math.hypot(r.run.body.velocity.x, r.run.body.velocity.y));
+      field.advance(tick * 1000 / 60);
+      field.racers.forEach((r, i) => {
+        const speed = Math.hypot(r.run.body.velocity.x, r.run.body.velocity.y);
+        peaks[i] = Math.max(peaks[i], speed);
+        if (r.run.active && before[i] - speed > .3) braking[i] = true;
+      });
+    }
     expect(field.racers.map(r => ({ name: r.name, state: r.run.state, laps: r.run.lapTimesMs.length, cp: r.run.nextCp, hp: r.run.body.hp })))
       .toEqual(field.racers.map(r => ({ name: r.name, state: 'FINISHED', laps: 3, cp: 0, hp: rules.hp })));
     expect(new Set(field.racers.map(r => r.run.elapsedMs)).size).toBe(3);
+    expect(peaks.every(speed => speed > rules.engineLimit * .95)).toBe(true);
+    expect(braking).toEqual([true, true, true]);
+  });
+  it('all pilots reach the vehicle speed limit on a long straight', () => {
+    const straight: Config = { ...config, track: { ...track, walls: [], obstacles: [],
+      centerline: Array.from({ length: 800 }, (_, i) => ({ x: i * 2.5, y: 0 })) } };
+    const field = new RaceOpponents(new LocalRace(straight, 0, 0), 'copper');
+    for (let tick = 1; tick <= 60 * 10; tick++) field.advance(tick * 1000 / 60);
+    for (const racer of field.racers) {
+      expect(Math.hypot(racer.run.body.velocity.x, racer.run.body.velocity.y)).toBeCloseTo(rules.engineLimit, 1);
+    }
   });
   it('orders completed laps before checkpoints, finishers by time and retired racers last', () => {
     const player = new LocalRace(config, 0, 0), field = new RaceOpponents(player, 'copper');

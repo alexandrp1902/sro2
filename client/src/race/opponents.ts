@@ -65,7 +65,8 @@ export class RaceOpponents {
     const heading = Math.atan2(target.y - b.position.y, target.x - b.position.x);
     const bend = Math.abs(angle(Math.atan2(far.y - target.y, far.x - target.x) - heading));
     const error = Math.abs(angle(heading - b.heading));
-    const desired = Math.max(9, (29 - index * 3) / (1 + bend * 2 + error));
+    const desired = Math.max(12, run.config.rules.engineLimit /
+      (1 + Math.max(0, bend - .06) * (2 + index * .12) + Math.max(0, error - .06)));
     // Counter lateral drift before it carries the pod into the outside bank.
     const vx = b.velocity.x - Math.cos(heading) * speed, vy = b.velocity.y - Math.sin(heading) * speed;
     return { ...idle, heading: Math.atan2(Math.sin(heading) * desired - vy * .65,
